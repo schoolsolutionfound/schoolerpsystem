@@ -21,7 +21,7 @@ const TEACHER_FEATURES = [
 export default function TeacherHomeScreen() {
   const router = useRouter();
   const fullName = useUserStore((state) => state.fullName);
-  const schoolName = useUserStore((state) => state.schoolName);
+  const institutionName = useUserStore((state) => state.institutionName);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const cardAnims = TEACHER_FEATURES.map(() => ({
     opacity: useRef(new Animated.Value(0)).current,
@@ -46,7 +46,7 @@ export default function TeacherHomeScreen() {
         <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
           <View>
             <Text style={styles.greeting}>Hello, {fullName || 'Teacher'} 👋</Text>
-            <Text style={styles.schoolName}>{schoolName}</Text>
+            <Text style={styles.schoolName}>{institutionName}</Text>
           </View>
           <TouchableOpacity onPress={() => router.push('/profile')} style={styles.avatarBtn}>
             <LinearGradient colors={['#667EEA', '#764BA2']} style={styles.avatarGradient}>

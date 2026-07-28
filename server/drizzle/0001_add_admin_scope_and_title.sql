@@ -1,0 +1,3 @@
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "title" text DEFAULT '';
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "scope" text DEFAULT '{}';
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "permissions" text DEFAULT '[]';

@@ -40,9 +40,9 @@ try {
   auth = getAuth(app);
 }
 
-const db = initializeFirestore(app, {
-  localCache: persistentLocalCache()
-});
+import { getFirestore } from "firebase/firestore";
+
+const db = getFirestore(app);
 
 const storage = getStorage(app);
 

@@ -52,7 +52,7 @@ export default function WelcomeScreen() {
             <View style={styles.buttons}>
               <TouchableOpacity
                 style={styles.adminBtn}
-                onPress={() => router.push('/admin-login')}
+                onPress={() => router.push('/auth')}
                 activeOpacity={0.7}
               >
                 <View style={styles.btnIconWrap}>
@@ -67,7 +67,7 @@ export default function WelcomeScreen() {
 
               <TouchableOpacity
                 style={styles.teacherBtn}
-                onPress={() => router.push('/teacher-login')}
+                onPress={() => router.push('/auth')}
                 activeOpacity={0.7}
               >
                 <View style={styles.btnIconWrap}>

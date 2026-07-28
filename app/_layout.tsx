@@ -2,8 +2,9 @@ import { Stack, usePathname, useRouter } from 'expo-router';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, Platform, Linking, Animated } from 'react-native';
+import { View, Text, StyleSheet, Platform, Animated } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 
 import { auth } from '../firebaseConfig';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -12,27 +13,34 @@ import { useConfigStore } from '../store/useConfigStore';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as Sentry from '@sentry/react-native';
-import * as Notifications from 'expo-notifications';
 
-import { useAuthGuard } from '../hooks/useAuthGuard';
-import { usePushNotifications } from '../hooks/usePushNotifications';
-import { useAppSync } from '../hooks/useAppSync';
+import { useAuthGuard } from '../features/shared/hooks/useAuthGuard';
+import { usePushNotifications } from '../features/shared/hooks/usePushNotifications';
+import { useAppSync } from '../features/shared/hooks/useAppSync';
+
+const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+
+let Notifications: typeof import('expo-notifications') | null = null;
+if (!isExpoGo && Platform.OS !== 'web') {
+  try {
+    Notifications = require('expo-notifications');
+  } catch (e) {
+    // Ignore in Expo Go or environment without native push support
+  }
+}
 
 // @ts-ignore
 if (!global.appStartTime) global.appStartTime = Date.now();
-// @ts-ignore
-const getElapsed = () => `[${Date.now() - global.appStartTime}ms]`;
 
-if (Platform.OS !== 'web') {
+const hasSentryDsn = Platform.OS !== 'web' && process.env.EXPO_PUBLIC_SENTRY_DSN?.startsWith('https://');
+
+if (hasSentryDsn) {
   try {
-    const sentryDsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
-    if (sentryDsn && sentryDsn.startsWith('https://')) {
-      Sentry.init({
-        dsn: sentryDsn,
-        sendDefaultPii: true,
-        enableLogs: __DEV__,
-      });
-    }
+    Sentry.init({
+      dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
+      sendDefaultPii: true,
+      enableLogs: __DEV__,
+    });
   } catch (e) {
     console.error("Sentry Init failed:", e);
   }
@@ -45,11 +53,8 @@ const AppLayout = function Layout() {
   const setUserProfile = useUserStore((state) => state.setUserProfile);
   const resetUser = useUserStore((state) => state.resetUser);
   const _hasHydrated = useUserStore((state) => state._hasHydrated);
-  const schoolId = useUserStore((state) => state.schoolId);
   const userRole = useUserStore((state) => state.userRole);
   const isEmailVerified = useUserStore((state) => state.isEmailVerified);
-  const email = useUserStore((state) => state.email);
-  const language = useUserStore((state) => state.language);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -57,10 +62,8 @@ const AppLayout = function Layout() {
   const [authLoading, setAuthLoading] = useState(true);
   const isProfileSynced = useUserStore((state) => state.isProfileSynced);
   const setIsProfileSynced = useUserStore((state) => state.setIsProfileSynced);
-  const setProfileExists = useUserStore((state) => state.setProfileExists);
-  const profileExists = useUserStore((state) => state.profileExists);
 
-  const { maintenance: configMaintenance, _hasHydrated: _configHydrated } = useConfigStore();
+  const { maintenance: configMaintenance } = useConfigStore();
   const isMaintenance = configMaintenance.enabled;
   const minVersion = configMaintenance.minVersion;
   const [isMCheckLoading, setIsMCheckLoading] = useState(true);
@@ -87,7 +90,7 @@ const AppLayout = function Layout() {
   usePushNotifications();
   useAppSync();
 
-  const isRedirectPending = useAuthGuard({
+  useAuthGuard({
     userSession,
     userRole,
     isEmailVerified,
@@ -103,7 +106,7 @@ const AppLayout = function Layout() {
     const splashTimeout = setTimeout(() => {
       if (!isSplashHidden.current) {
         isSplashHidden.current = true;
-        SplashScreen.hideAsync().catch(() => {});
+        SplashScreen.hideAsync().catch(() => { });
       }
     }, Platform.OS === 'web' ? 5000 : 8000);
 
@@ -120,13 +123,18 @@ const AppLayout = function Layout() {
     });
 
     const checkInitialNotification = async () => {
-      const response = await Notifications.getLastNotificationResponseAsync();
-      if (response) {
-        const data = response.notification.request.content.data as any;
-        setTimeout(() => validateAndRedirect(data), 800);
+      if (isExpoGo || !Notifications) return;
+      try {
+        const response = await Notifications.getLastNotificationResponseAsync();
+        if (response) {
+          const data = response.notification.request.content.data as any;
+          setTimeout(() => validateAndRedirect(data), 800);
+        }
+      } catch (e) {
+        // Ignore
       }
     };
-    if (Platform.OS !== 'web') {
+    if (Platform.OS !== 'web' && !isExpoGo) {
       checkInitialNotification();
     }
 
@@ -167,7 +175,7 @@ const AppLayout = function Layout() {
     return null;
   }
 
-  const isDevPage = pathname.includes('/dev-') || pathname === '/dev-login';
+  const isDevPage = pathname.includes('/dev-') || pathname.startsWith('/(developer)');
 
   if (needsUpdate && !isDevPage) {
     return (
@@ -197,9 +205,6 @@ const AppLayout = function Layout() {
           <Stack.Screen name="welcome" />
           <Stack.Screen name="auth" />
           <Stack.Screen name="verify-email" />
-          <Stack.Screen name="admin-login" />
-          <Stack.Screen name="teacher-login" />
-          <Stack.Screen name="dev-login" />
           <Stack.Screen name="select-school" />
           <Stack.Screen name="home" />
           <Stack.Screen name="admin-home" />
@@ -213,7 +218,7 @@ const AppLayout = function Layout() {
   );
 };
 
-const RootLayout = Platform.OS === 'web' ? AppLayout : Sentry.wrap(AppLayout);
+const RootLayout = hasSentryDsn ? Sentry.wrap(AppLayout) : AppLayout;
 export default RootLayout;
 
 const styles = StyleSheet.create({

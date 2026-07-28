@@ -1,115 +1,209 @@
-import React, { useRef, useEffect } from 'react';
-import { View, StyleSheet, Text, ScrollView, TouchableOpacity, Animated, Dimensions, StatusBar } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
-import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useUserStore } from '../store/useUserStore';
-
-const { width } = Dimensions.get('window');
-const CARD_WIDTH = (width - 60) / 2;
-
-const ADMIN_FEATURES = [
-  { icon: 'account-group', title: 'Students', desc: 'Manage all students', gradient: ['#667EEA', '#764BA2'], screen: '/admin-students' },
-  { icon: 'account-tie', title: 'Teachers', desc: 'Manage staff', gradient: ['#F093FB', '#F5576C'], screen: '/admin-teachers' },
-  { icon: 'calendar-check', title: 'Attendance', desc: 'Reports & analytics', gradient: ['#4FACFE', '#00F2FE'], screen: '/admin-attendance' },
-  { icon: 'file-document', title: 'Results', desc: 'Exam management', gradient: ['#43E97B', '#38F9D7'], screen: '/admin-results' },
-  { icon: 'cash-multiple', title: 'Fees', desc: 'Collections & reports', gradient: ['#FA709A', '#FEE140'], screen: '/admin-fees' },
-  { icon: 'timetable', title: 'Timetable', desc: 'Schedule manager', gradient: ['#A18CD1', '#FBC2EB'], screen: '/admin-timetable' },
-  { icon: 'bullhorn', title: 'Announcements', desc: 'Post updates', gradient: ['#FF9A9E', '#FECFEF'], screen: '/admin-announcements' },
-  { icon: 'cog', title: 'Settings', desc: 'School config', gradient: ['#667EEA', '#43E97B'], screen: '/admin-settings' },
-];
+import {
+  fetchInstitutionConfigApi,
+  updateInstitutionConfigApi,
+  fetchStudentsApi,
+  createStudentApi,
+  fetchTeachersApi,
+  createTeacherApi,
+} from '../api/admin';
+import { AdminDashboardView } from '../features/admin/components/AdminDashboardView';
+import { AdminInstitutionView } from '../features/admin/components/AdminInstitutionView';
+import { AdminStudentsView } from '../features/admin/components/AdminStudentsView';
+import { AdminTeachersView } from '../features/admin/components/AdminTeachersView';
+import { AdminProfileView } from '../features/admin/components/AdminProfileView';
 
 export default function AdminHomeScreen() {
   const router = useRouter();
-  const fullName = useUserStore((state) => state.fullName);
-  const schoolName = useUserStore((state) => state.schoolName);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const cardAnims = ADMIN_FEATURES.map(() => ({
-    opacity: useRef(new Animated.Value(0)).current,
-    translateY: useRef(new Animated.Value(20)).current,
-  }));
+  const fullName = useUserStore((state) => state.fullName) || 'Institution Admin';
+  const email = useUserStore((state) => state.email) || 'admin@school.com';
+  const institutionName = useUserStore((state) => state.institutionName) || 'My Institution';
+  const institutionCode = useUserStore((state) => state.institutionId) || 'DEFAULT';
+  const resetUser = useUserStore((state) => state.resetUser);
+
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'institution' | 'students' | 'teachers' | 'profile'>('dashboard');
+  const [loading, setLoading] = useState(true);
+
+  // Server State
+  const [config, setConfig] = useState<any>({
+    institutionCode,
+    institutionName,
+    institutionType: 'college',
+    departments: ['Computer Science', 'Electronics', 'Mechanical', 'Civil'],
+    academicYears: ['1st Year', '2nd Year', '3rd Year', '4th Year'],
+    courses: ['B.Tech', 'M.Tech'],
+    sections: ['Section A', 'Section B'],
+  });
+  const [students, setStudents] = useState<any[]>([]);
+  const [teachers, setTeachers] = useState<any[]>([]);
+
+  const loadAllData = async () => {
+    setLoading(true);
+    try {
+      const [configRes, studentsRes, teachersRes] = await Promise.all([
+        fetchInstitutionConfigApi().catch(() => null),
+        fetchStudentsApi().catch(() => null),
+        fetchTeachersApi().catch(() => null),
+      ]);
+
+      if (configRes?.data) {
+        setConfig(configRes.data);
+      }
+      if (studentsRes?.data && Array.isArray(studentsRes.data)) {
+        setStudents(studentsRes.data);
+      }
+      if (teachersRes?.data && Array.isArray(teachersRes.data)) {
+        setTeachers(teachersRes.data);
+      }
+    } catch (err: any) {
+      console.warn('[Admin Data Load Warning]', err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }).start();
-    ADMIN_FEATURES.forEach((_, i) => {
-      Animated.parallel([
-        Animated.timing(cardAnims[i].opacity, { toValue: 1, duration: 400, delay: 100 + i * 70, useNativeDriver: true }),
-        Animated.timing(cardAnims[i].translateY, { toValue: 0, duration: 400, delay: 100 + i * 70, useNativeDriver: true }),
-      ]).start();
-    });
+    loadAllData();
   }, []);
+
+  const handleSaveConfig = async (updated: {
+    departments: string[];
+    academicYears: string[];
+    courses: string[];
+    sections: string[];
+  }) => {
+    const res = await updateInstitutionConfigApi(updated);
+    if (res?.data) {
+      setConfig(res.data);
+    }
+  };
+
+  const handleCreateStudent = async (studentPayload: any) => {
+    const res = await createStudentApi(studentPayload);
+    if (res?.data) {
+      setStudents((prev) => [res.data, ...prev]);
+    }
+  };
+
+  const handleCreateTeacher = async (teacherPayload: any) => {
+    const res = await createTeacherApi(teacherPayload);
+    if (res?.data) {
+      setTeachers((prev) => [res.data, ...prev]);
+    }
+  };
+
+  const handleLogout = () => {
+    resetUser();
+    router.replace('/auth');
+  };
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
-      <LinearGradient colors={['#0F0C29', '#1A1740']} style={StyleSheet.absoluteFill} />
-      <SafeAreaView style={styles.safeArea}>
-        <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
-          <View>
-            <Text style={styles.greeting}>Welcome, {fullName || 'Admin'} 👋</Text>
-            <Text style={styles.schoolName}>{schoolName}</Text>
+      <SafeAreaView style={styles.safe}>
+        {loading ? (
+          <View style={styles.loadingBox}>
+            <ActivityIndicator size="large" color="#7E57C2" />
+            <Text style={styles.loadingText}>Loading Admin Workspace...</Text>
           </View>
-          <TouchableOpacity onPress={() => router.push('/admin-profile')} style={styles.settingsBtn}>
-            <LinearGradient colors={['#667EEA', '#764BA2']} style={styles.settingsGradient}>
-              <Feather name="settings" size={20} color="#FFF" />
-            </LinearGradient>
-          </TouchableOpacity>
-        </Animated.View>
+        ) : (
+          <View style={{ flex: 1 }}>
+            {activeTab === 'dashboard' && (
+              <AdminDashboardView
+                fullName={fullName}
+                institutionName={config.institutionName || institutionName}
+                institutionCode={config.institutionCode || institutionCode}
+                studentCount={students.length}
+                teacherCount={teachers.length}
+                onNavigateTab={(tab) => setActiveTab(tab)}
+              />
+            )}
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.gridContent}>
-          <Text style={styles.sectionTitle}>Admin Dashboard</Text>
-          <View style={styles.grid}>
-            {ADMIN_FEATURES.map((item, i) => (
-              <Animated.View
-                key={i}
-                style={[styles.cardWrapper, { opacity: cardAnims[i].opacity, transform: [{ translateY: cardAnims[i].translateY }] }]}
-              >
-                <TouchableOpacity activeOpacity={0.85} onPress={() => router.push(item.screen as any)}>
-                  <LinearGradient
-                    colors={item.gradient as any}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.card}
-                  >
-                    <MaterialCommunityIcons name={item.icon as any} size={26} color="#FFF" />
-                    <Text style={styles.cardTitle}>{item.title}</Text>
-                    <Text style={styles.cardDesc}>{item.desc}</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              </Animated.View>
-            ))}
+            {activeTab === 'institution' && (
+              <AdminInstitutionView config={config} onSaveConfig={handleSaveConfig} />
+            )}
+
+            {activeTab === 'students' && (
+              <AdminStudentsView
+                students={students}
+                departments={config.departments || []}
+                academicYears={config.academicYears || []}
+                sections={config.sections || []}
+                onCreateStudent={handleCreateStudent}
+              />
+            )}
+
+            {activeTab === 'teachers' && (
+              <AdminTeachersView
+                teachers={teachers}
+                departments={config.departments || []}
+                onCreateTeacher={handleCreateTeacher}
+              />
+            )}
+
+            {activeTab === 'profile' && (
+              <AdminProfileView
+                fullName={fullName}
+                email={email}
+                institutionName={config.institutionName || institutionName}
+                institutionCode={config.institutionCode || institutionCode}
+                roleName="Institution Administrator"
+                onChangePassword={() => router.push('/change-password')}
+                onLogout={handleLogout}
+              />
+            )}
           </View>
-        </ScrollView>
+        )}
+
+        {/* Workspace Bottom Navigation Bar */}
+        <View style={styles.tabBar}>
+          <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('dashboard')}>
+            <MaterialCommunityIcons name="view-dashboard-outline" size={22} color={activeTab === 'dashboard' ? '#7E57C2' : '#94A3B8'} />
+            <Text style={[styles.tabLabel, activeTab === 'dashboard' && styles.tabLabelActive]}>Dashboard</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('institution')}>
+            <MaterialCommunityIcons name="office-building" size={22} color={activeTab === 'institution' ? '#7E57C2' : '#94A3B8'} />
+            <Text style={[styles.tabLabel, activeTab === 'institution' && styles.tabLabelActive]}>Institution</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('students')}>
+            <MaterialCommunityIcons name="account-school-outline" size={22} color={activeTab === 'students' ? '#7E57C2' : '#94A3B8'} />
+            <Text style={[styles.tabLabel, activeTab === 'students' && styles.tabLabelActive]}>Students</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('teachers')}>
+            <MaterialCommunityIcons name="human-male-board" size={22} color={activeTab === 'teachers' ? '#7E57C2' : '#94A3B8'} />
+            <Text style={[styles.tabLabel, activeTab === 'teachers' && styles.tabLabelActive]}>Teachers</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('profile')}>
+            <MaterialCommunityIcons name="account-circle-outline" size={22} color={activeTab === 'profile' ? '#7E57C2' : '#94A3B8'} />
+            <Text style={[styles.tabLabel, activeTab === 'profile' && styles.tabLabelActive]}>Profile</Text>
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0F0C29' },
-  safeArea: { flex: 1 },
-  header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 24, paddingTop: 10, paddingBottom: 6,
+  container: { flex: 1, backgroundColor: '#F8F9FB' },
+  safe: { flex: 1 },
+  loadingBox: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
+  loadingText: { fontSize: 14, fontWeight: '600', color: '#7E57C2' },
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+    paddingVertical: 8,
   },
-  greeting: { fontSize: 22, fontWeight: '800', color: '#FFFFFF' },
-  schoolName: { fontSize: 13, color: 'rgba(255,255,255,0.4)', marginTop: 4, fontWeight: '500' },
-  settingsBtn: { elevation: 6 },
-  settingsGradient: {
-    width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#667EEA', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 8,
-  },
-  gridContent: { paddingHorizontal: 24, paddingBottom: 30, paddingTop: 14 },
-  sectionTitle: {
-    fontSize: 16, fontWeight: '700', color: 'rgba(255,255,255,0.6)', marginBottom: 14,
-  },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  cardWrapper: { width: CARD_WIDTH },
-  card: {
-    borderRadius: 18, padding: 16, minHeight: 120,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12,
-  },
-  cardTitle: { fontSize: 14, fontWeight: '700', color: '#FFF', marginTop: 12 },
-  cardDesc: { fontSize: 11, color: 'rgba(255,255,255,0.7)', marginTop: 3, fontWeight: '500' },
+  tabItem: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  tabLabel: { fontSize: 10, fontWeight: '500', color: '#94A3B8', marginTop: 2 },
+  tabLabelActive: { color: '#7E57C2', fontWeight: '700' },
 });

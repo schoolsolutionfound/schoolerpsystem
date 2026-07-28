@@ -5,6 +5,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../firebaseConfig';
 import { useUserStore } from '../store/useUserStore';
+import { getHomeRouteForRole } from '../features/shared/utils/routeGuards';
 
 const { width, height } = Dimensions.get('window');
 
@@ -32,7 +33,6 @@ export default function AppSplashScreen() {
   const _hasHydrated = useUserStore((state) => state._hasHydrated);
   const isProfileSynced = useUserStore((state) => state.isProfileSynced);
   const userRole = useUserStore((state) => state.userRole);
-  const schoolId = useUserStore((state) => state.schoolId);
   const isEmailVerified = useUserStore((state) => state.isEmailVerified);
 
   const [authStateResolved, setAuthStateResolved] = useState(false);
@@ -89,43 +89,32 @@ export default function AppSplashScreen() {
     const isReadyToNavigate = authStateResolved && _hasHydrated && (!user || isProfileSynced);
     if (!isReadyToNavigate) return;
 
-    let finalRoute: any = '/welcome';
-    let finalParams = {};
+    let finalRoute: any = '/auth';
 
     if (user) {
-      if (userRole === 'admin' && schoolId) {
-        finalRoute = '/admin-home';
-        finalParams = { adminId: user.email, schoolId };
-      } else if (userRole === 'teacher' && schoolId) {
-        finalRoute = '/teacher-home';
-        finalParams = { teacherId: user.email, schoolId };
-      } else if (userRole === 'dev') {
-        finalRoute = '/dev-home';
-      } else if (userRole === 'student' && !isEmailVerified) {
+      if (userRole === 'student' && !isEmailVerified) {
         finalRoute = '/verify-email';
-      } else if (userRole === 'student' && schoolId) {
-        finalRoute = '/home';
       } else if (userRole === 'loading') {
         return;
       } else {
-        finalRoute = '/select-school';
+        finalRoute = getHomeRouteForRole(userRole);
       }
     } else {
-      finalRoute = '/welcome';
+      finalRoute = '/auth';
     }
 
-    const remaining = Math.max(0, 2200 - (Date.now() - startTimeRef.current));
+    const remaining = Math.max(0, 1800 - (Date.now() - startTimeRef.current));
 
     const failsafe = setTimeout(() => {
-      if (!isReadyToNavigate) router.replace(user ? '/home' : '/welcome');
-    }, 10000);
+      if (!isReadyToNavigate) router.replace('/auth');
+    }, 8000);
 
     const timer = setTimeout(() => {
-      router.replace({ pathname: finalRoute, params: finalParams });
+      router.replace(finalRoute);
     }, remaining);
 
     return () => { clearTimeout(timer); clearTimeout(failsafe); };
-  }, [authStateResolved, isProfileSynced, _hasHydrated, userRole, schoolId, isEmailVerified, router]);
+  }, [authStateResolved, isProfileSynced, _hasHydrated, userRole, isEmailVerified, router]);
 
   return (
     <View style={styles.container}>
