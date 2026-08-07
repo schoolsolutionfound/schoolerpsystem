@@ -2,7 +2,7 @@ import { Stack, usePathname, useRouter } from 'expo-router';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, Platform, Animated } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 
@@ -69,7 +69,7 @@ const AppLayout = function Layout() {
   const [isMCheckLoading, setIsMCheckLoading] = useState(true);
   const isSplashHidden = useRef(false);
 
-  const CURRENT_APP_VERSION = '1.0.0';
+  const CURRENT_APP_VERSION = Constants.expoConfig?.version || '1.0.0';
 
   const validateAndRedirect = useCallback((data: any) => {
     if (!data?.screen) return;
@@ -78,22 +78,32 @@ const AppLayout = function Layout() {
     if (targetRole !== 'all' && targetRole !== currentRole) return;
 
     const route = data.screen.startsWith('/') ? data.screen : `/${data.screen}`;
-    const isRoleMismatch =
-      (route.startsWith('/admin-') && currentRole !== 'admin') ||
-      (route.startsWith('/teacher-') && currentRole !== 'teacher') ||
-      (route.startsWith('/dev-') && currentRole !== 'dev');
+    const routeGroup = route.match(/^\/(\([^)]+\))/)?.[1];
+    if (routeGroup) {
+      const groupToRole: Record<string, string> = {
+        '/(admin)': 'admin',
+        '/(teacher)': 'teacher',
+        '/(student)': 'student',
+        '/(principal)': 'principal',
+        '/(parent)': 'parent',
+        '/(accountant)': 'accountant',
+        '/(hod)': 'hod',
+        '/(librarian)': 'librarian',
+        '/(developer)': 'dev',
+      };
+      const requiredRole = groupToRole[routeGroup];
+      if (requiredRole && requiredRole !== currentRole) return;
+    }
 
-    if (isRoleMismatch) return;
     router.push({ pathname: route as any, params: data });
   }, [router]);
 
   usePushNotifications();
-  useAppSync();
+  useAppSync(userSession);
 
   useAuthGuard({
     userSession,
     userRole,
-    isEmailVerified,
     pathname,
     authLoading,
     _hasHydrated,
@@ -113,11 +123,8 @@ const AppLayout = function Layout() {
     const unsubAuth = onAuthStateChanged(auth, (user) => {
       setUserSession(user);
       if (!user) {
-        const isBypass = useUserStore.getState().isBypassUser;
-        if (!isBypass) {
-          setIsProfileSynced(false);
-          resetUser();
-        }
+        setIsProfileSynced(false);
+        resetUser();
       }
       setAuthLoading(false);
     });
@@ -138,14 +145,11 @@ const AppLayout = function Layout() {
       checkInitialNotification();
     }
 
-    return () => unsubAuth();
+    return () => {
+      clearTimeout(splashTimeout);
+      unsubAuth();
+    };
   }, [setUserProfile, validateAndRedirect, resetUser]);
-
-  useEffect(() => {
-    if (auth.currentUser && (userRole === 'admin' || userRole === 'teacher' || userRole === 'dev')) {
-      setIsProfileSynced(true);
-    }
-  }, [auth.currentUser, userRole]);
 
   const compareVersions = (v1: string, v2: string) => {
     const parts1 = v1.split('.').map(Number), parts2 = v2.split('.').map(Number);
@@ -175,7 +179,7 @@ const AppLayout = function Layout() {
     return null;
   }
 
-  const isDevPage = pathname.includes('/dev-') || pathname.startsWith('/(developer)');
+  const isDevPage = pathname.startsWith('/(developer)');
 
   if (needsUpdate && !isDevPage) {
     return (
@@ -206,12 +210,18 @@ const AppLayout = function Layout() {
           <Stack.Screen name="auth" />
           <Stack.Screen name="verify-email" />
           <Stack.Screen name="select-school" />
-          <Stack.Screen name="home" />
-          <Stack.Screen name="admin-home" />
-          <Stack.Screen name="teacher-home" />
-          <Stack.Screen name="profile" />
-          <Stack.Screen name="admin-profile" />
+          <Stack.Screen name="change-password" />
+          <Stack.Screen name="complete-profile" />
           <Stack.Screen name="notifications" />
+          <Stack.Screen name="(admin)" />
+          <Stack.Screen name="(teacher)" />
+          <Stack.Screen name="(student)" />
+          <Stack.Screen name="(principal)" />
+          <Stack.Screen name="(parent)" />
+          <Stack.Screen name="(accountant)" />
+          <Stack.Screen name="(hod)" />
+          <Stack.Screen name="(librarian)" />
+          <Stack.Screen name="(developer)" />
         </Stack>
       </View>
     </QueryClientProvider>

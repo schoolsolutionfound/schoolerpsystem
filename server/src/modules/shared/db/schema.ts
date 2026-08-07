@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean, varchar } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, boolean, varchar, jsonb, index } from 'drizzle-orm/pg-core';
 
 export const institutions = pgTable('institutions', {
   id: text('id')
@@ -8,6 +8,9 @@ export const institutions = pgTable('institutions', {
   institutionName: text('institution_name').notNull(),
   institutionType: varchar('institution_type', { length: 50 }).notNull().default('college'),
   subscriptionStatus: varchar('subscription_status', { length: 50 }).notNull().default('active'),
+  departments: jsonb('departments').$type<string[]>().default([]),
+  academicYears: jsonb('academic_years').$type<string[]>().default([]),
+  courses: jsonb('courses').$type<string[]>().default([]),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
@@ -28,16 +31,18 @@ export const users = pgTable('users', {
   mustChangePassword: boolean('must_change_password').default(false),
   profileCompleted: boolean('profile_completed').default(false),
   parentPhone: varchar('parent_phone', { length: 20 }).default(''),
-  studentPhone: varchar('student_phone', { length: 20 }).default(''),
+  phone: varchar('student_phone', { length: 20 }).default(''),
   profilePicUrl: text('profile_pic_url').default(''),
   tenthPercentage: varchar('tenth_percentage', { length: 10 }).default(''),
   twelfthPercentage: varchar('twelfth_percentage', { length: 10 }).default(''),
   title: text('title').default(''),
-  scope: text('scope').default('{}'),
-  permissions: text('permissions').default('[]'),
+  scope: jsonb('scope').$type<Record<string, any>>().default({}),
+  permissions: jsonb('permissions').$type<string[]>().default([]),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
-});
+}, (table) => ({
+  institutionCodeIdx: index('idx_users_institution_code').on(table.institutionCode),
+}));
 
 export type UserRecord = typeof users.$inferSelect;
 export type NewUserRecord = typeof users.$inferInsert;

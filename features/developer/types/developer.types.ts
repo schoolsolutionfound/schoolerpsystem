@@ -4,6 +4,9 @@ export interface Institution {
   institutionName: string;
   institutionType: 'school' | 'college';
   subscriptionStatus: 'active' | 'inactive' | 'suspended' | 'trial';
+  departments?: string[];
+  academicYears?: string[];
+  courses?: string[];
   createdAt?: string;
   updatedAt?: string;
 }
@@ -13,12 +16,18 @@ export interface CreateInstitutionInput {
   institutionName: string;
   institutionType: 'school' | 'college';
   subscriptionStatus?: 'active' | 'inactive' | 'suspended' | 'trial';
+  departments?: string[];
+  academicYears?: string[];
+  courses?: string[];
 }
 
 export interface UpdateInstitutionInput {
   institutionName?: string;
   institutionType?: 'school' | 'college';
   subscriptionStatus?: 'active' | 'inactive' | 'suspended' | 'trial';
+  departments?: string[];
+  academicYears?: string[];
+  courses?: string[];
 }
 
 export type FilterType = 'all' | 'college' | 'school' | 'active' | 'inactive';
@@ -49,6 +58,7 @@ export interface CreateAdminInput {
   email: string;
   password?: string;
   institutionCode: string;
+  role?: string;
   title?: string;
   scope?: AdminScope;
   permissions?: string[];
@@ -58,6 +68,7 @@ export interface UpdateAdminInput {
   fullName?: string;
   email?: string;
   institutionCode?: string;
+  role?: string;
   title?: string;
   scope?: AdminScope;
   permissions?: string[];

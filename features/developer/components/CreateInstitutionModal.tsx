@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AppModal } from '../../shared/components/AppModal';
@@ -28,6 +28,8 @@ export const CreateInstitutionModal: React.FC<CreateInstitutionModalProps> = ({
     control,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     formState: { errors },
   } = useForm<CreateInstitutionFormValues>({
     resolver: zodResolver(CreateInstitutionZodSchema),
@@ -36,17 +38,46 @@ export const CreateInstitutionModal: React.FC<CreateInstitutionModalProps> = ({
       institutionName: '',
       institutionType: 'college',
       subscriptionStatus: 'active',
+      departments: [],
+      academicYears: [],
+      courses: [],
     },
   });
 
+  const institutionType = watch('institutionType');
+
+  const [deptsText, setDeptsText] = useState('CSE, ECE, Civil, Mechanical, AIML');
+  const [yearsText, setYearsText] = useState('1st Year, 2nd Year, 3rd Year, 4th Year');
+  const [coursesText, setCoursesText] = useState('B.Tech, M.Tech');
+
+  useEffect(() => {
+    if (institutionType === 'school') {
+      setDeptsText('Grade 1, Grade 2, Grade 3, Grade 4, Grade 5');
+      setYearsText('A, B, C');
+      setCoursesText('');
+    } else {
+      setDeptsText('CSE, ECE, Civil, Mechanical, AIML');
+      setYearsText('1st Year, 2nd Year, 3rd Year, 4th Year');
+      setCoursesText('B.Tech, M.Tech');
+    }
+  }, [institutionType]);
+
   const handleFormSubmit = (data: CreateInstitutionFormValues) => {
-    onSubmit(data);
+    const departments = deptsText.split(',').map((s) => s.trim()).filter(Boolean);
+    const academicYears = yearsText.split(',').map((s) => s.trim()).filter(Boolean);
+    const courses = coursesText.split(',').map((s) => s.trim()).filter(Boolean);
+    onSubmit({ ...data, departments, academicYears, courses });
     reset();
   };
 
+  const handleClose = () => {
+    reset();
+    onClose();
+  };
+
   return (
-    <AppModal visible={visible} onClose={onClose} title="Create Institution">
-      <View style={styles.form}>
+    <AppModal visible={visible} onClose={handleClose} title="Create Institution">
+      <ScrollView contentContainerStyle={styles.form}>
         <Controller
           control={control}
           name="institutionCode"
@@ -78,7 +109,6 @@ export const CreateInstitutionModal: React.FC<CreateInstitutionModalProps> = ({
           )}
         />
 
-        {/* Institution Type Selector */}
         <View style={styles.selectorGroup}>
           <Text style={styles.selectorLabel}>Institution Type</Text>
           <Controller
@@ -94,7 +124,6 @@ export const CreateInstitutionModal: React.FC<CreateInstitutionModalProps> = ({
                     College
                   </Text>
                 </TouchableOpacity>
-
                 <TouchableOpacity
                   style={[styles.toggleBtn, value === 'school' && styles.toggleBtnActive]}
                   onPress={() => onChange('school')}
@@ -108,7 +137,6 @@ export const CreateInstitutionModal: React.FC<CreateInstitutionModalProps> = ({
           />
         </View>
 
-        {/* Subscription Status Selector */}
         <View style={styles.selectorGroup}>
           <Text style={styles.selectorLabel}>Subscription Status</Text>
           <Controller
@@ -116,19 +144,13 @@ export const CreateInstitutionModal: React.FC<CreateInstitutionModalProps> = ({
             name="subscriptionStatus"
             render={({ field: { onChange, value } }) => (
               <View style={styles.toggleRow}>
-
                 {(['active', 'trial', 'inactive', 'suspended'] as const).map((status) => (
                   <TouchableOpacity
                     key={status}
                     style={[styles.toggleBtn, value === status && styles.toggleBtnActive]}
                     onPress={() => onChange(status)}
                   >
-                    <Text
-                      style={[
-                        styles.toggleText,
-                        value === status && styles.toggleTextActive,
-                      ]}
-                    >
+                    <Text style={[styles.toggleText, value === status && styles.toggleTextActive]}>
                       {status}
                     </Text>
                   </TouchableOpacity>
@@ -138,6 +160,34 @@ export const CreateInstitutionModal: React.FC<CreateInstitutionModalProps> = ({
           />
         </View>
 
+        <View style={styles.textInputGroup}>
+          <AppInput
+            label={institutionType === 'college' ? 'Departments (comma-separated)' : 'Classes (comma-separated)'}
+            placeholder={institutionType === 'college' ? 'e.g. CSE, ECE, ME, Civil' : 'e.g. Grade 1, Grade 2, Grade 3'}
+            value={deptsText}
+            onChangeText={setDeptsText}
+            iconName="domain"
+          />
+
+          <AppInput
+            label={institutionType === 'college' ? 'Academic Years (comma-separated)' : 'Sections (comma-separated)'}
+            placeholder={institutionType === 'college' ? 'e.g. 1st Year, 2nd Year, 3rd Year' : 'e.g. A, B, C'}
+            value={yearsText}
+            onChangeText={setYearsText}
+            iconName="calendar-range"
+          />
+
+          {institutionType === 'college' && (
+            <AppInput
+              label="Courses (comma-separated, optional)"
+              placeholder="e.g. B.Tech, M.Tech, MBA"
+              value={coursesText}
+              onChangeText={setCoursesText}
+              iconName="book-open-variant"
+            />
+          )}
+        </View>
+
         <AppButton
           title="Create Institution"
           onPress={handleSubmit(handleFormSubmit)}
@@ -145,7 +195,7 @@ export const CreateInstitutionModal: React.FC<CreateInstitutionModalProps> = ({
           iconName="plus"
           style={styles.submitBtn}
         />
-      </View>
+      </ScrollView>
     </AppModal>
   );
 };
@@ -190,6 +240,9 @@ const styles = StyleSheet.create({
   },
   toggleTextActive: {
     color: '#FFFFFF',
+  },
+  textInputGroup: {
+    gap: 12,
   },
   submitBtn: {
     marginTop: 8,

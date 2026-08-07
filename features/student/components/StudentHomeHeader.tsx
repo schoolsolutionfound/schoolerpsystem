@@ -6,12 +6,14 @@ interface StudentHomeHeaderProps {
   fullName: string;
   profilePic?: string;
   onNotificationsPress: () => void;
+  onProfilePress: () => void;
 }
 
 export const StudentHomeHeader: React.FC<StudentHomeHeaderProps> = ({
   fullName,
   profilePic,
   onNotificationsPress,
+  onProfilePress,
 }) => {
   return (
     <View style={styles.container}>
@@ -19,14 +21,14 @@ export const StudentHomeHeader: React.FC<StudentHomeHeaderProps> = ({
         <TouchableOpacity style={styles.iconBtn}>
           <Feather name="menu" size={22} color="#1A202C" />
         </TouchableOpacity>
-        
+
         <TouchableOpacity style={styles.iconBtn} onPress={onNotificationsPress}>
           <Feather name="bell" size={22} color="#1A202C" />
           <View style={styles.dotBadge} />
         </TouchableOpacity>
       </View>
 
-      <View style={styles.userGreetingRow}>
+      <TouchableOpacity style={styles.userGreetingRow} onPress={onProfilePress} activeOpacity={0.7}>
         <View style={styles.avatarWrap}>
           {profilePic ? (
             <Image source={{ uri: profilePic }} style={styles.avatarImage} />
@@ -45,7 +47,9 @@ export const StudentHomeHeader: React.FC<StudentHomeHeaderProps> = ({
           </View>
           <Text style={styles.timeGreeting}>Good Morning!</Text>
         </View>
-      </View>
+
+        <MaterialCommunityIcons name="chevron-right" size={20} color="#A0AEC0" />
+      </TouchableOpacity>
     </View>
   );
 };

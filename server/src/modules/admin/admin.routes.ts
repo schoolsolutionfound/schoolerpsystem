@@ -6,6 +6,8 @@ import {
   createStudentHandler,
   getTeachersHandler,
   createTeacherHandler,
+  getUsersHandler,
+  createUserHandler,
   singleFeedHandler,
   bulkFeedHandler,
 } from './admin.controller.js';
@@ -23,6 +25,10 @@ export async function adminRoutes(fastify: FastifyInstance) {
   // Teacher Management
   fastify.get('/teachers', { preHandler: [authenticate] }, getTeachersHandler);
   fastify.post('/teachers', { preHandler: [authenticate] }, createTeacherHandler);
+
+  // Unified User Management (all roles)
+  fastify.get('/users', { preHandler: [authenticate] }, getUsersHandler);
+  fastify.post('/users', { preHandler: [authenticate] }, createUserHandler);
 
   // Legacy Feeds
   fastify.post('/single-feed', { preHandler: [authenticate] }, singleFeedHandler);

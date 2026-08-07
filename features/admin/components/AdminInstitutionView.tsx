@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Text, ScrollView, TextInput, TouchableOpacity, Alert, Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { BorderRadius, Colors } from '../../../constants/theme';
+import { BorderRadius } from '../../../constants/theme';
 
 interface AdminInstitutionViewProps {
   config: {
@@ -171,50 +171,50 @@ export const AdminInstitutionView: React.FC<AdminInstitutionViewProps> = ({ conf
 };
 
 const styles = StyleSheet.create({
-  container: { padding: 20, gap: 16, paddingBottom: 40 },
+  container: { padding: 16, gap: 14, paddingBottom: 40 },
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: BorderRadius.card,
-    padding: 16,
+    padding: 18,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    gap: 12,
+    gap: 14,
   },
-  cardTitle: { fontSize: 16, fontWeight: '800', color: '#1A202C' },
-  infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  infoLabel: { fontSize: 13, color: '#718096', fontWeight: '500' },
-  infoValue: { fontSize: 13, fontWeight: '700', color: '#1A202C' },
+  cardTitle: { fontSize: 15, fontWeight: '800', color: '#1A202C' },
+  infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 28 },
+  infoLabel: { fontSize: 13, color: '#718096', fontWeight: '500', flexShrink: 1 },
+  infoValue: { fontSize: 13, fontWeight: '700', color: '#1A202C', flexShrink: 1, textAlign: 'right' },
   codeText: { fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', color: '#7E57C2' },
-  statusBadge: { backgroundColor: '#DCFCE7', paddingHorizontal: 8, paddingVertical: 2, borderRadius: BorderRadius.chip },
+  statusBadge: { backgroundColor: '#DCFCE7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: BorderRadius.chip },
   statusBadgeText: { fontSize: 11, fontWeight: '800', color: '#16A34A' },
   inputRow: { flexDirection: 'row', gap: 8 },
   input: {
     flex: 1,
-    height: 42,
+    height: 44,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     borderRadius: BorderRadius.input,
     paddingHorizontal: 12,
-    fontSize: 14,
+    fontSize: 13,
     backgroundColor: '#F8F9FB',
   },
   addBtn: {
     backgroundColor: '#7E57C2',
-    height: 42,
-    paddingHorizontal: 16,
+    height: 44,
+    paddingHorizontal: 18,
     borderRadius: BorderRadius.button,
     alignItems: 'center',
     justifyContent: 'center',
   },
   addBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 13 },
-  chipContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
+  chipContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     backgroundColor: '#EDE7F6',
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: BorderRadius.chip,
   },
   chipText: { fontSize: 12, fontWeight: '700', color: '#7E57C2' },
@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.button,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 8,
+    marginTop: 4,
   },
   saveBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 15 },
 });

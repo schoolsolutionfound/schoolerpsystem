@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { secureStorage } from './secureStorage';
 
-export type UserRole = 'student' | 'teacher' | 'admin' | 'parent' | 'dev' | 'loading';
+export type UserRole = 'student' | 'teacher' | 'admin' | 'parent' | 'dev' | 'principal' | 'accountant' | 'hod' | 'librarian' | 'maintainer' | 'institution admin' | 'loading';
 export type InstitutionType = 'school' | 'college';
 
 interface UserState {
@@ -18,7 +18,6 @@ interface UserState {
   language: 'en' | 'hi' | 'kn';
   userRole: UserRole;
   isEmailVerified: boolean;
-  isBypassUser: boolean;
   _hasHydrated: boolean;
   isProfileSynced: boolean;
   profileExists: boolean;
@@ -30,6 +29,14 @@ interface UserState {
   parentPhone: string;
   tenthPercentage: string;
   twelfthPercentage: string;
+  employeeId: string;
+  department: string;
+  linkedStudentUSN: string;
+  relation: string;
+  qualification: string;
+  experience: string;
+  libraryBadgeId: string;
+  designation: string;
 
   setUserProfile: (data: Partial<UserState>) => void;
   setIsProfileSynced: (state: boolean) => void;
@@ -54,18 +61,25 @@ export const useUserStore = create<UserState>()(
       language: 'en',
       userRole: 'loading',
       isEmailVerified: false,
-      isBypassUser: false,
       _hasHydrated: false,
       isProfileSynced: false,
       profileExists: false,
 
       mustChangePassword: false,
       profileCompleted: false,
-      institutionType: 'school',
+      institutionType: 'college',
       rollNoOrUSN: '',
       parentPhone: '',
       tenthPercentage: '',
       twelfthPercentage: '',
+      employeeId: '',
+      department: '',
+      linkedStudentUSN: '',
+      relation: '',
+      qualification: '',
+      experience: '',
+      libraryBadgeId: '',
+      designation: '',
 
       setUserProfile: (data) =>
         set((state) => ({
@@ -93,16 +107,23 @@ export const useUserStore = create<UserState>()(
           language: 'en',
           userRole: 'loading',
           isEmailVerified: false,
-          isBypassUser: false,
           isProfileSynced: false,
           profileExists: false,
           mustChangePassword: false,
           profileCompleted: false,
-          institutionType: 'school',
+          institutionType: 'college',
           rollNoOrUSN: '',
           parentPhone: '',
           tenthPercentage: '',
           twelfthPercentage: '',
+          employeeId: '',
+          department: '',
+          linkedStudentUSN: '',
+          relation: '',
+          qualification: '',
+          experience: '',
+          libraryBadgeId: '',
+          designation: '',
         }),
 
       setHasHydrated: (state) => set({ _hasHydrated: state }),
@@ -117,7 +138,7 @@ export const useUserStore = create<UserState>()(
     }),
     {
       name: 'user-storage',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => secureStorage),
       partialize: (state) => ({
         fullName: state.fullName,
         email: state.email,
@@ -129,15 +150,28 @@ export const useUserStore = create<UserState>()(
         schoolName: state.schoolName,
         profilePic: state.profilePic,
         language: state.language,
-        isBypassUser: state.isBypassUser,
         mustChangePassword: state.mustChangePassword,
         profileCompleted: state.profileCompleted,
-        institutionType: state.institutionType,
         rollNoOrUSN: state.rollNoOrUSN,
         parentPhone: state.parentPhone,
         tenthPercentage: state.tenthPercentage,
         twelfthPercentage: state.twelfthPercentage,
+        employeeId: state.employeeId,
+        department: state.department,
+        linkedStudentUSN: state.linkedStudentUSN,
+        relation: state.relation,
+        qualification: state.qualification,
+        experience: state.experience,
+        libraryBadgeId: state.libraryBadgeId,
+        designation: state.designation,
       }),
+      version: 1,
+      migrate: (persisted: any, version: number) => {
+        if (version < 1 && persisted?.institutionType === 'school') {
+          persisted.institutionType = 'college';
+        }
+        return persisted;
+      },
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
       },

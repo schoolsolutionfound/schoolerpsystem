@@ -1,6 +1,15 @@
 import { authRepository, IAuthRepository } from './auth.repository.js';
 import { admin, isFirebaseAdminInitialized } from '../shared/config/firebase.js';
 import { AuthenticatedUser } from '../shared/middleware/auth.js';
+import { institutionService } from '../institutions/institution.service.js';
+
+function parseScope(val: any): Record<string, any> {
+  if (!val) return {};
+  if (typeof val === 'string') {
+    try { return JSON.parse(val); } catch { return {}; }
+  }
+  return typeof val === 'object' ? val : {};
+}
 
 export class AuthService {
   constructor(private repo: IAuthRepository = authRepository) {}
@@ -19,6 +28,17 @@ export class AuthService {
       });
     }
 
+    let institutionName = user.institutionName || '';
+    let institutionType = user.institutionType || '';
+    try {
+      const insts = await institutionService.getInstitutions();
+      const match = insts.find((i) => i.institutionCode.toLowerCase() === (user.institutionCode || '').toLowerCase());
+      if (match) {
+        if (!institutionName || institutionName === user.institutionCode) institutionName = match.institutionName;
+        institutionType = match.institutionType || institutionType;
+      }
+    } catch {}
+
     return {
       id: user.id,
       firebaseUid: user.firebaseUid,
@@ -26,10 +46,18 @@ export class AuthService {
       fullName: user.fullName,
       userRole: user.role,
       institutionCode: user.institutionCode,
-      institutionName: user.institutionName,
-      institutionType: user.institutionType,
+      institutionName,
+      institutionType: institutionType || 'college',
+      rollNoOrUSN: user.rollNoOrUSN || '',
+      phone: user.phone || '',
+      parentPhone: user.parentPhone || '',
+      profilePicUrl: user.profilePicUrl || '',
+      tenthPercentage: user.tenthPercentage || '',
+      twelfthPercentage: user.twelfthPercentage || '',
       mustChangePassword: user.mustChangePassword,
       profileCompleted: user.profileCompleted,
+      designation: user.title || '',
+      ...parseScope(user.scope),
     };
   }
 
@@ -44,7 +72,7 @@ export class AuthService {
           password: newPassword,
         });
       } catch (err: any) {
-        console.warn('[Firebase Auth Update Error]', err.message);
+        throw { statusCode: 400, code: 'FIREBASE_AUTH_ERROR', message: `Failed to update password: ${err.message}` };
       }
     }
 

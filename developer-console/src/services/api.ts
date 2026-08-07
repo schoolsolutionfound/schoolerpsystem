@@ -51,6 +51,7 @@ export interface AdminPayload {
   phone?: string;
   institutionCode: string;
   password?: string;
+  role?: string;
   title?: string;
   scope?: {
     departments?: string[];
@@ -82,6 +83,11 @@ export const developerApi = {
   createAdmin: (data: AdminPayload) =>
     request('/developer/admins', {
       method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateAdmin: (id: string, data: Partial<AdminPayload>) =>
+    request(`/developer/admins/${id}`, {
+      method: 'PUT',
       body: JSON.stringify(data),
     }),
   deleteAdmin: (id: string) =>

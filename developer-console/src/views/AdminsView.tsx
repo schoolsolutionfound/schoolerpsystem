@@ -7,13 +7,18 @@ export const AdminsView: React.FC = () => {
   const [institutions, setInstitutions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingAdmin, setEditingAdmin] = useState<any>(null);
 
-  // Form State
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [selectedInstCode, setSelectedInstCode] = useState('');
+  const [role, setRole] = useState('admin');
+  const [title, setTitle] = useState('');
+  const [scopeDepts, setScopeDepts] = useState('');
+  const [scopeYears, setScopeYears] = useState('');
+  const [permissionsText, setPermissionsText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -41,14 +46,41 @@ export const AdminsView: React.FC = () => {
     loadData();
   }, []);
 
-  const openCreateModal = () => {
+  const resetForm = () => {
     setFullName('');
     setEmail('');
     setPhone('');
     setPassword('TempPass123!');
+    setRole('admin');
+    setTitle('Institution Admin');
+    setScopeDepts('');
+    setScopeYears('');
+    setPermissionsText('Manage Students, Manage Teachers, Attendance, Institution Settings');
+    setError('');
+  };
+
+  const openCreateModal = () => {
+    setEditingAdmin(null);
+    resetForm();
     if (institutions.length > 0) {
       setSelectedInstCode(institutions[0].institutionCode);
     }
+    setModalOpen(true);
+  };
+
+  const openEditModal = (admin: any) => {
+    setEditingAdmin(admin);
+    setFullName(admin.fullName || '');
+    setEmail(admin.email || '');
+    setPhone(admin.phone || '');
+    setPassword('');
+    setSelectedInstCode(admin.institutionCode || '');
+    setRole(admin.role || 'admin');
+    setTitle(admin.title || 'Institution Admin');
+    const scope = admin.scope || {};
+    setScopeDepts(Array.isArray(scope.departments) ? scope.departments.join(', ') : '');
+    setScopeYears(Array.isArray(scope.academicYears) ? scope.academicYears.join(', ') : '');
+    setPermissionsText(Array.isArray(admin.permissions) ? admin.permissions.join(', ') : '');
     setError('');
     setModalOpen(true);
   };
@@ -63,23 +95,35 @@ export const AdminsView: React.FC = () => {
     setSubmitting(true);
     setError('');
 
+    const departments = scopeDepts.split(',').map((s) => s.trim()).filter(Boolean);
+    const academicYears = scopeYears.split(',').map((s) => s.trim()).filter(Boolean);
+    const permissions = permissionsText.split(',').map((s) => s.trim()).filter(Boolean);
+
     const payload: AdminPayload = {
       fullName,
       email,
       phone,
+      role,
       institutionCode: selectedInstCode,
-      password: password || 'TempPass123!',
-      title: 'Institution Admin',
-      scope: { departments: [], academicYears: [] },
-      permissions: ['Manage Students', 'Manage Teachers', 'Attendance', 'Institution Settings'],
+      title: title || 'Institution Admin',
+      scope: { departments, academicYears },
+      permissions,
     };
 
+    if (!editingAdmin) {
+      payload.password = password || 'TempPass123!';
+    }
+
     try {
-      await developerApi.createAdmin(payload);
+      if (editingAdmin) {
+        await developerApi.updateAdmin(editingAdmin.id, payload);
+      } else {
+        await developerApi.createAdmin(payload);
+      }
       setModalOpen(false);
       loadData();
     } catch (err: any) {
-      setError(err.message || 'Failed to create Institution Administrator.');
+      setError(err.message || 'Failed to save administrator.');
     } finally {
       setSubmitting(false);
     }
@@ -100,77 +144,91 @@ export const AdminsView: React.FC = () => {
     <div>
       <div className="header-bar">
         <div>
-          <h1 className="page-title">Institution Administrators</h1>
-          <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
-            Manage administrator accounts assigned to onboarded institutions
-          </p>
+          <h1 className="page-title">Institution Admins</h1>
+          <p className="page-subtitle">Manage administrator accounts assigned to onboarded institutions</p>
         </div>
         <button className="btn btn-primary" onClick={openCreateModal}>
-          + Create Institution Admin
+          + Create admin
         </button>
       </div>
 
       {loading ? (
-        <div className="card">Loading administrators...</div>
+        <div className="card" style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)' }}>Loading administrators...</div>
       ) : (
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Admin Name</th>
-              <th>Email</th>
-              <th>Institution</th>
-              <th>Role</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {admins.length === 0 ? (
+        <div className="table-wrapper">
+          <table className="table">
+            <thead>
               <tr>
-                <td colSpan={5} style={{ textAlign: 'center', color: 'var(--color-text-secondary)' }}>
-                  No Institution Administrators created yet. Click "+ Create Institution Admin" above.
-                </td>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Institution</th>
+                <th>Role</th>
+                <th style={{ width: '140px' }}>Actions</th>
               </tr>
-            ) : (
-              admins.map((admin) => (
-                <tr key={admin.id}>
-                  <td style={{ fontWeight: 600 }}>{admin.fullName}</td>
-                  <td>{admin.email}</td>
-                  <td>
-                    <code>{admin.institutionName || admin.institutionCode}</code>
-                  </td>
-                  <td>
-                    <span className="badge badge-college">Institution Admin</span>
-                  </td>
-                  <td>
-                    <button className="btn btn-outline" style={{ height: '30px', fontSize: '12px', color: 'var(--color-danger)' }} onClick={() => handleDelete(admin.id)}>
-                      Delete
-                    </button>
+            </thead>
+            <tbody>
+              {admins.length === 0 ? (
+                <tr>
+                  <td colSpan={5}>
+                    <div className="table-empty">
+                      <div className="table-empty-icon" style={{ fontWeight: 700 }}>@</div>
+                      <div className="table-empty-text">No institution admins created</div>
+                      <div className="table-empty-hint">Click &quot;+ Create admin&quot; to assign an administrator</div>
+                    </div>
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                admins.map((admin) => (
+                  <tr key={admin.id}>
+                    <td style={{ fontWeight: 600 }}>{admin.fullName}</td>
+                    <td>{admin.email}</td>
+                    <td><code>{admin.institutionName || admin.institutionCode}</code></td>
+                    <td>
+                      <span className={`badge ${admin.role === 'admin' ? 'badge-college' : 'badge-school'}`}>
+                        {admin.role ? admin.role.charAt(0).toUpperCase() + admin.role.slice(1) : 'Institution Admin'}
+                      </span>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button className="btn btn-secondary btn-sm" onClick={() => openEditModal(admin)}>
+                          Edit
+                        </button>
+                        <button className="btn btn-danger btn-sm" onClick={() => handleDelete(admin.id)}>
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       )}
 
-      {/* Modal */}
       {modalOpen && (
-        <div className="modal-overlay">
-          <div className="modal-content">
+        <div className="modal-overlay" onClick={() => setModalOpen(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3 style={{ fontSize: '18px', fontWeight: 700 }}>Create Institution Administrator</h3>
-              <button className="close-btn" onClick={() => setModalOpen(false)}>×</button>
+              <h3 className="modal-title">
+                {editingAdmin ? 'Edit institution admin' : 'Create institution admin'}
+              </h3>
+              <button className="close-btn" onClick={() => setModalOpen(false)}>✕</button>
             </div>
 
             {error && (
-              <div style={{ backgroundColor: '#FEF2F2', border: '1px solid #FECACA', color: 'var(--color-danger)', padding: '10px', borderRadius: 'var(--radius-input)', fontSize: '13px', marginBottom: '16px' }}>
+              <div style={{
+                backgroundColor: 'var(--color-danger-bg)', border: '1px solid var(--color-danger-border)',
+                color: 'var(--color-danger)', padding: '10px 14px', borderRadius: 'var(--radius-input)',
+                fontSize: '13px', marginBottom: '20px',
+              }}>
                 {error}
               </div>
             )}
 
             <form onSubmit={handleSubmit}>
               <div className="form-group">
-                <label className="form-label">Full Name *</label>
+                <label className="form-label">Full name *</label>
                 <input
                   type="text"
                   className="input"
@@ -182,7 +240,7 @@ export const AdminsView: React.FC = () => {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Email Address *</label>
+                <label className="form-label">Email address *</label>
                 <input
                   type="email"
                   className="input"
@@ -194,7 +252,7 @@ export const AdminsView: React.FC = () => {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Phone Number (Optional)</label>
+                <label className="form-label">Phone (optional)</label>
                 <input
                   type="text"
                   className="input"
@@ -205,7 +263,7 @@ export const AdminsView: React.FC = () => {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Assigned Institution *</label>
+                <label className="form-label">Assigned institution *</label>
                 <select className="input" value={selectedInstCode} onChange={(e) => setSelectedInstCode(e.target.value)} required>
                   {institutions.map((inst) => (
                     <option key={inst.id} value={inst.institutionCode}>
@@ -216,25 +274,86 @@ export const AdminsView: React.FC = () => {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Temporary Password *</label>
+                <label className="form-label">Role</label>
+                <select className="input" value={role} onChange={(e) => setRole(e.target.value)}>
+                  <option value="admin">Admin</option>
+                  <option value="principal">Principal</option>
+                  <option value="teacher">Teacher</option>
+                  <option value="student">Student</option>
+                  <option value="parent">Parent</option>
+                  <option value="accountant">Accountant</option>
+                  <option value="hod">HOD</option>
+                  <option value="librarian">Librarian</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Title</label>
                 <input
                   type="text"
                   className="input"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
+                  placeholder="e.g. School Principal, College Dean"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
                 />
-                <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
-                  User will be prompted to change temporary password on first mobile login.
-                </span>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '20px' }}>
-                <button type="button" className="btn btn-outline" onClick={() => setModalOpen(false)}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="form-group">
+                  <label className="form-label">Scope departments</label>
+                  <input
+                    type="text"
+                    className="input"
+                    placeholder="e.g. CSE, ECE, ME"
+                    value={scopeDepts}
+                    onChange={(e) => setScopeDepts(e.target.value)}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Scope academic years</label>
+                  <input
+                    type="text"
+                    className="input"
+                    placeholder="e.g. 2024-2025, 2025-2026"
+                    value={scopeYears}
+                    onChange={(e) => setScopeYears(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Permissions (comma-separated)</label>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="e.g. Manage Students, Manage Teachers, Attendance"
+                  value={permissionsText}
+                  onChange={(e) => setPermissionsText(e.target.value)}
+                />
+              </div>
+
+              {!editingAdmin && (
+                <div className="form-group">
+                  <label className="form-label">Temporary password *</label>
+                  <input
+                    type="text"
+                    className="input"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                  <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '4px' }}>
+                    User will be prompted to change password on first mobile login.
+                  </span>
+                </div>
+              )}
+
+              <div className="action-bar">
+                <button type="button" className="btn btn-secondary" onClick={() => setModalOpen(false)}>
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary" disabled={submitting}>
-                  {submitting ? 'Creating Account...' : 'Create Admin Account'}
+                  {submitting ? 'Saving...' : editingAdmin ? 'Save changes' : 'Create admin account'}
                 </button>
               </div>
             </form>

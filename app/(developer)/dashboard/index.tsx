@@ -1,6 +1,5 @@
-import React from 'react';
-import { DeveloperDashboardScreen } from '../../../features/developer/screens/DeveloperDashboardScreen';
+import { Redirect } from 'expo-router';
 
 export default function DeveloperDashboardRoute() {
-  return <DeveloperDashboardScreen />;
+  return <Redirect href="/(developer)/home" />;
 }

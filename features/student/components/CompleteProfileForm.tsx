@@ -9,8 +9,8 @@ interface CompleteProfileFormProps {
   email: string;
   rollNoOrUSN: string;
   institutionType: string;
-  studentPhone: string;
-  setStudentPhone: (val: string) => void;
+  phone: string;
+  setPhone: (val: string) => void;
   parentPhone: string;
   setParentPhone: (val: string) => void;
   tenthPercentage: string;
@@ -29,8 +29,8 @@ export const CompleteProfileForm: React.FC<CompleteProfileFormProps> = ({
   email,
   rollNoOrUSN,
   institutionType,
-  studentPhone,
-  setStudentPhone,
+  phone,
+  setPhone,
   parentPhone,
   setParentPhone,
   tenthPercentage,
@@ -98,8 +98,8 @@ export const CompleteProfileForm: React.FC<CompleteProfileFormProps> = ({
               placeholder="Enter phone"
               placeholderTextColor="#A0AEC0"
               keyboardType="phone-pad"
-              value={studentPhone}
-              onChangeText={setStudentPhone}
+              value={phone}
+              onChangeText={setPhone}
             />
           </View>
         </View>

@@ -1,17 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, StyleSheet, Text, KeyboardAvoidingView, Platform, ScrollView, Alert, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { auth } from '../firebaseConfig';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
-import { useUserStore } from '../store/useUserStore';
 import { LoginForm } from '../features/auth/components/LoginForm';
-import { AuthBypassButtons } from '../features/auth/components/AuthBypassButtons';
-import { getHomeRouteForRole } from '../features/shared/utils/routeGuards';
 
 export default function AuthScreen() {
-  const router = useRouter();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -37,51 +32,9 @@ export default function AuthScreen() {
     ]).start();
   };
 
-  const handleAdminBypass = () => {
-    useUserStore.getState().setUserProfile({
-      fullName: 'Admin User',
-      email: 'admin@school.com',
-      userRole: 'admin',
-      institutionId: 'dev-school-001',
-      institutionName: 'Dev School',
-      isEmailVerified: true,
-      isBypassUser: true,
-    });
-    useUserStore.getState().setIsProfileSynced(true);
-    router.replace(getHomeRouteForRole('admin') as any);
-  };
-
-  const handleStudentBypass = () => {
-    useUserStore.getState().setUserProfile({
-      fullName: 'Aarav Sharma',
-      email: 'student@school.com',
-      userRole: 'student',
-      institutionId: 'CLG001',
-      institutionName: 'ABC Engineering College',
-      rollNoOrUSN: 'USN23CS101',
-      mustChangePassword: true,
-      profileCompleted: false,
-      institutionType: 'college',
-      isEmailVerified: true,
-      isBypassUser: true,
-    });
-    useUserStore.getState().setIsProfileSynced(true);
-    router.replace('/change-password');
-  };
-
   const handleAuth = async () => {
     if (!email || !password || (!isLogin && !fullName)) {
       Alert.alert('Missing Fields', 'Please fill in all required fields.');
-      return;
-    }
-
-    if (email === 'admin@school.com' && password === 'admin123') {
-      handleAdminBypass();
-      return;
-    }
-
-    if (email === 'student@school.com' && password === 'admin123') {
-      handleStudentBypass();
       return;
     }
 
@@ -94,6 +47,7 @@ export default function AuthScreen() {
     try {
       if (isLogin) {
         await signInWithEmailAndPassword(auth, email, password);
+        // Profile sync & routing handled by useAppSync + useAuthGuard in _layout.tsx
       } else {
         const cred = await createUserWithEmailAndPassword(auth, email, password);
         await sendEmailVerification(cred.user);
@@ -144,11 +98,6 @@ export default function AuthScreen() {
                 onSubmit={handleAuth}
                 onToggleMode={toggleMode}
                 loading={loading}
-              />
-
-              <AuthBypassButtons
-                onAdminBypass={handleAdminBypass}
-                onStudentBypass={handleStudentBypass}
               />
             </Animated.View>
           </ScrollView>

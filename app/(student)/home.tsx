@@ -1,20 +1,20 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useUserStore } from '../store/useUserStore';
 import { useRouter } from 'expo-router';
-import { StudentHomeHeader } from '../features/student/components/StudentHomeHeader';
-import { StudentHomeAttendanceCard } from '../features/student/components/StudentHomeAttendanceCard';
-import { StudentHomeAnnouncements } from '../features/student/components/StudentHomeAnnouncements';
-import { StudentHomePeriodsList } from '../features/student/components/StudentHomePeriodsList';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useUserStore } from '../../store/useUserStore';
+import { StudentHomeHeader } from '../../features/student/components/StudentHomeHeader';
+import { StudentHomeAttendanceCard } from '../../features/student/components/StudentHomeAttendanceCard';
+import { StudentHomeAnnouncements } from '../../features/student/components/StudentHomeAnnouncements';
+import { StudentHomePeriodsList } from '../../features/student/components/StudentHomePeriodsList';
 
 export default function HomeScreen() {
   const router = useRouter();
   const fullName = useUserStore((state) => state.fullName) || 'Aarav Sharma';
   const profilePic = useUserStore((state) => state.profilePic);
 
-  const [activeTab, setActiveTab] = useState<'home' | 'attendance' | 'schedule' | 'reports' | 'profile'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'attendance' | 'schedule' | 'reports'>('home');
 
   return (
     <View style={styles.container}>
@@ -23,6 +23,7 @@ export default function HomeScreen() {
           fullName={fullName}
           profilePic={profilePic}
           onNotificationsPress={() => router.push('/notifications')}
+          onProfilePress={() => router.push('/(student)/profile')}
         />
 
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -50,11 +51,6 @@ export default function HomeScreen() {
           <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('reports')}>
             <MaterialCommunityIcons name="chart-bar" size={22} color={activeTab === 'reports' ? '#7E57C2' : '#94A3B8'} />
             <Text style={[styles.tabLabel, activeTab === 'reports' && styles.tabLabelActive]}>Reports</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/profile')}>
-            <MaterialCommunityIcons name="account-circle-outline" size={22} color={activeTab === 'profile' ? '#7E57C2' : '#94A3B8'} />
-            <Text style={[styles.tabLabel, activeTab === 'profile' && styles.tabLabelActive]}>Profile</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>

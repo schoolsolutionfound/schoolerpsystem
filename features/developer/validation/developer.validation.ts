@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+const stringArray = z.array(z.string().max(200)).max(100);
+
 export const CreateInstitutionZodSchema = z.object({
   institutionCode: z
     .string()
@@ -12,6 +14,9 @@ export const CreateInstitutionZodSchema = z.object({
     .max(150, 'Name cannot exceed 150 characters'),
   institutionType: z.enum(['school', 'college']),
   subscriptionStatus: z.enum(['active', 'inactive', 'suspended', 'trial']),
+  departments: stringArray.optional(),
+  academicYears: stringArray.optional(),
+  courses: stringArray.optional(),
 });
 
 export const UpdateInstitutionZodSchema = z.object({
@@ -21,6 +26,9 @@ export const UpdateInstitutionZodSchema = z.object({
     .max(150, 'Name cannot exceed 150 characters'),
   institutionType: z.enum(['school', 'college']),
   subscriptionStatus: z.enum(['active', 'inactive', 'suspended', 'trial']),
+  departments: stringArray.optional(),
+  academicYears: stringArray.optional(),
+  courses: stringArray.optional(),
 });
 
 export type CreateInstitutionFormValues = z.infer<typeof CreateInstitutionZodSchema>;

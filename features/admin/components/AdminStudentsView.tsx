@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Text, ScrollView, TextInput, TouchableOpacity, Modal, Alert } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { BorderRadius, Colors } from '../../../constants/theme';
+import { BorderRadius } from '../../../constants/theme';
 
 interface StudentItem {
   id: string;
@@ -194,8 +194,8 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20 },
-  headerBar: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+  container: { flex: 1, padding: 16 },
+  headerBar: { flexDirection: 'row', gap: 10, marginBottom: 14 },
   searchBox: {
     flex: 1,
     flexDirection: 'row',
@@ -205,15 +205,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E2E8F0',
     paddingHorizontal: 12,
-    height: 42,
+    height: 44,
     gap: 8,
   },
   searchInput: { flex: 1, fontSize: 13, color: '#1A202C' },
   addBtn: {
     backgroundColor: '#7E57C2',
     borderRadius: BorderRadius.button,
-    paddingHorizontal: 14,
-    height: 42,
+    paddingHorizontal: 16,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -229,16 +229,16 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   emptyTitle: { fontSize: 16, fontWeight: '700', color: '#1A202C', marginTop: 10 },
-  emptySub: { fontSize: 12, color: '#718096', textAlign: 'center', marginTop: 4 },
+  emptySub: { fontSize: 12, color: '#718096', textAlign: 'center', marginTop: 4, lineHeight: 16 },
   studentCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: BorderRadius.card,
-    padding: 14,
+    padding: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 14,
   },
   avatarCircle: {
     width: 44,
@@ -252,20 +252,20 @@ const styles = StyleSheet.create({
   studentDetails: { flex: 1 },
   studentName: { fontSize: 15, fontWeight: '700', color: '#1A202C' },
   studentEmail: { fontSize: 12, color: '#718096', marginTop: 2 },
-  badgeRow: { flexDirection: 'row', gap: 6, marginTop: 6 },
-  codeBadge: { backgroundColor: '#F1F5F9', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, fontSize: 10, fontWeight: '700', color: '#475569' },
-  deptBadge: { backgroundColor: '#EDE7F6', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, fontSize: 10, fontWeight: '700', color: '#7E57C2' },
+  badgeRow: { flexDirection: 'row', gap: 6, marginTop: 6, flexWrap: 'wrap' },
+  codeBadge: { backgroundColor: '#F1F5F9', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, fontSize: 10, fontWeight: '700', color: '#475569' },
+  deptBadge: { backgroundColor: '#EDE7F6', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, fontSize: 10, fontWeight: '700', color: '#7E57C2' },
 
   // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 20 },
-  modalContent: { backgroundColor: '#FFFFFF', borderRadius: BorderRadius.modal, padding: 20, gap: 16 },
+  modalContent: { backgroundColor: '#FFFFFF', borderRadius: BorderRadius.modal, padding: 20, gap: 14 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  modalTitle: { fontSize: 18, fontWeight: '800', color: '#1A202C' },
-  formGroup: { gap: 4, marginBottom: 12 },
+  modalTitle: { fontSize: 17, fontWeight: '800', color: '#1A202C' },
+  formGroup: { gap: 4, marginBottom: 10 },
   label: { fontSize: 12, fontWeight: '700', color: '#1A202C' },
-  input: { height: 42, borderWidth: 1, borderColor: '#E2E8F0', borderRadius: BorderRadius.input, paddingHorizontal: 12, fontSize: 14, backgroundColor: '#F8F9FB' },
+  input: { height: 44, borderWidth: 1, borderColor: '#E2E8F0', borderRadius: BorderRadius.input, paddingHorizontal: 12, fontSize: 13, backgroundColor: '#F8F9FB' },
   hintText: { fontSize: 11, color: '#718096', marginTop: 2 },
-  modalFooter: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 10 },
+  modalFooter: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 6 },
   cancelBtn: { height: 40, paddingHorizontal: 16, borderRadius: BorderRadius.button, justifyContent: 'center', alignItems: 'center' },
   cancelText: { color: '#64748B', fontWeight: '700', fontSize: 13 },
   submitBtn: { height: 40, paddingHorizontal: 20, backgroundColor: '#7E57C2', borderRadius: BorderRadius.button, justifyContent: 'center', alignItems: 'center' },

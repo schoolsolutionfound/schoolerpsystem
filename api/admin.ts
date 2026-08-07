@@ -63,3 +63,27 @@ export async function createTeacherApi(payload: {
     body: JSON.stringify(payload),
   });
 }
+
+export async function fetchUsersApi() {
+  return apiClient('/admin/users');
+}
+
+export async function createUserApi(payload: {
+  fullName: string;
+  email: string;
+  role: string;
+  phone?: string;
+  parentPhone?: string;
+  employeeId?: string;
+  rollNoOrUSN?: string;
+  department?: string;
+  academicYear?: string;
+  section?: string;
+  title?: string;
+  password?: string;
+}) {
+  return apiClient('/admin/users', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}

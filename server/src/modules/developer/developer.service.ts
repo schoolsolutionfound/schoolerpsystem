@@ -1,13 +1,29 @@
 import { institutionService, InstitutionService } from '../institutions/institution.service.js';
 import { CreateInstitutionInput, UpdateInstitutionInput } from '../institutions/institution.schema.js';
-import { inMemoryUserStore, dbUpsertUser, dbGetAllUsers, dbDeleteUserById } from '../shared/db/index.js';
+import { InMemoryUser, inMemoryUserStore, dbUpsertUser, dbGetAllUsers, dbFindAdminsByInstitutionCode, dbDeleteUserById } from '../shared/db/index.js';
 import { admin, isFirebaseAdminInitialized } from '../shared/config/firebase.js';
+
+function sanitize(val: string | undefined, maxLen = 200): string {
+  if (!val) return '';
+  return val.trim().replace(/<[^>]*>/g, '').slice(0, maxLen);
+}
+
+function validatePassword(pw: string | undefined): string | null {
+  if (!pw || pw.length < 8) return 'Password must be at least 8 characters';
+  if (!/[A-Z]/.test(pw)) return 'Password must contain an uppercase letter';
+  if (!/[a-z]/.test(pw)) return 'Password must contain a lowercase letter';
+  if (!/[0-9]/.test(pw)) return 'Password must contain a digit';
+  return null;
+}
+
+const VALID_ROLES = ['admin', 'teacher', 'student', 'principal', 'parent', 'accountant', 'hod', 'librarian'] as const;
 
 export interface CreateAdminPayload {
   fullName: string;
   email: string;
   password?: string;
   institutionCode: string;
+  role?: string;
   title?: string;
   scope?: {
     departments?: string[];
@@ -20,6 +36,7 @@ export interface UpdateAdminPayload {
   fullName?: string;
   email?: string;
   institutionCode?: string;
+  role?: string;
   title?: string;
   scope?: {
     departments?: string[];
@@ -76,30 +93,22 @@ export class DeveloperService {
     };
   }
 
-  public async listAdmins() {
-    const allUsers = await dbGetAllUsers();
-    const admins = allUsers.filter(
-      (u) => u.role === 'maintainer' || u.role === 'admin'
-    );
+  public async listAdmins(institutionCode?: string) {
+    let admins: InMemoryUser[];
+    if (institutionCode) {
+      admins = await dbFindAdminsByInstitutionCode(institutionCode);
+    } else {
+      const allUsers = await dbGetAllUsers();
+      admins = allUsers.filter((u) => u.role !== 'dev' && u.role !== 'maintainer');
+    }
+
     const institutionsList = await this.instService.getInstitutions();
     const instMap = new Map(institutionsList.map((i) => [i.institutionCode, i]));
 
     return admins.map((u) => {
       const inst = instMap.get(u.institutionCode);
-      let parsedScope = { departments: [], academicYears: [] };
-      let parsedPermissions: string[] = [];
-
-      try {
-        parsedScope = typeof u.scope === 'string' ? JSON.parse(u.scope || '{}') : u.scope;
-      } catch {
-        parsedScope = { departments: [], academicYears: [] };
-      }
-
-      try {
-        parsedPermissions = typeof u.permissions === 'string' ? JSON.parse(u.permissions || '[]') : u.permissions;
-      } catch {
-        parsedPermissions = [];
-      }
+      const parsedScope = typeof u.scope === 'string' ? JSON.parse(u.scope || '{}') : (u.scope || {});
+      const parsedPermissions = typeof u.permissions === 'string' ? JSON.parse(u.permissions || '[]') : (u.permissions || []);
 
       return {
         id: u.id,
@@ -120,13 +129,35 @@ export class DeveloperService {
   }
 
   public async createAdmin(payload: CreateAdminPayload) {
+    const passwordError = validatePassword(payload.password);
+    if (passwordError) {
+      throw { statusCode: 400, code: 'WEAK_PASSWORD', message: passwordError };
+    }
+
+    const targetRole = payload.role?.toLowerCase().trim() || 'admin';
+    const validRole = VALID_ROLES.includes(targetRole as any) ? targetRole : 'admin';
+
+    const sanitized: CreateAdminPayload = {
+      fullName: sanitize(payload.fullName, 100),
+      email: payload.email.toLowerCase().trim(),
+      password: payload.password,
+      role: validRole,
+      institutionCode: sanitize(payload.institutionCode, 50).toUpperCase(),
+      title: sanitize(payload.title, 100) || 'Institution Admin',
+      scope: {
+        departments: (payload.scope?.departments || []).map((d) => sanitize(d, 100)).filter(Boolean),
+        academicYears: (payload.scope?.academicYears || []).map((y) => sanitize(y, 100)).filter(Boolean),
+      },
+      permissions: (payload.permissions || []).map((p) => sanitize(p, 100)).filter(Boolean),
+    };
+
     let firebaseUid = `adm_uid_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-    if (isFirebaseAdminInitialized && payload.password) {
+    if (isFirebaseAdminInitialized && sanitized.password) {
       try {
         const fbUser = await admin.auth().createUser({
-          email: payload.email,
-          password: payload.password,
-          displayName: payload.fullName,
+          email: sanitized.email,
+          password: sanitized.password,
+          displayName: sanitized.fullName,
         });
         firebaseUid = fbUser.uid;
       } catch (err: any) {
@@ -135,23 +166,20 @@ export class DeveloperService {
     }
 
     const inst = (await this.instService.getInstitutions()).find(
-      (i) => i.institutionCode.toLowerCase() === payload.institutionCode.toLowerCase()
+      (i) => i.institutionCode.toLowerCase() === sanitized.institutionCode.toLowerCase()
     );
-
-    const scopeString = JSON.stringify(payload.scope || { departments: [], academicYears: [] });
-    const permissionsString = JSON.stringify(payload.permissions || []);
 
     const createdUser = await dbUpsertUser({
       firebaseUid,
-      email: payload.email,
-      fullName: payload.fullName,
-      role: 'admin',
-      title: payload.title || 'Institution Admin',
-      institutionCode: payload.institutionCode.toUpperCase(),
-      institutionName: inst?.institutionName || payload.institutionCode,
+      email: sanitized.email,
+      fullName: sanitized.fullName,
+      role: sanitized.role,
+      title: sanitized.title,
+      institutionCode: sanitized.institutionCode,
+      institutionName: inst?.institutionName || sanitized.institutionCode,
       institutionType: inst?.institutionType || 'college',
-      scope: scopeString,
-      permissions: permissionsString,
+      scope: JSON.stringify(sanitized.scope),
+      permissions: JSON.stringify(sanitized.permissions),
     });
 
     return {
@@ -165,8 +193,8 @@ export class DeveloperService {
       institutionName: createdUser.institutionName,
       institutionType: createdUser.institutionType,
       status: 'active',
-      scope: payload.scope || { departments: [], academicYears: [] },
-      permissions: payload.permissions || [],
+      scope: sanitized.scope,
+      permissions: sanitized.permissions,
       createdAt: createdUser.createdAt,
     };
   }
@@ -180,10 +208,15 @@ export class DeveloperService {
     const scopeString = payload.scope ? JSON.stringify(payload.scope) : existing.scope;
     const permissionsString = payload.permissions ? JSON.stringify(payload.permissions) : existing.permissions;
 
+    const role = payload.role
+      ? (VALID_ROLES.includes(payload.role.toLowerCase().trim() as any) ? payload.role.toLowerCase().trim() : existing.role)
+      : existing.role;
+
     const updatedUser = await dbUpsertUser({
       ...existing,
       email: payload.email || existing.email,
       fullName: payload.fullName || existing.fullName,
+      role,
       title: payload.title || existing.title,
       institutionCode: payload.institutionCode ? payload.institutionCode.toUpperCase() : existing.institutionCode,
       scope: scopeString,

@@ -17,7 +17,7 @@ export interface InMemoryUser {
   mustChangePassword: boolean;
   profileCompleted: boolean;
   parentPhone?: string;
-  studentPhone?: string;
+  phone?: string;
   profilePicUrl?: string;
   tenthPercentage?: string;
   twelfthPercentage?: string;
@@ -54,7 +54,7 @@ export class UserStore {
       mustChangePassword: user.mustChangePassword ?? existing?.mustChangePassword ?? false,
       profileCompleted: user.profileCompleted ?? existing?.profileCompleted ?? false,
       parentPhone: user.parentPhone ?? existing?.parentPhone ?? '',
-      studentPhone: user.studentPhone ?? existing?.studentPhone ?? '',
+      phone: user.phone ?? existing?.phone ?? '',
       profilePicUrl: user.profilePicUrl ?? existing?.profilePicUrl ?? '',
       tenthPercentage: user.tenthPercentage ?? existing?.tenthPercentage ?? '',
       twelfthPercentage: user.twelfthPercentage ?? existing?.twelfthPercentage ?? '',
@@ -103,13 +103,13 @@ export async function dbFindByUid(uid: string): Promise<InMemoryUser | undefined
           mustChangePassword: row.mustChangePassword ?? false,
           profileCompleted: row.profileCompleted ?? false,
           parentPhone: row.parentPhone || '',
-          studentPhone: row.studentPhone || '',
+          phone: row.phone || '',
           profilePicUrl: row.profilePicUrl || '',
           tenthPercentage: row.tenthPercentage || '',
           twelfthPercentage: row.twelfthPercentage || '',
           title: row.title || '',
-          scope: row.scope || '{}',
-          permissions: row.permissions || '[]',
+          scope: safeJsonStringify(row.scope, '{}'),
+          permissions: safeJsonStringify(row.permissions, '[]'),
           createdAt: row.createdAt || new Date(),
           updatedAt: row.updatedAt || new Date(),
         };
@@ -121,6 +121,47 @@ export async function dbFindByUid(uid: string): Promise<InMemoryUser | undefined
     }
   }
   return inMemoryUserStore.findByUid(uid);
+}
+
+export async function dbFindAdminsByInstitutionCode(institutionCode: string): Promise<InMemoryUser[]> {
+  if (db) {
+    try {
+      const results = await db.select().from(schema.users)
+        .where(eq(schema.users.institutionCode, institutionCode));
+      const admins = results
+        .filter((row) => row.role === 'admin' || row.role === 'maintainer')
+        .map((row) => ({
+          id: row.id,
+          firebaseUid: row.firebaseUid,
+          email: row.email,
+          fullName: row.fullName,
+          role: row.role,
+          institutionCode: row.institutionCode || '',
+          institutionName: row.institutionName || '',
+          institutionType: row.institutionType || 'school',
+          rollNoOrUSN: row.rollNoOrUSN || '',
+          mustChangePassword: row.mustChangePassword ?? false,
+          profileCompleted: row.profileCompleted ?? false,
+          parentPhone: row.parentPhone || '',
+          phone: row.phone || '',
+          profilePicUrl: row.profilePicUrl || '',
+          tenthPercentage: row.tenthPercentage || '',
+          twelfthPercentage: row.twelfthPercentage || '',
+          title: row.title || '',
+          scope: safeJsonStringify(row.scope, '{}'),
+          permissions: safeJsonStringify(row.permissions, '[]'),
+          createdAt: row.createdAt || new Date(),
+          updatedAt: row.updatedAt || new Date(),
+        })) as InMemoryUser[];
+      admins.forEach((u) => inMemoryUserStore.upsertUser(u));
+      return admins;
+    } catch (error: any) {
+      console.warn('[PostgreSQL Drizzle Warning] dbFindAdminsByInstitutionCode query failed:', error.message);
+    }
+  }
+  return inMemoryUserStore.getAll().filter(
+    (u) => u.institutionCode === institutionCode && (u.role === 'admin' || u.role === 'maintainer')
+  );
 }
 
 export async function dbFindByEmail(email: string): Promise<InMemoryUser | undefined> {
@@ -142,13 +183,13 @@ export async function dbFindByEmail(email: string): Promise<InMemoryUser | undef
           mustChangePassword: row.mustChangePassword ?? false,
           profileCompleted: row.profileCompleted ?? false,
           parentPhone: row.parentPhone || '',
-          studentPhone: row.studentPhone || '',
+          phone: row.phone || '',
           profilePicUrl: row.profilePicUrl || '',
           tenthPercentage: row.tenthPercentage || '',
           twelfthPercentage: row.twelfthPercentage || '',
           title: row.title || '',
-          scope: row.scope || '{}',
-          permissions: row.permissions || '[]',
+          scope: safeJsonStringify(row.scope, '{}'),
+          permissions: safeJsonStringify(row.permissions, '[]'),
           createdAt: row.createdAt || new Date(),
           updatedAt: row.updatedAt || new Date(),
         };
@@ -160,6 +201,18 @@ export async function dbFindByEmail(email: string): Promise<InMemoryUser | undef
     }
   }
   return inMemoryUserStore.findByEmail(email);
+}
+
+function safeJsonParse(val: any, fallback: any): any {
+  if (typeof val === 'string') {
+    try { return JSON.parse(val); } catch { return fallback; }
+  }
+  return val ?? fallback;
+}
+
+function safeJsonStringify(val: any, fallback: string): string {
+  if (typeof val === 'string') return val;
+  try { return JSON.stringify(val); } catch { return fallback; }
 }
 
 export async function dbUpsertUser(user: Partial<InMemoryUser> & { firebaseUid: string; email: string }): Promise<InMemoryUser> {
@@ -180,13 +233,13 @@ export async function dbUpsertUser(user: Partial<InMemoryUser> & { firebaseUid: 
         mustChangePassword: updatedUser.mustChangePassword,
         profileCompleted: updatedUser.profileCompleted,
         parentPhone: updatedUser.parentPhone,
-        studentPhone: updatedUser.studentPhone,
+        phone: updatedUser.phone,
         profilePicUrl: updatedUser.profilePicUrl,
         tenthPercentage: updatedUser.tenthPercentage,
         twelfthPercentage: updatedUser.twelfthPercentage,
         title: updatedUser.title,
-        scope: updatedUser.scope,
-        permissions: updatedUser.permissions,
+        scope: safeJsonParse(updatedUser.scope, {}),
+        permissions: safeJsonParse(updatedUser.permissions, []),
         createdAt: updatedUser.createdAt,
         updatedAt: updatedUser.updatedAt,
       }).onConflictDoUpdate({
@@ -202,13 +255,13 @@ export async function dbUpsertUser(user: Partial<InMemoryUser> & { firebaseUid: 
           mustChangePassword: updatedUser.mustChangePassword,
           profileCompleted: updatedUser.profileCompleted,
           parentPhone: updatedUser.parentPhone,
-          studentPhone: updatedUser.studentPhone,
+          phone: updatedUser.phone,
           profilePicUrl: updatedUser.profilePicUrl,
           tenthPercentage: updatedUser.tenthPercentage,
           twelfthPercentage: updatedUser.twelfthPercentage,
           title: updatedUser.title,
-          scope: updatedUser.scope,
-          permissions: updatedUser.permissions,
+          scope: safeJsonParse(updatedUser.scope, {}),
+          permissions: safeJsonParse(updatedUser.permissions, []),
           updatedAt: new Date(),
         },
       });
@@ -238,13 +291,13 @@ export async function dbGetAllUsers(): Promise<InMemoryUser[]> {
           mustChangePassword: row.mustChangePassword ?? false,
           profileCompleted: row.profileCompleted ?? false,
           parentPhone: row.parentPhone || '',
-          studentPhone: row.studentPhone || '',
+          phone: row.phone || '',
           profilePicUrl: row.profilePicUrl || '',
           tenthPercentage: row.tenthPercentage || '',
           twelfthPercentage: row.twelfthPercentage || '',
           title: row.title || '',
-          scope: row.scope || '{}',
-          permissions: row.permissions || '[]',
+          scope: safeJsonStringify(row.scope, '{}'),
+          permissions: safeJsonStringify(row.permissions, '[]'),
           createdAt: row.createdAt || new Date(),
           updatedAt: row.updatedAt || new Date(),
         }));

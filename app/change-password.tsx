@@ -70,12 +70,7 @@ export default function ChangePasswordScreen() {
         router.replace('/complete-profile');
       }, 700);
     } catch (error: any) {
-      useUserStore.getState().setUserProfile({ mustChangePassword: false });
-      setShowSuccessModal(true);
-      setTimeout(() => {
-        setShowSuccessModal(false);
-        router.replace('/complete-profile');
-      }, 700);
+      handleGlobalError(error, 'Failed to change password. Please try again.');
     } finally {
       setLoading(false);
     }

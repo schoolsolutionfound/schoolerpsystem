@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { BorderRadius, Colors } from '../../../constants/theme';
+import { BorderRadius } from '../../../constants/theme';
 
 interface AdminProfileViewProps {
   fullName: string;
@@ -9,6 +9,7 @@ interface AdminProfileViewProps {
   institutionName: string;
   institutionCode: string;
   roleName: string;
+  designation: string;
   onChangePassword: () => void;
   onLogout: () => void;
 }
@@ -19,6 +20,7 @@ export const AdminProfileView: React.FC<AdminProfileViewProps> = ({
   institutionName,
   institutionCode,
   roleName,
+  designation,
   onChangePassword,
   onLogout,
 }) => {
@@ -44,7 +46,13 @@ export const AdminProfileView: React.FC<AdminProfileViewProps> = ({
 
       {/* Institutional Scoping */}
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Institutional Association</Text>
+        <Text style={styles.sectionTitle}>Role & Institution</Text>
+        {designation ? (
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Designation</Text>
+            <Text style={styles.infoValue}>{designation}</Text>
+          </View>
+        ) : null}
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Assigned Institution</Text>
           <Text style={styles.infoValue}>{institutionName}</Text>
@@ -75,20 +83,20 @@ export const AdminProfileView: React.FC<AdminProfileViewProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: { padding: 20, gap: 16, paddingBottom: 40 },
+  container: { padding: 16, gap: 14, paddingBottom: 40 },
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: BorderRadius.card,
     padding: 18,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    gap: 12,
+    gap: 14,
   },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   avatarCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: '#EDE7F6',
     alignItems: 'center',
     justifyContent: 'center',
@@ -100,10 +108,10 @@ const styles = StyleSheet.create({
   roleBadge: { backgroundColor: '#EDE7F6', paddingHorizontal: 10, paddingVertical: 3, borderRadius: BorderRadius.chip, alignSelf: 'flex-start' },
   roleBadgeText: { fontSize: 11, fontWeight: '800', color: '#7E57C2' },
   sectionTitle: { fontSize: 15, fontWeight: '800', color: '#1A202C' },
-  infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  infoLabel: { fontSize: 13, color: '#718096', fontWeight: '500' },
-  infoValue: { fontSize: 13, fontWeight: '700', color: '#1A202C' },
+  infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 28 },
+  infoLabel: { fontSize: 13, color: '#718096', fontWeight: '500', flexShrink: 1 },
+  infoValue: { fontSize: 13, fontWeight: '700', color: '#1A202C', flexShrink: 1, textAlign: 'right' },
   codeText: { color: '#7E57C2' },
-  menuItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  menuItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
   menuText: { fontSize: 14, fontWeight: '600', color: '#1A202C' },
 });

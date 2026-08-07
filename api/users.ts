@@ -1,12 +1,20 @@
 import { apiClient } from './client';
 
 export interface CompleteProfilePayload {
-  studentPhone?: string;
-  parentPhone: string;
+  phone?: string;
+  parentPhone?: string;
   profilePicUrl?: string;
-  institutionType: 'school' | 'college';
+  institutionType?: 'school' | 'college';
   tenthPercentage?: string;
   twelfthPercentage?: string;
+  employeeId?: string;
+  department?: string;
+  linkedStudentUSN?: string;
+  relation?: string;
+  qualification?: string;
+  experience?: string;
+  libraryBadgeId?: string;
+  designation?: string;
 }
 
 export async function getProfileApi() {

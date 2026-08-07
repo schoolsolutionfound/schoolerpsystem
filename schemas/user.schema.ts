@@ -9,7 +9,7 @@ export const ChangePasswordSchema = z.object({
 });
 
 export const CompleteProfileSchema = z.object({
-  studentPhone: z.string().optional(),
+  phone: z.string().optional(),
   parentPhone: z.string().min(10, 'Valid 10-digit parent phone number is required'),
   profilePicUrl: z.string().optional(),
   institutionType: z.enum(['school', 'college']),

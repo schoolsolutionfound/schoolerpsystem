@@ -2,12 +2,28 @@ import { userRepository, IUserRepository } from './user.repository.js';
 import { AuthenticatedUser } from '../shared/middleware/auth.js';
 
 export interface CompleteProfileInput {
-  studentPhone?: string;
-  parentPhone: string;
+  phone?: string;
+  parentPhone?: string;
   profilePicUrl?: string;
-  institutionType: 'school' | 'college';
+  institutionType?: 'school' | 'college';
   tenthPercentage?: string;
   twelfthPercentage?: string;
+  employeeId?: string;
+  department?: string;
+  linkedStudentUSN?: string;
+  relation?: string;
+  qualification?: string;
+  experience?: string;
+  libraryBadgeId?: string;
+  designation?: string;
+}
+
+function parseScope(val: any): Record<string, any> {
+  if (!val) return {};
+  if (typeof val === 'string') {
+    try { return JSON.parse(val); } catch { return {}; }
+  }
+  return typeof val === 'object' ? val : {};
 }
 
 export class UserService {
@@ -35,27 +51,49 @@ export class UserService {
       mustChangePassword: user.mustChangePassword,
       profileCompleted: user.profileCompleted,
       parentPhone: user.parentPhone,
-      studentPhone: user.studentPhone,
+      phone: user.phone,
       profilePicUrl: user.profilePicUrl,
       tenthPercentage: user.tenthPercentage,
       twelfthPercentage: user.twelfthPercentage,
+      designation: user.title || '',
+      ...parseScope(user.scope),
     };
   }
 
   public async completeProfile(currentUser: AuthenticatedUser, payload: CompleteProfileInput) {
-    if (!payload || !payload.parentPhone) {
-      throw { statusCode: 400, code: 'MISSING_FIELD', message: 'Parent phone number is required' };
+    const role = (currentUser.role || 'student').toLowerCase();
+
+    if (role === 'student') {
+      if (!payload.parentPhone) {
+        throw { statusCode: 400, code: 'MISSING_FIELD', message: 'Parent phone number is required for students' };
+      }
     }
+
+    const existing = await this.repo.findByUid(currentUser.uid);
+    const existingScope = parseScope(existing?.scope);
+
+    const scopeObj = {
+      ...existingScope,
+      ...(payload.employeeId ? { employeeId: payload.employeeId } : {}),
+      ...(payload.department ? { department: payload.department } : {}),
+      ...(payload.linkedStudentUSN ? { linkedStudentUSN: payload.linkedStudentUSN } : {}),
+      ...(payload.relation ? { relation: payload.relation } : {}),
+      ...(payload.qualification ? { qualification: payload.qualification } : {}),
+      ...(payload.experience ? { experience: payload.experience } : {}),
+      ...(payload.libraryBadgeId ? { libraryBadgeId: payload.libraryBadgeId } : {}),
+    };
 
     const updatedUser = await this.repo.upsertUser({
       firebaseUid: currentUser.uid,
       email: currentUser.email,
-      parentPhone: payload.parentPhone,
-      studentPhone: payload.studentPhone,
+      parentPhone: payload.parentPhone || '',
+      phone: payload.phone || payload.parentPhone || '',
       profilePicUrl: payload.profilePicUrl,
-      institutionType: payload.institutionType,
-      tenthPercentage: payload.tenthPercentage,
-      twelfthPercentage: payload.twelfthPercentage,
+      institutionType: payload.institutionType || 'college',
+      tenthPercentage: role === 'student' ? payload.tenthPercentage : undefined,
+      twelfthPercentage: role === 'student' ? payload.twelfthPercentage : undefined,
+      title: payload.designation || existing?.title || '',
+      scope: JSON.stringify(scopeObj),
       profileCompleted: true,
     });
 

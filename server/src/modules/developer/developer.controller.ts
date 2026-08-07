@@ -93,9 +93,9 @@ export class DeveloperController {
     }
   }
 
-  public async listAdmins(req: FastifyRequest, reply: FastifyReply) {
+  public async listAdmins(req: FastifyRequest<{ Querystring: { institutionCode?: string } }>, reply: FastifyReply) {
     try {
-      const admins = await developerService.listAdmins();
+      const admins = await developerService.listAdmins(req.query.institutionCode);
       return reply.status(200).send({ success: true, data: admins });
     } catch (err: any) {
       return reply.status(500).send({

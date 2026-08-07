@@ -19,6 +19,9 @@ export class InstitutionService {
       institutionName: input.institutionName.trim(),
       institutionType: input.institutionType || 'college',
       subscriptionStatus: input.subscriptionStatus || 'active',
+      departments: input.departments ?? [],
+      academicYears: input.academicYears ?? [],
+      courses: input.courses ?? [],
     });
 
     return created;

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { BorderRadius, Colors } from '../../../constants/theme';
+import { BorderRadius } from '../../../constants/theme';
 
 interface AdminDashboardViewProps {
   fullName: string;
@@ -34,25 +34,25 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
 
       {/* High-Level Stat Cards */}
       <View style={styles.statsGrid}>
-        <View style={styles.statCard}>
-          <View style={[styles.iconCircle, { backgroundColor: '#EDE7F6' }]}>
-            <MaterialCommunityIcons name="account-school" size={22} color="#7E57C2" />
+          <View style={styles.statCard}>
+            <View style={[styles.iconCircle, { backgroundColor: '#EDE7F6' }]}>
+              <MaterialCommunityIcons name="account-school" size={22} color="#7E57C2" />
+            </View>
+            <View style={styles.statTextContainer}>
+              <Text style={styles.statValue}>{studentCount}</Text>
+              <Text style={styles.statLabel} numberOfLines={2}>Enrolled Students</Text>
+            </View>
           </View>
-          <View>
-            <Text style={styles.statValue}>{studentCount}</Text>
-            <Text style={styles.statLabel}>Enrolled Students</Text>
-          </View>
-        </View>
 
-        <View style={styles.statCard}>
-          <View style={[styles.iconCircle, { backgroundColor: '#E0F2FE' }]}>
-            <MaterialCommunityIcons name="human-male-board" size={22} color="#0284C7" />
+          <View style={styles.statCard}>
+            <View style={[styles.iconCircle, { backgroundColor: '#E0F2FE' }]}>
+              <MaterialCommunityIcons name="human-male-board" size={22} color="#0284C7" />
+            </View>
+            <View style={styles.statTextContainer}>
+              <Text style={styles.statValue}>{teacherCount}</Text>
+              <Text style={styles.statLabel} numberOfLines={2}>Active Teachers</Text>
+            </View>
           </View>
-          <View>
-            <Text style={styles.statValue}>{teacherCount}</Text>
-            <Text style={styles.statLabel}>Active Teachers</Text>
-          </View>
-        </View>
       </View>
 
       {/* Quick Action Shortcuts */}
@@ -95,7 +95,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: { padding: 20, gap: 16, paddingBottom: 40 },
+  container: { padding: 16, gap: 14, paddingBottom: 40 },
   banner: {
     backgroundColor: '#FFFFFF',
     borderRadius: BorderRadius.card,
@@ -116,29 +116,30 @@ const styles = StyleSheet.create({
   },
   brandBadgeText: { fontSize: 11, fontWeight: '800', color: '#7E57C2' },
   welcomeText: { fontSize: 20, fontWeight: '800', color: '#1A202C' },
-  subText: { fontSize: 13, color: '#718096', marginTop: 4 },
-  statsGrid: { flexDirection: 'row', gap: 12 },
+  subText: { fontSize: 13, color: '#718096', marginTop: 4, lineHeight: 18 },
+  statsGrid: { flexDirection: 'row', gap: 10 },
   statCard: {
     flex: 1,
     backgroundColor: '#FFFFFF',
     borderRadius: BorderRadius.card,
-    padding: 16,
+    padding: 18,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 14,
   },
   iconCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  statTextContainer: { flexShrink: 1 },
   statValue: { fontSize: 20, fontWeight: '800', color: '#1A202C' },
-  statLabel: { fontSize: 11, color: '#718096', fontWeight: '500' },
-  sectionTitle: { fontSize: 16, fontWeight: '800', color: '#1A202C', marginTop: 8 },
+  statLabel: { fontSize: 11, color: '#718096', fontWeight: '500', marginTop: 2 },
+  sectionTitle: { fontSize: 15, fontWeight: '800', color: '#1A202C', marginTop: 6 },
   actionCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: BorderRadius.card,
@@ -156,7 +157,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  actionTextContainer: { flex: 1 },
+  actionTextContainer: { flex: 1, gap: 2 },
   actionTitle: { fontSize: 15, fontWeight: '700', color: '#1A202C' },
-  actionSubtitle: { fontSize: 12, color: '#718096', marginTop: 2 },
+  actionSubtitle: { fontSize: 12, color: '#718096', lineHeight: 16 },
 });

@@ -18,6 +18,8 @@ export interface BulkFeedStep1Props {
   setRollNoOrUSN: (val: string) => void;
   email: string;
   setEmail: (val: string) => void;
+  individualRole?: 'student' | 'teacher';
+  setIndividualRole?: (val: 'student' | 'teacher') => void;
   onNextStep: () => void;
 }
 
@@ -36,6 +38,8 @@ export const BulkFeedStep1: React.FC<BulkFeedStep1Props> = ({
   setRollNoOrUSN,
   email,
   setEmail,
+  individualRole = 'student',
+  setIndividualRole,
   onNextStep,
 }) => {
   return (
@@ -191,6 +195,26 @@ export const BulkFeedStep1: React.FC<BulkFeedStep1Props> = ({
             <TextInput style={styles.input} value={rollNoOrUSN} onChangeText={setRollNoOrUSN} placeholder="101" />
           </View>
 
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Role</Text>
+            <View style={styles.roleToggleRow}>
+              <TouchableOpacity
+                style={[styles.roleToggleBtn, individualRole === 'student' && styles.roleToggleActive]}
+                onPress={() => setIndividualRole?.('student')}
+              >
+                <MaterialCommunityIcons name="account-school-outline" size={16} color={individualRole === 'student' ? '#7E57C2' : '#718096'} />
+                <Text style={[styles.roleToggleText, individualRole === 'student' && styles.roleToggleTextActive]}>Student</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.roleToggleBtn, individualRole === 'teacher' && styles.roleToggleActive]}
+                onPress={() => setIndividualRole?.('teacher')}
+              >
+                <MaterialCommunityIcons name="account-tie-outline" size={16} color={individualRole === 'teacher' ? '#7E57C2' : '#718096'} />
+                <Text style={[styles.roleToggleText, individualRole === 'teacher' && styles.roleToggleTextActive]}>Teacher</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
           <TouchableOpacity
             style={styles.seedBtn}
             onPress={() => {
@@ -327,6 +351,17 @@ const styles = StyleSheet.create({
   fileSize: { fontSize: 11, color: '#A0AEC0' },
   fileSupportText: { fontSize: 11, color: '#A0AEC0', textAlign: 'center' },
   rowInputs: { flexDirection: 'row' },
+  roleToggleRow: { flexDirection: 'row', gap: 8 },
+  roleToggleBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingVertical: 10, paddingHorizontal: 16,
+    borderRadius: BorderRadius.button,
+    borderWidth: 1.5, borderColor: '#E2E8F0',
+    flex: 1, justifyContent: 'center',
+  },
+  roleToggleActive: { borderColor: '#7E57C2', backgroundColor: '#FAF5FF' },
+  roleToggleText: { fontSize: 13, fontWeight: '600', color: '#718096' },
+  roleToggleTextActive: { color: '#7E57C2' },
   inputGroup: { marginBottom: 6 },
   inputLabel: { fontSize: 12, fontWeight: '600', color: '#4A5568', marginBottom: 4 },
   input: {

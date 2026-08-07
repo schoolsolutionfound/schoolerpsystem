@@ -1,49 +1,57 @@
-import { isDeveloper, isTeacher, isAdmin, isMaintainer } from '../permissions/permissions';
+const ROLE_ROUTES: Record<string, string> = {
+  dev: '/(developer)/home',
+  developer: '/(developer)/home',
+  admin: '/(admin)/home',
+  'institution admin': '/(admin)/home',
+  maintainer: '/(admin)/home',
+  teacher: '/(teacher)/home',
+  student: '/(student)/home',
+  principal: '/(principal)/home',
+  parent: '/(parent)/home',
+  accountant: '/(accountant)/home',
+  hod: '/(hod)/home',
+  librarian: '/(librarian)/home',
+};
+
+const ROLE_GROUP: Record<string, string> = {
+  dev: '/(developer)',
+  developer: '/(developer)',
+  admin: '/(admin)',
+  'institution admin': '/(admin)',
+  maintainer: '/(admin)',
+  teacher: '/(teacher)',
+  student: '/(student)',
+  principal: '/(principal)',
+  parent: '/(parent)',
+  accountant: '/(accountant)',
+  hod: '/(hod)',
+  librarian: '/(librarian)',
+};
+
+const SHARED_ROUTES = [
+  '/auth', '/', '/index', '/welcome', '/change-password',
+  '/complete-profile', '/verify-email', '/notifications', '/select-school',
+];
 
 export function getHomeRouteForRole(role?: string): string {
-  const norm = (role || '').toLowerCase();
-  switch (norm) {
-    case 'dev':
-    case 'developer':
-      return '/(developer)/dashboard';
-    case 'admin':
-    case 'institution admin':
-    case 'maintainer':
-      return '/admin-home';
-    case 'teacher':
-      return '/teacher-home';
-    case 'student':
-      return '/home';
-    default:
-      return '/auth';
-  }
+  const norm = (role || '').toLowerCase().trim();
+  return ROLE_ROUTES[norm] || '/auth';
+}
+
+function extractGroup(pathname: string): string {
+  const match = pathname.match(/^\/(\([^)]+\))/);
+  return match ? `/${match[1]}` : '';
 }
 
 export function isRouteAllowedForRole(pathname: string, role?: string): boolean {
-  const isDevRoute =
-    pathname.startsWith('/dev-') ||
-    pathname.startsWith('/(developer)') ||
-    pathname.includes('dashboard') ||
-    pathname.includes('institutions');
+  const norm = (role || '').toLowerCase().trim();
+  if (SHARED_ROUTES.includes(pathname)) return true;
+  if (!norm || norm === 'loading') return false;
 
-  if (isDevRoute && !isDeveloper(role)) {
-    return false;
-  }
+  const allowedGroup = ROLE_GROUP[norm];
+  if (!allowedGroup) return false;
 
-  const isTeacherRoute = pathname.startsWith('/teacher-');
-  if (isTeacherRoute && !isTeacher(role)) {
-    return false;
-  }
-
-  const isAdminRoute = pathname.startsWith('/admin-');
-  if (isAdminRoute && !isAdmin(role)) {
-    return false;
-  }
-
-  const isMaintainerRoute = pathname.startsWith('/(maintainer)');
-  if (isMaintainerRoute && !isMaintainer(role)) {
-    return false;
-  }
-
-  return true;
+  const pathGroup = extractGroup(pathname);
+  if (!pathGroup) return true;
+  return pathGroup === allowedGroup;
 }

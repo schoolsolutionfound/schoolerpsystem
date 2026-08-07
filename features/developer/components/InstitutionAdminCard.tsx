@@ -9,12 +9,14 @@ import { Colors, BorderRadius } from '../../../constants/theme';
 interface InstitutionAdminCardProps {
   admin: InstitutionAdmin;
   onPress?: () => void;
+  onEdit?: () => void;
   onDelete?: () => void;
 }
 
 export const InstitutionAdminCard: React.FC<InstitutionAdminCardProps> = ({
   admin,
   onPress,
+  onEdit,
   onDelete,
 }) => {
   const getInitials = (name: string) => {
@@ -41,11 +43,18 @@ export const InstitutionAdminCard: React.FC<InstitutionAdminCardProps> = ({
             <Text style={styles.nameText} numberOfLines={1}>
               {admin.fullName}
             </Text>
+            {Boolean(admin.role) && (
+              <AppBadge
+                label={admin.role.charAt(0).toUpperCase() + admin.role.slice(1)}
+                type="college"
+                style={styles.roleBadge}
+              />
+            )}
             {Boolean(admin.title) && (
               <AppBadge
                 label={admin.title}
-                type="college"
-                style={styles.roleBadge}
+                type="school"
+                style={styles.titleBadge}
               />
             )}
           </View>
@@ -58,19 +67,34 @@ export const InstitutionAdminCard: React.FC<InstitutionAdminCardProps> = ({
           </Text>
         </View>
 
-        {onDelete && (
-          <TouchableOpacity
-            style={styles.moreButton}
-            onPress={onDelete}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <MaterialCommunityIcons
-              name="trash-can-outline"
-              size={20}
-              color={Colors.light.danger}
-            />
-          </TouchableOpacity>
-        )}
+        <View style={styles.actionsRow}>
+          {onEdit && (
+            <TouchableOpacity
+              style={styles.editButton}
+              onPress={onEdit}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <MaterialCommunityIcons
+                name="pencil-outline"
+                size={20}
+                color={Colors.light.primary}
+              />
+            </TouchableOpacity>
+          )}
+          {onDelete && (
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={onDelete}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <MaterialCommunityIcons
+                name="trash-can-outline"
+                size={20}
+                color={Colors.light.danger}
+              />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       <View style={styles.divider} />
@@ -151,6 +175,10 @@ const styles = StyleSheet.create({
   },
   roleBadge: {
     marginVertical: 2,
+    marginRight: 4,
+  },
+  titleBadge: {
+    marginVertical: 2,
   },
   institutionText: {
     fontSize: 12,
@@ -161,7 +189,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.light.muted,
   },
-  moreButton: {
+  actionsRow: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  editButton: {
+    padding: 6,
+  },
+  deleteButton: {
     padding: 6,
   },
   divider: {

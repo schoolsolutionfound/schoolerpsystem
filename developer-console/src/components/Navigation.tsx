@@ -14,23 +14,26 @@ export const Navigation: React.FC<NavigationProps> = ({
   onLogout,
 }) => {
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-    { id: 'institutions', label: 'Institutions', icon: '🏫' },
-    { id: 'admins', label: 'Institution Admins', icon: '👥' },
-    { id: 'plans', label: 'Subscription Plans', icon: '💳' },
-    { id: 'settings', label: 'Settings', icon: '⚙️' },
+    { id: 'dashboard', label: 'Dashboard' },
+    { id: 'institutions', label: 'Institutions' },
+    { id: 'admins', label: 'Institution Admins' },
+    { id: 'plans', label: 'Subscription Plans' },
+    { id: 'settings', label: 'Settings' },
   ];
+
+  const initials = (userEmail || 'D').charAt(0).toUpperCase();
 
   return (
     <aside className="sidebar">
       <div className="brand-header">
-        <div className="brand-icon">👑</div>
+        <div className="brand-icon">S</div>
         <div>
-          <div className="brand-title">Developer Console</div>
-          <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>School ERP Platform</div>
+          <div className="brand-title">SchoolERP</div>
+          <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '1px' }}>Developer Console</div>
         </div>
       </div>
 
+      <div className="nav-section-label">Main Menu</div>
       <ul className="nav-list">
         {navItems.map((item) => (
           <li key={item.id}>
@@ -38,7 +41,6 @@ export const Navigation: React.FC<NavigationProps> = ({
               className={`nav-item ${currentTab === item.id ? 'active' : ''}`}
               onClick={() => onTabChange(item.id)}
             >
-              <span>{item.icon}</span>
               <span>{item.label}</span>
             </button>
           </li>
@@ -46,14 +48,19 @@ export const Navigation: React.FC<NavigationProps> = ({
       </ul>
 
       <div className="user-footer">
-        <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: '4px' }}>
-          {userEmail || 'Developer'}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+          <div className="user-avatar">{initials}</div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {userEmail || 'Developer'}
+            </div>
+            <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '1px' }}>
+              Super Admin
+            </div>
+          </div>
         </div>
-        <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginBottom: '12px' }}>
-          Super Admin
-        </div>
-        <button className="btn btn-outline" style={{ width: '100%', fontSize: '12px', height: '32px' }} onClick={onLogout}>
-          Logout
+        <button className="btn btn-secondary" style={{ width: '100%', height: '32px', fontSize: '12px' }} onClick={onLogout}>
+          Sign out
         </button>
       </div>
     </aside>

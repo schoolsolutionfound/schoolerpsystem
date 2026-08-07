@@ -50,6 +50,7 @@ export default {
       ],
       "expo-image-picker",
       "expo-web-browser",
+      "expo-secure-store",
       [
         "expo-notifications",
         {

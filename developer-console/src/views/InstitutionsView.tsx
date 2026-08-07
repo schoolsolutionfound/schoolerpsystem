@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { developerApi } from '../services/api';
 import type { InstitutionPayload } from '../services/api';
+import { InstitutionDetailsView } from './InstitutionDetailsView';
 
 export const InstitutionsView: React.FC = () => {
   const [institutions, setInstitutions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingInst, setEditingInst] = useState<any>(null);
+  const [viewingInstId, setViewingInstId] = useState<string | null>(null);
 
   // Form State
   const [name, setName] = useState('');
@@ -16,6 +18,19 @@ export const InstitutionsView: React.FC = () => {
   const [deptsText, setDeptsText] = useState('CSE, ECE, Civil, Mechanical, AIML');
   const [yearsText, setYearsText] = useState('1st Year, 2nd Year, 3rd Year, 4th Year');
   const [coursesText, setCoursesText] = useState('B.Tech, M.Tech');
+
+  const handleTypeChange = (val: 'school' | 'college') => {
+    setType(val);
+    if (val === 'school') {
+      setDeptsText('Grade 1, Grade 2, Grade 3, Grade 4, Grade 5');
+      setYearsText('A, B, C');
+      setCoursesText('');
+    } else {
+      setDeptsText('CSE, ECE, Civil, Mechanical, AIML');
+      setYearsText('1st Year, 2nd Year, 3rd Year, 4th Year');
+      setCoursesText('B.Tech, M.Tech');
+    }
+  };
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -112,82 +127,99 @@ export const InstitutionsView: React.FC = () => {
     <div>
       <div className="header-bar">
         <div>
-          <h1 className="page-title">Institution Management</h1>
-          <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
-            Configure onboarded schools, colleges, departments, and academic structures
-          </p>
+          <h1 className="page-title">Institutions</h1>
+          <p className="page-subtitle">Manage onboarded schools, colleges, and academic structures</p>
         </div>
         <button className="btn btn-primary" onClick={openCreateModal}>
-          + Create Institution
+          + Create institution
         </button>
       </div>
 
       {loading ? (
-        <div className="card">Loading institutions...</div>
+        <div className="card" style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)' }}>Loading institutions...</div>
       ) : (
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Institution Name</th>
-              <th>Code</th>
-              <th>Type</th>
-              <th>Subscription Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {institutions.length === 0 ? (
+        <div className="table-wrapper">
+          <table className="table">
+            <thead>
               <tr>
-                <td colSpan={5} style={{ textAlign: 'center', color: 'var(--color-text-secondary)' }}>
-                  No institutions registered yet. Click "+ Create Institution" above.
-                </td>
+                <th>Institution</th>
+                <th>Code</th>
+                <th>Type</th>
+                <th>Subscription</th>
+                <th style={{ width: '200px' }}>Actions</th>
               </tr>
-            ) : (
-              institutions.map((inst) => (
-                <tr key={inst.id}>
-                  <td style={{ fontWeight: 600 }}>{inst.institutionName}</td>
-                  <td><code>{inst.institutionCode}</code></td>
-                  <td>
-                    <span className="badge badge-college">{inst.institutionType}</span>
-                  </td>
-                  <td>
-                    <span className="badge badge-active">{inst.subscriptionStatus || 'Active'}</span>
-                  </td>
-                  <td>
-                    <button className="btn btn-outline" style={{ height: '30px', fontSize: '12px', marginRight: '6px' }} onClick={() => openEditModal(inst)}>
-                      Edit
-                    </button>
-                    <button className="btn btn-outline" style={{ height: '30px', fontSize: '12px', color: 'var(--color-danger)' }} onClick={() => handleDelete(inst.id)}>
-                      Delete
-                    </button>
+            </thead>
+            <tbody>
+              {institutions.length === 0 ? (
+                <tr>
+                  <td colSpan={5}>
+                    <div className="table-empty">
+                      <div className="table-empty-icon" style={{ fontWeight: 700 }}>[ ]</div>
+                      <div className="table-empty-text">No institutions registered</div>
+                      <div className="table-empty-hint">Click &quot;+ Create institution&quot; to onboard your first school or college</div>
+                    </div>
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                institutions.map((inst) => (
+                  <tr key={inst.id}>
+                    <td style={{ fontWeight: 600 }}>{inst.institutionName}</td>
+                    <td><code>{inst.institutionCode}</code></td>
+                    <td>
+                      <span className={`badge ${inst.institutionType === 'school' ? 'badge-school' : 'badge-college'}`}>
+                        {inst.institutionType}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`badge ${inst.subscriptionStatus === 'active' ? 'badge-active' : inst.subscriptionStatus === 'trial' ? 'badge-trial' : 'badge-inactive'}`}>
+                        {inst.subscriptionStatus || 'Active'}
+                      </span>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button className="btn btn-secondary btn-sm" onClick={() => setViewingInstId(inst.id)}>
+                          View
+                        </button>
+                        <button className="btn btn-secondary btn-sm" onClick={() => openEditModal(inst)}>
+                          Edit
+                        </button>
+                        <button className="btn btn-danger btn-sm" onClick={() => handleDelete(inst.id)}>
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {/* Modal */}
       {modalOpen && (
-        <div className="modal-overlay">
-          <div className="modal-content">
+        <div className="modal-overlay" onClick={() => setModalOpen(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3 style={{ fontSize: '18px', fontWeight: 700 }}>
-                {editingInst ? 'Edit Institution' : 'Create New Institution'}
+              <h3 className="modal-title">
+                {editingInst ? 'Edit institution' : 'Create institution'}
               </h3>
-              <button className="close-btn" onClick={() => setModalOpen(false)}>×</button>
+              <button className="close-btn" onClick={() => setModalOpen(false)}>✕</button>
             </div>
 
             {error && (
-              <div style={{ backgroundColor: '#FEF2F2', border: '1px solid #FECACA', color: 'var(--color-danger)', padding: '10px', borderRadius: 'var(--radius-input)', fontSize: '13px', marginBottom: '16px' }}>
+              <div style={{
+                backgroundColor: 'var(--color-danger-bg)', border: '1px solid var(--color-danger-border)',
+                color: 'var(--color-danger)', padding: '10px 14px', borderRadius: 'var(--radius-input)',
+                fontSize: '13px', marginBottom: '20px',
+              }}>
                 {error}
               </div>
             )}
 
             <form onSubmit={handleSubmit}>
               <div className="form-group">
-                <label className="form-label">Institution Name *</label>
+                <label className="form-label">Institution name *</label>
                 <input
                   type="text"
                   className="input"
@@ -199,7 +231,7 @@ export const InstitutionsView: React.FC = () => {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Institution Code *</label>
+                <label className="form-label">Institution code *</label>
                 <input
                   type="text"
                   className="input"
@@ -213,15 +245,15 @@ export const InstitutionsView: React.FC = () => {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div className="form-group">
-                  <label className="form-label">Institution Type</label>
-                  <select className="input" value={type} onChange={(e) => setType(e.target.value as any)}>
+                  <label className="form-label">Type</label>
+                  <select className="input" value={type} onChange={(e) => handleTypeChange(e.target.value as any)}>
                     <option value="college">College</option>
                     <option value="school">School</option>
                   </select>
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Subscription Plan</label>
+                  <label className="form-label">Subscription</label>
                   <select className="input" value={subscription} onChange={(e) => setSubscription(e.target.value)}>
                     <option value="active">Active</option>
                     <option value="trial">Trial</option>
@@ -231,51 +263,84 @@ export const InstitutionsView: React.FC = () => {
                 </div>
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Departments (comma-separated)</label>
-                <input
-                  type="text"
-                  className="input"
-                  placeholder="e.g. CSE, ECE, ME, Civil"
-                  value={deptsText}
-                  onChange={(e) => setDeptsText(e.target.value)}
-                />
-              </div>
+              {type === 'college' ? (
+                <>
+                  <div className="form-group">
+                    <label className="form-label">Departments (comma-separated)</label>
+                    <input
+                      type="text"
+                      className="input"
+                      placeholder="e.g. CSE, ECE, ME, Civil"
+                      value={deptsText}
+                      onChange={(e) => setDeptsText(e.target.value)}
+                    />
+                  </div>
 
-              <div className="form-group">
-                <label className="form-label">Academic Years (comma-separated)</label>
-                <input
-                  type="text"
-                  className="input"
-                  placeholder="e.g. 1st Year, 2nd Year, 3rd Year"
-                  value={yearsText}
-                  onChange={(e) => setYearsText(e.target.value)}
-                />
-              </div>
+                  <div className="form-group">
+                    <label className="form-label">Academic years (comma-separated)</label>
+                    <input
+                      type="text"
+                      className="input"
+                      placeholder="e.g. 1st Year, 2nd Year, 3rd Year"
+                      value={yearsText}
+                      onChange={(e) => setYearsText(e.target.value)}
+                    />
+                  </div>
 
-              <div className="form-group">
-                <label className="form-label">Courses (Optional)</label>
-                <input
-                  type="text"
-                  className="input"
-                  placeholder="e.g. B.Tech, M.Tech, MBA"
-                  value={coursesText}
-                  onChange={(e) => setCoursesText(e.target.value)}
-                />
-              </div>
+                  <div className="form-group">
+                    <label className="form-label">Courses (optional)</label>
+                    <input
+                      type="text"
+                      className="input"
+                      placeholder="e.g. B.Tech, M.Tech, MBA"
+                      value={coursesText}
+                      onChange={(e) => setCoursesText(e.target.value)}
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="form-group">
+                    <label className="form-label">Classes (comma-separated)</label>
+                    <input
+                      type="text"
+                      className="input"
+                      placeholder="e.g. Grade 1, Grade 2, Grade 3"
+                      value={deptsText}
+                      onChange={(e) => setDeptsText(e.target.value)}
+                    />
+                  </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '20px' }}>
-                <button type="button" className="btn btn-outline" onClick={() => setModalOpen(false)}>
+                  <div className="form-group">
+                    <label className="form-label">Sections (comma-separated)</label>
+                    <input
+                      type="text"
+                      className="input"
+                      placeholder="e.g. A, B, C"
+                      value={yearsText}
+                      onChange={(e) => setYearsText(e.target.value)}
+                    />
+                  </div>
+                </>
+              )}
+
+              <div className="action-bar">
+                <button type="button" className="btn btn-secondary" onClick={() => setModalOpen(false)}>
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary" disabled={submitting}>
-                  {submitting ? 'Saving...' : editingInst ? 'Save Changes' : 'Create Institution'}
+                  {submitting ? 'Saving...' : editingInst ? 'Save changes' : 'Create institution'}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+      {/* Institution Details Modal */}
+      <InstitutionDetailsView
+        institutionId={viewingInstId}
+        onClose={() => setViewingInstId(null)}
+      />
     </div>
   );
 };

@@ -4,54 +4,79 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
-import { singleFeedApi, bulkFeedApi } from '../api/admin';
-import { handleGlobalError, AppError } from '../utils/errorHandler';
-import { BulkFeedStep1 } from '../features/admin/components/BulkFeedStep1';
-import { BulkFeedStep2 } from '../features/admin/components/BulkFeedStep2';
-import { BulkFeedStep3 } from '../features/admin/components/BulkFeedStep3';
+import { useUserStore } from '../../store/useUserStore';
+import { singleFeedApi, bulkFeedApi } from '../../api/admin';
+import { handleGlobalError, AppError } from '../../utils/errorHandler';
+import { BulkFeedStep1 } from '../../features/admin/components/BulkFeedStep1';
+import { BulkFeedStep2 } from '../../features/admin/components/BulkFeedStep2';
+import { BulkFeedStep3 } from '../../features/admin/components/BulkFeedStep3';
 
 export default function AdminBulkFeedScreen() {
   const router = useRouter();
+  const storeInstitutionCode = useUserStore((state) => state.institutionCode || state.institutionId) || 'CLG001';
+  const storeInstitutionName = useUserStore((state) => state.institutionName) || 'My Institution';
 
   const [wizardStep, setWizardStep] = useState<1 | 2 | 3>(1);
   const [feedType, setFeedType] = useState<'student_bulk' | 'teacher_bulk' | 'individual'>('student_bulk');
-  const [selectedFile, setSelectedFile] = useState<{ name: string; size: string; uri?: string } | null>(null);
+  const [selectedFile, setSelectedFile] = useState<{ name: string; size: string; uri?: string; content?: string } | null>(null);
   const [sendEmails, setSendEmails] = useState(true);
   const [overwriteUsers, setOverwriteUsers] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [rollNoOrUSN, setRollNoOrUSN] = useState('');
-  const [email, setEmail] = useState('');
-  const [dummyPassword] = useState('Pass@123');
-  const [institutionCode] = useState('CLG001');
-  const [institutionName] = useState('ABC Engineering College');
+  const [individualEmail, setIndividualEmail] = useState('');
+  const [individualRole, setIndividualRole] = useState<'student' | 'teacher'>('student');
+  const dummyPassword = 'Pass@123';
 
-  const [csvText] = useState(
-    `FirstName,LastName,RollNo_USN,Email,DummyPassword,InstitutionCode,InstitutionName\nAarav,Sharma,101,aarav.sharma@college.edu,Pass123,CLG001,ABC Engineering College\nRiya,Patel,102,riya.patel@school.edu,Pass123,CLG001,ABC Engineering College\nVivaan,Mehta,103,vivaan.mehta@college.edu,Pass123,CLG001,ABC Engineering College\nSneha,Singh,104,sneha.singh@school.edu,Pass123,CLG001,ABC Engineering College\nKartik,Joshi,105,kartik.joshi@college.edu,Pass123,CLG001,ABC Engineering College`
-  );
-
+  const [csvRecords, setCsvRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [importCount, setImportCount] = useState(0);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'bulk' | 'users' | 'reports' | 'settings'>('bulk');
 
-  const previewRows = [
-    { initials: 'AS', name: 'Aarav Sharma', roll: '101', type: 'College', bg: '#EDE9F6', text: '#7E57C2' },
-    { initials: 'RP', name: 'Riya Patel', roll: '102', type: 'School', bg: '#DCFCE7', text: '#16A34A' },
-    { initials: 'VM', name: 'Vivaan Mehta', roll: '103', type: 'College', bg: '#EDE9F6', text: '#7E57C2' },
-    { initials: 'SS', name: 'Sneha Singh', roll: '104', type: 'School', bg: '#DCFCE7', text: '#16A34A' },
-    { initials: 'KJ', name: 'Kartik Joshi', roll: '105', type: 'College', bg: '#EDE9F6', text: '#7E57C2' },
-  ];
+  const parseCsvFromUri = async (uri: string): Promise<any[]> => {
+    try {
+      const response = await fetch(uri);
+      const text = await response.text();
+      const lines = text.trim().split('\n').filter(Boolean);
+      if (lines.length < 2) return [];
+      const records: any[] = [];
+      const startIdx = 1;
+      for (let i = startIdx; i < lines.length; i++) {
+        const row = lines[i].split(',').map((s) => s.trim());
+        if (row.length >= 4) {
+          records.push({
+            firstName: row[0] || 'User',
+            lastName: row[1] || 'Unknown',
+            rollNoOrUSN: row[2] || '',
+            email: row[3] || `user${i}@school.edu`,
+            dummyPassword: row[4] || dummyPassword,
+            institutionCode: row[5] || storeInstitutionCode,
+            institutionName: row[6] || storeInstitutionName,
+            institutionType: 'college',
+            role: feedType === 'teacher_bulk' ? 'teacher' : 'student',
+          });
+        }
+      }
+      return records;
+    } catch {
+      return [];
+    }
+  };
 
   const handlePickDocument = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: ['text/csv', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', '*/*'],
+        type: ['text/csv', 'application/vnd.ms-excel', '*/*'],
         copyToCacheDirectory: true,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
         const sizeKb = asset.size ? `${(asset.size / 1024).toFixed(1)} KB` : '23 KB';
+        const records = asset.uri ? await parseCsvFromUri(asset.uri) : [];
+        setCsvRecords(records);
         setSelectedFile({
           name: asset.name,
           size: sizeKb,
@@ -64,49 +89,41 @@ export default function AdminBulkFeedScreen() {
   };
 
   const handleImportUsers = async () => {
+    setImportError(null);
     setLoading(true);
     try {
       if (feedType === 'individual') {
-        if (!firstName || !lastName || !email) {
+        if (!firstName || !lastName || !individualEmail) {
           handleGlobalError(new AppError('Please fill in required fields.', 'MISSING_FIELDS', 400));
+          setLoading(false);
           return;
         }
         await singleFeedApi({
           firstName,
           lastName,
           rollNoOrUSN: rollNoOrUSN || '101',
-          email,
+          email: individualEmail,
           dummyPassword,
-          institutionCode,
-          institutionName,
+          institutionCode: storeInstitutionCode,
+          institutionName: storeInstitutionName,
           institutionType: 'college',
-          role: 'student',
+          role: individualRole,
         });
+        setImportCount(1);
       } else {
-        const lines = csvText.trim().split('\n');
-        const records: any[] = [];
-        const startIdx = lines[0].toLowerCase().includes('email') ? 1 : 0;
-        for (let i = startIdx; i < lines.length; i++) {
-          const row = lines[i].split(',').map((s) => s.trim());
-          if (row.length >= 4) {
-            records.push({
-              firstName: row[0] || 'Student',
-              lastName: row[1] || 'User',
-              rollNoOrUSN: row[2] || `${100 + i}`,
-              email: row[3] || `user${i}@college.edu`,
-              dummyPassword: row[4] || 'Pass123',
-              institutionCode: row[5] || 'CLG001',
-              institutionName: row[6] || 'ABC Engineering College',
-              institutionType: 'college',
-              role: feedType === 'teacher_bulk' ? 'teacher' : 'student',
-            });
-          }
+        const records = selectedFile?.uri ? await parseCsvFromUri(selectedFile.uri) : csvRecords;
+        if (records.length === 0) {
+          handleGlobalError(new AppError('No valid records found in file. Check CSV format.', 'EMPTY_FILE', 400));
+          setLoading(false);
+          return;
         }
         await bulkFeedApi(records);
+        setImportCount(records.length);
       }
       setWizardStep(3);
     } catch (err: any) {
-      setWizardStep(3);
+      setImportError(err.message || 'Import failed. Please try again.');
+      handleGlobalError(err, 'Import failed');
     } finally {
       setLoading(false);
     }
@@ -129,8 +146,10 @@ export default function AdminBulkFeedScreen() {
             setLastName={setLastName}
             rollNoOrUSN={rollNoOrUSN}
             setRollNoOrUSN={setRollNoOrUSN}
-            email={email}
-            setEmail={setEmail}
+            email={individualEmail}
+            setEmail={setIndividualEmail}
+            individualRole={individualRole}
+            setIndividualRole={setIndividualRole}
             onNextStep={() => setWizardStep(2)}
           />
         )}
@@ -139,7 +158,7 @@ export default function AdminBulkFeedScreen() {
           <BulkFeedStep2
             feedType={feedType}
             selectedFile={selectedFile}
-            previewRows={previewRows}
+            totalRows={csvRecords.length || 1}
             sendEmails={sendEmails}
             setSendEmails={setSendEmails}
             overwriteUsers={overwriteUsers}
@@ -153,12 +172,18 @@ export default function AdminBulkFeedScreen() {
         {wizardStep === 3 && (
           <BulkFeedStep3
             router={router}
-            onResetStep={() => setWizardStep(1)}
+            importCount={importCount}
+            roleName={feedType === 'teacher_bulk' || individualRole === 'teacher' ? 'teacher' : 'student'}
+            onResetStep={() => {
+              setWizardStep(1);
+              setImportCount(0);
+              setImportError(null);
+            }}
           />
         )}
 
         <View style={styles.tabBar}>
-          <TouchableOpacity style={styles.tabItem} onPress={() => router.replace('/admin-home')}>
+          <TouchableOpacity style={styles.tabItem} onPress={() => router.replace('/(admin)/home')}>
             <MaterialCommunityIcons name="home-outline" size={22} color={activeTab === 'dashboard' ? '#7E57C2' : '#94A3B8'} />
             <Text style={[styles.tabLabel, activeTab === 'dashboard' && styles.tabLabelActive]}>Dashboard</Text>
           </TouchableOpacity>

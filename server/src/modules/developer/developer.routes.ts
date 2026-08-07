@@ -25,7 +25,7 @@ export async function developerRoutes(fastify: FastifyInstance) {
   fastify.get('/stats', (req, reply) => developerController.getStats(req, reply));
 
   // GET /api/v1/developer/admins - List institution admins
-  fastify.get('/admins', (req, reply) => developerController.listAdmins(req, reply));
+  fastify.get('/admins', (req, reply) => developerController.listAdmins(req as any, reply));
 
   // POST /api/v1/developer/admins - Create institution admin
   fastify.post('/admins', (req, reply) => developerController.createAdmin(req, reply));

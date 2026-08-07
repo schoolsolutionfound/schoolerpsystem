@@ -162,6 +162,7 @@ export default function DeveloperAdminsScreen() {
             renderItem={({ item }) => (
               <InstitutionAdminCard
                 admin={item}
+                onEdit={() => router.push(`/(developer)/admins/edit/${item.id}` as any)}
                 onDelete={() => handleDeleteAdmin(item.id, item.fullName)}
               />
             )}

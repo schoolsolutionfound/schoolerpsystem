@@ -89,6 +89,36 @@ export async function createTeacherHandler(request: FastifyRequest, reply: Fasti
   }
 }
 
+export async function getUsersHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const instCode = extractInstCode(request);
+    const data = await adminService.getUsers(instCode);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return reply.status(500).send({
+      success: false,
+      error: { message: err.message || 'Failed to fetch users' },
+    });
+  }
+}
+
+export async function createUserHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const instCode = extractInstCode(request);
+    const body = request.body as any;
+    const data = await adminService.createUser({
+      ...body,
+      institutionCode: instCode,
+    });
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return reply.status(err.statusCode || 400).send({
+      success: false,
+      error: { message: err.message || 'Failed to create user', code: err.code || 'CREATE_USER_ERROR' },
+    });
+  }
+}
+
 export async function singleFeedHandler(request: FastifyRequest, reply: FastifyReply) {
   const body = request.body as SingleFeedPayload;
 

@@ -1,6 +1,6 @@
 import React from 'react';
-import { DeveloperDashboardScreen } from '../../../features/developer/screens/DeveloperDashboardScreen';
+import { InstitutionListScreen } from '../../../features/developer/screens/InstitutionListScreen';
 
 export default function DeveloperInstitutionsIndexRoute() {
-  return <DeveloperDashboardScreen />;
+  return <InstitutionListScreen />;
 }

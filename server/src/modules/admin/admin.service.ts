@@ -24,6 +24,7 @@ export interface CreateStudentPayload {
   academicYear?: string;
   section?: string;
   password?: string;
+  parentPhone?: string;
   institutionCode: string;
 }
 
@@ -37,31 +38,48 @@ export interface CreateTeacherPayload {
   institutionCode: string;
 }
 
+const SCHOOL_ROLES = ['admin', 'principal', 'teacher', 'student', 'parent', 'accountant', 'librarian'] as const;
+const COLLEGE_ROLES = ['admin', 'hod', 'teacher', 'student', 'parent', 'accountant', 'librarian'] as const;
+
+export interface CreateUserPayload {
+  fullName: string;
+  email: string;
+  role: string;
+  phone?: string;
+  parentPhone?: string;
+  employeeId?: string;
+  rollNoOrUSN?: string;
+  department?: string;
+  academicYear?: string;
+  section?: string;
+  title?: string;
+  password?: string;
+  institutionCode: string;
+  institutionName?: string;
+  institutionType?: 'school' | 'college';
+}
+
 export class AdminService {
   constructor(private repo: IAdminRepository = adminRepository) {}
 
   private async createFirebaseUser(email: string, password?: string, displayName?: string): Promise<string> {
-    let firebaseUid = `uid_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    if (!isFirebaseAdminInitialized) {
+      throw { statusCode: 500, code: 'FIREBASE_UNAVAILABLE', message: 'Firebase Admin is not initialized. Cannot create users.' };
+    }
 
-    if (isFirebaseAdminInitialized) {
-      try {
-        const userRecord = await admin.auth().createUser({
-          email,
-          password: password || 'Pass@123',
-          displayName: displayName || email,
-        });
-        firebaseUid = userRecord.uid;
-      } catch (err: any) {
-        if (err.code === 'auth/email-already-exists') {
-          try {
-            const existingUser = await admin.auth().getUserByEmail(email);
-            firebaseUid = existingUser.uid;
-          } catch {
-            // ignore
-          }
-        } else {
-          console.warn('[Admin Feed Firebase Warning]', err.message);
-        }
+    let firebaseUid: string;
+    try {
+      const userRecord = await admin.auth().createUser({
+        email,
+        password: password || 'Pass@123',
+        displayName: displayName || email,
+      });
+      firebaseUid = userRecord.uid;
+    } catch (err: any) {
+      if (err.code === 'auth/email-already-exists') {
+        throw { statusCode: 409, code: 'EMAIL_EXISTS', message: `A user with email "${email}" already exists in Firebase Auth.` };
+      } else {
+        throw { statusCode: 500, code: 'FIREBASE_USER_CREATE_FAILED', message: `Failed to create Firebase user: ${err.message}` };
       }
     }
 
@@ -138,6 +156,12 @@ export class AdminService {
       throw { statusCode: 400, code: 'INVALID_INPUT', message: 'Missing required student fields (email, firstName, lastName, rollNoOrUSN)' };
     }
 
+    const inst = await institutionService.getInstitutions().then((list) =>
+      list.find((i) => i.institutionCode.toLowerCase() === (payload.institutionCode || '').toLowerCase())
+    );
+    const institutionName = inst?.institutionName || payload.institutionCode;
+    const institutionType = inst?.institutionType || 'college';
+
     const displayName = `${payload.firstName} ${payload.lastName}`.trim();
     const firebaseUid = await this.createFirebaseUser(payload.email, payload.password || 'TempPass123!', displayName);
 
@@ -153,8 +177,10 @@ export class AdminService {
       fullName: displayName,
       role: 'student',
       institutionCode: payload.institutionCode,
-      institutionName: payload.institutionCode,
+      institutionName,
+      institutionType,
       rollNoOrUSN: payload.rollNoOrUSN,
+      parentPhone: payload.parentPhone || '',
       mustChangePassword: true,
       profileCompleted: false,
       scope: scopeObj,
@@ -178,6 +204,11 @@ export class AdminService {
       throw { statusCode: 400, code: 'INVALID_INPUT', message: 'Missing required teacher fields (email, firstName, lastName)' };
     }
 
+    const inst = await institutionService.getInstitutions().then((list) =>
+      list.find((i) => i.institutionCode.toLowerCase() === (payload.institutionCode || '').toLowerCase())
+    );
+    const institutionName = inst?.institutionName || payload.institutionCode;
+
     const displayName = `${payload.firstName} ${payload.lastName}`.trim();
     const firebaseUid = await this.createFirebaseUser(payload.email, payload.password || 'TempPass123!', displayName);
 
@@ -192,10 +223,66 @@ export class AdminService {
       fullName: displayName,
       role: 'teacher',
       institutionCode: payload.institutionCode,
-      institutionName: payload.institutionCode,
+      institutionName,
       mustChangePassword: true,
       profileCompleted: false,
       scope: scopeObj,
+    });
+
+    return createdUser;
+  }
+
+  // --- Unified User Management (all roles) ---
+  public async getUsers(institutionCode: string) {
+    const allUsers = await dbGetAllUsers();
+    return allUsers.filter(
+      (u) => !institutionCode || u.institutionCode.toLowerCase() === institutionCode.toLowerCase()
+    );
+  }
+
+  public async createUser(payload: CreateUserPayload) {
+    if (!payload.fullName || !payload.email || !payload.role) {
+      throw { statusCode: 400, code: 'INVALID_INPUT', message: 'fullName, email, and role are required' };
+    }
+
+    const inst = await institutionService.getInstitutions().then((list) =>
+      list.find((i) => i.institutionCode.toLowerCase() === payload.institutionCode.toLowerCase())
+    );
+    const instType: 'school' | 'college' = (payload.institutionType || inst?.institutionType || 'school') as 'school' | 'college';
+    const validRoles = instType === 'college' ? COLLEGE_ROLES : SCHOOL_ROLES;
+
+    const normalizedRole = payload.role.toLowerCase().trim();
+    if (!validRoles.includes(normalizedRole as any)) {
+      throw {
+        statusCode: 400,
+        code: 'INVALID_ROLE',
+        message: `"${normalizedRole}" is not valid for a ${instType} institution. Allowed: ${validRoles.join(', ')}`,
+      };
+    }
+
+    const firebaseUid = await this.createFirebaseUser(payload.email, payload.password || 'TempPass123!', payload.fullName);
+
+    const scopeObj: Record<string, string> = {};
+    if (payload.department) scopeObj.department = payload.department;
+    if (payload.academicYear) scopeObj.academicYear = payload.academicYear;
+    if (payload.section) scopeObj.section = payload.section;
+    if (payload.employeeId) scopeObj.employeeId = payload.employeeId;
+
+    const createdUser = await this.repo.upsertUser({
+      firebaseUid,
+      email: payload.email,
+      fullName: payload.fullName,
+      role: normalizedRole,
+      institutionCode: payload.institutionCode,
+      institutionName: payload.institutionName || payload.institutionCode,
+      institutionType: instType,
+      title: payload.title || '',
+      rollNoOrUSN: payload.rollNoOrUSN || '',
+      parentPhone: normalizedRole === 'student' ? (payload.parentPhone || '') : undefined,
+      phone: payload.phone || '',
+      mustChangePassword: true,
+      profileCompleted: false,
+      scope: JSON.stringify(scopeObj),
     });
 
     return createdUser;

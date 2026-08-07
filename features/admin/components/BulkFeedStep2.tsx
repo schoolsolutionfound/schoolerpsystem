@@ -6,7 +6,7 @@ import { BorderRadius } from '../../../constants/theme';
 export interface BulkFeedStep2Props {
   feedType: 'student_bulk' | 'teacher_bulk' | 'individual';
   selectedFile: { name: string; size: string; uri?: string } | null;
-  previewRows: Array<{ initials: string; name: string; roll: string; type: string; bg: string; text: string }>;
+  totalRows: number;
   sendEmails: boolean;
   setSendEmails: (val: boolean) => void;
   overwriteUsers: boolean;
@@ -19,7 +19,7 @@ export interface BulkFeedStep2Props {
 export const BulkFeedStep2: React.FC<BulkFeedStep2Props> = ({
   feedType,
   selectedFile,
-  previewRows,
+  totalRows,
   sendEmails,
   setSendEmails,
   overwriteUsers,
@@ -47,7 +47,7 @@ export const BulkFeedStep2: React.FC<BulkFeedStep2Props> = ({
             {feedType === 'teacher_bulk' ? 'Teachers Bulk Feed' : feedType === 'individual' ? 'Individual Feed' : 'Students Bulk Feed'}
           </Text>
           <Text style={styles.previewCardSub}>
-            {selectedFile ? `File: ${selectedFile.name} (Total Rows: 125)` : 'Total Rows: 1'}
+            {selectedFile ? `File: ${selectedFile.name} (Total Rows: ${totalRows})` : 'Total Rows: 1'}
           </Text>
         </View>
       </View>
@@ -55,26 +55,15 @@ export const BulkFeedStep2: React.FC<BulkFeedStep2Props> = ({
 
       <View style={styles.tableCard}>
         <View style={styles.tableHeaderRow}>
-          <Text style={[styles.colHeader, { width: 50 }]}>Avatar</Text>
-          <Text style={[styles.colHeader, { flex: 1 }]}>Name</Text>
-          <Text style={[styles.colHeader, { width: 70 }]}>Roll No</Text>
-          <Text style={[styles.colHeader, { width: 70, textAlign: 'right' }]}>Type</Text>
+          <Text style={[styles.colHeader, { flex: 1 }]}>Type</Text>
+          <Text style={[styles.colHeader, { width: 80, textAlign: 'right' }]}>Count</Text>
         </View>
-
-        {previewRows.map((row, idx) => (
-          <View key={idx} style={styles.tableDataRow}>
-            <View style={[styles.avatarCircleSmall, { backgroundColor: row.bg }]}>
-              <Text style={[styles.avatarTextSmall, { color: row.text }]}>{row.initials}</Text>
-            </View>
-            <Text style={styles.rowNameText}>{row.name}</Text>
-            <Text style={styles.rowRollText}>{row.roll}</Text>
-            <View style={[styles.typeBadge, { backgroundColor: row.bg }]}>
-              <Text style={[styles.typeBadgeText, { color: row.text }]}>{row.type}</Text>
-            </View>
-          </View>
-        ))}
+        <View style={styles.tableDataRow}>
+          <Text style={styles.rowNameText}>{feedType === 'teacher_bulk' ? 'Teachers' : feedType === 'individual' ? 'Individual' : 'Students'}</Text>
+          <Text style={[styles.rowRollText, { textAlign: 'right' }]}>{totalRows}</Text>
+        </View>
       </View>
-      <Text style={styles.tableFooterHint}>Showing first 5 rows. Please verify your data before importing.</Text>
+      <Text style={styles.tableFooterHint}>Please verify your data before importing.</Text>
 
       <View style={styles.sectionCard}>
         <Text style={styles.sectionHeader}>3. Additional Options</Text>

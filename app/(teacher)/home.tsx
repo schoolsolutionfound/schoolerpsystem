@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
-import { useUserStore } from '../store/useUserStore';
+import { useUserStore } from '../../store/useUserStore';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 60) / 2;
@@ -48,7 +48,7 @@ export default function TeacherHomeScreen() {
             <Text style={styles.greeting}>Hello, {fullName || 'Teacher'} 👋</Text>
             <Text style={styles.schoolName}>{institutionName}</Text>
           </View>
-          <TouchableOpacity onPress={() => router.push('/profile')} style={styles.avatarBtn}>
+          <TouchableOpacity onPress={() => router.push('/(teacher)/profile')} style={styles.avatarBtn}>
             <LinearGradient colors={['#667EEA', '#764BA2']} style={styles.avatarGradient}>
               <Feather name="user" size={20} color="#FFF" />
             </LinearGradient>

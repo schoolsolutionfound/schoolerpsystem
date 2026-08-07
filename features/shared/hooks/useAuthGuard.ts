@@ -6,7 +6,6 @@ import { getHomeRouteForRole, isRouteAllowedForRole } from '../utils/routeGuards
 interface AuthGuardProps {
   userSession: any;
   userRole: string;
-  isEmailVerified: boolean;
   pathname: string;
   authLoading: boolean;
   _hasHydrated: boolean;
@@ -16,7 +15,6 @@ interface AuthGuardProps {
 export function useAuthGuard({
   userSession,
   userRole,
-  isEmailVerified,
   pathname,
   authLoading,
   _hasHydrated,
@@ -27,30 +25,22 @@ export function useAuthGuard({
   useEffect(() => {
     if (!_hasHydrated || authLoading) return;
 
-    const isBypassUser = useUserStore.getState().isBypassUser;
+    const isPublicAuthRoute = ['/', '/auth', '/index', '/welcome', '/change-password', '/complete-profile', '/verify-email', '/notifications', '/select-school'].includes(pathname);
 
-    if (userSession && !isProfileSynced) return;
-    if (isBypassUser && isProfileSynced) return;
+    if (userSession) {
+      if (!isProfileSynced && userRole === 'loading') return;
 
-    const isPublicAuthRoute = ['/', '/auth', '/index', '/verify-email'].includes(pathname);
-
-    if (userSession || isBypassUser) {
-      if (userRole === 'loading') return;
-
-      const isUnverified = userRole === 'student' && isEmailVerified === false;
-
-      if (isUnverified && !isPublicAuthRoute && pathname !== '/verify-email') {
-        router.replace('/verify-email');
-        return;
-      }
-
-      if (!isUnverified && pathname === '/verify-email') {
-        router.replace('/home');
-        return;
-      }
+      // Email verification check disabled — can be re-enabled later
 
       if (isPublicAuthRoute) {
-        router.replace(getHomeRouteForRole(userRole) as any);
+        const state = useUserStore.getState();
+        if (state.mustChangePassword) {
+          router.replace('/change-password');
+        } else if (!state.profileCompleted) {
+          router.replace('/complete-profile');
+        } else {
+          router.replace(getHomeRouteForRole(state.userRole) as any);
+        }
         return;
       }
 
@@ -62,7 +52,7 @@ export function useAuthGuard({
         router.replace('/auth');
       }
     }
-  }, [pathname, userRole, userSession, _hasHydrated, authLoading, isEmailVerified, isProfileSynced, router]);
+  }, [pathname, userRole, userSession, _hasHydrated, authLoading, isProfileSynced, router]);
 
   return false;
 }

@@ -47,19 +47,13 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
   if (isFirebaseAdminInitialized) {
     try {
       const decodedToken = await admin.auth().verifyIdToken(token);
+      // Email verification check disabled — can be re-enabled later
       firebaseUid = decodedToken.uid;
       email = decodedToken.email || '';
       tokenRole = (decodedToken.role as string) || '';
     } catch (error: any) {
       console.warn('[Auth Middleware Warning] Firebase Token verification failed:', error.message);
     }
-  }
-
-  // Fallback for dev / testing bypass tokens
-  if (!firebaseUid && (process.env.NODE_ENV !== 'production' || token.startsWith('mock_') || token.length < 50)) {
-    firebaseUid = token.startsWith('mock_') ? token : `dev_uid_${token.substring(0, 10)}`;
-    email = token.includes('@') ? token : 'devuser@school.com';
-    tokenRole = token.includes('student') ? 'student' : 'admin';
   }
 
   if (!firebaseUid) {
@@ -79,17 +73,27 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
   try {
     const dbUser = await dbFindByUid(firebaseUid);
     if (dbUser) {
-      dbUserRole = dbUser.role || tokenRole || 'student';
+      dbUserRole = dbUser.role || tokenRole || '';
       institutionCode = dbUser.institutionCode || '';
     }
   } catch (err: any) {
     console.warn('[Auth Middleware Warning] PostgreSQL user lookup failed:', err.message);
   }
 
+  if (!dbUserRole) {
+    return reply.status(403).send({
+      success: false,
+      error: {
+        message: 'No role assigned to this user. Contact your administrator.',
+        code: 'NO_ROLE_ASSIGNED',
+      },
+    });
+  }
+
   request.user = {
     uid: firebaseUid,
     email: email,
-    role: dbUserRole || 'student',
+    role: dbUserRole,
     institutionCode,
   };
 }
@@ -108,14 +112,14 @@ export async function requireDeveloper(request: FastifyRequest, reply: FastifyRe
     });
   }
 
-  const role = (request.user.role || '').toLowerCase();
-  const isDevOrAdmin = role === 'dev' || role === 'admin';
+  const role = (request.user.role || '').toLowerCase().trim();
+  const normalizedRole = (role === 'maintainer' || role === 'institution admin') ? 'admin' : role;
 
-  if (!isDevOrAdmin) {
+  if (normalizedRole !== 'dev') {
     return reply.status(403).send({
       success: false,
       error: {
-        message: 'Access denied: Developer or Super Admin privileges required',
+        message: 'Access denied: Developer privileges required',
         code: 'FORBIDDEN',
       },
     });

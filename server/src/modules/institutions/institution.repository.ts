@@ -60,6 +60,9 @@ export class InstitutionRepository implements IInstitutionRepository {
       institutionName: data.institutionName,
       institutionType: data.institutionType || 'college',
       subscriptionStatus: data.subscriptionStatus || 'active',
+      departments: data.departments ?? [],
+      academicYears: data.academicYears ?? [],
+      courses: data.courses ?? [],
       createdAt: data.createdAt || new Date(),
       updatedAt: data.updatedAt || new Date(),
     };

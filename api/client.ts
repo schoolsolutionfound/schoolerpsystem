@@ -2,8 +2,6 @@ import { auth } from '../firebaseConfig';
 import { AppError } from '../utils/errorHandler';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
-import { useUserStore } from '../store/useUserStore';
-
 const getBaseUrl = (): string => {
   if (process.env.EXPO_PUBLIC_API_URL) {
     return process.env.EXPO_PUBLIC_API_URL;
@@ -40,11 +38,6 @@ export async function apiClient<T = any>(
     } catch {
       token = '';
     }
-  }
-
-  // Developer Experience (DX) Fallback: Attach mock token if in local Dev Bypass mode
-  if (!token && useUserStore.getState().isBypassUser) {
-    token = 'mock_dev_token';
   }
 
   const headers: Record<string, string> = {

@@ -11,7 +11,7 @@ import {
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useInstitutionsQuery, useCreateAdminMutation } from '../../../features/developer/hooks/useDeveloperQueries';
-import { CreateAdminSchema } from '../../../features/developer/validation/admin.schema';
+import { CreateAdminSchema, ROLES } from '../../../features/developer/validation/admin.schema';
 import { AppInput } from '../../../features/shared/components/AppInput';
 import { AppButton } from '../../../features/shared/components/AppButton';
 import { Colors, BorderRadius } from '../../../constants/theme';
@@ -54,6 +54,7 @@ export default function CreateInstitutionAdminScreen() {
   const [selectedInstCode, setSelectedInstCode] = useState(institutions[0]?.institutionCode || '');
   const [selectedTitle, setSelectedTitle] = useState('HOD');
   const [customTitle, setCustomTitle] = useState('');
+  const [selectedRole, setSelectedRole] = useState('admin');
 
   const selectedInst = institutions.find(
     (i) => i.institutionCode.toLowerCase() === selectedInstCode.toLowerCase()
@@ -98,6 +99,7 @@ export default function CreateInstitutionAdminScreen() {
       fullName: fullName.trim(),
       email: email.trim(),
       password: password || undefined,
+      role: selectedRole,
       institutionCode: selectedInstCode || institutions[0]?.institutionCode || 'INST01',
       title: finalTitle,
       scope: {
@@ -192,7 +194,23 @@ export default function CreateInstitutionAdminScreen() {
           ))}
         </ScrollView>
 
-        {/* Section 3: Designation / Title */}
+        {/* Section 3: Role */}
+        <Text style={styles.sectionTitle}>Role</Text>
+        <View style={styles.chipRowWrap}>
+          {ROLES.map((role) => (
+            <TouchableOpacity
+              key={role}
+              style={[styles.chip, selectedRole === role && styles.activeChip]}
+              onPress={() => setSelectedRole(role)}
+            >
+              <Text style={[styles.chipText, selectedRole === role && styles.activeChipText]}>
+                {role.charAt(0).toUpperCase() + role.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Section 4: Designation / Title */}
         <Text style={styles.sectionTitle}>Designation / Title</Text>
         <View style={styles.chipRowWrap}>
           {TITLE_PRESETS.map((preset) => (

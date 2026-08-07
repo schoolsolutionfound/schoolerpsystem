@@ -5,10 +5,12 @@ import { BorderRadius } from '../../../constants/theme';
 
 export interface BulkFeedStep3Props {
   router: any;
+  importCount?: number;
+  roleName?: string;
   onResetStep: () => void;
 }
 
-export const BulkFeedStep3: React.FC<BulkFeedStep3Props> = ({ router, onResetStep }) => {
+export const BulkFeedStep3: React.FC<BulkFeedStep3Props> = ({ router, importCount = 0, roleName = 'users', onResetStep }) => {
   return (
     <ScrollView contentContainerStyle={styles.scrollSuccess} showsVerticalScrollIndicator={false}>
       <View style={styles.topHeader}>
@@ -26,7 +28,7 @@ export const BulkFeedStep3: React.FC<BulkFeedStep3Props> = ({ router, onResetSte
       </View>
 
       <Text style={styles.successTitle}>Users Imported Successfully!</Text>
-      <Text style={styles.successSub}>125 students have been imported successfully.</Text>
+      <Text style={styles.successSub}>{importCount} {roleName}{importCount !== 1 ? 's' : ''} have been imported successfully.</Text>
 
       <View style={styles.statsCard}>
         <View style={styles.statRow}>
@@ -35,7 +37,7 @@ export const BulkFeedStep3: React.FC<BulkFeedStep3Props> = ({ router, onResetSte
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.statLabel}>Total Users</Text>
-            <Text style={styles.statNum}>125</Text>
+            <Text style={styles.statNum}>{importCount}</Text>
           </View>
         </View>
 
@@ -47,7 +49,7 @@ export const BulkFeedStep3: React.FC<BulkFeedStep3Props> = ({ router, onResetSte
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.statLabel}>Emails Sent</Text>
-            <Text style={styles.statNum}>125</Text>
+            <Text style={styles.statNum}>{importCount}</Text>
           </View>
         </View>
 
@@ -65,10 +67,10 @@ export const BulkFeedStep3: React.FC<BulkFeedStep3Props> = ({ router, onResetSte
       </View>
 
       <TouchableOpacity style={styles.primaryActionBtn} onPress={onResetStep}>
-        <Text style={styles.primaryActionText}>View Users</Text>
+        <Text style={styles.primaryActionText}>Import More</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.dashboardLinkBtn} onPress={() => router.replace('/admin-home')}>
+      <TouchableOpacity style={styles.dashboardLinkBtn} onPress={() => router.replace('/(admin)/home')}>
         <Text style={styles.dashboardLinkText}>Go to Dashboard</Text>
       </TouchableOpacity>
     </ScrollView>

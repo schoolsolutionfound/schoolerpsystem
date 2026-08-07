@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, StyleSheet, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AppModal } from '../../shared/components/AppModal';
@@ -31,6 +31,7 @@ export const EditInstitutionModal: React.FC<EditInstitutionModalProps> = ({
     control,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm<UpdateInstitutionFormValues>({
     resolver: zodResolver(UpdateInstitutionZodSchema),
@@ -41,6 +42,12 @@ export const EditInstitutionModal: React.FC<EditInstitutionModalProps> = ({
     },
   });
 
+  const institutionType = watch('institutionType');
+
+  const [deptsText, setDeptsText] = useState('');
+  const [yearsText, setYearsText] = useState('');
+  const [coursesText, setCoursesText] = useState('');
+
   useEffect(() => {
     if (institution) {
       reset({
@@ -48,18 +55,54 @@ export const EditInstitutionModal: React.FC<EditInstitutionModalProps> = ({
         institutionType: institution.institutionType,
         subscriptionStatus: institution.subscriptionStatus,
       });
+      setDeptsText(
+        Array.isArray(institution.departments) ? institution.departments.join(', ') : ''
+      );
+      setYearsText(
+        Array.isArray(institution.academicYears) ? institution.academicYears.join(', ') : ''
+      );
+      setCoursesText(
+        Array.isArray(institution.courses) ? institution.courses.join(', ') : ''
+      );
     }
   }, [institution]);
 
+  useEffect(() => {
+    if (!deptsText && !yearsText && !coursesText) {
+      if (institutionType === 'school') {
+        setDeptsText('Grade 1, Grade 2, Grade 3, Grade 4, Grade 5');
+        setYearsText('A, B, C');
+        setCoursesText('');
+      } else {
+        setDeptsText('CSE, ECE, Civil, Mechanical, AIML');
+        setYearsText('1st Year, 2nd Year, 3rd Year, 4th Year');
+        setCoursesText('B.Tech, M.Tech');
+      }
+    }
+  }, [institutionType]);
+
   const handleFormSubmit = (data: UpdateInstitutionFormValues) => {
     if (institution) {
-      onSubmit(institution.id, data);
+      const departments = deptsText.split(',').map((s) => s.trim()).filter(Boolean);
+      const academicYears = yearsText.split(',').map((s) => s.trim()).filter(Boolean);
+      const courses = coursesText.split(',').map((s) => s.trim()).filter(Boolean);
+      onSubmit(institution.id, {
+        ...data,
+        departments: departments.length > 0 ? departments : undefined,
+        academicYears: academicYears.length > 0 ? academicYears : undefined,
+        courses: courses.length > 0 ? courses : undefined,
+      });
     }
   };
 
+  const handleClose = () => {
+    reset();
+    onClose();
+  };
+
   return (
-    <AppModal visible={visible} onClose={onClose} title="Edit Institution">
-      <View style={styles.form}>
+    <AppModal visible={visible} onClose={handleClose} title="Edit Institution">
+      <ScrollView contentContainerStyle={styles.form}>
         <View style={styles.readOnlyBox}>
           <Text style={styles.readOnlyLabel}>Institution Code (Immutable)</Text>
           <Text style={styles.readOnlyCode}>{institution?.institutionCode || 'N/A'}</Text>
@@ -137,6 +180,34 @@ export const EditInstitutionModal: React.FC<EditInstitutionModalProps> = ({
           />
         </View>
 
+        <View style={styles.textInputGroup}>
+          <AppInput
+            label={institutionType === 'college' ? 'Departments (comma-separated)' : 'Classes (comma-separated)'}
+            placeholder={institutionType === 'college' ? 'e.g. CSE, ECE, ME, Civil' : 'e.g. Grade 1, Grade 2, Grade 3'}
+            value={deptsText}
+            onChangeText={setDeptsText}
+            iconName="domain"
+          />
+
+          <AppInput
+            label={institutionType === 'college' ? 'Academic Years (comma-separated)' : 'Sections (comma-separated)'}
+            placeholder={institutionType === 'college' ? 'e.g. 1st Year, 2nd Year, 3rd Year' : 'e.g. A, B, C'}
+            value={yearsText}
+            onChangeText={setYearsText}
+            iconName="calendar-range"
+          />
+
+          {institutionType === 'college' && (
+            <AppInput
+              label="Courses (comma-separated, optional)"
+              placeholder="e.g. B.Tech, M.Tech, MBA"
+              value={coursesText}
+              onChangeText={setCoursesText}
+              iconName="book-open-variant"
+            />
+          )}
+        </View>
+
         <AppButton
           title="Save Changes"
           onPress={handleSubmit(handleFormSubmit)}
@@ -144,7 +215,7 @@ export const EditInstitutionModal: React.FC<EditInstitutionModalProps> = ({
           iconName="check"
           style={styles.submitBtn}
         />
-      </View>
+      </ScrollView>
     </AppModal>
   );
 };
@@ -207,6 +278,9 @@ const styles = StyleSheet.create({
   },
   toggleTextActive: {
     color: '#FFFFFF',
+  },
+  textInputGroup: {
+    gap: 12,
   },
   submitBtn: {
     marginTop: 8,
