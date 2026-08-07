@@ -625,7 +625,8 @@ export class AcademicsRepository {
       try {
         await db.delete(timetableSlots).where(eq(timetableSlots.timetableId, timetableId));
         if (slots.length > 0) {
-          const inserted = await db.insert(timetableSlots).values(slots).returning();
+          const rows = slots.map((s) => ({ ...s, timetableId }));
+          const inserted = await db.insert(timetableSlots).values(rows).returning();
           inserted.forEach((r) => timetableSlotMem.save(toTimetableSlot(r)));
           return inserted;
         }
@@ -676,6 +677,23 @@ export class AcademicsRepository {
       }
     }
     return attendanceRecordMem.filter((r) => r.timetableSlotId === timetableSlotId && r.date === date)[0];
+  }
+
+  public async getAttendanceRecordById(id: string): Promise<AttendanceRecordRecord | undefined> {
+    if (db) {
+      try {
+        const rows = await db.select().from(attendanceRecords).where(eq(attendanceRecords.id, id)).limit(1);
+        if (rows.length > 0) {
+          const rec = toAttendanceRecord(rows[0]);
+          attendanceRecordMem.save(rec);
+          return rec;
+        }
+        return undefined;
+      } catch (err: any) {
+        console.warn('[PostgreSQL Academics Warning] getAttendanceRecordById failed:', err.message);
+      }
+    }
+    return attendanceRecordMem.getById(id);
   }
 
   public async upsertAttendanceRecord(data: any): Promise<AttendanceRecordRecord> {

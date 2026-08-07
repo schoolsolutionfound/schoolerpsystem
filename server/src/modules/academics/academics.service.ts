@@ -266,7 +266,7 @@ export class AcademicsService {
     const subjectTotals = new Map<string, { present: number; total: number; subject: any }>();
 
     for (const entry of entries) {
-      const record = await academicsRepository.getAttendanceRecord(entry.attendanceRecordId, '');
+      const record = await academicsRepository.getAttendanceRecordById(entry.attendanceRecordId);
       const slotRecord = record ? await academicsRepository.getTimetableSlotById(record.timetableSlotId) : undefined;
       if (!slotRecord) continue;
       const subject = await academicsRepository.getSubjectById(slotRecord.subjectId);
