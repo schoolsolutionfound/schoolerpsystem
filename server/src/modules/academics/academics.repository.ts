@@ -1,4 +1,4 @@
-import { eq, and, desc, sql } from 'drizzle-orm';
+import { eq, and, desc, sql, gte, lte } from 'drizzle-orm';
 import { db } from '../shared/db/index.js';
 import {
   classSections,
@@ -477,6 +477,61 @@ export class AcademicsRepository {
     return timetableMem.filter((r) => r.classSectionId === classSectionId).sort((a, b) => b.version - a.version);
   }
 
+  public async getEffectiveTimetable(classSectionId: string, dateStr: string): Promise<TimetableRecord | undefined> {
+    const dateISO = new Date(`${dateStr}T00:00:00Z`);
+    if (db) {
+      try {
+        const rows = await db
+          .select()
+          .from(timetables)
+          .where(and(eq(timetables.classSectionId, classSectionId), sql`${timetables.effectiveFrom} <= ${dateISO.toISOString().slice(0, 10)}`))
+          .orderBy(desc(timetables.version))
+          .limit(1);
+        if (rows.length > 0) {
+          const rec = toTimetable(rows[0]);
+          timetableMem.save(rec);
+          return rec;
+        }
+        return undefined;
+      } catch (err: any) {
+        console.warn('[PostgreSQL Academics Warning] getEffectiveTimetable failed:', err.message);
+      }
+    }
+    const dateKey = dateISO.toISOString().slice(0, 10);
+    return timetableMem
+      .filter((r) => r.classSectionId === classSectionId && r.effectiveFrom <= dateKey)
+      .sort((a, b) => b.version - a.version)[0];
+  }
+
+  public async listTimetablesInInstitution(institutionCode: string): Promise<TimetableRecord[]> {
+    if (db) {
+      try {
+        const rows = await db.select().from(timetables).where(eq(timetables.institutionCode, institutionCode));
+        rows.forEach((r) => timetableMem.save(toTimetable(r)));
+        return rows;
+      } catch (err: any) {
+        console.warn('[PostgreSQL Academics Warning] listTimetablesInInstitution failed:', err.message);
+      }
+    }
+    return timetableMem.filter((r) => r.institutionCode.toLowerCase() === institutionCode.toLowerCase());
+  }
+
+  public async getMaxTimetableVersion(classSectionId: string): Promise<number> {
+    if (db) {
+      try {
+        const rows = await db
+          .select({ maxVersion: sql<number>`coalesce(max(${timetables.version}), 0)` })
+          .from(timetables)
+          .where(eq(timetables.classSectionId, classSectionId));
+        return Number(rows[0]?.maxVersion || 0);
+      } catch (err: any) {
+        console.warn('[PostgreSQL Academics Warning] getMaxTimetableVersion failed:', err.message);
+      }
+    }
+    const versions = timetableMem.filter((r) => r.classSectionId === classSectionId).map((r) => r.version);
+    return versions.length > 0 ? Math.max(...versions) : 0;
+  }
+
   public async createTimetable(data: any): Promise<TimetableRecord> {
     const record: TimetableRecord = {
       id: data.id || `tt_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -514,6 +569,55 @@ export class AcademicsRepository {
       }
     }
     return timetableSlotMem.filter((r) => r.timetableId === timetableId);
+  }
+
+  public async getTimetableSlotById(id: string): Promise<TimetableSlotRecord | undefined> {
+    if (db) {
+      try {
+        const rows = await db.select().from(timetableSlots).where(eq(timetableSlots.id, id)).limit(1);
+        if (rows.length > 0) {
+          const rec = toTimetableSlot(rows[0]);
+          timetableSlotMem.save(rec);
+          return rec;
+        }
+        return undefined;
+      } catch (err: any) {
+        console.warn('[PostgreSQL Academics Warning] getTimetableSlotById failed:', err.message);
+      }
+    }
+    return timetableSlotMem.getById(id);
+  }
+
+  public async listSlotsForTeacherOnDay(teacherId: string, dayOfWeek: number): Promise<TimetableSlotRecord[]> {
+    if (db) {
+      try {
+        const rows = await db
+          .select()
+          .from(timetableSlots)
+          .where(and(eq(timetableSlots.teacherId, teacherId), eq(timetableSlots.dayOfWeek, dayOfWeek)));
+        rows.forEach((r) => timetableSlotMem.save(toTimetableSlot(r)));
+        return rows;
+      } catch (err: any) {
+        console.warn('[PostgreSQL Academics Warning] listSlotsForTeacherOnDay failed:', err.message);
+      }
+    }
+    return timetableSlotMem.filter((r) => r.teacherId === teacherId && r.dayOfWeek === dayOfWeek);
+  }
+
+  public async listSlotsForClassOnDay(classSectionId: string, dayOfWeek: number): Promise<TimetableSlotRecord[]> {
+    if (db) {
+      try {
+        const rows = await db
+          .select()
+          .from(timetableSlots)
+          .where(and(eq(timetableSlots.classSectionId, classSectionId), eq(timetableSlots.dayOfWeek, dayOfWeek)));
+        rows.forEach((r) => timetableSlotMem.save(toTimetableSlot(r)));
+        return rows;
+      } catch (err: any) {
+        console.warn('[PostgreSQL Academics Warning] listSlotsForClassOnDay failed:', err.message);
+      }
+    }
+    return timetableSlotMem.filter((r) => r.classSectionId === classSectionId && r.dayOfWeek === dayOfWeek);
   }
 
   public async replaceSlotsForTimetable(timetableId: string, slots: any[]): Promise<TimetableSlotRecord[]> {
@@ -678,6 +782,30 @@ export class AcademicsRepository {
   }
 
   public async listAttendanceForStudent(studentId: string, institutionCode: string, fromDate?: string, toDate?: string): Promise<AttendanceEntryRecord[]> {
+    if (db) {
+      try {
+        const conditions = [eq(attendanceEntries.studentId, studentId)];
+        if (fromDate) conditions.push(gte(attendanceRecords.date, fromDate));
+        if (toDate) conditions.push(lte(attendanceRecords.date, toDate));
+        const rows = await db
+          .select({
+            entry: attendanceEntries,
+            record: attendanceRecords,
+          })
+          .from(attendanceEntries)
+          .innerJoin(attendanceRecords, eq(attendanceEntries.attendanceRecordId, attendanceRecords.id))
+          .where(and(...conditions));
+        const result = rows.map((r) => {
+          const entry = toAttendanceEntry(r.entry);
+          attendanceEntryMem.save(entry);
+          attendanceRecordMem.save(toAttendanceRecord(r.record));
+          return entry;
+        });
+        return result;
+      } catch (err: any) {
+        console.warn('[PostgreSQL Academics Warning] listAttendanceForStudent failed:', err.message);
+      }
+    }
     const filtered = attendanceEntryMem.filter((e) => e.studentId === studentId);
     if (!fromDate && !toDate) return filtered;
     const entriesWithRecord = filtered

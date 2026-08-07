@@ -54,3 +54,39 @@ export type CreateSubjectTeacherInput = z.infer<typeof CreateSubjectTeacherSchem
 export type CreatePeriodInput = z.infer<typeof CreatePeriodSchema>;
 export type UpdateInstitutionTermsInput = z.infer<typeof UpdateInstitutionTermsSchema>;
 export type UpdateHolidayCalendarInput = z.infer<typeof UpdateHolidayCalendarSchema>;
+
+export const TimetableSlotInputSchema = z.object({
+  subjectId: z.string().min(1).max(100),
+  teacherId: z.string().min(1).max(100),
+  periodId: z.string().min(1).max(100),
+  dayOfWeek: z.number().int().min(0).max(6, 'dayOfWeek must be 0 (Sun) – 6 (Sat)'),
+  room: z.string().max(100).optional().default(''),
+});
+
+export const CreateTimetableSchema = z.object({
+  classSectionId: z.string().min(1, 'classSectionId is required').max(100),
+  academicYear: z.string().max(100).optional().default(''),
+  term: z.string().max(100).optional().default(''),
+  effectiveFrom: z.string().regex(dateRegex, 'effectiveFrom must be in YYYY-MM-DD format'),
+  slots: z.array(TimetableSlotInputSchema).max(500, 'At most 500 timetable slots per version'),
+});
+
+export type TimetableSlotInput = z.infer<typeof TimetableSlotInputSchema>;
+export type CreateTimetableInput = z.infer<typeof CreateTimetableSchema>;
+
+export const ATTENDANCE_STATUSES = ['present', 'absent', 'late', 'excused'] as const;
+
+export const AttendanceEntryInputSchema = z.object({
+  studentId: z.string().min(1).max(100),
+  attendanceStatus: z.enum(ATTENDANCE_STATUSES),
+  remarks: z.string().max(300).optional().default(''),
+});
+
+export const MarkAttendanceSchema = z.object({
+  timetableSlotId: z.string().min(1, 'timetableSlotId is required').max(100),
+  date: z.string().regex(dateRegex, 'date must be in YYYY-MM-DD format'),
+  entries: z.array(AttendanceEntryInputSchema).max(2000, 'At most 2000 attendance entries per class'),
+});
+
+export type AttendanceEntryInput = z.infer<typeof AttendanceEntryInputSchema>;
+export type MarkAttendanceInput = z.infer<typeof MarkAttendanceSchema>;

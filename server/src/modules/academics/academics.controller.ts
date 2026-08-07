@@ -8,11 +8,23 @@ import {
   CreatePeriodSchema,
   UpdateInstitutionTermsSchema,
   UpdateHolidayCalendarSchema,
+  CreateTimetableSchema,
+  MarkAttendanceSchema,
 } from './academics.schema.js';
 
 function getInstCode(req: FastifyRequest): string {
   const user = (req as any).user;
   return user?.institutionCode || '';
+}
+
+function getUserId(req: FastifyRequest): string {
+  const user = (req as any).user;
+  return user?.uid || '';
+}
+
+function getRole(req: FastifyRequest): string {
+  const user = (req as any).user;
+  return user?.role || '';
 }
 
 function parseZod(err: any) {
@@ -163,5 +175,124 @@ export async function updateHolidaysHandler(request: FastifyRequest, reply: Fast
     return reply.send({ success: true, data });
   } catch (err: any) {
     return sendError(reply, err, 'Failed to update holiday calendar');
+  }
+}
+
+export async function createTimetableHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const body = CreateTimetableSchema.parse(request.body);
+    const data = await academicsService.createTimetable(getInstCode(request), getUserId(request), body);
+    return reply.status(201).send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to create timetable');
+  }
+}
+
+export async function getClassTimetableHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const query = request.query as { classSectionId: string; date?: string };
+    if (!query.classSectionId) {
+      return reply.status(400).send({ success: false, error: { message: 'classSectionId query param is required', code: 'VALIDATION_ERROR' } });
+    }
+    const date = query.date || new Date().toISOString().slice(0, 10);
+    const data = await academicsService.getClassTimetable(getInstCode(request), query.classSectionId, date);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to fetch class timetable');
+  }
+}
+
+export async function getTeacherTimetableHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const query = request.query as { date?: string };
+    const date = query.date || new Date().toISOString().slice(0, 10);
+    const data = await academicsService.getTeacherTimetable(getInstCode(request), getUserId(request), date);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to fetch teacher timetable');
+  }
+}
+
+export async function getAllTimetablesForClassHandler(request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
+  try {
+    const data = await academicsService.getAllTimetablesForClass(getInstCode(request), request.params.id);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to fetch timetables for class');
+  }
+}
+
+export async function getRosterHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const query = request.query as { timetableSlotId: string };
+    if (!query.timetableSlotId) {
+      return reply.status(400).send({ success: false, error: { message: 'timetableSlotId query param is required', code: 'VALIDATION_ERROR' } });
+    }
+    const data = await academicsService.getRoster(getInstCode(request), query.timetableSlotId);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to fetch roster');
+  }
+}
+
+export async function markAttendanceHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const body = MarkAttendanceSchema.parse(request.body);
+    const data = await academicsService.markAttendance(getInstCode(request), getUserId(request), body);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to mark attendance');
+  }
+}
+
+export async function getAttendanceForSlotHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const query = request.query as { timetableSlotId: string; date?: string };
+    if (!query.timetableSlotId) {
+      return reply.status(400).send({ success: false, error: { message: 'timetableSlotId query param is required', code: 'VALIDATION_ERROR' } });
+    }
+    const date = query.date || new Date().toISOString().slice(0, 10);
+    const data = await academicsService.getAttendanceForSlot(getInstCode(request), query.timetableSlotId, date);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to fetch attendance for slot');
+  }
+}
+
+export async function getStudentAttendanceHistoryHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const query = request.query as { fromDate?: string; toDate?: string };
+    const data = await academicsService.getStudentAttendanceHistory(getInstCode(request), getUserId(request), query.fromDate, query.toDate);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to fetch attendance history');
+  }
+}
+
+export async function getParentAttendanceHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const data = await academicsService.getParentView(getInstCode(request), getUserId(request));
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to fetch linked student attendance');
+  }
+}
+
+export async function getDepartmentOverviewHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const query = request.query as { department?: string };
+    const data = await academicsService.getDepartmentOverview(getInstCode(request), query.department);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to fetch department overview');
+  }
+}
+
+export async function getInstitutionOverviewHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const data = await academicsService.getInstitutionOverview(getInstCode(request));
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to fetch institution overview');
   }
 }
