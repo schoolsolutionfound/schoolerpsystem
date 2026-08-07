@@ -101,14 +101,9 @@ export class AdminService {
         academicYears: ['1st Year', '2nd Year', '3rd Year', '4th Year'],
         courses: ['B.Tech', 'M.Tech'],
         sections: ['Section A', 'Section B'],
+        terms: [{ academicYear: '2026-27', terms: ['Semester 1', 'Semester 2'] }],
+        blockedDates: [],
       };
-    }
-
-    let scopeObj: any = {};
-    try {
-      scopeObj = typeof inst === 'object' && (inst as any).scope ? JSON.parse((inst as any).scope) : {};
-    } catch {
-      scopeObj = {};
     }
 
     return {
@@ -116,26 +111,32 @@ export class AdminService {
       institutionName: inst.institutionName,
       institutionType: inst.institutionType,
       subscriptionStatus: inst.subscriptionStatus,
-      departments: scopeObj.departments || ['Computer Science', 'Electronics', 'Mechanical', 'Civil'],
-      academicYears: scopeObj.academicYears || ['1st Year', '2nd Year', '3rd Year', '4th Year'],
-      courses: scopeObj.courses || ['B.Tech', 'M.Tech'],
-      sections: scopeObj.sections || ['Section A', 'Section B'],
+      departments: inst.departments || ['Computer Science', 'Electronics', 'Mechanical', 'Civil'],
+      academicYears: inst.academicYears || ['1st Year', '2nd Year', '3rd Year', '4th Year'],
+      courses: inst.courses || ['B.Tech', 'M.Tech'],
+      sections: (inst as any).sections || ['Section A', 'Section B'],
+      terms: inst.terms || [{ academicYear: '2026-27', terms: ['Semester 1', 'Semester 2'] }],
+      blockedDates: inst.blockedDates || [],
     };
   }
 
-  public async updateInstitutionConfig(institutionCode: string, payload: { departments?: string[]; academicYears?: string[]; courses?: string[]; sections?: string[] }) {
+  public async updateInstitutionConfig(
+    institutionCode: string,
+    payload: { departments?: string[]; academicYears?: string[]; courses?: string[]; sections?: string[]; terms?: any[]; blockedDates?: any[] }
+  ) {
     const inst = await institutionService.getInstitutions().then((list) =>
       list.find((i) => i.institutionCode.toLowerCase() === (institutionCode || '').toLowerCase())
     );
 
     if (inst) {
-      const scopeJson = JSON.stringify({
-        departments: payload.departments || [],
-        academicYears: payload.academicYears || [],
-        courses: payload.courses || [],
-        sections: payload.sections || [],
-      });
-      await institutionService.updateInstitution(inst.id, { scope: scopeJson } as any);
+      const update: any = {};
+      if (payload.departments !== undefined) update.departments = payload.departments;
+      if (payload.academicYears !== undefined) update.academicYears = payload.academicYears;
+      if (payload.courses !== undefined) update.courses = payload.courses;
+      if (payload.terms !== undefined) update.terms = payload.terms;
+      if (payload.blockedDates !== undefined) update.blockedDates = payload.blockedDates;
+      if (payload.sections !== undefined) update.sections = payload.sections;
+      await institutionService.updateInstitution(inst.id, update as any);
     }
 
     return this.getInstitutionConfig(institutionCode);

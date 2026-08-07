@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import { authRoutes } from './modules/auth/auth.routes.js';
 import { userRoutes } from './modules/users/user.routes.js';
 import { adminRoutes } from './modules/admin/admin.routes.js';
+import { academicsRoutes } from './modules/academics/academics.routes.js';
 import { institutionRoutes } from './modules/institutions/institution.routes.js';
 import { developerRoutes } from './modules/developer/developer.routes.js';
 
@@ -35,6 +36,7 @@ async function main() {
         await apiV1.register(authRoutes, { prefix: '/auth' });
         await apiV1.register(userRoutes, { prefix: '/users' });
         await apiV1.register(adminRoutes, { prefix: '/admin' });
+        await apiV1.register(academicsRoutes, { prefix: '/admin' });
         await apiV1.register(institutionRoutes, { prefix: '/institutions' });
         await apiV1.register(developerRoutes, { prefix: '/developer' });
       },

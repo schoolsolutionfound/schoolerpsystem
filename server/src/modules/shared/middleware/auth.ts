@@ -125,3 +125,41 @@ export async function requireDeveloper(request: FastifyRequest, reply: FastifyRe
     });
   }
 }
+
+export function normalizeRole(role: string | undefined): string {
+  const normalized = (role || '').toLowerCase().trim();
+  if (normalized === 'maintainer' || normalized === 'institution admin') return 'admin';
+  return normalized;
+}
+
+export async function requireAdmin(request: FastifyRequest, reply: FastifyReply) {
+  await authenticate(request, reply);
+  if (reply.sent) return;
+
+  const role = normalizeRole(request.user?.role);
+  if (role !== 'admin') {
+    return reply.status(403).send({
+      success: false,
+      error: {
+        message: 'Access denied: Institution Administrator privileges required',
+        code: 'FORBIDDEN',
+      },
+    });
+  }
+}
+
+export async function requireTeacherOrAdmin(request: FastifyRequest, reply: FastifyReply) {
+  await authenticate(request, reply);
+  if (reply.sent) return;
+
+  const role = normalizeRole(request.user?.role);
+  if (role !== 'admin' && role !== 'teacher' && role !== 'hod') {
+    return reply.status(403).send({
+      success: false,
+      error: {
+        message: 'Access denied: Teacher or Administrator privileges required',
+        code: 'FORBIDDEN',
+      },
+    });
+  }
+}
