@@ -8,6 +8,8 @@ import { StudentHomeHeader } from '../../features/student/components/StudentHome
 import { StudentHomeAttendanceCard } from '../../features/student/components/StudentHomeAttendanceCard';
 import { StudentHomeAnnouncements } from '../../features/student/components/StudentHomeAnnouncements';
 import { StudentHomePeriodsList } from '../../features/student/components/StudentHomePeriodsList';
+import { StudentTimetableView } from '../../features/student/components/StudentTimetableView';
+import { StudentAttendanceView } from '../../features/student/components/StudentAttendanceView';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -26,11 +28,21 @@ export default function HomeScreen() {
           onProfilePress={() => router.push('/(student)/profile')}
         />
 
-        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-          <StudentHomeAttendanceCard />
-          <StudentHomeAnnouncements />
-          <StudentHomePeriodsList />
-        </ScrollView>
+        {activeTab === 'home' && (
+          <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+            <StudentHomeAttendanceCard />
+            <StudentHomeAnnouncements />
+            <StudentHomePeriodsList />
+          </ScrollView>
+        )}
+
+        {activeTab === 'schedule' && <StudentTimetableView />}
+        {activeTab === 'attendance' && <StudentAttendanceView />}
+        {activeTab === 'reports' && (
+          <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+            <StudentHomeAnnouncements />
+          </ScrollView>
+        )}
 
         <View style={styles.tabBar}>
           <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('home')}>

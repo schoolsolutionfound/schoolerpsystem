@@ -16,12 +16,19 @@ import {
   fetchUsersApi,
   createUserApi,
 } from '../../api/admin';
+import {
+  fetchClassSectionsApi,
+  fetchSubjectsApi,
+  fetchSubjectTeachersApi,
+  fetchPeriodsApi,
+} from '../../api/academics';
 import { AdminDashboardView } from '../../features/admin/components/AdminDashboardView';
 import { AdminInstitutionView } from '../../features/admin/components/AdminInstitutionView';
 import { AdminStudentsView } from '../../features/admin/components/AdminStudentsView';
 import { AdminTeachersView } from '../../features/admin/components/AdminTeachersView';
 import { AdminUsersView } from '../../features/admin/components/AdminUsersView';
 import { AdminProfileView } from '../../features/admin/components/AdminProfileView';
+import { AdminAcademicsView } from '../../features/admin/components/AdminAcademicsView';
 
 export default function AdminHomeScreen() {
   const router = useRouter();
@@ -32,7 +39,7 @@ export default function AdminHomeScreen() {
   const designation = useUserStore((state) => state.designation) || '';
   const resetUser = useUserStore((state) => state.resetUser);
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'institution' | 'students' | 'teachers' | 'users' | 'profile'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'institution' | 'students' | 'teachers' | 'users' | 'academics' | 'profile'>('dashboard');
   const [loading, setLoading] = useState(true);
 
   // Server State
@@ -48,15 +55,23 @@ export default function AdminHomeScreen() {
   const [students, setStudents] = useState<any[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
   const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [classSections, setClassSections] = useState<any[]>([]);
+  const [subjects, setSubjects] = useState<any[]>([]);
+  const [subjectTeachers, setSubjectTeachers] = useState<any[]>([]);
+  const [periods, setPeriods] = useState<any[]>([]);
 
   const loadAllData = async () => {
     setLoading(true);
     try {
-      const [configRes, studentsRes, teachersRes, usersRes] = await Promise.all([
+      const [configRes, studentsRes, teachersRes, usersRes, classesRes, subjectsRes, assignmentsRes, periodsRes] = await Promise.all([
         fetchInstitutionConfigApi().catch(() => null),
         fetchStudentsApi().catch(() => null),
         fetchTeachersApi().catch(() => null),
         fetchUsersApi().catch(() => null),
+        fetchClassSectionsApi().catch(() => null),
+        fetchSubjectsApi().catch(() => null),
+        fetchSubjectTeachersApi().catch(() => null),
+        fetchPeriodsApi().catch(() => null),
       ]);
 
       if (configRes) {
@@ -70,6 +85,18 @@ export default function AdminHomeScreen() {
       }
       if (usersRes && Array.isArray(usersRes)) {
         setAllUsers(usersRes);
+      }
+      if (classesRes && Array.isArray(classesRes)) {
+        setClassSections(classesRes);
+      }
+      if (subjectsRes && Array.isArray(subjectsRes)) {
+        setSubjects(subjectsRes);
+      }
+      if (assignmentsRes && Array.isArray(assignmentsRes)) {
+        setSubjectTeachers(assignmentsRes);
+      }
+      if (periodsRes && Array.isArray(periodsRes)) {
+        setPeriods(periodsRes);
       }
     } catch (err: any) {
       console.warn('[Admin Data Load Warning]', err.message);
@@ -190,6 +217,23 @@ export default function AdminHomeScreen() {
               />
             )}
 
+            {activeTab === 'academics' && (
+              <AdminAcademicsView
+                institutionType={config.institutionType || 'college'}
+                departments={config.departments || []}
+                academicYears={config.academicYears || []}
+                sections={config.sections || []}
+                classSections={classSections}
+                subjects={subjects}
+                subjectTeachers={subjectTeachers}
+                periods={periods}
+                teachers={teachers}
+                terms={config.terms || []}
+                blockedDates={config.blockedDates || []}
+                onDataChange={loadAllData}
+              />
+            )}
+
             {activeTab === 'profile' && (
               <AdminProfileView
                 fullName={fullName}
@@ -230,6 +274,11 @@ export default function AdminHomeScreen() {
           <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('users')}>
             <MaterialCommunityIcons name="account-group-outline" size={22} color={activeTab === 'users' ? '#7E57C2' : '#94A3B8'} />
             <Text style={[styles.tabLabel, activeTab === 'users' && styles.tabLabelActive]}>Users</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('academics')}>
+            <MaterialCommunityIcons name="school-outline" size={22} color={activeTab === 'academics' ? '#7E57C2' : '#94A3B8'} />
+            <Text style={[styles.tabLabel, activeTab === 'academics' && styles.tabLabelActive]}>Academics</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('profile')}>

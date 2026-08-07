@@ -16,6 +16,8 @@ import {
   createTimetableHandler,
   getClassTimetableHandler,
   getTeacherTimetableHandler,
+  getMyTimetableHandler,
+  getMyClassSectionHandler,
   getAllTimetablesForClassHandler,
   getRosterHandler,
   markAttendanceHandler,
@@ -55,6 +57,8 @@ export async function academicsRoutes(fastify: FastifyInstance) {
   fastify.post('/timetable', { preHandler: [requireTeacherOrAdmin] }, (req, reply) => createTimetableHandler(req, reply));
   fastify.get('/timetable/class', { preHandler: [authenticate] }, (req, reply) => getClassTimetableHandler(req, reply));
   fastify.get('/timetable/teacher', { preHandler: [authenticate] }, (req, reply) => getTeacherTimetableHandler(req, reply));
+  fastify.get('/timetable/me', { preHandler: [authenticate] }, (req, reply) => getMyTimetableHandler(req, reply));
+  fastify.get('/timetable/my-class', { preHandler: [authenticate] }, (req, reply) => getMyClassSectionHandler(req, reply));
   fastify.get('/timetable/class/:id/versions', { preHandler: [authenticate] }, (req, reply) => getAllTimetablesForClassHandler(req as any, reply));
 
   // Attendance

@@ -11,10 +11,10 @@ const CARD_WIDTH = (width - 60) / 2;
 
 const TEACHER_FEATURES = [
   { icon: 'calendar-check', title: 'Mark Attendance', desc: 'Take class roll', gradient: ['#667EEA', '#764BA2'], screen: '/teacher-attendance' },
-  { icon: 'file-document-edit', title: 'Enter Grades', desc: 'Post exam marks', gradient: ['#F093FB', '#F5576C'], screen: '/teacher-grades' },
-  { icon: 'account-group', title: 'My Classes', desc: 'Assigned sections', gradient: ['#4FACFE', '#00F2FE'], screen: '/teacher-classes' },
-  { icon: 'timetable', title: 'Timetable', desc: 'Your schedule', gradient: ['#43E97B', '#38F9D7'], screen: '/teacher-timetable' },
-  { icon: 'bullhorn', title: 'Announcements', desc: 'Post to students', gradient: ['#FA709A', '#FEE140'], screen: '/teacher-announcements' },
+  { icon: 'timetable', title: 'My Schedule', desc: 'Today\'s periods', gradient: ['#43E97B', '#38F9D7'], screen: '/teacher-attendance' },
+  { icon: 'calendar-edit', title: 'Build Timetable', desc: 'For your class', gradient: ['#4FACFE', '#00F2FE'], screen: '/teacher-timetable' },
+  { icon: 'file-document-edit', title: 'Enter Grades', desc: 'Post exam marks', gradient: ['#F093FB', '#F5576C'], screen: '/teacher-attendance' },
+  { icon: 'account-group', title: 'My Classes', desc: 'Assigned sections', gradient: ['#FA709A', '#FEE140'], screen: '/teacher-attendance' },
   { icon: 'bell', title: 'Notifications', desc: 'School updates', gradient: ['#A18CD1', '#FBC2EB'], screen: '/notifications' },
 ];
 

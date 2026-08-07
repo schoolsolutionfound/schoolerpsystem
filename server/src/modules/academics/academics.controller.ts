@@ -213,6 +213,26 @@ export async function getTeacherTimetableHandler(request: FastifyRequest, reply:
   }
 }
 
+export async function getMyTimetableHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const query = request.query as { date?: string };
+    const date = query.date || new Date().toISOString().slice(0, 10);
+    const data = await academicsService.getMyTimetable(getInstCode(request), getUserId(request), date);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to fetch my timetable');
+  }
+}
+
+export async function getMyClassSectionHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const data = await academicsService.getMyClassSection(getInstCode(request), getUserId(request));
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to fetch my class section');
+  }
+}
+
 export async function getAllTimetablesForClassHandler(request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
   try {
     const data = await academicsService.getAllTimetablesForClass(getInstCode(request), request.params.id);

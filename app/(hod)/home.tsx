@@ -3,9 +3,12 @@ import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useUserStore } from '../../store/useUserStore';
+import { AttendanceReportsView } from '../../features/shared/components/AttendanceReportsView';
 
 export default function HODHomeScreen() {
   const router = useRouter();
+  const department = useUserStore((state) => state.department) || '';
 
   return (
     <View style={styles.container}>
@@ -17,8 +20,7 @@ export default function HODHomeScreen() {
           </TouchableOpacity>
         </View>
         <View style={styles.content}>
-          <Text style={styles.icon}>[H]</Text>
-          <Text style={styles.subtitle}>Coming soon</Text>
+          <AttendanceReportsView mode="department" department={department || undefined} />
         </View>
       </SafeAreaView>
     </View>
@@ -31,7 +33,5 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E2E8F0', backgroundColor: '#FFFFFF' },
   headerTitle: { fontSize: 17, fontWeight: '700', color: '#1A202C' },
   profileBtn: { padding: 4 },
-  content: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
-  icon: { fontSize: 40, fontWeight: '800', color: '#F4A261', marginBottom: 16 },
-  subtitle: { fontSize: 14, color: '#718096' },
+  content: { flex: 1 },
 });

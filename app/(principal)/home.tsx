@@ -3,6 +3,7 @@ import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { AttendanceReportsView } from '../../features/shared/components/AttendanceReportsView';
 
 export default function PrincipalHomeScreen() {
   const router = useRouter();
@@ -13,12 +14,11 @@ export default function PrincipalHomeScreen() {
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Principal Portal</Text>
           <TouchableOpacity onPress={() => router.push('/(principal)/profile')} style={styles.profileBtn}>
-            <MaterialCommunityIcons name="account-circle-outline" size={28} color="#7E57C2" />
+            <MaterialCommunityIcons name="account-circle-outline" size={28} color="#2F80ED" />
           </TouchableOpacity>
         </View>
         <View style={styles.content}>
-          <Text style={styles.icon}>[P]</Text>
-          <Text style={styles.subtitle}>Coming soon</Text>
+          <AttendanceReportsView mode="institution" />
         </View>
       </SafeAreaView>
     </View>
@@ -31,7 +31,5 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E2E8F0', backgroundColor: '#FFFFFF' },
   headerTitle: { fontSize: 17, fontWeight: '700', color: '#1A202C' },
   profileBtn: { padding: 4 },
-  content: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
-  icon: { fontSize: 40, fontWeight: '800', color: '#7E57C2', marginBottom: 16 },
-  subtitle: { fontSize: 14, color: '#718096' },
+  content: { flex: 1 },
 });

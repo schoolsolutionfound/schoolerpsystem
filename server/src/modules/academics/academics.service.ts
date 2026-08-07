@@ -476,6 +476,36 @@ export class AcademicsService {
     };
   }
 
+  public async getMyClassSection(institutionCode: string, userId: string) {
+    const user = await this.findUser(institutionCode, userId);
+    if (!user) {
+      throw { statusCode: 403, code: 'FORBIDDEN', message: 'User not found in institution' };
+    }
+    const scope = this.parseScope(user.scope);
+    const classSections = await academicsRepository.listClassSections(institutionCode);
+    const match = classSections.find((cs) => {
+      const matchesDept = !cs.department || (scope.department || '').toLowerCase() === cs.department.toLowerCase();
+      const matchesYear = !cs.academicYear || (scope.academicYear || '').toLowerCase() === cs.academicYear.toLowerCase();
+      const matchesSection = !cs.section || (scope.section || '').toLowerCase() === cs.section.toLowerCase();
+      return matchesDept && matchesYear && matchesSection;
+    });
+    return match || null;
+  }
+
+  public async getMyTimetable(institutionCode: string, userId: string, dateStr: string) {
+    const classSection = await this.getMyClassSection(institutionCode, userId);
+    if (!classSection) {
+      return { classSection: null, effective: null, slots: [] };
+    }
+    const effective = await academicsRepository.getEffectiveTimetable(classSection.id, dateStr);
+    if (!effective) {
+      return { classSection, effective: null, slots: [] };
+    }
+    const slots = await academicsRepository.listSlotsForTimetable(effective.id);
+    const enriched = await this.enrichSlots(slots);
+    return { classSection, effective, slots: enriched };
+  }
+
   // ---------- Reports (HOD / Principal / Admin) ----------
   public async getDepartmentOverview(institutionCode: string, department?: string) {
     const allUsers = await dbGetAllUsers();
