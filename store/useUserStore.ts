@@ -165,10 +165,12 @@ export const useUserStore = create<UserState>()(
         libraryBadgeId: state.libraryBadgeId,
         designation: state.designation,
       }),
-      version: 1,
+      version: 2,
       migrate: (persisted: any, version: number) => {
-        if (version < 1 && persisted?.institutionType === 'school') {
-          persisted.institutionType = 'college';
+        if (version < 1) {
+          if (persisted?.institutionType && persisted.institutionType !== 'school' && persisted.institutionType !== 'college') {
+            persisted.institutionType = 'college';
+          }
         }
         return persisted;
       },

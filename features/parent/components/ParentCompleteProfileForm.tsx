@@ -48,7 +48,7 @@ export const ParentCompleteProfileForm: React.FC<ParentCompleteProfileFormProps>
           <Text style={styles.inputLabel}>Student USN / Roll No</Text>
           <View style={styles.inputWrapper}>
             <MaterialCommunityIcons name="card-account-details-outline" size={18} color="#7E57C2" style={styles.iconPrefix} />
-            <TextInput style={styles.input} placeholder="e.g. 1MS21CS001" placeholderTextColor="#A0AEC0" value={linkedStudentUSN} onChangeText={setLinkedStudentUSN} />
+            <TextInput style={styles.input} placeholder="e.g. GIS2026002" placeholderTextColor="#A0AEC0" value={linkedStudentUSN} onChangeText={setLinkedStudentUSN} />
           </View>
         </View>
         <View style={styles.inputGroup}>

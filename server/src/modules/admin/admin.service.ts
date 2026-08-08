@@ -87,6 +87,27 @@ export class AdminService {
   }
 
   // --- Academic Configuration ---
+  private getDefaultAcademicConfig(institutionType: string) {
+    if (institutionType === 'school') {
+      return {
+        institutionType: 'school',
+        departments: ['English', 'Mathematics', 'Science'],
+        academicYears: ['Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12'],
+        courses: [],
+        sections: ['A', 'B', 'C'],
+        terms: [{ academicYear: '2026-2027', terms: ['Term 1', 'Term 2', 'Term 3'] }],
+      };
+    }
+    return {
+      institutionType: 'college',
+      departments: ['Computer Science', 'Electronics', 'Mechanical', 'Civil'],
+      academicYears: ['1st Year', '2nd Year', '3rd Year', '4th Year'],
+      courses: ['B.Tech', 'M.Tech'],
+      sections: ['Section A', 'Section B'],
+      terms: [{ academicYear: '2026-27', terms: ['Semester 1', 'Semester 2'] }],
+    };
+  }
+
   public async getInstitutionConfig(institutionCode: string) {
     const inst = await institutionService.getInstitutions().then((list) =>
       list.find((i) => i.institutionCode.toLowerCase() === (institutionCode || '').toLowerCase())
@@ -96,12 +117,7 @@ export class AdminService {
       return {
         institutionCode: institutionCode || 'DEFAULT',
         institutionName: 'My Institution',
-        institutionType: 'college',
-        departments: ['Computer Science', 'Electronics', 'Mechanical', 'Civil'],
-        academicYears: ['1st Year', '2nd Year', '3rd Year', '4th Year'],
-        courses: ['B.Tech', 'M.Tech'],
-        sections: ['Section A', 'Section B'],
-        terms: [{ academicYear: '2026-27', terms: ['Semester 1', 'Semester 2'] }],
+        ...this.getDefaultAcademicConfig('college'),
         blockedDates: [],
       };
     }
@@ -111,11 +127,11 @@ export class AdminService {
       institutionName: inst.institutionName,
       institutionType: inst.institutionType,
       subscriptionStatus: inst.subscriptionStatus,
-      departments: inst.departments || ['Computer Science', 'Electronics', 'Mechanical', 'Civil'],
-      academicYears: inst.academicYears || ['1st Year', '2nd Year', '3rd Year', '4th Year'],
-      courses: inst.courses || ['B.Tech', 'M.Tech'],
-      sections: (inst as any).sections || ['Section A', 'Section B'],
-      terms: inst.terms || [{ academicYear: '2026-27', terms: ['Semester 1', 'Semester 2'] }],
+      departments: inst.departments || this.getDefaultAcademicConfig(inst.institutionType).departments,
+      academicYears: inst.academicYears || this.getDefaultAcademicConfig(inst.institutionType).academicYears,
+      courses: inst.courses || this.getDefaultAcademicConfig(inst.institutionType).courses,
+      sections: (inst as any).sections || this.getDefaultAcademicConfig(inst.institutionType).sections,
+      terms: inst.terms || this.getDefaultAcademicConfig(inst.institutionType).terms,
       blockedDates: inst.blockedDates || [],
     };
   }

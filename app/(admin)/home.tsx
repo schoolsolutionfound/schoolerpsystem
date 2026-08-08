@@ -46,11 +46,11 @@ export default function AdminHomeScreen() {
   const [config, setConfig] = useState<any>({
     institutionCode,
     institutionName,
-    institutionType: 'college',
-    departments: ['Computer Science', 'Electronics', 'Mechanical', 'Civil'],
-    academicYears: ['1st Year', '2nd Year', '3rd Year', '4th Year'],
-    courses: ['B.Tech', 'M.Tech'],
-    sections: ['Section A', 'Section B'],
+    institutionType: useUserStore.getState().institutionType || 'college',
+    departments: [],
+    academicYears: [],
+    courses: [],
+    sections: [],
   });
   const [students, setStudents] = useState<any[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);

@@ -45,9 +45,9 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [rollNoOrUSN, setRollNoOrUSN] = useState('');
-  const [dept, setDept] = useState(departments[0] || 'Computer Science');
-  const [year, setYear] = useState(academicYears[0] || '1st Year');
-  const [section, setSection] = useState(sections[0] || 'Section A');
+  const [dept, setDept] = useState(departments[0] || '');
+  const [year, setYear] = useState(academicYears[0] || '');
+  const [section, setSection] = useState(sections[0] || '');
   const [password, setPassword] = useState('TempPass123!');
   const [submitting, setSubmitting] = useState(false);
 

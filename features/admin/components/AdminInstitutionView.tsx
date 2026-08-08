@@ -23,6 +23,7 @@ interface AdminInstitutionViewProps {
 }
 
 export const AdminInstitutionView: React.FC<AdminInstitutionViewProps> = ({ config, onSaveConfig }) => {
+  const isSchool = config.institutionType === 'school';
   const [departments, setDepartments] = useState<string[]>(config.departments || []);
   const [academicYears, setAcademicYears] = useState<string[]>(config.academicYears || []);
   const [courses, setCourses] = useState<string[]>(config.courses || []);
@@ -90,7 +91,7 @@ export const AdminInstitutionView: React.FC<AdminInstitutionViewProps> = ({ conf
         <View style={styles.inputRow}>
           <TextInput
             style={styles.input}
-            placeholder="e.g. Computer Science"
+            placeholder={isSchool ? 'e.g. English' : 'e.g. Computer Science'}
             value={newDept}
             onChangeText={setNewDept}
           />
@@ -116,7 +117,7 @@ export const AdminInstitutionView: React.FC<AdminInstitutionViewProps> = ({ conf
         <View style={styles.inputRow}>
           <TextInput
             style={styles.input}
-            placeholder="e.g. 1st Year"
+            placeholder={isSchool ? 'e.g. Grade 10' : 'e.g. 1st Year'}
             value={newYear}
             onChangeText={setNewYear}
           />
@@ -136,31 +137,33 @@ export const AdminInstitutionView: React.FC<AdminInstitutionViewProps> = ({ conf
         </View>
       </View>
 
-      {/* Courses Section */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Courses Setup</Text>
-        <View style={styles.inputRow}>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. B.Tech"
-            value={newCourse}
-            onChangeText={setNewCourse}
-          />
-          <TouchableOpacity style={styles.addBtn} onPress={() => addItem(newCourse, setNewCourse, courses, setCourses)}>
-            <Text style={styles.addBtnText}>+ Add</Text>
-          </TouchableOpacity>
+      {/* Courses Section (college only) */}
+      {!isSchool && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Courses Setup</Text>
+          <View style={styles.inputRow}>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. B.Tech"
+              value={newCourse}
+              onChangeText={setNewCourse}
+            />
+            <TouchableOpacity style={styles.addBtn} onPress={() => addItem(newCourse, setNewCourse, courses, setCourses)}>
+              <Text style={styles.addBtnText}>+ Add</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.chipContainer}>
+            {courses.map((course, idx) => (
+              <View key={idx} style={[styles.chip, { backgroundColor: '#FEF3C7' }]}>
+                <Text style={[styles.chipText, { color: '#D97706' }]}>{course}</Text>
+                <TouchableOpacity onPress={() => removeItem(idx, courses, setCourses)}>
+                  <MaterialCommunityIcons name="close-circle" size={16} color="#D97706" />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
         </View>
-        <View style={styles.chipContainer}>
-          {courses.map((course, idx) => (
-            <View key={idx} style={[styles.chip, { backgroundColor: '#FEF3C7' }]}>
-              <Text style={[styles.chipText, { color: '#D97706' }]}>{course}</Text>
-              <TouchableOpacity onPress={() => removeItem(idx, courses, setCourses)}>
-                <MaterialCommunityIcons name="close-circle" size={16} color="#D97706" />
-              </TouchableOpacity>
-            </View>
-          ))}
-        </View>
-      </View>
+      )}
 
       {/* Save Button */}
       <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving}>

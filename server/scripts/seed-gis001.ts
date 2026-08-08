@@ -14,61 +14,61 @@ async function runBatch<T>(items: T[], fn: (item: T) => Promise<any>, label: str
       else { fail++; }
     }
   }
-  console.log(  -> :  succeeded,  failed);
+  console.log(`${label}: ${ok} succeeded, ${fail} failed`);
 }
 
 async function main() {
   const instCode = 'GIS001';
-  const instName = 'Greenfield Institute of Technology';
+  const instName = 'Greenfield International School';
   const password = 'TempPass123!';
   const start = Date.now();
 
-  console.log(Seeding  - \n);
+  console.log(`Seeding ${instName} (${instCode}) as a school...\n`);
 
   try {
     await institutionService.createInstitution({
       institutionCode: instCode,
       institutionName: instName,
-      institutionType: 'college',
-      departments: ['Computer Science', 'Electronics', 'Mechanical', 'Civil'],
-      academicYears: ['1st Year', '2nd Year', '3rd Year', '4th Year'],
-      courses: ['B.Tech', 'M.Tech'],
+      institutionType: 'school',
+      departments: ['English', 'Mathematics', 'Science'],
+      academicYears: ['Grade 8', 'Grade 9', 'Grade 10'],
+      courses: [],
     });
-    console.log(  ✓ Institution created\n);
+    console.log('  ✓ Institution created\n');
   } catch (err: any) {
     if (err.code === 'INSTITUTION_CODE_EXISTS') {
-      console.log(  ~ Institution already exists, reusing\n);
+      console.log('  ~ Institution already exists, reusing\n');
     } else {
       throw err;
     }
   }
 
   const students = [
-    { firstName: 'Aarav', lastName: 'Sharma', email: 'aarav.s@gis.edu', rollNoOrUSN: '1MS21CS001', department: 'Computer Science', academicYear: '3rd Year', section: 'Section A', parentPhone: '+91-9876543210' },
-    { firstName: 'Priya', lastName: 'Verma', email: 'priya.v@gis.edu', rollNoOrUSN: '1MS21CS002', department: 'Computer Science', academicYear: '3rd Year', section: 'Section A', parentPhone: '+91-9876543211' },
-    { firstName: 'Rohan', lastName: 'Gupta', email: 'rohan.g@gis.edu', rollNoOrUSN: '1MS22EC001', department: 'Electronics', academicYear: '2nd Year', section: 'Section B', parentPhone: '+91-9876543212' },
-    { firstName: 'Sneha', lastName: 'Patil', email: 'sneha.p@gis.edu', rollNoOrUSN: '1MS23ME001', department: 'Mechanical', academicYear: '1st Year', section: 'Section A', parentPhone: '+91-9876543213' },
-    { firstName: 'Arjun', lastName: 'Reddy', email: 'arjun.r@gis.edu', rollNoOrUSN: '1MS22CS003', department: 'Computer Science', academicYear: '2nd Year', section: 'Section B', parentPhone: '+91-9876543214' },
+    { firstName: 'Aarav', lastName: 'Sharma', email: 'aarav.s@gis.edu', rollNoOrUSN: 'GIS2026001', department: 'Science', academicYear: 'Grade 10', section: 'A', parentPhone: '+91-9876543210' },
+    { firstName: 'Priya', lastName: 'Verma', email: 'priya.v@gis.edu', rollNoOrUSN: 'GIS2026002', department: 'Science', academicYear: 'Grade 10', section: 'A', parentPhone: '+91-9876543211' },
+    { firstName: 'Rohan', lastName: 'Gupta', email: 'rohan.g@gis.edu', rollNoOrUSN: 'GIS2026003', department: 'Mathematics', academicYear: 'Grade 9', section: 'B', parentPhone: '+91-9876543212' },
+    { firstName: 'Sneha', lastName: 'Patil', email: 'sneha.p@gis.edu', rollNoOrUSN: 'GIS2026004', department: 'English', academicYear: 'Grade 8', section: 'A', parentPhone: '+91-9876543213' },
+    { firstName: 'Arjun', lastName: 'Reddy', email: 'arjun.r@gis.edu', rollNoOrUSN: 'GIS2026005', department: 'Science', academicYear: 'Grade 9', section: 'B', parentPhone: '+91-9876543214' },
   ];
 
   const teachers = [
-    { firstName: 'Anita', lastName: 'Desai', email: 'anita.d@gis.edu', employeeId: 'TCH-GIS-001', department: 'Computer Science' },
+    { firstName: 'Anita', lastName: 'Desai', email: 'anita.d@gis.edu', employeeId: 'TCH-GIS-001', department: 'Science' },
   ];
 
   await runBatch(students, (s) =>
     adminService.createStudent({ ...s, institutionCode: instCode, password })
-      .then((r) => console.log(  v   () -> fb:...)),
+      .then((r) => console.log(`  ✓ Student ${s.email} -> fb:${r.firebaseUid}`)),
     'Students'
   );
 
   await runBatch(teachers, (t) =>
     adminService.createTeacher({ ...t, institutionCode: instCode, password })
-      .then((r) => console.log(  v   () -> fb:...)),
+      .then((r) => console.log(`  ✓ Teacher ${t.email} -> fb:${r.firebaseUid}`)),
     'Teachers'
   );
 
   const elapsed = ((Date.now() - start) / 1000).toFixed(1);
-  console.log(\nDone in s.);
+  console.log(`\nDone in ${elapsed}s.`);
 }
 
 main().catch(console.error);

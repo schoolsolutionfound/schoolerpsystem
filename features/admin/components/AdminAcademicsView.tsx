@@ -108,9 +108,9 @@ function ClassesTab({ institutionType, departments, academicYears, sections, cla
     try {
       await createClassSectionApi({
         name,
-        department: institutionType === 'college' ? department : '',
-        academicYear: institutionType === 'college' ? academicYear : '',
-        section: institutionType === 'college' ? section : section,
+        department,
+        academicYear,
+        section,
         classTeacherId,
       });
       setModalOpen(false);
@@ -156,8 +156,10 @@ function ClassesTab({ institutionType, departments, academicYears, sections, cla
                 <MaterialCommunityIcons name="trash-can-outline" size={18} color="#EF4444" />
               </TouchableOpacity>
             </View>
-            {institutionType === 'college' && (
+            {institutionType === 'college' ? (
               <Text style={styles.cardSub}>{cs.department} · {cs.academicYear} · {cs.section}</Text>
+            ) : (
+              <Text style={styles.cardSub}>{cs.department || 'General'} · {cs.academicYear || ''} · Section {cs.section}</Text>
             )}
             <View style={styles.badgeRow}>
               <Text style={styles.badge}>Class Teacher: {teacherName(cs.classTeacherId)}</Text>
@@ -175,13 +177,19 @@ function ClassesTab({ institutionType, departments, academicYears, sections, cla
             </View>
             <ScrollView style={{ maxHeight: 420 }}>
               <FormGroup label="Name *">
-                <TextInput style={styles.input} placeholder={institutionType === 'college' ? 'e.g. CSE 1st Year A' : 'e.g. Class 1 A'} value={name} onChangeText={setName} />
+                <TextInput style={styles.input} placeholder={institutionType === 'college' ? 'e.g. CSE 1st Year A' : 'e.g. Science Grade 10 A'} value={name} onChangeText={setName} />
               </FormGroup>
-              {institutionType === 'college' && (
+              {institutionType === 'college' ? (
                 <>
                   <FormGroup label="Department"><TextInput style={styles.input} placeholder="Department" value={department} onChangeText={setDepartment} /></FormGroup>
                   <FormGroup label="Academic Year"><TextInput style={styles.input} placeholder="e.g. 3rd Year" value={academicYear} onChangeText={setAcademicYear} /></FormGroup>
                   <FormGroup label="Section"><TextInput style={styles.input} placeholder="e.g. Section A" value={section} onChangeText={setSection} /></FormGroup>
+                </>
+              ) : (
+                <>
+                  <FormGroup label="Department / Stream"><TextInput style={styles.input} placeholder="e.g. Science" value={department} onChangeText={setDepartment} /></FormGroup>
+                  <FormGroup label="Grade"><TextInput style={styles.input} placeholder="e.g. Grade 10" value={academicYear} onChangeText={setAcademicYear} /></FormGroup>
+                  <FormGroup label="Section"><TextInput style={styles.input} placeholder="e.g. A" value={section} onChangeText={setSection} /></FormGroup>
                 </>
               )}
               <FormGroup label="Class Teacher">
