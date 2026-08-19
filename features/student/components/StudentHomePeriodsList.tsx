@@ -3,115 +3,111 @@ import { View, StyleSheet, Text } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
 
-export const StudentHomePeriodsList: React.FC = () => {
+interface StudentHomePeriodsListProps {
+  loading?: boolean;
+  slots?: any[];
+}
+
+function toMinutes(timeStr?: string): number | null {
+  if (!timeStr) return null;
+  const m = timeStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)?$/);
+  if (!m) return null;
+  let h = parseInt(m[1], 10);
+  const min = parseInt(m[2], 10);
+  const suffix = (m[3] || '').toUpperCase();
+  if (suffix === 'PM' && h < 12) h += 12;
+  if (suffix === 'AM' && h === 12) h = 0;
+  return h * 60 + min;
+}
+
+function isNowWithin(start?: string, end?: string): boolean {
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const s = toMinutes(start);
+  const e = toMinutes(end);
+  if (s === null || e === null) return false;
+  return nowMin >= s && nowMin < e;
+}
+
+function periodLabel(slot: any, index: number): string {
+  const label = slot?.period?.label;
+  if (label) return label;
+  const ordinals = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th'];
+  return ordinals[index] || `${index + 1}th`;
+}
+
+export const StudentHomePeriodsList: React.FC<StudentHomePeriodsListProps> = ({ loading, slots = [] }) => {
   return (
     <View style={styles.periodsSection}>
       <View style={styles.sectionHeaderRow}>
         <MaterialCommunityIcons name="calendar-month-outline" size={20} color="#7E57C2" />
-        <Text style={styles.sectionHeaderTitle}>Today's Periods</Text>
+        <Text style={styles.sectionHeaderTitle}>Today&apos;s Periods</Text>
       </View>
 
-      <View style={styles.periodsListCard}>
-        {/* Period 1 */}
-        <View style={styles.periodRow}>
-          <View style={styles.periodBadge}>
-            <Text style={styles.periodBadgeNum}>1st</Text>
-            <Text style={styles.periodBadgeSub}>Period</Text>
-          </View>
-          <View style={styles.timeWrap}>
-            <Text style={styles.timeText}>08:00 AM</Text>
-            <Text style={styles.timeSubText}>– 08:50 AM</Text>
-          </View>
-          <View style={styles.iconSubjectWrap}>
-            <View style={[styles.subjectIconCircle, { backgroundColor: '#E0F2FE' }]}>
-              <MaterialCommunityIcons name="book-open-page-variant-outline" size={18} color="#0284C7" />
+      {loading ? (
+        <View style={styles.periodsListCard}>
+          {[0, 1, 2].map((i) => (
+            <View key={i} style={styles.periodRow}>
+              <View style={[styles.periodBadge, styles.placeholderBlock]} />
+              <View style={[styles.timeWrap, styles.placeholderBlock]} />
+              <View style={{ flex: 1, gap: 6 }}>
+                <View style={[styles.placeholderLine, { width: '45%' }]} />
+                <View style={[styles.placeholderLine, { width: '30%' }]} />
+              </View>
             </View>
-            <View>
-              <Text style={styles.subjectName}>English</Text>
-              <Text style={styles.roomName}>Room 101</Text>
-            </View>
-          </View>
-          <View style={styles.checkDoneCircle}>
-            <MaterialCommunityIcons name="check" size={16} color="#16A34A" />
+          ))}
+        </View>
+      ) : slots.length === 0 ? (
+        <View style={styles.periodsListCard}>
+          <View style={styles.emptyCard}>
+            <MaterialCommunityIcons name="calendar-blank-outline" size={36} color="#94A3B8" />
+            <Text style={styles.emptyTitle}>No classes today</Text>
+            <Text style={styles.emptySub}>Your timetable shows up here once your class schedule is published.</Text>
           </View>
         </View>
-
-        <View style={styles.divider} />
-
-        {/* Period 2 */}
-        <View style={styles.periodRow}>
-          <View style={styles.periodBadge}>
-            <Text style={styles.periodBadgeNum}>2nd</Text>
-            <Text style={styles.periodBadgeSub}>Period</Text>
-          </View>
-          <View style={styles.timeWrap}>
-            <Text style={styles.timeText}>08:50 AM</Text>
-            <Text style={styles.timeSubText}>– 09:40 AM</Text>
-          </View>
-          <View style={styles.iconSubjectWrap}>
-            <View style={[styles.subjectIconCircle, { backgroundColor: '#FEF3C7' }]}>
-              <MaterialCommunityIcons name="flask-outline" size={18} color="#D97706" />
-            </View>
-            <View>
-              <Text style={styles.subjectName}>Science</Text>
-              <Text style={styles.roomName}>Room 203</Text>
-            </View>
-          </View>
-          <View style={styles.checkDoneCircle}>
-            <MaterialCommunityIcons name="check" size={16} color="#16A34A" />
-          </View>
+      ) : (
+        <View style={styles.periodsListCard}>
+          {slots.map((slot, i) => {
+            const active = isNowWithin(slot?.period?.startTime, slot?.period?.endTime);
+            return (
+              <View key={slot.id || i}>
+                {i > 0 && <View style={styles.divider} />}
+                <View style={[styles.periodRow, active && styles.activePeriodRow]}>
+                  <View style={[styles.periodBadge, active && styles.activePeriodBadge]}>
+                    <Text style={[styles.periodBadgeNum, active && { color: '#FFFFFF' }]}>
+                      {periodLabel(slot, i)}
+                    </Text>
+                  </View>
+                  <View style={styles.timeWrap}>
+                    <Text style={[styles.timeText, active && { color: '#7E57C2' }]}>
+                      {slot?.period?.startTime || ''}
+                    </Text>
+                    <Text style={styles.timeSubText}>{slot?.period?.endTime || ''}</Text>
+                  </View>
+                  <View style={styles.iconSubjectWrap}>
+                    <View style={styles.subjectIconCircle}>
+                      <MaterialCommunityIcons name="book-open-page-variant-outline" size={18} color="#7E57C2" />
+                    </View>
+                    <View>
+                      <Text style={styles.subjectName}>{slot?.subject?.name || 'Subject'}</Text>
+                      <Text style={styles.roomName}>
+                        {slot?.room ? `Room ${slot.room}` : slot?.teacher?.fullName || ''}
+                      </Text>
+                    </View>
+                  </View>
+                  {active ? (
+                    <View style={styles.nowChip}>
+                      <Text style={styles.nowChipText}>Now</Text>
+                    </View>
+                  ) : (
+                    <View style={{ width: 28 }} />
+                  )}
+                </View>
+              </View>
+            );
+          })}
         </View>
-
-        <View style={styles.divider} />
-
-        {/* Period 3 (Active Now) */}
-        <View style={[styles.periodRow, styles.activePeriodRow]}>
-          <View style={[styles.periodBadge, styles.activePeriodBadge]}>
-            <Text style={[styles.periodBadgeNum, { color: '#FFFFFF' }]}>3rd</Text>
-            <Text style={[styles.periodBadgeSub, { color: '#FFFFFF' }]}>Period</Text>
-          </View>
-          <View style={styles.timeWrap}>
-            <Text style={[styles.timeText, { color: '#7E57C2' }]}>09:40 AM</Text>
-            <Text style={styles.timeSubText}>– 10:30 AM</Text>
-          </View>
-          <View style={styles.iconSubjectWrap}>
-            <View style={[styles.subjectIconCircle, { backgroundColor: '#F3E8FF' }]}>
-              <MaterialCommunityIcons name="calculator-variant-outline" size={18} color="#7E57C2" />
-            </View>
-            <View>
-              <Text style={styles.subjectName}>Mathematics</Text>
-              <Text style={styles.roomName}>Room 204</Text>
-            </View>
-          </View>
-          <View style={styles.nowChip}>
-            <Text style={styles.nowChipText}>Now</Text>
-          </View>
-        </View>
-
-        <View style={styles.divider} />
-
-        {/* Period 4 */}
-        <View style={styles.periodRow}>
-          <View style={styles.periodBadge}>
-            <Text style={styles.periodBadgeNum}>4th</Text>
-            <Text style={styles.periodBadgeSub}>Period</Text>
-          </View>
-          <View style={styles.timeWrap}>
-            <Text style={styles.timeText}>10:45 AM</Text>
-            <Text style={styles.timeSubText}>– 11:35 AM</Text>
-          </View>
-          <View style={styles.iconSubjectWrap}>
-            <View style={[styles.subjectIconCircle, { backgroundColor: '#DCFCE7' }]}>
-              <MaterialCommunityIcons name="earth" size={18} color="#16A34A" />
-            </View>
-            <View>
-              <Text style={styles.subjectName}>Social Studies</Text>
-              <Text style={styles.roomName}>Room 105</Text>
-            </View>
-          </View>
-          <View style={{ width: 28 }} />
-        </View>
-      </View>
+      )}
     </View>
   );
 };
@@ -147,7 +143,6 @@ const styles = StyleSheet.create({
   },
   activePeriodBadge: { backgroundColor: '#7E57C2', borderColor: '#7E57C2' },
   periodBadgeNum: { fontSize: 13, fontWeight: '800', color: '#1E293B' },
-  periodBadgeSub: { fontSize: 9, color: '#64748B' },
   timeWrap: { width: 70 },
   timeText: { fontSize: 12, fontWeight: '700', color: '#1E293B' },
   timeSubText: { fontSize: 10, color: '#94A3B8' },
@@ -156,19 +151,12 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
+    backgroundColor: '#EDE9F6',
     justifyContent: 'center',
     alignItems: 'center',
   },
   subjectName: { fontSize: 13, fontWeight: '700', color: '#1E293B' },
   roomName: { fontSize: 11, color: '#94A3B8' },
-  checkDoneCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#DCFCE7',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   nowChip: {
     backgroundColor: '#7E57C2',
     paddingHorizontal: 8,
@@ -177,4 +165,9 @@ const styles = StyleSheet.create({
   },
   nowChipText: { fontSize: 10, fontWeight: '700', color: '#FFFFFF' },
   divider: { height: 1, backgroundColor: '#F1F5F9' },
+  placeholderBlock: { backgroundColor: '#F1F5F9', borderRadius: 6 },
+  placeholderLine: { height: 10, backgroundColor: '#F1F5F9', borderRadius: 5 },
+  emptyCard: { padding: 24, alignItems: 'center', gap: 6 },
+  emptyTitle: { fontSize: 14, fontWeight: '700', color: '#1E293B' },
+  emptySub: { fontSize: 12, color: '#94A3B8', textAlign: 'center', lineHeight: 16 },
 });

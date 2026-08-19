@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useUserStore } from '../../store/useUserStore';
+import { fetchMyTimetableApi, fetchStudentAttendanceHistoryApi } from '../../api/academics';
 import { StudentHomeHeader } from '../../features/student/components/StudentHomeHeader';
 import { StudentHomeAttendanceCard } from '../../features/student/components/StudentHomeAttendanceCard';
 import { StudentHomeAnnouncements } from '../../features/student/components/StudentHomeAnnouncements';
@@ -11,12 +12,73 @@ import { StudentHomePeriodsList } from '../../features/student/components/Studen
 import { StudentTimetableView } from '../../features/student/components/StudentTimetableView';
 import { StudentAttendanceView } from '../../features/student/components/StudentAttendanceView';
 
+function toMinutes(timeStr?: string): number | null {
+  if (!timeStr) return null;
+  const m = timeStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)?$/);
+  if (!m) return null;
+  let h = parseInt(m[1], 10);
+  const min = parseInt(m[2], 10);
+  const suffix = (m[3] || '').toUpperCase();
+  if (suffix === 'PM' && h < 12) h += 12;
+  if (suffix === 'AM' && h === 12) h = 0;
+  return h * 60 + min;
+}
+
+function findCurrentSlot(slots: any[]): any | undefined {
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  return slots.find((s) => {
+    const start = toMinutes(s?.period?.startTime);
+    const end = toMinutes(s?.period?.endTime);
+    return start !== null && end !== null && nowMin >= start && nowMin < end;
+  });
+}
+
 export default function HomeScreen() {
   const router = useRouter();
-  const fullName = useUserStore((state) => state.fullName) || 'Aarav Sharma';
+  const fullName = useUserStore((state) => state.fullName) || 'Student';
   const profilePic = useUserStore((state) => state.profilePic);
 
   const [activeTab, setActiveTab] = useState<'home' | 'attendance' | 'schedule' | 'reports'>('home');
+
+  const [attendanceLoading, setAttendanceLoading] = useState(true);
+  const [overall, setOverall] = useState<{ present: number; total: number; percentage: number } | null>(null);
+  const [slotsLoading, setSlotsLoading] = useState(true);
+  const [todaySlots, setTodaySlots] = useState<any[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    fetchStudentAttendanceHistoryApi()
+      .then((res) => {
+        if (mounted) setOverall(res?.overall || null);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (mounted) setAttendanceLoading(false);
+      });
+
+    const today = new Date().toISOString().slice(0, 10);
+    const utcDay = new Date(`${today}T00:00:00Z`).getUTCDay();
+
+    fetchMyTimetableApi(today)
+      .then((res) => {
+        if (mounted) {
+          const all = res?.slots || [];
+          setTodaySlots(all.filter((s: any) => s.dayOfWeek === utcDay));
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (mounted) setSlotsLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const currentSlot = findCurrentSlot(todaySlots);
 
   return (
     <View style={styles.container}>
@@ -30,9 +92,9 @@ export default function HomeScreen() {
 
         {activeTab === 'home' && (
           <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-            <StudentHomeAttendanceCard />
+            <StudentHomeAttendanceCard loading={attendanceLoading || slotsLoading} overall={overall} currentSlot={currentSlot} />
             <StudentHomeAnnouncements />
-            <StudentHomePeriodsList />
+            <StudentHomePeriodsList loading={slotsLoading} slots={todaySlots} />
           </ScrollView>
         )}
 

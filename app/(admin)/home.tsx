@@ -9,6 +9,7 @@ import { useUserStore } from '../../store/useUserStore';
 import {
   fetchInstitutionConfigApi,
   updateInstitutionConfigApi,
+  fetchDashboardStatsApi,
   fetchStudentsApi,
   createStudentApi,
   fetchTeachersApi,
@@ -23,6 +24,7 @@ import {
   fetchPeriodsApi,
 } from '../../api/academics';
 import { AdminDashboardView } from '../../features/admin/components/AdminDashboardView';
+import type { AdminDashboardStats } from '../../features/admin/components/AdminDashboardView';
 import { AdminInstitutionView } from '../../features/admin/components/AdminInstitutionView';
 import { AdminStudentsView } from '../../features/admin/components/AdminStudentsView';
 import { AdminTeachersView } from '../../features/admin/components/AdminTeachersView';
@@ -39,7 +41,21 @@ export default function AdminHomeScreen() {
   const designation = useUserStore((state) => state.designation) || '';
   const resetUser = useUserStore((state) => state.resetUser);
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'institution' | 'students' | 'teachers' | 'users' | 'academics' | 'profile'>('dashboard');
+  const normalizeUser = (u: any) => {
+    let scope: any = u.scope;
+    if (typeof scope === 'string') {
+      try { scope = JSON.parse(scope); } catch { scope = {}; }
+    }
+    return {
+      ...u,
+      department: u.department || scope?.department || '',
+      academicYear: u.academicYear || scope?.academicYear || '',
+      section: u.section || scope?.section || '',
+      employeeId: u.employeeId || scope?.employeeId || '',
+    };
+  };
+
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'institution' | 'students' | 'teachers' | 'users' | 'academics' | 'timetable' | 'attendance' | 'profile'>('dashboard');
   const [loading, setLoading] = useState(true);
 
   // Server State
@@ -52,6 +68,7 @@ export default function AdminHomeScreen() {
     courses: [],
     sections: [],
   });
+  const [stats, setStats] = useState<AdminDashboardStats | null>(null);
   const [students, setStudents] = useState<any[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
   const [allUsers, setAllUsers] = useState<any[]>([]);
@@ -63,8 +80,9 @@ export default function AdminHomeScreen() {
   const loadAllData = async () => {
     setLoading(true);
     try {
-      const [configRes, studentsRes, teachersRes, usersRes, classesRes, subjectsRes, assignmentsRes, periodsRes] = await Promise.all([
+      const [configRes, statsRes, studentsRes, teachersRes, usersRes, classesRes, subjectsRes, assignmentsRes, periodsRes] = await Promise.all([
         fetchInstitutionConfigApi().catch(() => null),
+        fetchDashboardStatsApi().catch(() => null),
         fetchStudentsApi().catch(() => null),
         fetchTeachersApi().catch(() => null),
         fetchUsersApi().catch(() => null),
@@ -77,14 +95,17 @@ export default function AdminHomeScreen() {
       if (configRes) {
         setConfig(configRes);
       }
-      if (studentsRes && Array.isArray(studentsRes)) {
-        setStudents(studentsRes);
+      if (statsRes) {
+        setStats(statsRes);
       }
-      if (teachersRes && Array.isArray(teachersRes)) {
-        setTeachers(teachersRes);
+      if (studentsRes) {
+        setStudents((Array.isArray(studentsRes) ? studentsRes : (studentsRes as any)?.data || []).map(normalizeUser));
       }
-      if (usersRes && Array.isArray(usersRes)) {
-        setAllUsers(usersRes);
+      if (teachersRes) {
+        setTeachers((Array.isArray(teachersRes) ? teachersRes : (teachersRes as any)?.data || []).map(normalizeUser));
+      }
+      if (usersRes) {
+        setAllUsers((Array.isArray(usersRes) ? usersRes : (usersRes as any)?.data || []).map(normalizeUser));
       }
       if (classesRes && Array.isArray(classesRes)) {
         setClassSections(classesRes);
@@ -176,10 +197,7 @@ export default function AdminHomeScreen() {
             {activeTab === 'dashboard' && (
               <AdminDashboardView
                 fullName={fullName}
-                institutionName={config.institutionName || institutionName}
-                institutionCode={config.institutionCode || institutionCode}
-                studentCount={students.length}
-                teacherCount={teachers.length}
+                stats={stats}
                 onNavigateTab={(tab) => setActiveTab(tab)}
               />
             )}

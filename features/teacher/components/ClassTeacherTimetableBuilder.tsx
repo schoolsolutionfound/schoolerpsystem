@@ -14,22 +14,36 @@ import {
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const DAYS_TO_EDIT = [1, 2, 3, 4, 5];
 
-export const ClassTeacherTimetableBuilder: React.FC = () => {
+interface ClassTeacherTimetableBuilderProps {
+  classSectionId?: string;
+  classSectionName?: string;
+}
+
+export const ClassTeacherTimetableBuilder: React.FC<ClassTeacherTimetableBuilderProps> = ({
+  classSectionId,
+  classSectionName,
+}) => {
   const [classSection, setClassSection] = useState<any>(null);
   const [periods, setPeriods] = useState<any[]>([]);
   const [subjects, setSubjects] = useState<any[]>([]);
   const [assignments, setAssignments] = useState<any[]>([]);
-  const [existing, setExisting] = useState<any[]>([]);
+  const [, setExisting] = useState<any[]>([]);
   const [grid, setGrid] = useState<Record<string, string>>({});
-  const [effectiveFrom, setEffectiveFrom] = useState(new Date().toISOString().slice(0, 10));
+  const [effectiveFrom] = useState(new Date().toISOString().slice(0, 10));
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [picker, setPicker] = useState<{ key: string; options: { id: string; label: string }[] } | null>(null);
+  const [view, setView] = useState<'grid' | 'list'>('grid');
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const cls = await fetchMyClassSectionApi().catch(() => null);
+      let cls: any = null;
+      if (classSectionId) {
+        cls = { id: classSectionId, name: classSectionName || 'Class' };
+      } else {
+        cls = await fetchMyClassSectionApi().catch(() => null);
+      }
       setClassSection(cls);
 
       const [periodsRes, subjectsRes, assignmentsRes] = await Promise.all([
@@ -55,7 +69,7 @@ export const ClassTeacherTimetableBuilder: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [classSectionId, classSectionName]);
 
   useEffect(() => {
     load();
@@ -133,8 +147,19 @@ export const ClassTeacherTimetableBuilder: React.FC = () => {
         <Text style={styles.title}>{classSection.name} — Weekly Timetable</Text>
         <Text style={styles.sub}>Tap a cell to assign a subject. Only subjects with a subject teacher appear.</Text>
         <Text style={styles.effectiveLabel}>Effective from: {effectiveFrom}</Text>
+        <View style={styles.viewRow}>
+          <TouchableOpacity style={[styles.viewChip, view === 'grid' && styles.viewChipActive]} onPress={() => setView('grid')}>
+            <MaterialCommunityIcons name="grid" size={15} color={view === 'grid' ? '#7E57C2' : '#64748B'} />
+            <Text style={[styles.viewChipText, view === 'grid' && styles.viewChipTextActive]}>Grid</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.viewChip, view === 'list' && styles.viewChipActive]} onPress={() => setView('list')}>
+            <MaterialCommunityIcons name="format-list-bulleted" size={15} color={view === 'list' ? '#7E57C2' : '#64748B'} />
+            <Text style={[styles.viewChipText, view === 'list' && styles.viewChipTextActive]}>List</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
+      {view === 'grid' ? (
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <View>
           <View style={styles.gridHeaderRow}>
@@ -182,6 +207,37 @@ export const ClassTeacherTimetableBuilder: React.FC = () => {
           ))}
         </View>
       </ScrollView>
+      ) : (
+        <ScrollView contentContainerStyle={styles.listContainer} showsVerticalScrollIndicator={false}>
+          {DAYS_TO_EDIT.map((d) => (
+            <View key={d} style={styles.listDayCard}>
+              <Text style={styles.listDayTitle}>{DAY_LABELS[d]}</Text>
+              {periods.map((p) => {
+                const subjectId = grid[`${d}:${p.id}`];
+                const subject = subjects.find((s: any) => s.id === subjectId);
+                return (
+                  <View key={p.id} style={styles.listRow}>
+                    <View style={styles.listTimeCol}>
+                      <Text style={styles.listTime}>{p.startTime}</Text>
+                      <Text style={styles.listTimeEnd}>{p.endTime}</Text>
+                    </View>
+                    <View style={styles.listInfoCol}>
+                      {subject ? (
+                        <>
+                          <Text style={styles.listSubject}>{subject.name}</Text>
+                          <Text style={styles.listMeta}>{p.label}</Text>
+                        </>
+                      ) : (
+                        <Text style={styles.listFree}>Free period</Text>
+                      )}
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          ))}
+        </ScrollView>
+      )}
 
       <View style={styles.footer}>
         <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving}>
@@ -234,6 +290,53 @@ const styles = StyleSheet.create({
   title: { fontSize: 15, fontWeight: '800', color: '#1A202C' },
   sub: { fontSize: 11, color: '#718096', marginTop: 4, lineHeight: 15 },
   effectiveLabel: { fontSize: 11, color: '#7E57C2', fontWeight: '700', marginTop: 6 },
+  viewRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  viewChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  viewChipActive: { backgroundColor: '#EDE7F6', borderColor: '#7E57C2' },
+  viewChipText: { fontSize: 12, fontWeight: '700', color: '#64748B' },
+  viewChipTextActive: { color: '#7E57C2' },
+  listContainer: { padding: 16, gap: 12, paddingBottom: 20 },
+  listDayCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.card,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    overflow: 'hidden',
+  },
+  listDayTitle: {
+    backgroundColor: '#EDE7F6',
+    color: '#7E57C2',
+    fontSize: 13,
+    fontWeight: '800',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  listRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderTopWidth: 0.5,
+    borderTopColor: '#F1F5F9',
+  },
+  listTimeCol: { width: 52 },
+  listTime: { fontSize: 13, fontWeight: '800', color: '#7E57C2' },
+  listTimeEnd: { fontSize: 10, color: '#94A3B8' },
+  listInfoCol: { flex: 1 },
+  listSubject: { fontSize: 13, fontWeight: '700', color: '#1A202C' },
+  listMeta: { fontSize: 11, color: '#718096', marginTop: 2 },
+  listFree: { fontSize: 13, color: '#94A3B8' },
   centerBox: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 80 },
   emptyCard: { backgroundColor: '#FFFFFF', borderRadius: BorderRadius.card, padding: 30, alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0', margin: 16, marginTop: 40 },
   emptyTitle: { fontSize: 15, fontWeight: '700', color: '#1A202C', marginTop: 8 },

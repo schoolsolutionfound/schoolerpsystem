@@ -1,4 +1,4 @@
-import { eq, and, desc, sql, gte, lte } from 'drizzle-orm';
+import { eq, and, desc, sql, gte, lte, inArray, count } from 'drizzle-orm';
 import { db } from '../shared/db/index.js';
 import {
   classSections,
@@ -845,6 +845,276 @@ export class AcademicsRepository {
         return okFrom && okTo;
       })
       .map((x) => x.entry);
+  }
+
+  /**
+   * One JOINed query (entries -> records -> slots -> subjects) for many
+   * students at once. Eliminates the N+1 lookups previously done per entry.
+   */
+  public async listAttendanceEntriesWithSubject(studentIds: string[]): Promise<{
+    studentId: string;
+    attendanceStatus: string;
+    date: Date | string | null;
+    subjectId: string;
+    subjectName: string | null;
+  }[]> {
+    if (!studentIds.length) return [];
+    if (db) {
+      try {
+        const rows = await db
+          .select({
+            studentId: attendanceEntries.studentId,
+            attendanceStatus: attendanceEntries.attendanceStatus,
+            date: attendanceRecords.date,
+            subjectId: timetableSlots.subjectId,
+            subjectName: subjects.name,
+          })
+          .from(attendanceEntries)
+          .innerJoin(attendanceRecords, eq(attendanceEntries.attendanceRecordId, attendanceRecords.id))
+          .innerJoin(timetableSlots, eq(attendanceRecords.timetableSlotId, timetableSlots.id))
+          .innerJoin(subjects, eq(timetableSlots.subjectId, subjects.id))
+          .where(inArray(attendanceEntries.studentId, studentIds));
+        return rows.map((r) => ({
+          studentId: r.studentId,
+          attendanceStatus: r.attendanceStatus,
+          date: r.date,
+          subjectId: r.subjectId,
+          subjectName: r.subjectName,
+        }));
+      } catch (err: any) {
+        console.warn('[PostgreSQL Academics Warning] listAttendanceEntriesWithSubject failed:', err.message);
+      }
+    }
+    const entries = attendanceEntryMem.filter((e) => studentIds.includes(e.studentId));
+    return entries
+      .map((e) => {
+        const record = attendanceRecordMem.getById(e.attendanceRecordId);
+        const slot = record ? timetableSlotMem.getById(record.timetableSlotId) : undefined;
+        const subject = slot ? subjectMem.getById(slot.subjectId) : undefined;
+        if (!record || !slot) return null;
+        return {
+          studentId: e.studentId,
+          attendanceStatus: e.attendanceStatus,
+          date: record.date,
+          subjectId: slot.subjectId,
+          subjectName: subject?.name ?? null,
+        };
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null);
+  }
+
+  // ---------- Class attendance aggregates (admin/teacher views) ----------
+  /**
+   * Aggregates attendance for a whole class/section across a date range.
+   * Uses SQL GROUP BY (days / students / subjects) so payload size is bounded
+   * regardless of how large the class or the range is — no N+1, no row dump.
+   */
+  public async getClassAttendanceAggregates(
+    classSectionId: string,
+    fromDate: string,
+    toDate: string
+  ): Promise<{
+    days: { date: string; present: number; absent: number; late: number; excused: number; total: number }[];
+    studentStats: { studentId: string; present: number; absent: number; late: number; excused: number; total: number }[];
+    subjectStats: { subjectId: string; subjectName: string; present: number; absent: number; late: number; excused: number; total: number }[];
+  }> {
+    if (db) {
+      try {
+        const baseWhere = and(
+          eq(timetableSlots.classSectionId, classSectionId),
+          gte(attendanceRecords.date, fromDate),
+          lte(attendanceRecords.date, toDate)
+        );
+        const statusFilter = (col: any, status: string) =>
+          sql<number>`count(*) FILTER (WHERE ${col} = ${status})`;
+
+        const days = await db
+          .select({
+            date: attendanceRecords.date,
+            total: count(),
+            present: statusFilter(attendanceEntries.attendanceStatus, 'present'),
+            absent: statusFilter(attendanceEntries.attendanceStatus, 'absent'),
+            late: statusFilter(attendanceEntries.attendanceStatus, 'late'),
+            excused: statusFilter(attendanceEntries.attendanceStatus, 'excused'),
+          })
+          .from(attendanceEntries)
+          .innerJoin(attendanceRecords, eq(attendanceEntries.attendanceRecordId, attendanceRecords.id))
+          .innerJoin(timetableSlots, eq(attendanceRecords.timetableSlotId, timetableSlots.id))
+          .where(baseWhere)
+          .groupBy(attendanceRecords.date)
+          .orderBy(attendanceRecords.date);
+
+        const studentStats = await db
+          .select({
+            studentId: attendanceEntries.studentId,
+            total: count(),
+            present: statusFilter(attendanceEntries.attendanceStatus, 'present'),
+            absent: statusFilter(attendanceEntries.attendanceStatus, 'absent'),
+            late: statusFilter(attendanceEntries.attendanceStatus, 'late'),
+            excused: statusFilter(attendanceEntries.attendanceStatus, 'excused'),
+          })
+          .from(attendanceEntries)
+          .innerJoin(attendanceRecords, eq(attendanceEntries.attendanceRecordId, attendanceRecords.id))
+          .innerJoin(timetableSlots, eq(attendanceRecords.timetableSlotId, timetableSlots.id))
+          .where(baseWhere)
+          .groupBy(attendanceEntries.studentId);
+
+        const subjectStats = await db
+          .select({
+            subjectId: timetableSlots.subjectId,
+            subjectName: subjects.name,
+            total: count(),
+            present: statusFilter(attendanceEntries.attendanceStatus, 'present'),
+            absent: statusFilter(attendanceEntries.attendanceStatus, 'absent'),
+            late: statusFilter(attendanceEntries.attendanceStatus, 'late'),
+            excused: statusFilter(attendanceEntries.attendanceStatus, 'excused'),
+          })
+          .from(attendanceEntries)
+          .innerJoin(attendanceRecords, eq(attendanceEntries.attendanceRecordId, attendanceRecords.id))
+          .innerJoin(timetableSlots, eq(attendanceRecords.timetableSlotId, timetableSlots.id))
+          .innerJoin(subjects, eq(timetableSlots.subjectId, subjects.id))
+          .where(baseWhere)
+          .groupBy(timetableSlots.subjectId, subjects.name);
+
+        return { days, studentStats, subjectStats };
+      } catch (err: any) {
+        console.warn('[PostgreSQL Academics Warning] getClassAttendanceAggregates failed:', err.message);
+      }
+    }
+    return this.getClassAttendanceAggregatesMem(classSectionId, fromDate, toDate);
+  }
+
+  private async getClassAttendanceAggregatesMem(
+    classSectionId: string,
+    fromDate: string,
+    toDate: string
+  ) {
+    const entries = attendanceEntryMem.getAll();
+    const rows = entries
+      .map((e) => {
+        const record = attendanceRecordMem.getById(e.attendanceRecordId);
+        const slot = record ? timetableSlotMem.getById(record.timetableSlotId) : undefined;
+        const subject = slot ? subjectMem.getById(slot.subjectId) : undefined;
+        if (!record || !slot || slot.classSectionId !== classSectionId) return null;
+        const ds = record.date ? new Date(record.date).toISOString().slice(0, 10) : '';
+        if (ds < fromDate || ds > toDate) return null;
+        return { studentId: e.studentId, status: e.attendanceStatus, date: ds, subjectId: slot.subjectId, subjectName: subject?.name || '' };
+      })
+      .filter((r): r is NonNullable<typeof r> => r !== null);
+
+    const days = new Map<string, any>();
+    const studentStats = new Map<string, any>();
+    const subjectStats = new Map<string, any>();
+    const bump = (map: Map<string, any>, key: string, status: string) => {
+      const b = map.get(key) || { present: 0, absent: 0, late: 0, excused: 0, total: 0 };
+      b.total++;
+      b[status] = (b[status] || 0) + 1;
+      map.set(key, b);
+    };
+    for (const r of rows) {
+      bump(days, r.date, r.status);
+      bump(studentStats, r.studentId, r.status);
+      const sk = `${r.subjectId}|${r.subjectName}`;
+      const sb = subjectStats.get(sk) || { subjectId: r.subjectId, subjectName: r.subjectName, present: 0, absent: 0, late: 0, excused: 0, total: 0 };
+      sb.total++;
+      sb[r.status] = (sb[r.status] || 0) + 1;
+      subjectStats.set(sk, sb);
+    }
+    return {
+      days: Array.from(days.entries()).map(([date, b]) => ({ date, ...b })).sort((a, b) => a.date.localeCompare(b.date)),
+      studentStats: Array.from(studentStats.entries()).map(([studentId, b]) => ({ studentId, ...b })),
+      subjectStats: Array.from(subjectStats.values()),
+    };
+  }
+
+  // ---------- Paged lists (large-user support) ----------
+  public async listClassSectionsPaged(institutionCode: string, opts: { limit: number; offset: number }) {
+    if (db) {
+      try {
+        const [rows, totalRows] = await Promise.all([
+          db.select().from(classSections).where(eq(classSections.institutionCode, institutionCode)).limit(opts.limit).offset(opts.offset),
+          db.select({ count: count() }).from(classSections).where(eq(classSections.institutionCode, institutionCode)),
+        ]);
+        rows.forEach((r) => classSectionMem.save(toClassSection(r)));
+        return { items: rows, total: Number(totalRows[0]?.count ?? 0) };
+      } catch (err: any) {
+        console.warn('[PostgreSQL Academics Warning] listClassSectionsPaged failed:', err.message);
+      }
+    }
+    const filtered = classSectionMem.filter((r) => r.institutionCode.toLowerCase() === institutionCode.toLowerCase());
+    return { items: filtered.slice(opts.offset, opts.offset + opts.limit), total: filtered.length };
+  }
+
+  public async listSubjectsPaged(institutionCode: string, opts: { limit: number; offset: number }) {
+    if (db) {
+      try {
+        const [rows, totalRows] = await Promise.all([
+          db.select().from(subjects).where(eq(subjects.institutionCode, institutionCode)).limit(opts.limit).offset(opts.offset),
+          db.select({ count: count() }).from(subjects).where(eq(subjects.institutionCode, institutionCode)),
+        ]);
+        rows.forEach((r) => subjectMem.save(toSubject(r)));
+        return { items: rows, total: Number(totalRows[0]?.count ?? 0) };
+      } catch (err: any) {
+        console.warn('[PostgreSQL Academics Warning] listSubjectsPaged failed:', err.message);
+      }
+    }
+    const filtered = subjectMem.filter((r) => r.institutionCode.toLowerCase() === institutionCode.toLowerCase());
+    return { items: filtered.slice(opts.offset, opts.offset + opts.limit), total: filtered.length };
+  }
+
+  public async listPeriodsPaged(institutionCode: string, opts: { limit: number; offset: number }) {
+    if (db) {
+      try {
+        const [rows, totalRows] = await Promise.all([
+          db
+            .select()
+            .from(periods)
+            .where(eq(periods.institutionCode, institutionCode))
+            .orderBy(sql`${periods.sortOrder} asc, ${periods.startTime} asc`)
+            .limit(opts.limit)
+            .offset(opts.offset),
+          db.select({ count: count() }).from(periods).where(eq(periods.institutionCode, institutionCode)),
+        ]);
+        rows.forEach((r) => periodMem.save(toPeriod(r)));
+        return { items: rows, total: Number(totalRows[0]?.count ?? 0) };
+      } catch (err: any) {
+        console.warn('[PostgreSQL Academics Warning] listPeriodsPaged failed:', err.message);
+      }
+    }
+    const filtered = periodMem
+      .filter((r) => r.institutionCode.toLowerCase() === institutionCode.toLowerCase())
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.startTime.localeCompare(b.startTime));
+    return { items: filtered.slice(opts.offset, opts.offset + opts.limit), total: filtered.length };
+  }
+
+  public async listSubjectTeachersPaged(
+    institutionCode: string,
+    opts: { limit: number; offset: number },
+    classSectionId?: string,
+    teacherId?: string
+  ) {
+    if (db) {
+      try {
+        const conditions = [eq(subjectTeachers.institutionCode, institutionCode)];
+        if (classSectionId) conditions.push(eq(subjectTeachers.classSectionId, classSectionId));
+        if (teacherId) conditions.push(eq(subjectTeachers.teacherId, teacherId));
+        const [rows, totalRows] = await Promise.all([
+          db.select().from(subjectTeachers).where(and(...conditions)).limit(opts.limit).offset(opts.offset),
+          db.select({ count: count() }).from(subjectTeachers).where(and(...conditions)),
+        ]);
+        rows.forEach((r) => subjectTeacherMem.save(toSubjectTeacher(r)));
+        return { items: rows, total: Number(totalRows[0]?.count ?? 0) };
+      } catch (err: any) {
+        console.warn('[PostgreSQL Academics Warning] listSubjectTeachersPaged failed:', err.message);
+      }
+    }
+    const filtered = subjectTeacherMem.filter((r) => {
+      const okInst = r.institutionCode.toLowerCase() === institutionCode.toLowerCase();
+      const okClass = classSectionId ? r.classSectionId === classSectionId : true;
+      const okTeacher = teacherId ? r.teacherId === teacherId : true;
+      return okInst && okClass && okTeacher;
+    });
+    return { items: filtered.slice(opts.offset, opts.offset + opts.limit), total: filtered.length };
   }
 }
 

@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, initializeAuth } from "firebase/auth";
-import { initializeFirestore, persistentLocalCache } from "firebase/firestore";
+import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getAnalytics, isSupported, logEvent } from "firebase/analytics";
 
@@ -39,8 +39,6 @@ try {
 } catch {
   auth = getAuth(app);
 }
-
-import { getFirestore } from "firebase/firestore";
 
 const db = getFirestore(app);
 

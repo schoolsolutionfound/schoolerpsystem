@@ -24,7 +24,7 @@ let Notifications: typeof import('expo-notifications') | null = null;
 if (!isExpoGo && Platform.OS !== 'web') {
   try {
     Notifications = require('expo-notifications');
-  } catch (e) {
+  } catch {
     // Ignore in Expo Go or environment without native push support
   }
 }
@@ -54,7 +54,6 @@ const AppLayout = function Layout() {
   const resetUser = useUserStore((state) => state.resetUser);
   const _hasHydrated = useUserStore((state) => state._hasHydrated);
   const userRole = useUserStore((state) => state.userRole);
-  const isEmailVerified = useUserStore((state) => state.isEmailVerified);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -137,7 +136,7 @@ const AppLayout = function Layout() {
           const data = response.notification.request.content.data as any;
           setTimeout(() => validateAndRedirect(data), 800);
         }
-      } catch (e) {
+      } catch {
         // Ignore
       }
     };
@@ -149,7 +148,7 @@ const AppLayout = function Layout() {
       clearTimeout(splashTimeout);
       unsubAuth();
     };
-  }, [setUserProfile, validateAndRedirect, resetUser]);
+  }, [setUserProfile, validateAndRedirect, resetUser, setIsProfileSynced]);
 
   const compareVersions = (v1: string, v2: string) => {
     const parts1 = v1.split('.').map(Number), parts2 = v2.split('.').map(Number);

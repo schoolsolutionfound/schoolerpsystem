@@ -6,12 +6,12 @@ export function normalizeRole(role?: string): string {
 
 export function isDeveloper(role?: string): boolean {
   const norm = normalizeRole(role);
-  return norm === Role.Developer || norm === Role.Admin;
+  return norm === Role.Developer;
 }
 
 export function isAdmin(role?: string): boolean {
   const norm = normalizeRole(role);
-  return norm === Role.Admin || norm === Role.Maintainer || norm === 'institution admin' || norm === 'admin';
+  return norm === Role.Admin || norm === 'institution admin' || norm === 'admin';
 }
 
 export function isTeacher(role?: string): boolean {
@@ -22,11 +22,6 @@ export function isTeacher(role?: string): boolean {
 export function isStudent(role?: string): boolean {
   const norm = normalizeRole(role);
   return norm === Role.Student;
-}
-
-export function isMaintainer(role?: string): boolean {
-  const norm = normalizeRole(role);
-  return norm === Role.Maintainer;
 }
 
 export function canManageInstitutions(role?: string): boolean {

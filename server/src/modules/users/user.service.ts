@@ -30,13 +30,14 @@ export class UserService {
   constructor(private repo: IUserRepository = userRepository) {}
 
   public async getProfile(currentUser: AuthenticatedUser) {
-    let user = await this.repo.findByUid(currentUser.uid);
+    const user = await this.repo.findByUid(currentUser.uid);
 
     if (!user) {
-      user = await this.repo.upsertUser({
-        firebaseUid: currentUser.uid,
-        email: currentUser.email || 'user@school.com',
-      });
+      throw {
+        statusCode: 403,
+        code: 'ACCOUNT_NOT_PROVISIONED',
+        message: 'No account is provisioned for this user. Contact your administrator.',
+      };
     }
 
     return {

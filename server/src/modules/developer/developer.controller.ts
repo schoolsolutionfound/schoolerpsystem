@@ -93,10 +93,13 @@ export class DeveloperController {
     }
   }
 
-  public async listAdmins(req: FastifyRequest<{ Querystring: { institutionCode?: string } }>, reply: FastifyReply) {
+public async listAdmins(req: FastifyRequest<{ Querystring: { institutionCode?: string; limit?: string; offset?: string } }>, reply: FastifyReply) {
     try {
-      const admins = await developerService.listAdmins(req.query.institutionCode);
-      return reply.status(200).send({ success: true, data: admins });
+      const q = req.query || {};
+      const limit = Math.min(Math.max(Number(q.limit) || 100, 1), 500);
+      const offset = Math.max(Number(q.offset) || 0, 0);
+      const admins = await developerService.listAdmins(q.institutionCode, limit, offset);
+return reply.send({ success: true, data: admins });
     } catch (err: any) {
       return reply.status(500).send({
         success: false,

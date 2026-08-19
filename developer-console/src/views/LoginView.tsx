@@ -25,12 +25,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
       }
     } catch (err: any) {
       console.warn('[Developer Auth Warning]', err.message);
-      // Fallback dev login for testing environment
-      if (email.includes('dev') || email.includes('admin') || password === 'devpass') {
-        onLoginSuccess(email || 'devadmin@school.com');
-      } else {
-        setError(err.message || 'Authentication failed. Please check credentials.');
-      }
+      setError(err.message || 'Authentication failed. Please check credentials.');
     } finally {
       setLoading(false);
     }

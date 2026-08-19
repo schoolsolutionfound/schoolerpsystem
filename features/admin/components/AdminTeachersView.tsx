@@ -8,6 +8,7 @@ interface TeacherItem {
   fullName: string;
   email: string;
   department?: string;
+  employeeId?: string;
   scope?: string;
 }
 
@@ -100,7 +101,7 @@ export const AdminTeachersView: React.FC<AdminTeachersViewProps> = ({
           <View style={styles.emptyCard}>
             <MaterialCommunityIcons name="human-male-board" size={40} color="#94A3B8" />
             <Text style={styles.emptyTitle}>No Teachers Registered</Text>
-            <Text style={styles.emptySub}>Click "+ Add Teacher" above to onboard a faculty member manually.</Text>
+            <Text style={styles.emptySub}>Click &quot;+ Add Teacher&quot; above to onboard a faculty member manually.</Text>
           </View>
         ) : (
           filteredTeachers.map((teach) => (
@@ -113,6 +114,7 @@ export const AdminTeachersView: React.FC<AdminTeachersViewProps> = ({
                 <Text style={styles.teacherEmail}>{teach.email}</Text>
                 <View style={styles.badgeRow}>
                   <Text style={styles.roleBadge}>Teacher</Text>
+                  {teach.employeeId && <Text style={styles.empBadge}>{teach.employeeId}</Text>}
                   {teach.department && <Text style={styles.deptBadge}>{teach.department}</Text>}
                 </View>
               </View>
@@ -155,7 +157,23 @@ export const AdminTeachersView: React.FC<AdminTeachersViewProps> = ({
 
               <View style={styles.formGroup}>
                 <Text style={styles.label}>Department</Text>
-                <TextInput style={styles.input} placeholder="e.g. Electronics" value={dept} onChangeText={setDept} />
+                {departments.length > 0 ? (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    <View style={styles.chipRow}>
+                      {departments.map((d) => (
+                        <TouchableOpacity
+                          key={d}
+                          style={[styles.chip, dept === d && styles.chipActive]}
+                          onPress={() => setDept(d)}
+                        >
+                          <Text style={[styles.chipText, dept === d && styles.chipTextActive]}>{d}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </ScrollView>
+                ) : (
+                  <TextInput style={styles.input} placeholder="e.g. Electronics" value={dept} onChangeText={setDept} />
+                )}
               </View>
 
               <View style={styles.formGroup}>
@@ -241,6 +259,7 @@ const styles = StyleSheet.create({
   teacherEmail: { fontSize: 12, color: '#718096', marginTop: 2 },
   badgeRow: { flexDirection: 'row', gap: 6, marginTop: 6, flexWrap: 'wrap' },
   roleBadge: { backgroundColor: '#E0F2FE', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, fontSize: 10, fontWeight: '700', color: '#0284C7' },
+  empBadge: { backgroundColor: '#FEF3C7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, fontSize: 10, fontWeight: '700', color: '#D97706' },
   deptBadge: { backgroundColor: '#EDE7F6', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, fontSize: 10, fontWeight: '700', color: '#7E57C2' },
 
   // Modal
@@ -252,6 +271,11 @@ const styles = StyleSheet.create({
   label: { fontSize: 12, fontWeight: '700', color: '#1A202C' },
   input: { height: 44, borderWidth: 1, borderColor: '#E2E8F0', borderRadius: BorderRadius.input, paddingHorizontal: 12, fontSize: 13, backgroundColor: '#F8F9FB' },
   hintText: { fontSize: 11, color: '#718096', marginTop: 2 },
+  chipRow: { flexDirection: 'row', gap: 8, paddingVertical: 4 },
+  chip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: BorderRadius.chip, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0' },
+  chipActive: { backgroundColor: '#7E57C2', borderColor: '#7E57C2' },
+  chipText: { fontSize: 12, fontWeight: '600', color: '#64748B' },
+  chipTextActive: { color: '#FFFFFF' },
   modalFooter: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 6 },
   cancelBtn: { height: 40, paddingHorizontal: 16, borderRadius: BorderRadius.button, justifyContent: 'center', alignItems: 'center' },
   cancelText: { color: '#64748B', fontWeight: '700', fontSize: 13 },

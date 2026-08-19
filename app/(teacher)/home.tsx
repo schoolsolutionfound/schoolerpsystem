@@ -1,113 +1,251 @@
-import React, { useRef, useEffect } from 'react';
-import { View, StyleSheet, Text, ScrollView, TouchableOpacity, Animated, Dimensions, StatusBar } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
-import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useUserStore } from '../../store/useUserStore';
+import { BorderRadius } from '../../constants/theme';
+import { TeacherTimetableView } from '../../features/teacher/components/TeacherTimetableView';
+import { AttendanceMarkingView } from '../../features/teacher/components/AttendanceMarkingView';
+import { fetchTeacherTimetableApi } from '../../api/academics';
 
-const { width } = Dimensions.get('window');
-const CARD_WIDTH = (width - 60) / 2;
-
-const TEACHER_FEATURES = [
-  { icon: 'calendar-check', title: 'Mark Attendance', desc: 'Take class roll', gradient: ['#667EEA', '#764BA2'], screen: '/teacher-attendance' },
-  { icon: 'timetable', title: 'My Schedule', desc: 'Today\'s periods', gradient: ['#43E97B', '#38F9D7'], screen: '/teacher-attendance' },
-  { icon: 'calendar-edit', title: 'Build Timetable', desc: 'For your class', gradient: ['#4FACFE', '#00F2FE'], screen: '/teacher-timetable' },
-  { icon: 'file-document-edit', title: 'Enter Grades', desc: 'Post exam marks', gradient: ['#F093FB', '#F5576C'], screen: '/teacher-attendance' },
-  { icon: 'account-group', title: 'My Classes', desc: 'Assigned sections', gradient: ['#FA709A', '#FEE140'], screen: '/teacher-attendance' },
-  { icon: 'bell', title: 'Notifications', desc: 'School updates', gradient: ['#A18CD1', '#FBC2EB'], screen: '/notifications' },
-];
+type Tab = 'home' | 'schedule' | 'attendance' | 'profile';
 
 export default function TeacherHomeScreen() {
   const router = useRouter();
-  const fullName = useUserStore((state) => state.fullName);
-  const institutionName = useUserStore((state) => state.institutionName);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const cardAnims = TEACHER_FEATURES.map(() => ({
-    opacity: useRef(new Animated.Value(0)).current,
-    translateY: useRef(new Animated.Value(20)).current,
-  }));
+  const fullName = useUserStore((state) => state.fullName) || 'Teacher';
+  const institutionName = useUserStore((state) => state.institutionName) || '';
+  const institutionCode = useUserStore((state) => state.institutionCode) || '';
+
+  const [activeTab, setActiveTab] = useState<Tab>('home');
+  const [activeSlot, setActiveSlot] = useState<{ slotId: string; subjectName: string } | null>(null);
+  const [todayCount, setTodayCount] = useState(0);
+  const [loadingCount, setLoadingCount] = useState(true);
+
+  const loadTodayCount = useCallback(async () => {
+    setLoadingCount(true);
+    try {
+      const date = new Date().toISOString().slice(0, 10);
+      const res = await fetchTeacherTimetableApi(date);
+      setTodayCount(res?.periods?.length || 0);
+    } catch (err: any) {
+      console.warn('[Teacher Home] Could not load today schedule:', err.message);
+    } finally {
+      setLoadingCount(false);
+    }
+  }, []);
 
   useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }).start();
-    TEACHER_FEATURES.forEach((_, i) => {
-      Animated.parallel([
-        Animated.timing(cardAnims[i].opacity, { toValue: 1, duration: 400, delay: 100 + i * 80, useNativeDriver: true }),
-        Animated.timing(cardAnims[i].translateY, { toValue: 0, duration: 400, delay: 100 + i * 80, useNativeDriver: true }),
-      ]).start();
-    });
-  }, []);
+    loadTodayCount();
+  }, [loadTodayCount]);
+
+  const openSlot = (slotId: string, subjectName: string) => {
+    setActiveSlot({ slotId, subjectName });
+    setActiveTab('attendance');
+  };
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
-      <LinearGradient colors={['#0F0C29', '#1A1740']} style={StyleSheet.absoluteFill} />
-      <SafeAreaView style={styles.safeArea}>
-        <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
-          <View>
-            <Text style={styles.greeting}>Hello, {fullName || 'Teacher'} 👋</Text>
-            <Text style={styles.schoolName}>{institutionName}</Text>
-          </View>
-          <TouchableOpacity onPress={() => router.push('/(teacher)/profile')} style={styles.avatarBtn}>
-            <LinearGradient colors={['#667EEA', '#764BA2']} style={styles.avatarGradient}>
-              <Feather name="user" size={20} color="#FFF" />
-            </LinearGradient>
-          </TouchableOpacity>
-        </Animated.View>
+      <SafeAreaView style={styles.safe}>
+        {activeTab === 'home' && (
+          <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+            {/* Greeting Banner */}
+            <View style={styles.banner}>
+              <View>
+                <Text style={styles.greeting}>Hello, {fullName}</Text>
+                <Text style={styles.schoolName}>{institutionName || institutionCode || 'My Institution'}</Text>
+              </View>
+              <TouchableOpacity onPress={() => router.push('/(teacher)/profile')} style={styles.avatarBtn}>
+                <View style={styles.avatarCircle}>
+                  <Text style={styles.avatarText}>{fullName.substring(0, 2).toUpperCase()}</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.gridContent}>
-          <Text style={styles.sectionTitle}>Teacher Dashboard</Text>
-          <View style={styles.grid}>
-            {TEACHER_FEATURES.map((item, i) => (
-              <Animated.View
-                key={i}
-                style={[styles.cardWrapper, { opacity: cardAnims[i].opacity, transform: [{ translateY: cardAnims[i].translateY }] }]}
-              >
-                <TouchableOpacity activeOpacity={0.85} onPress={() => router.push(item.screen as any)}>
-                  <LinearGradient
-                    colors={item.gradient as any}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.card}
-                  >
-                    <MaterialCommunityIcons name={item.icon as any} size={26} color="#FFF" />
-                    <Text style={styles.cardTitle}>{item.title}</Text>
-                    <Text style={styles.cardDesc}>{item.desc}</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              </Animated.View>
-            ))}
+            {/* Today stat */}
+            <View style={styles.statsRow}>
+              <View style={styles.statCard}>
+                <View style={[styles.iconCircle, { backgroundColor: '#E0F2FE' }]}>
+                  <MaterialCommunityIcons name="calendar-check" size={22} color="#0284C7" />
+                </View>
+                <View>
+                  <Text style={styles.statValue}>{loadingCount ? '—' : todayCount}</Text>
+                  <Text style={styles.statLabel}>Classes Today</Text>
+                </View>
+              </View>
+              <View style={styles.statCard}>
+                <View style={[styles.iconCircle, { backgroundColor: '#EDE7F6' }]}>
+                  <MaterialCommunityIcons name="school" size={22} color="#7E57C2" />
+                </View>
+                <View>
+                  <Text style={styles.statValue}>{institutionCode || '—'}</Text>
+                  <Text style={styles.statLabel}>Institution</Text>
+                </View>
+              </View>
+            </View>
+
+            <Text style={styles.sectionTitle}>Quick Actions</Text>
+            <TouchableOpacity style={styles.actionCard} onPress={() => setActiveTab('schedule')}>
+              <View style={[styles.actionIconCircle, { backgroundColor: '#EDE7F6' }]}>
+                <MaterialCommunityIcons name="timetable" size={24} color="#7E57C2" />
+              </View>
+              <View style={styles.actionTextContainer}>
+                <Text style={styles.actionTitle}>My Schedule</Text>
+                <Text style={styles.actionSubtitle}>View today&apos;s periods and upcoming classes</Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={22} color="#94A3B8" />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionCard} onPress={() => setActiveTab('attendance')}>
+              <View style={[styles.actionIconCircle, { backgroundColor: '#DCFCE7' }]}>
+                <MaterialCommunityIcons name="checkbox-marked-circle-plus-outline" size={24} color="#16A34A" />
+              </View>
+              <View style={styles.actionTextContainer}>
+                <Text style={styles.actionTitle}>Mark Attendance</Text>
+                <Text style={styles.actionSubtitle}>Take roll for your assigned classes</Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={22} color="#94A3B8" />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/teacher-timetable')}>
+              <View style={[styles.actionIconCircle, { backgroundColor: '#FEF3C7' }]}>
+                <MaterialCommunityIcons name="calendar-edit" size={24} color="#D97706" />
+              </View>
+              <View style={styles.actionTextContainer}>
+                <Text style={styles.actionTitle}>Build Timetable</Text>
+                <Text style={styles.actionSubtitle}>Plan your class teacher&apos;s weekly timetable</Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={22} color="#94A3B8" />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/notifications')}>
+              <View style={[styles.actionIconCircle, { backgroundColor: '#FCE7F3' }]}>
+                <MaterialCommunityIcons name="bell" size={24} color="#DB2777" />
+              </View>
+              <View style={styles.actionTextContainer}>
+                <Text style={styles.actionTitle}>Notifications</Text>
+                <Text style={styles.actionSubtitle}>School updates and announcements</Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={22} color="#94A3B8" />
+            </TouchableOpacity>
+          </ScrollView>
+        )}
+
+        {activeTab === 'schedule' && <TeacherTimetableView onOpenAttendance={openSlot} />}
+
+        {activeTab === 'attendance' && (
+          activeSlot ? (
+            <AttendanceMarkingView
+              slotId={activeSlot.slotId}
+              subjectName={activeSlot.subjectName}
+              onSaved={() => { setActiveSlot(null); loadTodayCount(); }}
+            />
+          ) : (
+            <TeacherTimetableView onOpenAttendance={openSlot} />
+          )
+        )}
+
+        {activeTab === 'profile' && (
+          <View style={styles.centerBox}>
+            <TouchableOpacity style={styles.profileBtn} onPress={() => router.push('/(teacher)/profile')}>
+              <MaterialCommunityIcons name="account-circle" size={48} color="#7E57C2" />
+              <Text style={styles.profileBtnText}>Open Profile</Text>
+            </TouchableOpacity>
           </View>
-        </ScrollView>
+        )}
+
+        {/* Bottom Tab Bar */}
+        <View style={styles.tabBar}>
+          <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('home')}>
+            <MaterialCommunityIcons name="home" size={22} color={activeTab === 'home' ? '#7E57C2' : '#94A3B8'} />
+            <Text style={[styles.tabLabel, activeTab === 'home' && styles.tabLabelActive]}>Home</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.tabItem} onPress={() => { setActiveSlot(null); setActiveTab('schedule'); }}>
+            <MaterialCommunityIcons name="calendar-outline" size={22} color={activeTab === 'schedule' ? '#7E57C2' : '#94A3B8'} />
+            <Text style={[styles.tabLabel, activeTab === 'schedule' && styles.tabLabelActive]}>Schedule</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('attendance')}>
+            <MaterialCommunityIcons name="clipboard-check-outline" size={22} color={activeTab === 'attendance' ? '#7E57C2' : '#94A3B8'} />
+            <Text style={[styles.tabLabel, activeTab === 'attendance' && styles.tabLabelActive]}>Attendance</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('profile')}>
+            <MaterialCommunityIcons name="account-circle-outline" size={22} color={activeTab === 'profile' ? '#7E57C2' : '#94A3B8'} />
+            <Text style={[styles.tabLabel, activeTab === 'profile' && styles.tabLabelActive]}>Profile</Text>
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0F0C29' },
-  safeArea: { flex: 1 },
-  header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 24, paddingTop: 10, paddingBottom: 6,
+  container: { flex: 1, backgroundColor: '#F8F9FB' },
+  safe: { flex: 1 },
+  scroll: { padding: 16, gap: 14, paddingBottom: 40 },
+  banner: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.card,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  greeting: { fontSize: 22, fontWeight: '800', color: '#FFFFFF' },
-  schoolName: { fontSize: 13, color: 'rgba(255,255,255,0.4)', marginTop: 4, fontWeight: '500' },
-  avatarBtn: { elevation: 6 },
-  avatarGradient: {
-    width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#667EEA', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 8,
+  greeting: { fontSize: 20, fontWeight: '800', color: '#1A202C' },
+  schoolName: { fontSize: 13, color: '#718096', marginTop: 4 },
+  avatarBtn: { padding: 4 },
+  avatarCircle: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#EDE7F6',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  gridContent: { paddingHorizontal: 24, paddingBottom: 30, paddingTop: 14 },
-  sectionTitle: {
-    fontSize: 16, fontWeight: '700', color: 'rgba(255,255,255,0.6)', marginBottom: 14,
+  avatarText: { fontSize: 15, fontWeight: '800', color: '#7E57C2' },
+  statsRow: { flexDirection: 'row', gap: 10 },
+  statCard: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.card,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
   },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  cardWrapper: { width: CARD_WIDTH },
-  card: {
-    borderRadius: 18, padding: 16, minHeight: 120,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12,
+  iconCircle: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  statValue: { fontSize: 20, fontWeight: '800', color: '#1A202C' },
+  statLabel: { fontSize: 11, color: '#718096', fontWeight: '500', marginTop: 2 },
+  sectionTitle: { fontSize: 15, fontWeight: '800', color: '#1A202C', marginTop: 6 },
+  actionCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.card,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
   },
-  cardTitle: { fontSize: 14, fontWeight: '700', color: '#FFF', marginTop: 12 },
-  cardDesc: { fontSize: 11, color: 'rgba(255,255,255,0.7)', marginTop: 3, fontWeight: '500' },
+  actionIconCircle: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
+  actionTextContainer: { flex: 1, gap: 2 },
+  actionTitle: { fontSize: 15, fontWeight: '700', color: '#1A202C' },
+  actionSubtitle: { fontSize: 12, color: '#718096', lineHeight: 16 },
+  centerBox: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  profileBtn: { alignItems: 'center', gap: 8 },
+  profileBtnText: { fontSize: 14, fontWeight: '700', color: '#7E57C2' },
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+    paddingVertical: 8,
+    paddingBottom: 12,
+  },
+  tabItem: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  tabLabel: { fontSize: 10, fontWeight: '500', color: '#94A3B8', marginTop: 2 },
+  tabLabelActive: { color: '#7E57C2', fontWeight: '700' },
 });

@@ -35,10 +35,26 @@ export async function updateInstitutionConfigHandler(request: FastifyRequest, re
   }
 }
 
+export async function getDashboardStatsHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const instCode = extractInstCode(request);
+    const data = await adminService.getDashboardStats(instCode);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return reply.status(err.statusCode || 500).send({
+      success: false,
+      error: { message: err.message || 'Failed to fetch dashboard stats' },
+    });
+  }
+}
+
 export async function getStudentsHandler(request: FastifyRequest, reply: FastifyReply) {
   try {
     const instCode = extractInstCode(request);
-    const data = await adminService.getStudents(instCode);
+    const q = (request.query as any) || {};
+    const limit = Math.min(Math.max(Number(q.limit) || 100, 1), 500);
+    const offset = Math.max(Number(q.offset) || 0, 0);
+    const data = await adminService.getStudents(instCode, limit, offset);
     return reply.send({ success: true, data });
   } catch (err: any) {
     return reply.status(500).send({
@@ -65,7 +81,10 @@ export async function createStudentHandler(request: FastifyRequest, reply: Fasti
 export async function getTeachersHandler(request: FastifyRequest, reply: FastifyReply) {
   try {
     const instCode = extractInstCode(request);
-    const data = await adminService.getTeachers(instCode);
+    const q = (request.query as any) || {};
+    const limit = Math.min(Math.max(Number(q.limit) || 100, 1), 500);
+    const offset = Math.max(Number(q.offset) || 0, 0);
+    const data = await adminService.getTeachers(instCode, limit, offset);
     return reply.send({ success: true, data });
   } catch (err: any) {
     return reply.status(500).send({
@@ -92,7 +111,10 @@ export async function createTeacherHandler(request: FastifyRequest, reply: Fasti
 export async function getUsersHandler(request: FastifyRequest, reply: FastifyReply) {
   try {
     const instCode = extractInstCode(request);
-    const data = await adminService.getUsers(instCode);
+    const q = (request.query as any) || {};
+    const limit = Math.min(Math.max(Number(q.limit) || 100, 1), 500);
+    const offset = Math.max(Number(q.offset) || 0, 0);
+    const data = await adminService.getUsers(instCode, limit, offset);
     return reply.send({ success: true, data });
   } catch (err: any) {
     return reply.status(500).send({

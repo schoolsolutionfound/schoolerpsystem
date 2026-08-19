@@ -11,7 +11,7 @@ async function getAuthToken(): Promise<string> {
       console.warn('[Developer Console] Could not retrieve ID token:', err);
     }
   }
-  return 'mock_dev_token';
+  throw new Error('Not authenticated. Please sign in again.');
 }
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -61,6 +61,7 @@ export interface AdminPayload {
 }
 
 export const developerApi = {
+  logout: () => request('/auth/logout', { method: 'POST', body: '{}' }),
   getStats: () => request('/developer/stats'),
   getInstitutions: () => request('/developer/institutions'),
   getInstitutionById: (id: string) => request(`/developer/institutions/${id}`),

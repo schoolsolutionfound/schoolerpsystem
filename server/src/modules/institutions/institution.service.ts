@@ -31,6 +31,10 @@ export class InstitutionService {
     return this.repo.findAll();
   }
 
+  public async getInstitutionByCode(code: string) {
+    return this.repo.findByCode(code);
+  }
+
   public async getInstitutionById(id: string) {
     const item = await this.repo.findById(id);
     if (!item) {

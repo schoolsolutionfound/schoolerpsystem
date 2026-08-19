@@ -50,3 +50,8 @@ yarn-error.*
 
 # logs
 *.log
+
+# markdown docs (not README)
+*.md
+!README.md
+!developer-console/README.md

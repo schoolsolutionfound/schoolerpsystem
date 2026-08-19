@@ -21,7 +21,7 @@ export function useAppSync(userSession: User | null) {
 
     const applyBackendData = (res: any) => {
       const rawRole = (res.userRole || '').toLowerCase();
-      const finalRole = (rawRole === 'maintainer' || rawRole === 'institution admin' || rawRole === 'admin')
+      const finalRole = (rawRole === 'institution admin' || rawRole === 'admin')
         ? 'admin'
         : (rawRole || 'student');
 
@@ -143,6 +143,6 @@ export function useAppSync(userSession: User | null) {
         unsubProfileRef.current = null;
       }
     };
-  }, [userSession, _hasHydrated]);
+  }, [userSession, _hasHydrated, setIsProfileSynced, setProfileExists, setUserProfile]);
 }
 

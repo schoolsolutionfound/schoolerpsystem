@@ -3,14 +3,12 @@ import { View, StyleSheet, Text, KeyboardAvoidingView, Platform, ScrollView, Ale
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { auth } from '../firebaseConfig';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { LoginForm } from '../features/auth/components/LoginForm';
 
 export default function AuthScreen() {
-  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -24,42 +22,22 @@ export default function AuthScreen() {
     ]).start();
   }, []);
 
-  const toggleMode = () => {
-    setIsLogin(!isLogin);
-    Animated.sequence([
-      Animated.timing(fadeAnim, { toValue: 0.6, duration: 120, useNativeDriver: true }),
-      Animated.timing(fadeAnim, { toValue: 1, duration: 120, useNativeDriver: true }),
-    ]).start();
-  };
-
   const handleAuth = async () => {
-    if (!email || !password || (!isLogin && !fullName)) {
+    if (!email || !password) {
       Alert.alert('Missing Fields', 'Please fill in all required fields.');
-      return;
-    }
-
-    if (password.length < 6) {
-      Alert.alert('Weak Password', 'Password must be at least 6 characters.');
       return;
     }
 
     setLoading(true);
     try {
-      if (isLogin) {
-        await signInWithEmailAndPassword(auth, email, password);
-        // Profile sync & routing handled by useAppSync + useAuthGuard in _layout.tsx
-      } else {
-        const cred = await createUserWithEmailAndPassword(auth, email, password);
-        await sendEmailVerification(cred.user);
-      }
+      await signInWithEmailAndPassword(auth, email, password);
+      // Profile sync & routing handled by useAppSync + useAuthGuard in _layout.tsx
     } catch (e: any) {
       const msg = e.code === 'auth/user-not-found'
         ? 'No account found with this email.'
         : e.code === 'auth/wrong-password'
           ? 'Incorrect password.'
-          : e.code === 'auth/email-already-in-use'
-            ? 'An account already exists with this email.'
-            : e.message;
+          : e.message;
       Alert.alert('Error', msg);
     } finally {
       setLoading(false);
@@ -80,23 +58,19 @@ export default function AuthScreen() {
                 <Text style={styles.brandTitle}>SchoolHub</Text>
               </View>
 
-              <Text style={styles.title}>{isLogin ? 'Sign in' : 'Create account'}</Text>
+              <Text style={styles.title}>Sign in</Text>
               <Text style={styles.subtitle}>
-                {isLogin ? 'Enter your account credentials to access your portal.' : 'Fill in the details below to get started.'}
+                Enter your account credentials to access your portal.
               </Text>
 
               <LoginForm
-                isLogin={isLogin}
                 email={email}
                 setEmail={setEmail}
                 password={password}
                 setPassword={setPassword}
-                fullName={fullName}
-                setFullName={setFullName}
                 showPassword={showPassword}
                 setShowPassword={setShowPassword}
                 onSubmit={handleAuth}
-                onToggleMode={toggleMode}
                 loading={loading}
               />
             </Animated.View>

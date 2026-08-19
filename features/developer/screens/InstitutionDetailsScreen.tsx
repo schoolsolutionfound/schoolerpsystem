@@ -6,7 +6,6 @@ import { Colors, BorderRadius } from '../../../constants/theme';
 import { AppLayout } from '../../shared/components/AppLayout';
 import { AppCard } from '../../shared/components/AppCard';
 import { AppBadge } from '../../shared/components/AppBadge';
-import { AppButton } from '../../shared/components/AppButton';
 import { LoadingView } from '../../shared/components/LoadingView';
 import { ErrorState } from '../../shared/components/ErrorState';
 import { EmptyState } from '../../shared/components/EmptyState';

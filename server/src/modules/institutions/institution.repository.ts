@@ -11,6 +11,11 @@ export interface IInstitutionRepository {
   delete(id: string): Promise<boolean>;
 }
 
+/**
+ * In-memory institution store. Used ONLY as a fallback when no Postgres is
+ * configured. When Postgres is available it is the single source of truth —
+ * reads are never mirrored and mutations never dual-write into this store.
+ */
 class InMemoryInstitutionStore {
   private store = new Map<string, InstitutionRecord>();
 
@@ -52,43 +57,42 @@ class InMemoryInstitutionStore {
 
 const inMemoryStore = new InMemoryInstitutionStore();
 
+function toRecord(data: Partial<NewInstitutionRecord> & { institutionCode: string; institutionName: string }): InstitutionRecord {
+  return {
+    id: data.id || `inst_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+    institutionCode: data.institutionCode,
+    institutionName: data.institutionName,
+    institutionType: data.institutionType || 'college',
+    subscriptionStatus: data.subscriptionStatus || 'active',
+    departments: data.departments ?? [],
+    academicYears: data.academicYears ?? [],
+    courses: data.courses ?? [],
+    terms: data.terms ?? [],
+    blockedDates: data.blockedDates ?? [],
+    createdAt: data.createdAt || new Date(),
+    updatedAt: data.updatedAt || new Date(),
+  };
+}
+
 export class InstitutionRepository implements IInstitutionRepository {
   public async create(data: Partial<NewInstitutionRecord> & { institutionCode: string; institutionName: string }): Promise<InstitutionRecord> {
-    const newRecord: InstitutionRecord = {
-      id: data.id || `inst_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-      institutionCode: data.institutionCode,
-      institutionName: data.institutionName,
-      institutionType: data.institutionType || 'college',
-      subscriptionStatus: data.subscriptionStatus || 'active',
-      departments: data.departments ?? [],
-      academicYears: data.academicYears ?? [],
-      courses: data.courses ?? [],
-      terms: data.terms ?? [],
-      blockedDates: data.blockedDates ?? [],
-      createdAt: data.createdAt || new Date(),
-      updatedAt: data.updatedAt || new Date(),
-    };
-
-    inMemoryStore.save(newRecord);
-
-    if (db) {
-      try {
-        const [inserted] = await db.insert(institutions).values(newRecord).returning();
-        if (inserted) return inserted;
-      } catch (err: any) {
-        console.warn('[PostgreSQL Institution Create Error]', err.message);
-      }
+    if (!db) {
+      return inMemoryStore.save(toRecord(data));
     }
 
-    return newRecord;
+    try {
+      const [inserted] = await db.insert(institutions).values(toRecord(data)).returning();
+      return inserted;
+    } catch (err: any) {
+      console.warn('[PostgreSQL Institution Create Error]', err.message);
+      return inMemoryStore.save(toRecord(data));
+    }
   }
 
   public async findAll(): Promise<InstitutionRecord[]> {
     if (db) {
       try {
-        const results = await db.select().from(institutions);
-        results.forEach((item) => inMemoryStore.save(item));
-        return results;
+        return await db.select().from(institutions);
       } catch (err: any) {
         console.warn('[PostgreSQL Institution FindAll Error]', err.message);
       }
@@ -100,11 +104,7 @@ export class InstitutionRepository implements IInstitutionRepository {
     if (db) {
       try {
         const results = await db.select().from(institutions).where(eq(institutions.id, id)).limit(1);
-        if (results.length > 0) {
-          inMemoryStore.save(results[0]);
-          return results[0];
-        }
-        return undefined;
+        return results.length > 0 ? results[0] : undefined;
       } catch (err: any) {
         console.warn('[PostgreSQL Institution FindById Error]', err.message);
       }
@@ -116,11 +116,7 @@ export class InstitutionRepository implements IInstitutionRepository {
     if (db) {
       try {
         const results = await db.select().from(institutions).where(eq(institutions.institutionCode, code)).limit(1);
-        if (results.length > 0) {
-          inMemoryStore.save(results[0]);
-          return results[0];
-        }
-        return undefined;
+        return results.length > 0 ? results[0] : undefined;
       } catch (err: any) {
         console.warn('[PostgreSQL Institution FindByCode Error]', err.message);
       }
@@ -129,8 +125,6 @@ export class InstitutionRepository implements IInstitutionRepository {
   }
 
   public async update(id: string, data: Partial<NewInstitutionRecord>): Promise<InstitutionRecord | undefined> {
-    const updatedInMemory = inMemoryStore.update(id, data);
-
     if (db) {
       try {
         const [updatedRow] = await db
@@ -142,17 +136,15 @@ export class InstitutionRepository implements IInstitutionRepository {
           .where(eq(institutions.id, id))
           .returning();
         if (updatedRow) return updatedRow;
+        return undefined;
       } catch (err: any) {
         console.warn('[PostgreSQL Institution Update Error]', err.message);
       }
     }
-
-    return updatedInMemory;
+    return inMemoryStore.update(id, data);
   }
 
   public async delete(id: string): Promise<boolean> {
-    const deletedInMemory = inMemoryStore.delete(id);
-
     if (db) {
       try {
         await db.delete(institutions).where(eq(institutions.id, id));
@@ -161,8 +153,7 @@ export class InstitutionRepository implements IInstitutionRepository {
         console.warn('[PostgreSQL Institution Delete Error]', err.message);
       }
     }
-
-    return deletedInMemory;
+    return inMemoryStore.delete(id);
   }
 }
 

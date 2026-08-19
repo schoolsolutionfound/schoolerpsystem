@@ -3,7 +3,21 @@ import { View, StyleSheet, Text } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
 
-export const StudentHomeAttendanceCard: React.FC = () => {
+interface StudentHomeAttendanceCardProps {
+  loading?: boolean;
+  overall?: { present: number; total: number; percentage: number } | null;
+  currentSlot?: any;
+}
+
+export const StudentHomeAttendanceCard: React.FC<StudentHomeAttendanceCardProps> = ({
+  loading,
+  overall,
+  currentSlot,
+}) => {
+  const pct = overall?.percentage;
+  const periodStart = currentSlot?.period?.startTime || '';
+  const periodEnd = currentSlot?.period?.endTime || '';
+
   return (
     <View style={styles.gridRow}>
       {/* Attendance Card */}
@@ -12,22 +26,35 @@ export const StudentHomeAttendanceCard: React.FC = () => {
           <Text style={styles.metricTitle}>Attendance</Text>
         </View>
         <View style={styles.attendanceGaugeWrap}>
-          <Text style={styles.metricValue}>92%</Text>
+          <Text style={styles.metricValue}>{loading || pct === undefined ? '—' : `${pct}%`}</Text>
           <View style={styles.circleProgressRing}>
             <MaterialCommunityIcons name="calendar-check" size={24} color="#16A34A" />
           </View>
         </View>
-        <Text style={styles.metricSub}>This Month</Text>
+        <Text style={styles.metricSub}>
+          {loading ? 'Loading…' : overall && overall.total > 0 ? `${overall.present} of ${overall.total} classes` : 'No classes marked yet'}
+        </Text>
       </View>
 
       {/* Current Period Card */}
       <View style={[styles.gridCard, { backgroundColor: '#F5F3FF', borderColor: '#DDD6FE' }]}>
         <Text style={styles.metricTitle}>Current Period</Text>
-        <Text style={styles.periodSubject}>Mathematics</Text>
-        <Text style={styles.periodTime}>09:40 AM – 10:30 AM</Text>
-        <View style={styles.roomTag}>
-          <Text style={styles.roomTagText}>Room 204</Text>
-        </View>
+        <Text style={styles.periodSubject}>
+          {currentSlot?.subject?.name || (loading ? '—' : 'No class now')}
+        </Text>
+        {currentSlot ? (
+          <Text style={styles.periodTime}>
+            {periodStart}
+            {periodEnd ? ` – ${periodEnd}` : ''}
+          </Text>
+        ) : (
+          <Text style={styles.periodTime}>{loading ? 'Loading…' : 'Free period'}</Text>
+        )}
+        {currentSlot?.room ? (
+          <View style={styles.roomTag}>
+            <Text style={styles.roomTagText}>Room {currentSlot.room}</Text>
+          </View>
+        ) : null}
       </View>
     </View>
   );

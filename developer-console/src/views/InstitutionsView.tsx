@@ -22,7 +22,7 @@ export const InstitutionsView: React.FC = () => {
   const handleTypeChange = (val: 'school' | 'college') => {
     setType(val);
     if (val === 'school') {
-      setDeptsText('Grade 1, Grade 2, Grade 3, Grade 4, Grade 5');
+      setDeptsText('Class 1, Class 2, Class 3, Class 4, Class 5, Class 6, Class 7, Class 8, Class 9, Class 10');
       setYearsText('A, B, C');
       setCoursesText('');
     } else {
@@ -305,7 +305,7 @@ export const InstitutionsView: React.FC = () => {
                     <input
                       type="text"
                       className="input"
-                      placeholder="e.g. Grade 1, Grade 2, Grade 3"
+                      placeholder="e.g. Class 1, Class 2, Class 3"
                       value={deptsText}
                       onChange={(e) => setDeptsText(e.target.value)}
                     />

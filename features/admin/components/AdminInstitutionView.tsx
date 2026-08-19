@@ -27,12 +27,11 @@ export const AdminInstitutionView: React.FC<AdminInstitutionViewProps> = ({ conf
   const [departments, setDepartments] = useState<string[]>(config.departments || []);
   const [academicYears, setAcademicYears] = useState<string[]>(config.academicYears || []);
   const [courses, setCourses] = useState<string[]>(config.courses || []);
-  const [sections, setSections] = useState<string[]>(config.sections || []);
+  const [sections] = useState<string[]>(config.sections || []);
 
   const [newDept, setNewDept] = useState('');
   const [newYear, setNewYear] = useState('');
   const [newCourse, setNewCourse] = useState('');
-  const [newSection, setNewSection] = useState('');
   const [saving, setSaving] = useState(false);
 
   const addItem = (item: string, setItem: (v: string) => void, list: string[], setList: (l: string[]) => void) => {
@@ -113,11 +112,11 @@ export const AdminInstitutionView: React.FC<AdminInstitutionViewProps> = ({ conf
 
       {/* Academic Years Section */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Academic Years Setup</Text>
+        <Text style={styles.cardTitle}>{isSchool ? 'Classes Setup' : 'Academic Years Setup'}</Text>
         <View style={styles.inputRow}>
           <TextInput
             style={styles.input}
-            placeholder={isSchool ? 'e.g. Grade 10' : 'e.g. 1st Year'}
+            placeholder={isSchool ? 'e.g. Class 10' : 'e.g. 1st Year'}
             value={newYear}
             onChangeText={setNewYear}
           />

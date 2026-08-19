@@ -1,6 +1,6 @@
 import { institutionService, InstitutionService } from '../institutions/institution.service.js';
 import { CreateInstitutionInput, UpdateInstitutionInput } from '../institutions/institution.schema.js';
-import { InMemoryUser, inMemoryUserStore, dbUpsertUser, dbGetAllUsers, dbFindAdminsByInstitutionCode, dbDeleteUserById } from '../shared/db/index.js';
+import { InMemoryUser, dbUpsertUser, dbFindAdminsByInstitutionCode, dbFindUserById, dbFindNonDeveloperUsers, dbCountNonDeveloperUsers, dbDeleteUserById, dbCountUsersByInstitution } from '../shared/db/index.js';
 import { admin, isFirebaseAdminInitialized } from '../shared/config/firebase.js';
 
 function sanitize(val: string | undefined, maxLen = 200): string {
@@ -76,10 +76,7 @@ export class DeveloperService {
       (i) => (i.subscriptionStatus || 'active').toLowerCase() === 'active'
     ).length;
 
-    const allUsers = await dbGetAllUsers();
-    const institutionAdmins = allUsers.filter(
-      (u) => u.role.toLowerCase() === 'institution admin' || u.role.toLowerCase() === 'admin' || u.role.toLowerCase() === 'maintainer'
-    ).length;
+    const institutionAdmins = await dbCountUsersByInstitution(undefined, 'admin');
 
     const activeSubscriptions = activeInstitutions;
     const monthlyRevenue = activeSubscriptions * 5000;
@@ -93,19 +90,25 @@ export class DeveloperService {
     };
   }
 
-  public async listAdmins(institutionCode?: string) {
+  public async listAdmins(institutionCode?: string, limit = 100, offset = 0) {
     let admins: InMemoryUser[];
+    let total = 0;
     if (institutionCode) {
-      admins = await dbFindAdminsByInstitutionCode(institutionCode);
+      [admins, total] = await Promise.all([
+        dbFindAdminsByInstitutionCode(institutionCode, { limit, offset }),
+        dbCountUsersByInstitution(institutionCode, 'admin'),
+      ]);
     } else {
-      const allUsers = await dbGetAllUsers();
-      admins = allUsers.filter((u) => u.role !== 'dev' && u.role !== 'maintainer');
+      [admins, total] = await Promise.all([
+        dbFindNonDeveloperUsers({ limit, offset }),
+        dbCountNonDeveloperUsers(),
+      ]);
     }
 
     const institutionsList = await this.instService.getInstitutions();
     const instMap = new Map(institutionsList.map((i) => [i.institutionCode, i]));
 
-    return admins.map((u) => {
+    const data = admins.map((u) => {
       const inst = instMap.get(u.institutionCode);
       const parsedScope = typeof u.scope === 'string' ? JSON.parse(u.scope || '{}') : (u.scope || {});
       const parsedPermissions = typeof u.permissions === 'string' ? JSON.parse(u.permissions || '[]') : (u.permissions || []);
@@ -126,6 +129,8 @@ export class DeveloperService {
         createdAt: u.createdAt,
       };
     });
+
+    return { data, total, limit, offset };
   }
 
   public async createAdmin(payload: CreateAdminPayload) {
@@ -180,6 +185,8 @@ export class DeveloperService {
       institutionType: inst?.institutionType || 'college',
       scope: JSON.stringify(sanitized.scope),
       permissions: JSON.stringify(sanitized.permissions),
+      mustChangePassword: true,
+      profileCompleted: false,
     });
 
     return {
@@ -200,7 +207,7 @@ export class DeveloperService {
   }
 
   public async updateAdmin(id: string, payload: UpdateAdminPayload) {
-    const existing = (await dbGetAllUsers()).find((u) => u.id === id);
+    const existing = await dbFindUserById(id);
     if (!existing) {
       throw { statusCode: 404, code: 'ADMIN_NOT_FOUND', message: `Admin with ID "${id}" was not found.` };
     }
@@ -227,7 +234,7 @@ export class DeveloperService {
   }
 
   public async deleteAdmin(id: string) {
-    const existing = (await dbGetAllUsers()).find((u) => u.id === id);
+    const existing = await dbFindUserById(id);
     if (!existing) {
       throw { statusCode: 404, code: 'ADMIN_NOT_FOUND', message: `Admin with ID "${id}" was not found.` };
     }

@@ -1,7 +1,6 @@
 export enum Role {
   Developer = 'dev',
   Admin = 'admin',
-  Maintainer = 'maintainer',
   Teacher = 'teacher',
   Student = 'student',
   Principal = 'principal',
@@ -11,4 +10,4 @@ export enum Role {
   Librarian = 'librarian',
 }
 
-export type RoleType = Role | 'dev' | 'admin' | 'maintainer' | 'teacher' | 'student' | 'principal' | 'parent' | 'accountant' | 'hod' | 'librarian';
+export type RoleType = Role | 'dev' | 'admin' | 'teacher' | 'student' | 'principal' | 'parent' | 'accountant' | 'hod' | 'librarian';

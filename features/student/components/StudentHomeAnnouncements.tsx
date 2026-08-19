@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Text } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
 
@@ -12,14 +12,10 @@ export const StudentHomeAnnouncements: React.FC = () => {
 
       <View style={styles.announcementContent}>
         <View style={styles.announcementTop}>
-          <Text style={styles.announcementTitle}>Announcement</Text>
-          <TouchableOpacity>
-            <Text style={styles.viewAllText}>View All &gt;</Text>
-          </TouchableOpacity>
+          <Text style={styles.announcementTitle}>Announcements</Text>
         </View>
-        <Text style={styles.announcementBody}>
-          Parents-Teacher Meeting is scheduled on 24th May 2025 (Saturday) at 10:00 AM.
-        </Text>
+        <Text style={styles.announcementBody}>No announcements yet.</Text>
+        <Text style={styles.announcementSub}>School announcements will appear here.</Text>
       </View>
     </View>
   );
@@ -47,6 +43,6 @@ const styles = StyleSheet.create({
   announcementContent: { flex: 1, gap: 4 },
   announcementTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   announcementTitle: { fontSize: 14, fontWeight: '700', color: '#1A202C' },
-  viewAllText: { fontSize: 12, color: '#7E57C2', fontWeight: '700' },
-  announcementBody: { fontSize: 12, color: '#64748B', lineHeight: 17 },
+  announcementBody: { fontSize: 12, color: '#64748B', lineHeight: 17, fontWeight: '600' },
+  announcementSub: { fontSize: 11, color: '#94A3B8', lineHeight: 15 },
 });

@@ -9,7 +9,7 @@ let Notifications: typeof import('expo-notifications') | null = null;
 if (!isExpoGo && Platform.OS !== 'web') {
   try {
     Notifications = require('expo-notifications');
-  } catch (e) {
+  } catch {
     // Ignore in Expo Go or environment without native push support
   }
 }

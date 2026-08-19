@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, Text, ScrollView, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
 import { fetchParentAttendanceApi } from '../../../api/academics';
@@ -43,7 +43,7 @@ export const ParentAttendanceView: React.FC = () => {
 
   return (
     <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-      <Text style={styles.title}>Linked Student's Attendance</Text>
+      <Text style={styles.title}>Linked Student&apos;s Attendance</Text>
       <View style={styles.overallCard}>
         <Text style={styles.ringValue}>{overall?.percentage ?? 0}%</Text>
         <Text style={styles.ringLabel}>Overall</Text>

@@ -21,7 +21,7 @@ export default function AdminBulkFeedScreen() {
   const [selectedFile, setSelectedFile] = useState<{ name: string; size: string; uri?: string; content?: string } | null>(null);
   const [sendEmails, setSendEmails] = useState(true);
   const [overwriteUsers, setOverwriteUsers] = useState(false);
-  const [importError, setImportError] = useState<string | null>(null);
+  const [, setImportError] = useState<string | null>(null);
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');

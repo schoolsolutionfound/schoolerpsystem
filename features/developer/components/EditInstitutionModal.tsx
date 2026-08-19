@@ -65,12 +65,12 @@ export const EditInstitutionModal: React.FC<EditInstitutionModalProps> = ({
         Array.isArray(institution.courses) ? institution.courses.join(', ') : ''
       );
     }
-  }, [institution]);
+  }, [institution, reset]);
 
   useEffect(() => {
     if (!deptsText && !yearsText && !coursesText) {
       if (institutionType === 'school') {
-        setDeptsText('Grade 1, Grade 2, Grade 3, Grade 4, Grade 5');
+        setDeptsText('Class 1, Class 2, Class 3, Class 4, Class 5, Class 6, Class 7, Class 8, Class 9, Class 10');
         setYearsText('A, B, C');
         setCoursesText('');
       } else {
@@ -79,7 +79,7 @@ export const EditInstitutionModal: React.FC<EditInstitutionModalProps> = ({
         setCoursesText('B.Tech, M.Tech');
       }
     }
-  }, [institutionType]);
+  }, [institutionType, deptsText, yearsText, coursesText]);
 
   const handleFormSubmit = (data: UpdateInstitutionFormValues) => {
     if (institution) {
@@ -183,7 +183,7 @@ export const EditInstitutionModal: React.FC<EditInstitutionModalProps> = ({
         <View style={styles.textInputGroup}>
           <AppInput
             label={institutionType === 'college' ? 'Departments (comma-separated)' : 'Classes (comma-separated)'}
-            placeholder={institutionType === 'college' ? 'e.g. CSE, ECE, ME, Civil' : 'e.g. Grade 1, Grade 2, Grade 3'}
+            placeholder={institutionType === 'college' ? 'e.g. CSE, ECE, ME, Civil' : 'e.g. Class 1, Class 2, Class 3'}
             value={deptsText}
             onChangeText={setDeptsText}
             iconName="domain"

@@ -4,50 +4,28 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
 
 interface LoginFormProps {
-  isLogin: boolean;
   email: string;
   setEmail: (text: string) => void;
   password: string;
   setPassword: (text: string) => void;
-  fullName: string;
-  setFullName: (text: string) => void;
   showPassword: boolean;
   setShowPassword: (val: boolean) => void;
   onSubmit: () => void;
-  onToggleMode: () => void;
   loading: boolean;
 }
 
 export const LoginForm: React.FC<LoginFormProps> = ({
-  isLogin,
   email,
   setEmail,
   password,
   setPassword,
-  fullName,
-  setFullName,
   showPassword,
   setShowPassword,
   onSubmit,
-  onToggleMode,
   loading,
 }) => {
   return (
     <View style={styles.form}>
-      {!isLogin && (
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Full Name</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter your full name"
-            placeholderTextColor="#CBD5E0"
-            value={fullName}
-            onChangeText={setFullName}
-            autoCapitalize="words"
-          />
-        </View>
-      )}
-
       <View style={styles.inputGroup}>
         <Text style={styles.inputLabel}>Email</Text>
         <TextInput
@@ -83,30 +61,15 @@ export const LoginForm: React.FC<LoginFormProps> = ({
         </View>
       </View>
 
-      {isLogin && (
-        <TouchableOpacity style={styles.forgotBtn}>
-          <Text style={styles.forgotText}>Forgot password?</Text>
-        </TouchableOpacity>
-      )}
-
       <TouchableOpacity
         style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
         onPress={onSubmit}
         disabled={loading}
       >
         <Text style={styles.submitText}>
-          {loading ? 'Please wait...' : isLogin ? 'Sign in' : 'Create Account'}
+          {loading ? 'Please wait...' : 'Sign in'}
         </Text>
       </TouchableOpacity>
-
-      <View style={styles.toggleRow}>
-        <Text style={styles.toggleText}>
-          {isLogin ? "Don't have an account?" : 'Already have an account?'}
-        </Text>
-        <TouchableOpacity onPress={onToggleMode}>
-          <Text style={styles.toggleLink}>{isLogin ? 'Sign up' : 'Sign in'}</Text>
-        </TouchableOpacity>
-      </View>
     </View>
   );
 };
@@ -137,8 +100,6 @@ const styles = StyleSheet.create({
   },
   passwordInput: { flex: 1, fontSize: 14, color: '#1A202C' },
   eyeBtn: { padding: 4 },
-  forgotBtn: { alignSelf: 'flex-end', marginTop: -4 },
-  forgotText: { fontSize: 13, color: '#7E57C2', fontWeight: '600' },
   submitBtn: {
     backgroundColor: '#7E57C2',
     borderRadius: BorderRadius.button,
@@ -148,7 +109,4 @@ const styles = StyleSheet.create({
   },
   submitBtnDisabled: { opacity: 0.6 },
   submitText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
-  toggleRow: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 10 },
-  toggleText: { fontSize: 13, color: '#718096' },
-  toggleLink: { fontSize: 13, color: '#7E57C2', fontWeight: '700' },
 });

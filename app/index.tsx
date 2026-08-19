@@ -27,8 +27,10 @@ export default function AppSplashScreen() {
   const progressAnim = useRef(new Animated.Value(0)).current;
   const logoScale = useRef(new Animated.Value(0.3)).current;
   const logoOpacity = useRef(new Animated.Value(0)).current;
-  const iconOpacities = FLOATING_ICONS.map(() => useRef(new Animated.Value(0)).current);
-  const iconTranslates = FLOATING_ICONS.map(() => useRef(new Animated.Value(20)).current);
+  const iconOpacitiesRef = useRef(FLOATING_ICONS.map(() => new Animated.Value(0)));
+  const iconOpacities = iconOpacitiesRef.current;
+  const iconTranslatesRef = useRef(FLOATING_ICONS.map(() => new Animated.Value(20)));
+  const iconTranslates = iconTranslatesRef.current;
 
   const _hasHydrated = useUserStore((state) => state._hasHydrated);
   const isProfileSynced = useUserStore((state) => state.isProfileSynced);

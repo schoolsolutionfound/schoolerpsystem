@@ -29,7 +29,7 @@ export const AdminsView: React.FC = () => {
         developerApi.getAdmins(),
         developerApi.getInstitutions(),
       ]);
-      setAdmins(Array.isArray(adminsData) ? adminsData : []);
+      setAdmins(Array.isArray(adminsData) ? adminsData : (adminsData as any)?.data || []);
       const instList = Array.isArray(instsData) ? instsData : [];
       setInstitutions(instList);
       if (instList.length > 0) {

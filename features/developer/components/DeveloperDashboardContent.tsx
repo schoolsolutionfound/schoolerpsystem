@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   RefreshControl,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   useDeveloperStatsQuery,
@@ -25,7 +24,6 @@ const TEXT_MUTED = '#718096';
 const BORDER = '#E2E8F0';
 
 export function DeveloperDashboardContent() {
-  const router = useRouter();
   const [createModalVisible, setCreateModalVisible] = useState(false);
 
   const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useDeveloperStatsQuery();

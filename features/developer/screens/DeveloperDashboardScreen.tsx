@@ -68,7 +68,7 @@ export function DeveloperDashboardScreen() {
     try {
       await createMutation.mutateAsync(values);
       setIsCreateOpen(false);
-    } catch (err) {
+    } catch {
       // Error handled via React Query mutation error state
     }
   };
@@ -77,7 +77,7 @@ export function DeveloperDashboardScreen() {
     try {
       await updateMutation.mutateAsync({ id, payload: values });
       setEditingItem(null);
-    } catch (err) {
+    } catch {
       // Error handled via React Query mutation error state
     }
   };
@@ -86,7 +86,7 @@ export function DeveloperDashboardScreen() {
     try {
       await deleteMutation.mutateAsync(id);
       setDeletingItem(null);
-    } catch (err) {
+    } catch {
       // Error handled via React Query mutation error state
     }
   };

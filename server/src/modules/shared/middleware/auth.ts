@@ -1,6 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { admin, isFirebaseAdminInitialized } from '../config/firebase.js';
 import { dbFindByUid } from '../db/index.js';
+import { getCachedAuth, setCachedAuth } from './authCache.js';
 
 export interface AuthenticatedUser {
   uid: string;
@@ -70,14 +71,21 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
   let dbUserRole = tokenRole;
   let institutionCode = '';
 
-  try {
-    const dbUser = await dbFindByUid(firebaseUid);
-    if (dbUser) {
-      dbUserRole = dbUser.role || tokenRole || '';
-      institutionCode = dbUser.institutionCode || '';
+  const cached = getCachedAuth(firebaseUid);
+  if (cached) {
+    dbUserRole = cached.role || tokenRole;
+    institutionCode = cached.institutionCode;
+  } else {
+    try {
+      const dbUser = await dbFindByUid(firebaseUid);
+      if (dbUser) {
+        dbUserRole = dbUser.role || tokenRole || '';
+        institutionCode = dbUser.institutionCode || '';
+        setCachedAuth(firebaseUid, dbUserRole, institutionCode);
+      }
+    } catch (err: any) {
+      console.warn('[Auth Middleware Warning] PostgreSQL user lookup failed:', err.message);
     }
-  } catch (err: any) {
-    console.warn('[Auth Middleware Warning] PostgreSQL user lookup failed:', err.message);
   }
 
   if (!dbUserRole) {
@@ -113,7 +121,7 @@ export async function requireDeveloper(request: FastifyRequest, reply: FastifyRe
   }
 
   const role = (request.user.role || '').toLowerCase().trim();
-  const normalizedRole = (role === 'maintainer' || role === 'institution admin') ? 'admin' : role;
+  const normalizedRole = (role === 'institution admin') ? 'admin' : role;
 
   if (normalizedRole !== 'dev') {
     return reply.status(403).send({
@@ -128,7 +136,7 @@ export async function requireDeveloper(request: FastifyRequest, reply: FastifyRe
 
 export function normalizeRole(role: string | undefined): string {
   const normalized = (role || '').toLowerCase().trim();
-  if (normalized === 'maintainer' || normalized === 'institution admin') return 'admin';
+  if (normalized === 'institution admin') return 'admin';
   return normalized;
 }
 
@@ -158,6 +166,40 @@ export async function requireTeacherOrAdmin(request: FastifyRequest, reply: Fast
       success: false,
       error: {
         message: 'Access denied: Teacher or Administrator privileges required',
+        code: 'FORBIDDEN',
+      },
+    });
+  }
+}
+
+export function requireRole(...roles: string[]) {
+  return async (request: FastifyRequest, reply: FastifyReply) => {
+    await authenticate(request, reply);
+    if (reply.sent) return;
+
+    const role = normalizeRole(request.user?.role);
+    if (!roles.includes(role)) {
+      return reply.status(403).send({
+        success: false,
+        error: {
+          message: `Access denied: requires one of: ${roles.join(', ')}`,
+          code: 'FORBIDDEN',
+        },
+      });
+    }
+  };
+}
+
+export async function requireStaff(request: FastifyRequest, reply: FastifyReply) {
+  await authenticate(request, reply);
+  if (reply.sent) return;
+
+  const role = normalizeRole(request.user?.role);
+  if (!['admin', 'hod', 'principal', 'teacher'].includes(role)) {
+    return reply.status(403).send({
+      success: false,
+      error: {
+        message: 'Access denied: Staff privileges required',
         code: 'FORBIDDEN',
       },
     });

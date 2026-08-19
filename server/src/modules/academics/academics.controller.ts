@@ -17,6 +17,14 @@ function getInstCode(req: FastifyRequest): string {
   return user?.institutionCode || '';
 }
 
+function getPagination(query: any): { limit: number; offset: number } | undefined {
+  const q = query || {};
+  if (q.limit === undefined && q.offset === undefined) return undefined;
+  const limit = Math.min(Math.max(Number(q.limit) || 100, 1), 500);
+  const offset = Math.max(Number(q.offset) || 0, 0);
+  return { limit, offset };
+}
+
 function getUserId(req: FastifyRequest): string {
   const user = (req as any).user;
   return user?.uid || '';
@@ -51,7 +59,7 @@ function sendError(reply: FastifyReply, err: any, fallbackMsg: string) {
 
 export async function listClassSectionsHandler(request: FastifyRequest, reply: FastifyReply) {
   try {
-    const data = await academicsService.listClassSections(getInstCode(request));
+    const data = await academicsService.listClassSections(getInstCode(request), getPagination(request.query));
     return reply.send({ success: true, data });
   } catch (err: any) {
     return sendError(reply, err, 'Failed to fetch class sections');
@@ -89,7 +97,7 @@ export async function deleteClassSectionHandler(request: FastifyRequest<{ Params
 
 export async function listSubjectsHandler(request: FastifyRequest, reply: FastifyReply) {
   try {
-    const data = await academicsService.listSubjects(getInstCode(request));
+    const data = await academicsService.listSubjects(getInstCode(request), getPagination(request.query));
     return reply.send({ success: true, data });
   } catch (err: any) {
     return sendError(reply, err, 'Failed to fetch subjects');
@@ -112,7 +120,8 @@ export async function listSubjectTeachersHandler(request: FastifyRequest, reply:
     const data = await academicsService.listSubjectTeachers(
       getInstCode(request),
       query.classSectionId,
-      query.teacherId
+      query.teacherId,
+      getPagination(request.query)
     );
     return reply.send({ success: true, data });
   } catch (err: any) {
@@ -141,7 +150,7 @@ export async function deleteSubjectTeacherHandler(request: FastifyRequest<{ Para
 
 export async function listPeriodsHandler(request: FastifyRequest, reply: FastifyReply) {
   try {
-    const data = await academicsService.listPeriods(getInstCode(request));
+    const data = await academicsService.listPeriods(getInstCode(request), getPagination(request.query));
     return reply.send({ success: true, data });
   } catch (err: any) {
     return sendError(reply, err, 'Failed to fetch periods');
@@ -314,5 +323,30 @@ export async function getInstitutionOverviewHandler(request: FastifyRequest, rep
     return reply.send({ success: true, data });
   } catch (err: any) {
     return sendError(reply, err, 'Failed to fetch institution overview');
+  }
+}
+
+export async function getClassAttendanceHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const query = request.query as any;
+    const classSectionId = query.classSectionId || '';
+    if (!classSectionId) {
+      return reply.status(400).send({
+        success: false,
+        error: { message: 'classSectionId is required', code: 'VALIDATION_ERROR' },
+      });
+    }
+    const data = await academicsService.getClassAttendanceSummary(
+      getInstCode(request),
+      getUserId(request),
+      getRole(request),
+      classSectionId,
+      query.fromDate,
+      query.toDate,
+      getPagination(query)
+    );
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to fetch class attendance');
   }
 }

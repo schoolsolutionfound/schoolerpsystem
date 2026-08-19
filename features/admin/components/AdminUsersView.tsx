@@ -147,11 +147,6 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
     }
   };
 
-  const getRoleIcon = (r: string) => {
-    const found = roleOptions.find((o) => o.key === r);
-    return found?.icon || 'account-outline';
-  };
-
   const getAvatarBg = (role: string) => {
     const colors: Record<string, string> = {
       admin: '#EDE7F6',

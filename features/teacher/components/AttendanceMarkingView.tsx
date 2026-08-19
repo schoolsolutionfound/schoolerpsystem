@@ -20,7 +20,7 @@ interface AttendanceMarkingViewProps {
 }
 
 export const AttendanceMarkingView: React.FC<AttendanceMarkingViewProps> = ({ slotId, subjectName, onSaved }) => {
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date] = useState(new Date().toISOString().slice(0, 10));
   const [roster, setRoster] = useState<any[]>([]);
   const [marks, setMarks] = useState<Record<string, Status>>({});
   const [classSection, setClassSection] = useState<any>(null);
@@ -87,7 +87,7 @@ export const AttendanceMarkingView: React.FC<AttendanceMarkingViewProps> = ({ sl
     setSaving(true);
     try {
       const entries = roster.map((s) => ({ studentId: s.id, attendanceStatus: marks[s.id] || 'present' }));
-      const res = await markAttendanceApi({ timetableSlotId: slotId, date, entries });
+      await markAttendanceApi({ timetableSlotId: slotId, date, entries });
       Alert.alert('Saved', `Attendance recorded (${entries.length} students).`);
       onSaved?.();
     } catch (err: any) {

@@ -223,7 +223,6 @@ export default function CompleteProfileScreen() {
         return <TeacherCompleteProfileForm {...formProps} employeeId={employeeId} setEmployeeId={setEmployeeId} department={department} setDepartment={setDepartment} />;
       case 'admin':
       case 'institution admin':
-      case 'maintainer':
         return <AdminCompleteProfileForm {...formProps} designation={designation} setDesignation={setDesignation} />;
       case 'principal':
         return <PrincipalCompleteProfileForm {...formProps} qualification={qualification} setQualification={setQualification} experience={experience} setExperience={setExperience} />;

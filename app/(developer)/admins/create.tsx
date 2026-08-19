@@ -22,7 +22,7 @@ const COLLEGE_DEPARTMENTS = ['CSE', 'AIML', 'ECE', 'Civil', 'Mechanical'];
 const COLLEGE_YEARS = ['1st Year', '2nd Year', '3rd Year', '4th Year'];
 
 const SCHOOL_DEPARTMENTS = ['Science', 'Commerce', 'Arts', 'General'];
-const SCHOOL_YEARS = ['Grade 1-5', 'Grade 6-8', 'Grade 9-10', 'Grade 11-12'];
+const SCHOOL_YEARS = ['Class 1-5', 'Class 6-8', 'Class 9-10'];
 
 const PERMISSION_GROUPS = [
   {

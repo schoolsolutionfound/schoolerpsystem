@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Text, ScrollView, TextInput, TouchableOpacity, Modal, Alert, FlatList } from 'react-native';
+import { View, StyleSheet, Text, ScrollView, TextInput, TouchableOpacity, Modal, Alert } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
 import {
@@ -12,6 +12,8 @@ import {
   updateTermsApi,
   updateHolidaysApi,
 } from '../../../api/academics';
+import { AdminTimetableView } from './AdminTimetableView';
+import { AdminAttendanceView } from './AdminAttendanceView';
 
 interface AdminAcademicsViewProps {
   institutionType: string;
@@ -28,8 +30,6 @@ interface AdminAcademicsViewProps {
   onDataChange: () => void;
 }
 
-const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
 export const AdminAcademicsView: React.FC<AdminAcademicsViewProps> = ({
   institutionType,
   departments,
@@ -44,7 +44,7 @@ export const AdminAcademicsView: React.FC<AdminAcademicsViewProps> = ({
   blockedDates,
   onDataChange,
 }) => {
-  const [tab, setTab] = useState<'classes' | 'subjects' | 'assign' | 'periods' | 'terms' | 'holidays'>('classes');
+  const [tab, setTab] = useState<'classes' | 'subjects' | 'assign' | 'periods' | 'timetable' | 'attendance' | 'terms' | 'holidays'>('classes');
 
   return (
     <View style={styles.container}>
@@ -54,6 +54,8 @@ export const AdminAcademicsView: React.FC<AdminAcademicsViewProps> = ({
           ['subjects', 'Subjects'],
           ['assign', 'Assign'],
           ['periods', 'Periods'],
+          ['timetable', 'Timetable'],
+          ['attendance', 'Attendance'],
           ['terms', 'Terms'],
           ['holidays', 'Holidays'],
         ] as const).map(([key, label]) => (
@@ -86,6 +88,8 @@ export const AdminAcademicsView: React.FC<AdminAcademicsViewProps> = ({
           />
         )}
         {tab === 'periods' && <PeriodsTab periods={periods} onDataChange={onDataChange} />}
+        {tab === 'timetable' && <AdminTimetableView classSections={classSections} />}
+        {tab === 'attendance' && <AdminAttendanceView classSections={classSections} />}
         {tab === 'terms' && <TermsTab terms={terms} onDataChange={onDataChange} />}
         {tab === 'holidays' && <HolidaysTab blockedDates={blockedDates} onDataChange={onDataChange} />}
       </ScrollView>
@@ -177,7 +181,7 @@ function ClassesTab({ institutionType, departments, academicYears, sections, cla
             </View>
             <ScrollView style={{ maxHeight: 420 }}>
               <FormGroup label="Name *">
-                <TextInput style={styles.input} placeholder={institutionType === 'college' ? 'e.g. CSE 1st Year A' : 'e.g. Science Grade 10 A'} value={name} onChangeText={setName} />
+                <TextInput style={styles.input} placeholder={institutionType === 'college' ? 'e.g. CSE 1st Year A' : 'e.g. Science Class 10 A'} value={name} onChangeText={setName} />
               </FormGroup>
               {institutionType === 'college' ? (
                 <>
@@ -188,7 +192,7 @@ function ClassesTab({ institutionType, departments, academicYears, sections, cla
               ) : (
                 <>
                   <FormGroup label="Department / Stream"><TextInput style={styles.input} placeholder="e.g. Science" value={department} onChangeText={setDepartment} /></FormGroup>
-                  <FormGroup label="Grade"><TextInput style={styles.input} placeholder="e.g. Grade 10" value={academicYear} onChangeText={setAcademicYear} /></FormGroup>
+                  <FormGroup label="Class"><TextInput style={styles.input} placeholder="e.g. Class 10" value={academicYear} onChangeText={setAcademicYear} /></FormGroup>
                   <FormGroup label="Section"><TextInput style={styles.input} placeholder="e.g. A" value={section} onChangeText={setSection} /></FormGroup>
                 </>
               )}

@@ -58,9 +58,10 @@ export async function fetchDeveloperStatsApi(): Promise<any> {
 }
 
 export async function fetchAdminsApi(): Promise<any[]> {
-  return apiClient('/developer/admins', {
+  const res = await apiClient<any>('/developer/admins', {
     method: 'GET',
   });
+  return Array.isArray(res) ? res : (res?.data || []);
 }
 
 export async function createAdminApi(payload: any): Promise<any> {

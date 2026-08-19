@@ -26,8 +26,9 @@ import {
   getParentAttendanceHandler,
   getDepartmentOverviewHandler,
   getInstitutionOverviewHandler,
+  getClassAttendanceHandler,
 } from './academics.controller.js';
-import { authenticate, requireAdmin, requireTeacherOrAdmin } from '../shared/middleware/auth.js';
+import { authenticate, requireAdmin, requireTeacherOrAdmin, requireStaff, requireRole } from '../shared/middleware/auth.js';
 
 export async function academicsRoutes(fastify: FastifyInstance) {
   // Class Sections
@@ -62,11 +63,12 @@ export async function academicsRoutes(fastify: FastifyInstance) {
   fastify.get('/timetable/class/:id/versions', { preHandler: [authenticate] }, (req, reply) => getAllTimetablesForClassHandler(req as any, reply));
 
   // Attendance
-  fastify.get('/attendance/roster', { preHandler: [authenticate] }, (req, reply) => getRosterHandler(req, reply));
-  fastify.post('/attendance/mark', { preHandler: [authenticate] }, (req, reply) => markAttendanceHandler(req, reply));
-  fastify.get('/attendance/slot', { preHandler: [authenticate] }, (req, reply) => getAttendanceForSlotHandler(req, reply));
-  fastify.get('/attendance/history/student', { preHandler: [authenticate] }, (req, reply) => getStudentAttendanceHistoryHandler(req, reply));
-  fastify.get('/attendance/history/parent', { preHandler: [authenticate] }, (req, reply) => getParentAttendanceHandler(req, reply));
-  fastify.get('/attendance/stats/department', { preHandler: [authenticate] }, (req, reply) => getDepartmentOverviewHandler(req, reply));
-  fastify.get('/attendance/stats/institution', { preHandler: [authenticate] }, (req, reply) => getInstitutionOverviewHandler(req, reply));
+  fastify.get('/attendance/roster', { preHandler: [requireStaff] }, (req, reply) => getRosterHandler(req, reply));
+  fastify.post('/attendance/mark', { preHandler: [requireStaff], config: { rateLimit: { max: 60, timeWindow: '1 minute' } } }, (req, reply) => markAttendanceHandler(req, reply));
+  fastify.get('/attendance/slot', { preHandler: [requireStaff] }, (req, reply) => getAttendanceForSlotHandler(req, reply));
+  fastify.get('/attendance/history/student', { preHandler: [requireRole('student')] }, (req, reply) => getStudentAttendanceHistoryHandler(req, reply));
+  fastify.get('/attendance/history/parent', { preHandler: [requireRole('parent')] }, (req, reply) => getParentAttendanceHandler(req, reply));
+  fastify.get('/attendance/stats/department', { preHandler: [requireStaff] }, (req, reply) => getDepartmentOverviewHandler(req, reply));
+  fastify.get('/attendance/stats/institution', { preHandler: [requireStaff] }, (req, reply) => getInstitutionOverviewHandler(req, reply));
+  fastify.get('/attendance/class', { preHandler: [requireStaff] }, (req, reply) => getClassAttendanceHandler(req, reply));
 }

@@ -1,5 +1,5 @@
 import { academicsRepository } from './academics.repository.js';
-import { dbGetAllUsers } from '../shared/db/index.js';
+import { dbFindUsersByInstitution, dbFindUserByIdOrUid, dbFindStudentByUsnInInstitution, dbFindStudentsByClassScope, dbCountStudentsByClassScope } from '../shared/db/index.js';
 import {
   CreateClassSectionInput,
   UpdateClassSectionInput,
@@ -9,7 +9,6 @@ import {
   UpdateInstitutionTermsInput,
   UpdateHolidayCalendarInput,
   CreateTimetableInput,
-  TimetableSlotInput,
   MarkAttendanceInput,
   ATTENDANCE_STATUSES,
 } from './academics.schema.js';
@@ -18,7 +17,11 @@ const TEACHER_ROLES = ['teacher', 'hod', 'admin', 'principal'];
 
 export class AcademicsService {
   // ---------- Class Sections ----------
-  public async listClassSections(institutionCode: string) {
+  public async listClassSections(institutionCode: string, opts?: { limit: number; offset: number }) {
+    if (opts) {
+      const { items, total } = await academicsRepository.listClassSectionsPaged(institutionCode, opts);
+      return { data: items, total, limit: opts.limit, offset: opts.offset };
+    }
     return academicsRepository.listClassSections(institutionCode);
   }
 
@@ -61,7 +64,11 @@ export class AcademicsService {
   }
 
   // ---------- Subjects ----------
-  public async listSubjects(institutionCode: string) {
+  public async listSubjects(institutionCode: string, opts?: { limit: number; offset: number }) {
+    if (opts) {
+      const { items, total } = await academicsRepository.listSubjectsPaged(institutionCode, opts);
+      return { data: items, total, limit: opts.limit, offset: opts.offset };
+    }
     return academicsRepository.listSubjects(institutionCode);
   }
 
@@ -70,7 +77,11 @@ export class AcademicsService {
   }
 
   // ---------- Subject Teachers ----------
-  public async listSubjectTeachers(institutionCode: string, classSectionId?: string, teacherId?: string) {
+  public async listSubjectTeachers(institutionCode: string, classSectionId?: string, teacherId?: string, opts?: { limit: number; offset: number }) {
+    if (opts) {
+      const { items, total } = await academicsRepository.listSubjectTeachersPaged(institutionCode, opts, classSectionId, teacherId);
+      return { data: items, total, limit: opts.limit, offset: opts.offset };
+    }
     return academicsRepository.listSubjectTeachers(institutionCode, classSectionId, teacherId);
   }
 
@@ -110,7 +121,11 @@ export class AcademicsService {
   }
 
   // ---------- Periods ----------
-  public async listPeriods(institutionCode: string) {
+  public async listPeriods(institutionCode: string, opts?: { limit: number; offset: number }) {
+    if (opts) {
+      const { items, total } = await academicsRepository.listPeriodsPaged(institutionCode, opts);
+      return { data: items, total, limit: opts.limit, offset: opts.offset };
+    }
     return academicsRepository.listPeriods(institutionCode);
   }
 
@@ -237,8 +252,7 @@ export class AcademicsService {
     if (!student || student.role.toLowerCase() !== 'student') {
       throw { statusCode: 403, code: 'FORBIDDEN', message: 'Only students can view their attendance' };
     }
-    const entries = await academicsRepository.listAttendanceForStudent(student.id, institutionCode, fromDate, toDate);
-    return this.buildStudentSummary(institutionCode, student.id, entries);
+    return this.buildStudentSummary(student.id, fromDate, toDate);
   }
 
   public async getParentView(institutionCode: string, parentUserId: string) {
@@ -251,29 +265,24 @@ export class AcademicsService {
     if (!linkedUsn) {
       throw { statusCode: 404, code: 'NO_LINKED_STUDENT', message: 'No linked student found. Complete your profile with the student USN.' };
     }
-    const allUsers = await dbGetAllUsers();
-    const student = allUsers.find(
-      (u) => u.institutionCode.toLowerCase() === institutionCode.toLowerCase() && u.role.toLowerCase() === 'student' && u.rollNoOrUSN?.toLowerCase() === linkedUsn.toLowerCase()
-    );
+    const student = await dbFindStudentByUsnInInstitution(institutionCode, linkedUsn);
     if (!student) {
       throw { statusCode: 404, code: 'STUDENT_NOT_FOUND', message: 'Linked student was not found in this institution' };
     }
-    const entries = await academicsRepository.listAttendanceForStudent(student.id, institutionCode);
-    return this.buildStudentSummary(institutionCode, student.id, entries);
+    return this.buildStudentSummary(student.id);
   }
 
-  private async buildStudentSummary(institutionCode: string, studentId: string, entries: any[]) {
-    const subjectTotals = new Map<string, { present: number; total: number; subject: any }>();
+  private async buildStudentSummary(studentId: string, fromDate?: string, toDate?: string) {
+    let rows = await academicsRepository.listAttendanceEntriesWithSubject([studentId]);
+    if (fromDate) rows = rows.filter((r) => r.date && this.dateStr(r.date) >= fromDate);
+    if (toDate) rows = rows.filter((r) => r.date && this.dateStr(r.date) <= toDate);
 
-    for (const entry of entries) {
-      const record = await academicsRepository.getAttendanceRecordById(entry.attendanceRecordId);
-      const slotRecord = record ? await academicsRepository.getTimetableSlotById(record.timetableSlotId) : undefined;
-      if (!slotRecord) continue;
-      const subject = await academicsRepository.getSubjectById(slotRecord.subjectId);
-      const key = subject?.id || slotRecord.subjectId;
-      const bucket = subjectTotals.get(key) || { present: 0, total: 0, subject: subject ? { id: subject.id, name: subject.name, code: subject.code } : null };
+    const subjectTotals = new Map<string, { present: number; total: number; subject: any }>();
+    for (const row of rows) {
+      const key = row.subjectId;
+      const bucket = subjectTotals.get(key) || { present: 0, total: 0, subject: { id: row.subjectId, name: row.subjectName || '', code: '' } };
       bucket.total++;
-      if (entry.attendanceStatus !== 'absent') bucket.present++;
+      if (row.attendanceStatus !== 'absent') bucket.present++;
       subjectTotals.set(key, bucket);
     }
 
@@ -281,8 +290,8 @@ export class AcademicsService {
       .map((b) => ({ ...b, percentage: b.total > 0 ? Math.round((b.present / b.total) * 100) : 0 }))
       .sort((a, b) => a.subject?.name?.localeCompare(b.subject?.name || '') || 0);
 
-    const grandTotal = entries.length;
-    const presentTotal = entries.filter((e) => e.attendanceStatus !== 'absent').length;
+    const grandTotal = rows.length;
+    const presentTotal = rows.filter((r) => r.attendanceStatus !== 'absent').length;
 
     return {
       studentId,
@@ -293,6 +302,12 @@ export class AcademicsService {
       },
       perSubject,
     };
+  }
+
+  private dateStr(d: string | Date | null | undefined): string {
+    if (!d) return '';
+    const dt = typeof d === 'string' ? new Date(d) : d;
+    return dt.toISOString().slice(0, 10);
   }
 
   private async assertNotBlockedDate(institutionCode: string, date: string) {
@@ -328,6 +343,19 @@ export class AcademicsService {
     const classSection = await academicsRepository.getClassSectionById(input.classSectionId);
     if (!classSection || classSection.institutionCode.toLowerCase() !== institutionCode.toLowerCase()) {
       throw { statusCode: 400, code: 'INVALID_CLASS_SECTION', message: 'classSectionId does not reference a class/section in this institution' };
+    }
+
+    const creator = await this.findUser(institutionCode, createdByUserId);
+    const creatorRole = creator?.role.toLowerCase() || '';
+    const isStaffAdmin = ['admin', 'hod', 'principal'].includes(creatorRole);
+    if (!isStaffAdmin) {
+      if (!classSection.classTeacherId || classSection.classTeacherId !== creator?.id) {
+        throw {
+          statusCode: 403,
+          code: 'FORBIDDEN',
+          message: 'Teachers can only build timetables for their own assigned class/section',
+        };
+      }
     }
 
     const maxVersion = await academicsRepository.getMaxTimetableVersion(input.classSectionId);
@@ -405,21 +433,34 @@ export class AcademicsService {
     }
 
     const dayOfWeek = new Date(`${dateStr}T00:00:00Z`).getUTCDay();
-    const allTimetables = await academicsRepository.listTimetablesInInstitution(institutionCode);
     const slotsForDay = await academicsRepository.listSlotsForTeacherOnDay(user.id, dayOfWeek);
+
+    const timetablesById = new Map<string, any>();
+    const classVersions = new Map<string, any>();
+    const classCache = new Map<string, any[]>();
+    for (const slot of slotsForDay) {
+      if (!timetablesById.has(slot.timetableId)) {
+        const tt = await academicsRepository.getTimetableById(slot.timetableId);
+        timetablesById.set(slot.timetableId, tt);
+      }
+      if (!classCache.has(slot.classSectionId)) {
+        classCache.set(slot.classSectionId, await academicsRepository.listTimetablesForClass(slot.classSectionId));
+      }
+      if (!classVersions.has(slot.classSectionId)) {
+        const classTts = classCache.get(slot.classSectionId) || [];
+        const latest = classTts.filter((t) => t.effectiveFrom <= dateStr).sort((a, b) => b.version - a.version)[0];
+        classVersions.set(slot.classSectionId, latest?.id || null);
+      }
+    }
 
     const enriched: any[] = [];
     for (const slot of slotsForDay) {
-      const timetable = allTimetables.find((t) => t.id === slot.timetableId);
+      const timetable = timetablesById.get(slot.timetableId);
       if (!timetable) continue;
       if (timetable.effectiveFrom > dateStr) continue;
-      const latestForClass = allTimetables
-        .filter((t) => t.classSectionId === timetable.classSectionId && t.effectiveFrom <= dateStr)
-        .sort((a, b) => b.version - a.version)[0];
-      if (latestForClass?.id !== timetable.id) continue;
+      if (classVersions.get(slot.classSectionId) !== timetable.id) continue;
 
-      const enrichedSlot = await this.enrichSlot(slot, timetable);
-      enriched.push(enrichedSlot);
+      enriched.push(await this.enrichSlot(slot, timetable));
     }
 
     const periodSort = (a: any, b: any) => {
@@ -508,9 +549,8 @@ export class AcademicsService {
 
   // ---------- Reports (HOD / Principal / Admin) ----------
   public async getDepartmentOverview(institutionCode: string, department?: string) {
-    const allUsers = await dbGetAllUsers();
+    const allUsers = await dbFindUsersByInstitution(institutionCode, 'student', { limit: 500 });
     const students = allUsers
-      .filter((u) => u.role.toLowerCase() === 'student' && u.institutionCode.toLowerCase() === institutionCode.toLowerCase())
       .map((u) => ({ user: u, scope: this.parseScope(u.scope) }))
       .filter(({ scope }) => !department || (scope.department || '').toLowerCase() === department.toLowerCase());
 
@@ -552,17 +592,148 @@ export class AcademicsService {
     return this.getDepartmentOverview(institutionCode);
   }
 
+  /**
+   * Class/section attendance summary for the admin attendance console.
+   * SQL-side aggregation keeps payloads bounded; the student roster is
+   * paginated so large classes (hundreds+) stay cheap. Non-admin staff
+   * (teachers) can only view the class they are class teacher of.
+   */
+  public async getClassAttendanceSummary(
+    institutionCode: string,
+    userId: string,
+    role: string,
+    classSectionId: string,
+    fromDate?: string,
+    toDate?: string,
+    opts?: { limit: number; offset: number }
+  ) {
+    const cls = await academicsRepository.getClassSectionById(classSectionId);
+    if (!cls || cls.institutionCode.toLowerCase() !== institutionCode.toLowerCase()) {
+      throw { statusCode: 404, code: 'CLASS_SECTION_NOT_FOUND', message: 'Class/section not found in this institution' };
+    }
+
+    const normalizedRole = (role || '').toLowerCase();
+    if (!['admin', 'hod', 'principal'].includes(normalizedRole)) {
+      const caller = await this.findUser(institutionCode, userId);
+      if (!caller || cls.classTeacherId !== caller.id) {
+        throw {
+          statusCode: 403,
+          code: 'FORBIDDEN',
+          message: 'Teachers can only view attendance for their own class/section',
+        };
+      }
+    }
+
+    const end = toDate || this.dateStr(new Date());
+    const startRaw = fromDate || this.dateStr(new Date(Date.now() - 30 * 86400000));
+    const maxStart = this.dateStr(new Date(new Date(`${end}T00:00:00Z`).getTime() - 365 * 86400000));
+    const from = startRaw < maxStart ? maxStart : startRaw;
+
+    const { days, studentStats, subjectStats } = await academicsRepository.getClassAttendanceAggregates(classSectionId, from, end);
+
+    const totalMarks = studentStats.reduce((s, x) => s + (Number(x.total) || 0), 0);
+    const presentMarks = studentStats.reduce((s, x) => s + (Number(x.present) || 0), 0);
+    const absentMarks = studentStats.reduce((s, x) => s + (Number(x.absent) || 0), 0);
+    const lateMarks = studentStats.reduce((s, x) => s + (Number(x.late) || 0), 0);
+    const excusedMarks = studentStats.reduce((s, x) => s + (Number(x.excused) || 0), 0);
+
+    const scope = {
+      department: cls.department || undefined,
+      academicYear: cls.academicYear || undefined,
+      section: cls.section || undefined,
+    };
+    const totalStudents = await dbCountStudentsByClassScope(institutionCode, scope);
+    const page = opts || { limit: 100, offset: 0 };
+    const roster = await dbFindStudentsByClassScope(institutionCode, scope, page);
+    const statsById = new Map(
+      studentStats.map((s) => [
+        s.studentId,
+        {
+          present: Number(s.present) || 0,
+          absent: Number(s.absent) || 0,
+          late: Number(s.late) || 0,
+          excused: Number(s.excused) || 0,
+          total: Number(s.total) || 0,
+        },
+      ])
+    );
+    const students = roster.map((u) => {
+      const st = statsById.get(u.id) || { present: 0, absent: 0, late: 0, excused: 0, total: 0 };
+      return {
+        studentId: u.id,
+        fullName: u.fullName,
+        rollNoOrUSN: u.rollNoOrUSN || '',
+        present: st.present,
+        absent: st.absent,
+        late: st.late,
+        excused: st.excused,
+        total: st.total,
+        percentage: st.total > 0 ? Math.round((st.present / st.total) * 100) : 0,
+      };
+    });
+
+    const normCounts = (d: any) => ({
+      present: Number(d.present) || 0,
+      absent: Number(d.absent) || 0,
+      late: Number(d.late) || 0,
+      excused: Number(d.excused) || 0,
+      total: Number(d.total) || 0,
+    });
+
+    return {
+      classSection: { id: cls.id, name: cls.name },
+      range: { fromDate: from, toDate: end },
+      summary: {
+        studentsCount: totalStudents,
+        totalMarks,
+        present: presentMarks,
+        absent: absentMarks,
+        late: lateMarks,
+        excused: excusedMarks,
+        averagePercentage: totalMarks > 0 ? Math.round((presentMarks / totalMarks) * 100) : 0,
+      },
+      days: days
+        .map((d) => ({
+          date: d.date,
+          ...normCounts(d),
+          percentage: Number(d.total) > 0 ? Math.round((Number(d.present) / Number(d.total)) * 100) : 0,
+        }))
+        .sort((a, b) => a.date.localeCompare(b.date)),
+      students,
+      subjects: subjectStats
+        .map((s) => ({
+          subjectId: s.subjectId,
+          subjectName: s.subjectName,
+          ...normCounts(s),
+          percentage: Number(s.total) > 0 ? Math.round((Number(s.present) / Number(s.total)) * 100) : 0,
+        }))
+        .sort((a, b) => a.subjectName.localeCompare(b.subjectName)),
+      total: totalStudents,
+      limit: page.limit,
+      offset: page.offset,
+    };
+  }
+
   private async getSectionAttendanceStats(studentIds: string[]) {
+    const rows = await academicsRepository.listAttendanceEntriesWithSubject(studentIds);
+    const byStudent = new Map<string, { present: number; total: number }>();
+    for (const row of rows) {
+      const bucket = byStudent.get(row.studentId) || { present: 0, total: 0 };
+      bucket.total++;
+      if (row.attendanceStatus !== 'absent') bucket.present++;
+      byStudent.set(row.studentId, bucket);
+    }
     let present = 0;
     let total = 0;
     const lowAttendance: string[] = [];
     for (const studentId of studentIds) {
-      const entries = await academicsRepository.listAttendanceForStudent(studentId, '');
-      const p = entries.filter((e) => e.attendanceStatus !== 'absent').length;
-      total += entries.length;
+      const b = byStudent.get(studentId);
+      const p = b?.present || 0;
+      const t = b?.total || 0;
       present += p;
-      const pct = entries.length > 0 ? Math.round((p / entries.length) * 100) : 0;
-      if (entries.length > 0 && pct < 75) {
+      total += t;
+      const pct = t > 0 ? Math.round((p / t) * 100) : 0;
+      if (t > 0 && pct < 75) {
         lowAttendance.push(studentId);
       }
     }
@@ -577,24 +748,24 @@ export class AcademicsService {
   private async getStudentsForClassSection(classSectionId: string) {
     const classSection = await academicsRepository.getClassSectionById(classSectionId);
     if (!classSection) return [];
-    const allUsers = await dbGetAllUsers();
+    const scope = {
+      department: classSection.department || '',
+      academicYear: classSection.academicYear || '',
+      section: classSection.section || '',
+    };
+    const allUsers = await dbFindStudentsByClassScope(classSection.institutionCode, scope, { limit: 500 });
     return allUsers
-      .filter((u) => u.role.toLowerCase() === 'student' && u.institutionCode.toLowerCase() === classSection.institutionCode.toLowerCase())
-      .map((u) => ({ user: u, scope: this.parseScope(u.scope) }))
-      .filter(({ scope }) => {
-        const matchesDept = !classSection.department || (scope.department || '').toLowerCase() === classSection.department.toLowerCase();
-        const matchesYear = !classSection.academicYear || (scope.academicYear || '').toLowerCase() === classSection.academicYear.toLowerCase();
-        const matchesSection = !classSection.section || (scope.section || '').toLowerCase() === classSection.section.toLowerCase();
-        return matchesDept && matchesYear && matchesSection;
+      .map((u) => {
+        const sc = this.parseScope(u.scope);
+        return {
+          id: u.id,
+          fullName: u.fullName,
+          rollNoOrUSN: u.rollNoOrUSN,
+          department: sc.department || '',
+          academicYear: sc.academicYear || '',
+          section: sc.section || '',
+        };
       })
-      .map(({ user, scope }) => ({
-        id: user.id,
-        fullName: user.fullName,
-        rollNoOrUSN: user.rollNoOrUSN,
-        department: scope.department || '',
-        academicYear: scope.academicYear || '',
-        section: scope.section || '',
-      }))
       .sort((a, b) => (a.rollNoOrUSN || '').localeCompare(b.rollNoOrUSN || ''));
   }
 
@@ -606,8 +777,7 @@ export class AcademicsService {
   }
 
   private async findUser(institutionCode: string, userId: string) {
-    const allUsers = await dbGetAllUsers();
-    const user = allUsers.find((u) => u.id === userId || u.firebaseUid === userId);
+    const user = await dbFindUserByIdOrUid(userId);
     if (!user) return undefined;
     if (user.institutionCode.toLowerCase() !== institutionCode.toLowerCase()) return undefined;
     return user;

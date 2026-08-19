@@ -23,7 +23,7 @@ export default function ParentHomeScreen() {
           {activeTab === 'home' ? (
             <View style={styles.centerContent}>
               <MaterialCommunityIcons name="account-heart-outline" size={40} color="#4A90D9" />
-              <Text style={styles.subtitle}>Track your child's attendance</Text>
+              <Text style={styles.subtitle}>Track your child&apos;s attendance</Text>
               <TouchableOpacity style={styles.primaryBtn} onPress={() => setActiveTab('attendance')}>
                 <Text style={styles.primaryBtnText}>View Attendance</Text>
               </TouchableOpacity>

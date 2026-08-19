@@ -189,3 +189,18 @@ export async function fetchDepartmentStatsApi(department?: string) {
 export async function fetchInstitutionStatsApi() {
   return apiClient('/admin/attendance/stats/institution');
 }
+
+export async function fetchClassAttendanceApi(params: {
+  classSectionId: string;
+  fromDate?: string;
+  toDate?: string;
+  limit?: number;
+  offset?: number;
+}) {
+  const qs = new URLSearchParams({ classSectionId: params.classSectionId });
+  if (params.fromDate) qs.set('fromDate', params.fromDate);
+  if (params.toDate) qs.set('toDate', params.toDate);
+  if (params.limit !== undefined) qs.set('limit', String(params.limit));
+  if (params.offset !== undefined) qs.set('offset', String(params.offset));
+  return apiClient(`/admin/attendance/class?${qs.toString()}`);
+}

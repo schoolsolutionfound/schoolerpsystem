@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import rateLimit from '@fastify/rate-limit';
 import dotenv from 'dotenv';
 import { authRoutes } from './modules/auth/auth.routes.js';
 import { userRoutes } from './modules/users/user.routes.js';
@@ -20,9 +21,31 @@ const fastify = Fastify({
 
 async function main() {
   try {
+    const allowedOrigins = (process.env.CORS_ORIGINS || '')
+      .split(',')
+      .map((o) => o.trim())
+      .filter(Boolean);
+
     await fastify.register(cors, {
-      origin: true,
+      origin: allowedOrigins.length > 0 ? allowedOrigins : true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    });
+
+    await fastify.register(rateLimit, {
+      max: Number(process.env.RATE_LIMIT_MAX) || 300,
+      timeWindow: '1 minute',
+      keyGenerator: (req) => req.ip,
+      errorResponseBuilder: (req, context) => {
+        const afterMs = context.after ? Date.parse(context.after as string) : NaN;
+        const retryAfter = Number.isFinite(afterMs) ? Math.max(1, Math.ceil((afterMs - Date.now()) / 1000)) : 60;
+        return {
+          success: false,
+          error: {
+            message: `Too many requests. Try again in ${retryAfter} seconds.`,
+            code: 'RATE_LIMITED',
+          },
+        };
+      },
     });
 
     // Health check route

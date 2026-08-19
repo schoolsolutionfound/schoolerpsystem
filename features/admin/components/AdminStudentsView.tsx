@@ -58,6 +58,35 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
       s.rollNoOrUSN.toLowerCase().includes(search.toLowerCase())
   );
 
+  const renderChipRow = (
+    label: string,
+    value: string,
+    setValue: (v: string) => void,
+    options: string[]
+  ) => (
+    <View style={styles.formGroup}>
+      <Text style={styles.label}>{label}</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+        {options.length === 0 ? (
+          <Text style={styles.chipHint}>No options configured. Add them under Academic Config.</Text>
+        ) : (
+          options.map((opt) => {
+            const selected = value === opt;
+            return (
+              <TouchableOpacity
+                key={opt}
+                style={[styles.chip, selected && styles.chipSelected]}
+                onPress={() => setValue(opt)}
+              >
+                <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{opt}</Text>
+              </TouchableOpacity>
+            );
+          })
+        )}
+      </ScrollView>
+    </View>
+  );
+
   const handleCreate = async () => {
     if (!firstName || !lastName || !email || !rollNoOrUSN) {
       Alert.alert('Missing Fields', 'First Name, Last Name, Email, and USN / Roll No are required.');
@@ -113,7 +142,7 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
           <View style={styles.emptyCard}>
             <MaterialCommunityIcons name="account-school-outline" size={40} color="#94A3B8" />
             <Text style={styles.emptyTitle}>No Students Enrolled</Text>
-            <Text style={styles.emptySub}>Click "+ Add Student" above to onboard a student manually.</Text>
+            <Text style={styles.emptySub}>Click &quot;+ Add Student&quot; above to onboard a student manually.</Text>
           </View>
         ) : (
           filteredStudents.map((stud) => (
@@ -127,6 +156,8 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
                 <View style={styles.badgeRow}>
                   <Text style={styles.codeBadge}>{stud.rollNoOrUSN || 'USN'}</Text>
                   {stud.department && <Text style={styles.deptBadge}>{stud.department}</Text>}
+                  {stud.academicYear && <Text style={styles.yearBadge}>{stud.academicYear}</Text>}
+                  {stud.section && <Text style={styles.sectionBadge}>Sec {stud.section}</Text>}
                 </View>
               </View>
             </View>
@@ -168,8 +199,28 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
 
               <View style={styles.formGroup}>
                 <Text style={styles.label}>Department</Text>
-                <TextInput style={styles.input} placeholder="e.g. Computer Science" value={dept} onChangeText={setDept} />
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+                  {departments.length === 0 ? (
+                    <Text style={styles.chipHint}>No departments configured. Add them under Academic Config.</Text>
+                  ) : (
+                    departments.map((opt) => {
+                      const selected = dept === opt;
+                      return (
+                        <TouchableOpacity
+                          key={opt}
+                          style={[styles.chip, selected && styles.chipSelected]}
+                          onPress={() => setDept(opt)}
+                        >
+                          <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{opt}</Text>
+                        </TouchableOpacity>
+                      );
+                    })
+                  )}
+                </ScrollView>
               </View>
+
+              {renderChipRow('Academic Year', year, setYear, academicYears)}
+              {renderChipRow('Section', section, setSection, sections)}
 
               <View style={styles.formGroup}>
                 <Text style={styles.label}>Temporary Password *</Text>
@@ -255,6 +306,22 @@ const styles = StyleSheet.create({
   badgeRow: { flexDirection: 'row', gap: 6, marginTop: 6, flexWrap: 'wrap' },
   codeBadge: { backgroundColor: '#F1F5F9', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, fontSize: 10, fontWeight: '700', color: '#475569' },
   deptBadge: { backgroundColor: '#EDE7F6', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, fontSize: 10, fontWeight: '700', color: '#7E57C2' },
+  yearBadge: { backgroundColor: '#E0F2FE', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, fontSize: 10, fontWeight: '700', color: '#0284C7' },
+  sectionBadge: { backgroundColor: '#FEF3C7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, fontSize: 10, fontWeight: '700', color: '#D97706' },
+  chipRow: { gap: 8 },
+  chip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8F9FB',
+    marginRight: 6,
+  },
+  chipSelected: { backgroundColor: '#7E57C2', borderColor: '#7E57C2' },
+  chipText: { fontSize: 12, fontWeight: '600', color: '#475569' },
+  chipTextSelected: { color: '#FFFFFF', fontWeight: '700' },
+  chipHint: { fontSize: 11, color: '#94A3B8', paddingVertical: 4 },
 
   // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 20 },

@@ -1,6 +1,12 @@
 import { adminRepository, IAdminRepository } from './admin.repository.js';
 import { institutionService } from '../institutions/institution.service.js';
-import { inMemoryUserStore, dbUpsertUser, dbGetAllUsers } from '../shared/db/index.js';
+import {
+  dbFindUsersByInstitution,
+  dbCountUsersByInstitution,
+  dbCountClassSectionsByInstitution,
+  dbCountSubjectsByInstitution,
+  dbCountAttendanceSessionsByInstitution,
+} from '../shared/db/index.js';
 import { admin, isFirebaseAdminInitialized } from '../shared/config/firebase.js';
 
 export interface SingleFeedPayload {
@@ -92,7 +98,7 @@ export class AdminService {
       return {
         institutionType: 'school',
         departments: ['English', 'Mathematics', 'Science'],
-        academicYears: ['Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12'],
+        academicYears: ['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10'],
         courses: [],
         sections: ['A', 'B', 'C'],
         terms: [{ academicYear: '2026-2027', terms: ['Term 1', 'Term 2', 'Term 3'] }],
@@ -158,14 +164,42 @@ export class AdminService {
     return this.getInstitutionConfig(institutionCode);
   }
 
-  // --- Student Management ---
-  public async getStudents(institutionCode: string) {
-    const allUsers = await dbGetAllUsers();
-    return allUsers.filter(
-      (u) =>
-        u.role.toLowerCase() === 'student' &&
-        (!institutionCode || u.institutionCode.toLowerCase() === institutionCode.toLowerCase())
+  // --- Dashboard Stats ---
+  public async getDashboardStats(institutionCode: string) {
+    const inst = await institutionService.getInstitutions().then((list) =>
+      list.find((i) => i.institutionCode.toLowerCase() === (institutionCode || '').toLowerCase())
     );
+
+    const [students, teachers, totalUsers, classSections, subjects, attendanceSessions] = await Promise.all([
+      dbCountUsersByInstitution(institutionCode, 'student'),
+      dbCountUsersByInstitution(institutionCode, 'teacher'),
+      dbCountUsersByInstitution(institutionCode),
+      dbCountClassSectionsByInstitution(institutionCode),
+      dbCountSubjectsByInstitution(institutionCode),
+      dbCountAttendanceSessionsByInstitution(institutionCode),
+    ]);
+
+    return {
+      institutionCode,
+      institutionName: inst?.institutionName || 'My Institution',
+      institutionType: inst?.institutionType || 'college',
+      subscriptionStatus: inst?.subscriptionStatus || 'active',
+      students,
+      teachers,
+      totalUsers,
+      classSections,
+      subjects,
+      attendanceSessions,
+    };
+  }
+
+  // --- Student Management ---
+  public async getStudents(institutionCode: string, limit = 100, offset = 0) {
+    const [items, total] = await Promise.all([
+      dbFindUsersByInstitution(institutionCode, 'student', { limit, offset }),
+      dbCountUsersByInstitution(institutionCode, 'student'),
+    ]);
+    return { data: items, total, limit, offset };
   }
 
   public async createStudent(payload: CreateStudentPayload) {
@@ -207,13 +241,12 @@ export class AdminService {
   }
 
   // --- Teacher Management ---
-  public async getTeachers(institutionCode: string) {
-    const allUsers = await dbGetAllUsers();
-    return allUsers.filter(
-      (u) =>
-        u.role.toLowerCase() === 'teacher' &&
-        (!institutionCode || u.institutionCode.toLowerCase() === institutionCode.toLowerCase())
-    );
+  public async getTeachers(institutionCode: string, limit = 100, offset = 0) {
+    const [items, total] = await Promise.all([
+      dbFindUsersByInstitution(institutionCode, 'teacher', { limit, offset }),
+      dbCountUsersByInstitution(institutionCode, 'teacher'),
+    ]);
+    return { data: items, total, limit, offset };
   }
 
   public async createTeacher(payload: CreateTeacherPayload) {
@@ -250,11 +283,12 @@ export class AdminService {
   }
 
   // --- Unified User Management (all roles) ---
-  public async getUsers(institutionCode: string) {
-    const allUsers = await dbGetAllUsers();
-    return allUsers.filter(
-      (u) => !institutionCode || u.institutionCode.toLowerCase() === institutionCode.toLowerCase()
-    );
+  public async getUsers(institutionCode: string, limit = 100, offset = 0) {
+    const [items, total] = await Promise.all([
+      dbFindUsersByInstitution(institutionCode, undefined, { limit, offset }),
+      dbCountUsersByInstitution(institutionCode),
+    ]);
+    return { data: items, total, limit, offset };
   }
 
   public async createUser(payload: CreateUserPayload) {

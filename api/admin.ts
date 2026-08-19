@@ -19,6 +19,10 @@ export async function fetchInstitutionConfigApi() {
   return apiClient('/admin/institution-config');
 }
 
+export async function fetchDashboardStatsApi() {
+  return apiClient('/admin/dashboard-stats');
+}
+
 export async function updateInstitutionConfigApi(payload: { departments?: string[]; academicYears?: string[]; courses?: string[]; sections?: string[] }) {
   return apiClient('/admin/institution-config', {
     method: 'PUT',
