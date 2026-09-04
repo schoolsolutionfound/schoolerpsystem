@@ -47,7 +47,9 @@ if (hasSentryDsn) {
 }
 
 const queryClient = new QueryClient();
-SplashScreen.preventAutoHideAsync();
+if (Platform.OS !== 'web') {
+  SplashScreen.preventAutoHideAsync().catch(() => {});
+}
 
 const AppLayout = function Layout() {
   const setUserProfile = useUserStore((state) => state.setUserProfile);
@@ -180,7 +182,7 @@ const AppLayout = function Layout() {
     }
   }, [loaded, fontError, isMCheckLoading, _hasHydrated, authLoading, needsUpdate, isMaintenance]);
 
-  if ((!loaded && !fontError) || isMCheckLoading || !_hasHydrated || authLoading) {
+  if (Platform.OS !== 'web' && ((!loaded && !fontError) || isMCheckLoading || !_hasHydrated || authLoading)) {
     return null;
   }
 

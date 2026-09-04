@@ -1,90 +1,196 @@
+/**
+ * @file home.tsx
+ * @description Accountant & Finance Portal Main Dashboard.
+ *
+ * Full-featured financial cockpit for school finance officers:
+ *  - Header matching Student & Admin design system
+ *  - Quick Action Navigation Grid
+ *  - High-level Financial Health & Net Tally KPI Cards
+ *  - Dedicated Sub-Pages:
+ *      1. Home Cockpit — Summary, quick actions, recent transaction ledger
+ *      2. Accounts & Tally — Deficit/Surplus charts, cash flow ratios, audit balance sheet
+ *      3. Student Fees — Paid vs Unpaid student dues, class filter, 1-tap collection & reminders
+ *      4. Bus & Fleet — Diesel fuel fill-ups vs Bus maintenance & repairs
+ *      5. Payroll & Ops — Staff salaries, 1-tap salary disbursal, vendor vouchers
+ */
+
 import React, { useState } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, SafeAreaView, Platform } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  Platform,
+  StatusBar,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Colors } from '../../constants/theme';
+import { useUserStore } from '../../store/useUserStore';
+import { useFinanceStore } from '../../features/accountant/store/useFinanceStore';
+import { AccountantHeader } from '../../features/accountant/components/AccountantHeader';
 import { FinanceSummaryCards } from '../../features/accountant/components/FinanceSummaryCards';
+import { AccountsTallyView } from '../../features/accountant/components/AccountsTallyView';
+import { StudentFeesView } from '../../features/accountant/components/StudentFeesView';
+import { FleetTransportView } from '../../features/accountant/components/FleetTransportView';
+import { PayrollExpensesView } from '../../features/accountant/components/PayrollExpensesView';
 import { IncomeManagementView } from '../../features/accountant/components/IncomeManagementView';
-import { ExpenseManagementView } from '../../features/accountant/components/ExpenseManagementView';
-import { IncomeExpenseTallyView } from '../../features/accountant/components/IncomeExpenseTallyView';
+import { formatINR } from '../../features/accountant/utils/financeUtils';
 
 export default function AccountantHomeScreen() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'tally' | 'income' | 'expenses'>('tally');
+  const fullName = useUserStore((state) => state.fullName) || 'Finance Officer';
+  const profilePic = useUserStore((state) => state.profilePic);
+
+  const [activeTab, setActiveTab] = useState<
+    'home' | 'tally' | 'student-fees' | 'fleet' | 'payroll'
+  >('home');
+
+  const incomeRecords = useFinanceStore((s) => s.incomeRecords);
+  const expenseRecords = useFinanceStore((s) => s.expenseRecords);
+
+  const totalDuesCount =
+    incomeRecords.filter((r) => r.status !== 'paid').length +
+    expenseRecords.filter((r) => r.category === 'salary' && r.status !== 'paid').length;
 
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safe}>
-        {/* Top Header */}
-        <View style={styles.header}>
-          <View style={styles.headerBrand}>
-            <View style={styles.logoIcon}>
-              <MaterialCommunityIcons name="finance" size={24} color="#FFFFFF" />
+        {/* Top Header matching Student & Admin theme */}
+        <AccountantHeader
+          fullName={fullName}
+          profilePic={profilePic}
+          onNotificationsPress={() => router.push('/notifications')}
+          onProfilePress={() => router.push('/(accountant)/profile')}
+        />
+
+        {/* ── Tab 1: Home Cockpit Overview ── */}
+        {activeTab === 'home' && (
+          <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+            {/* Quick Action Navigation Grid */}
+            <View style={styles.quickActionsRow}>
+              <TouchableOpacity style={styles.quickActionCard} onPress={() => setActiveTab('tally')}>
+                <View style={[styles.quickActionIcon, { backgroundColor: '#EDE7F6' }]}>
+                  <MaterialCommunityIcons name="scale-balance" size={20} color="#7E57C2" />
+                </View>
+                <Text style={styles.quickActionTitle}>Accounts Tally</Text>
+                <Text style={styles.quickActionSub}>Graphs & Deficit</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.quickActionCard} onPress={() => setActiveTab('student-fees')}>
+                <View style={[styles.quickActionIcon, { backgroundColor: '#DCFCE7' }]}>
+                  <MaterialCommunityIcons name="school-outline" size={20} color="#16A34A" />
+                </View>
+                <Text style={styles.quickActionTitle}>Student Fees</Text>
+                <Text style={styles.quickActionSub}>Paid vs Unpaid</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.quickActionCard} onPress={() => setActiveTab('fleet')}>
+                <View style={[styles.quickActionIcon, { backgroundColor: '#FFEDD5' }]}>
+                  <MaterialCommunityIcons name="bus-clock" size={20} color="#EA580C" />
+                </View>
+                <Text style={styles.quickActionTitle}>Bus & Fuel</Text>
+                <Text style={styles.quickActionSub}>Fleet Repairs</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.quickActionCard} onPress={() => setActiveTab('payroll')}>
+                <View style={[styles.quickActionIcon, { backgroundColor: '#FEE2E2' }]}>
+                  <MaterialCommunityIcons name="account-cash-outline" size={20} color="#DC2626" />
+                </View>
+                <Text style={styles.quickActionTitle}>Staff Payroll</Text>
+                <Text style={styles.quickActionSub}>Salaries</Text>
+              </TouchableOpacity>
             </View>
-            <View>
-              <Text style={styles.headerTitle}>Finance & Accounting</Text>
-              <Text style={styles.headerSubtitle}>SchoolHub ERP Portal</Text>
+
+            {/* Interactive Live KPI Cards */}
+            <FinanceSummaryCards
+              onSelectTab={(tab) => {
+                if (tab === 'tally') setActiveTab('tally');
+                else if (tab === 'dues' || tab === 'income') setActiveTab('student-fees');
+                else if (tab === 'fleet') setActiveTab('fleet');
+                else if (tab === 'expenses') setActiveTab('payroll');
+              }}
+            />
+
+            {/* Recent Fee Incomes & Collections */}
+            <View style={styles.sectionHeaderWrap}>
+              <View style={styles.sectionTitleRow}>
+                <MaterialCommunityIcons name="receipt-text-outline" size={18} color="#7E57C2" />
+                <Text style={styles.sectionTitle}>Fee & Income Register</Text>
+              </View>
+              <TouchableOpacity onPress={() => setActiveTab('student-fees')}>
+                <Text style={styles.viewAllText}>View All Students →</Text>
+              </TouchableOpacity>
             </View>
-          </View>
 
-          <TouchableOpacity onPress={() => router.push('/(accountant)/profile')} style={styles.profileBtn}>
-            <MaterialCommunityIcons name="account-circle-outline" size={28} color="#7E57C2" />
-          </TouchableOpacity>
-        </View>
+            <IncomeManagementView />
+          </ScrollView>
+        )}
 
-        {/* Top KPI Cards */}
-        <FinanceSummaryCards />
+        {/* ── Tab 2: Accounts & Tally Graphs Page ── */}
+        {activeTab === 'tally' && <AccountsTallyView />}
 
-        {/* Navigation Tabs */}
+        {/* ── Tab 3: Student Fees Paid vs Unpaid Page ── */}
+        {activeTab === 'student-fees' && <StudentFeesView />}
+
+        {/* ── Tab 4: Bus Transport & Fleet Page ── */}
+        {activeTab === 'fleet' && <FleetTransportView />}
+
+        {/* ── Tab 5: Payroll & Operational Expenses Page ── */}
+        {activeTab === 'payroll' && <PayrollExpensesView />}
+
+        {/* ── Unified Modern Bottom Navigation Bar ── */}
         <View style={styles.tabBar}>
-          <TouchableOpacity
-            style={[styles.tabItem, activeTab === 'tally' && styles.tabItemActive]}
-            onPress={() => setActiveTab('tally')}
-          >
+          <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('home')}>
             <MaterialCommunityIcons
-              name="scale-balance"
-              size={18}
-              color={activeTab === 'tally' ? '#7E57C2' : '#718096'}
+              name="home-outline"
+              size={22}
+              color={activeTab === 'home' ? '#7E57C2' : '#94A3B8'}
             />
-            <Text style={[styles.tabText, activeTab === 'tally' && styles.tabTextActive]}>
-              Tally & Overview
-            </Text>
+            <Text style={[styles.tabLabel, activeTab === 'home' && styles.tabLabelActive]}>Overview</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.tabItem, activeTab === 'income' && styles.tabItemActive]}
-            onPress={() => setActiveTab('income')}
-          >
+          <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('tally')}>
             <MaterialCommunityIcons
-              name="cash-plus"
-              size={18}
-              color={activeTab === 'income' ? '#16A34A' : '#718096'}
+              name="chart-timeline-variant-shimmer"
+              size={22}
+              color={activeTab === 'tally' ? '#7E57C2' : '#94A3B8'}
             />
-            <Text style={[styles.tabText, activeTab === 'income' && styles.tabTextActiveIncome]}>
-              Fee Incomes
-            </Text>
+            <Text style={[styles.tabLabel, activeTab === 'tally' && styles.tabLabelActive]}>Accounts</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.tabItem, activeTab === 'expenses' && styles.tabItemActive]}
-            onPress={() => setActiveTab('expenses')}
-          >
+          <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('student-fees')}>
             <MaterialCommunityIcons
-              name="cash-minus"
-              size={18}
-              color={activeTab === 'expenses' ? '#DC3545' : '#718096'}
+              name="school-outline"
+              size={22}
+              color={activeTab === 'student-fees' ? '#7E57C2' : '#94A3B8'}
             />
-            <Text style={[styles.tabText, activeTab === 'expenses' && styles.tabTextActiveExpense]}>
-              Expenses & Salaries
-            </Text>
+            <Text style={[styles.tabLabel, activeTab === 'student-fees' && styles.tabLabelActive]}>Fees</Text>
+            {totalDuesCount > 0 && (
+              <View style={styles.tabBadge}>
+                <Text style={styles.tabBadgeText}>{totalDuesCount}</Text>
+              </View>
+            )}
           </TouchableOpacity>
-        </View>
 
-        {/* Tab Content View */}
-        <View style={styles.tabContent}>
-          {activeTab === 'tally' && <IncomeExpenseTallyView />}
-          {activeTab === 'income' && <IncomeManagementView />}
-          {activeTab === 'expenses' && <ExpenseManagementView />}
+          <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('fleet')}>
+            <MaterialCommunityIcons
+              name="bus-clock"
+              size={22}
+              color={activeTab === 'fleet' ? '#7E57C2' : '#94A3B8'}
+            />
+            <Text style={[styles.tabLabel, activeTab === 'fleet' && styles.tabLabelActive]}>Fleet</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('payroll')}>
+            <MaterialCommunityIcons
+              name="account-cash-outline"
+              size={22}
+              color={activeTab === 'payroll' ? '#7E57C2' : '#94A3B8'}
+            />
+            <Text style={[styles.tabLabel, activeTab === 'payroll' && styles.tabLabelActive]}>Payroll</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     </View>
@@ -94,51 +200,66 @@ export default function AccountantHomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8F9FB' },
   safe: { flex: 1 },
-  header: {
+  scroll: { paddingHorizontal: 16, paddingVertical: 10, gap: 12 },
+  quickActionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  quickActionCard: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  quickActionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  quickActionTitle: { fontSize: 11, fontWeight: '700', color: '#1E293B', textAlign: 'center' },
+  quickActionSub: { fontSize: 9, color: '#64748B', marginTop: 1, textAlign: 'center' },
+
+  sectionHeaderWrap: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-    backgroundColor: '#FFFFFF',
+    marginTop: 4,
   },
-  headerBrand: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  logoIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 8,
-    backgroundColor: '#7E57C2',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: { fontSize: 17, fontWeight: '800', color: '#1A202C' },
-  headerSubtitle: { fontSize: 11, color: '#718096' },
-  profileBtn: { padding: 4 },
+  sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  sectionTitle: { fontSize: 14, fontWeight: '800', color: '#1E293B' },
+  viewAllText: { fontSize: 12, fontWeight: '700', color: '#7E57C2' },
+
   tabBar: {
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
-    marginHorizontal: 16,
-    marginVertical: 6,
-    borderRadius: 8,
-    padding: 4,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  tabItem: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
     paddingVertical: 8,
-    borderRadius: 6,
-    gap: 6,
+    paddingHorizontal: 6,
   },
-  tabItemActive: { backgroundColor: '#F1F5F9' },
-  tabText: { fontSize: 13, fontWeight: '600', color: '#718096' },
-  tabTextActive: { color: '#7E57C2', fontWeight: '700' },
-  tabTextActiveIncome: { color: '#16A34A', fontWeight: '700' },
-  tabTextActiveExpense: { color: '#DC3545', fontWeight: '700' },
-  tabContent: { flex: 1 },
+  tabItem: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  tabLabel: { fontSize: 10, fontWeight: '600', color: '#94A3B8', marginTop: 2 },
+  tabLabelActive: { color: '#7E57C2', fontWeight: '800' },
+  tabBadge: {
+    position: 'absolute',
+    top: -2,
+    right: 14,
+    backgroundColor: '#DC2626',
+    borderRadius: 8,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+  },
+  tabBadgeText: { color: '#FFFFFF', fontSize: 9, fontWeight: '800' },
 });
