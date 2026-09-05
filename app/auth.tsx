@@ -108,6 +108,10 @@ export default function AuthScreen() {
               <View style={styles.demoBox}>
                 <Text style={styles.demoLabel}>Demo Login Shortcuts:</Text>
                 <View style={styles.demoRow}>
+                  <TouchableOpacity style={styles.demoChip} onPress={() => handleFillDemo('librarian@school.com')}>
+                    <MaterialCommunityIcons name="book-open-page-variant" size={14} color="#D97706" />
+                    <Text style={styles.demoChipText}>Librarian</Text>
+                  </TouchableOpacity>
                   <TouchableOpacity style={styles.demoChip} onPress={() => handleFillDemo('accountant@school.com')}>
                     <MaterialCommunityIcons name="finance" size={14} color="#7E57C2" />
                     <Text style={styles.demoChipText}>Accountant</Text>

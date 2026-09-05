@@ -27,6 +27,7 @@ import { StudentHomeBusTracker } from '../../features/student/components/Student
 import { StudentHomeAssignments } from '../../features/student/components/StudentHomeAssignments';
 import { StudentTimetableView } from '../../features/student/components/StudentTimetableView';
 import { StudentAttendanceView } from '../../features/student/components/StudentAttendanceView';
+import { StudentLibraryModal } from '../../features/student/components/StudentLibraryModal';
 
 function toMinutes(timeStr?: string): number | null {
   if (!timeStr) return null;
@@ -56,6 +57,7 @@ export default function StudentHomeScreen() {
   const profilePic = useUserStore((state) => state.profilePic);
 
   const [activeTab, setActiveTab] = useState<'home' | 'attendance' | 'schedule' | 'reports'>('home');
+  const [showLibraryModal, setShowLibraryModal] = useState(false);
 
   const [attendanceLoading, setAttendanceLoading] = useState(true);
   const [overall, setOverall] = useState<{ present: number; total: number; percentage: number } | null>(null);
@@ -159,10 +161,35 @@ export default function StudentHomeScreen() {
             {/* Live Bus Transport Tracker */}
             <StudentHomeBusTracker />
 
+            {/* School Library & Borrowed Books Access Card */}
+            <TouchableOpacity
+              style={styles.libraryCard}
+              onPress={() => setShowLibraryModal(true)}
+              activeOpacity={0.8}
+            >
+              <View style={styles.libraryIconWrap}>
+                <MaterialCommunityIcons name="book-open-page-variant" size={24} color="#D97706" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.libraryCardTitle}>Central Library & Books</Text>
+                <Text style={styles.libraryCardSub}>View borrowed books, return dates & explore catalog</Text>
+              </View>
+              <View style={styles.libraryArrowBtn}>
+                <MaterialCommunityIcons name="chevron-right" size={20} color="#D97706" />
+              </View>
+            </TouchableOpacity>
+
             {/* Announcements & Notice Board */}
             <StudentHomeAnnouncements />
           </ScrollView>
         )}
+
+        {/* Student Library Modal */}
+        <StudentLibraryModal
+          visible={showLibraryModal}
+          onClose={() => setShowLibraryModal(false)}
+          studentName={fullName}
+        />
 
         {activeTab === 'schedule' && <StudentTimetableView />}
         {activeTab === 'attendance' && <StudentAttendanceView />}
@@ -233,6 +260,34 @@ const styles = StyleSheet.create({
   },
   quickActionTitle: { fontSize: 11, fontWeight: '700', color: '#1E293B', textAlign: 'center' },
   quickActionSub: { fontSize: 9, color: '#64748B', marginTop: 1, textAlign: 'center' },
+  libraryCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFBEB',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    padding: 14,
+    gap: 12,
+  },
+  libraryIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#FEF3C7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  libraryCardTitle: { fontSize: 14, fontWeight: '800', color: '#92400E' },
+  libraryCardSub: { fontSize: 11, color: '#B45309', marginTop: 2 },
+  libraryArrowBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FEF3C7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   tabBar: {
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
