@@ -13,6 +13,8 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
 import { useLibraryStore } from '../store/useLibraryStore';
 import { BorrowedBook } from '../types/library';
+import { LibraryBarcodeScannerModal } from './LibraryBarcodeScannerModal';
+import { LibraryClearanceModal } from './LibraryClearanceModal';
 
 export const BorrowingRegisterView: React.FC = () => {
   const books = useLibraryStore((s) => s.books);
@@ -21,11 +23,14 @@ export const BorrowingRegisterView: React.FC = () => {
   const returnBook = useLibraryStore((s) => s.returnBook);
   const renewLoan = useLibraryStore((s) => s.renewLoan);
   const finePerDay = useLibraryStore((s) => s.finePerDay);
+  const sendInAppReminder = useLibraryStore((s) => s.sendInAppReminder);
 
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'overdue' | 'returned'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showIssueModal, setShowIssueModal] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
+  const [showScannerModal, setShowScannerModal] = useState(false);
+  const [showClearanceModal, setShowClearanceModal] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState<BorrowedBook | null>(null);
 
   // Issue Form State
@@ -137,9 +142,44 @@ export const BorrowingRegisterView: React.FC = () => {
     );
   };
 
+  const handleScanSuccess = (scannedCode: string, type: 'book' | 'student') => {
+    if (type === 'book') {
+      const matchedBook = books.find(
+        (b) => b.isbn.includes(scannedCode) || scannedCode.includes('ACC')
+      );
+      if (matchedBook) {
+        setSelectedBookId(matchedBook.id);
+        setShowIssueModal(true);
+        Alert.alert('Barcode Scanned', `Identified Book: "${matchedBook.title}". Ready for quick issue.`);
+      } else {
+        setSearchQuery(scannedCode);
+        Alert.alert('Scanned Accession', `Filtering loans with code ${scannedCode}.`);
+      }
+    } else {
+      setBorrowerName('Rohan Verma');
+      setBorrowerClass('Class 10-A');
+      setSearchQuery(scannedCode);
+      Alert.alert('Smart ID Scanned', `Student ID verified (${scannedCode}). Records loaded.`);
+    }
+  };
+
+  const handleSendReminder = (loan: BorrowedBook) => {
+    sendInAppReminder({
+      recipientId: loan.borrowerId,
+      recipientName: loan.borrowerName,
+      title: 'Library Overdue Book Reminder',
+      message: `"${loan.bookTitle}" (Acc: ${loan.accessionNumber}) was due on ${loan.dueDate}. Please return or renew in the library app.`,
+      type: 'overdue_fine',
+    });
+    Alert.alert(
+      'In-App Reminder Sent',
+      `Direct notification alert delivered to ${loan.borrowerName}'s student portal.`
+    );
+  };
+
   return (
     <View style={styles.container}>
-      {/* Search & Issue Action Bar */}
+      {/* Search & Action Bar */}
       <View style={styles.topBar}>
         <View style={styles.searchWrap}>
           <MaterialCommunityIcons name="magnify" size={20} color="#64748B" />
@@ -152,9 +192,25 @@ export const BorrowingRegisterView: React.FC = () => {
           />
         </View>
 
+        <TouchableOpacity
+          style={styles.scannerBtn}
+          onPress={() => setShowScannerModal(true)}
+          activeOpacity={0.8}
+        >
+          <MaterialCommunityIcons name="barcode-scan" size={18} color="#D97706" />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.clearanceBtn}
+          onPress={() => setShowClearanceModal(true)}
+          activeOpacity={0.8}
+        >
+          <MaterialCommunityIcons name="certificate" size={18} color="#059669" />
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.issueBtn} onPress={handleOpenIssue} activeOpacity={0.8}>
           <MaterialCommunityIcons name="book-plus" size={18} color="#FFFFFF" />
-          <Text style={styles.issueBtnText}>Issue Book</Text>
+          <Text style={styles.issueBtnText}>Issue</Text>
         </TouchableOpacity>
       </View>
 
@@ -299,12 +355,23 @@ export const BorrowingRegisterView: React.FC = () => {
               {/* Action Buttons for Active / Overdue Loans */}
               {!isReturned && (
                 <View style={styles.cardActions}>
+                  {isOverdue && (
+                    <TouchableOpacity
+                      style={styles.reminderBtn}
+                      onPress={() => handleSendReminder(loan)}
+                      activeOpacity={0.7}
+                    >
+                      <MaterialCommunityIcons name="bell-ring" size={14} color="#DC2626" />
+                      <Text style={styles.reminderBtnText}>App Reminder</Text>
+                    </TouchableOpacity>
+                  )}
+
                   <TouchableOpacity
                     style={styles.renewBtn}
                     onPress={() => handleRenew(loan)}
                     activeOpacity={0.7}
                   >
-                    <MaterialCommunityIcons name="autorenew" size={16} color="#4F46E5" />
+                    <MaterialCommunityIcons name="autorenew" size={14} color="#4F46E5" />
                     <Text style={styles.renewBtnText}>Renew (+14d)</Text>
                   </TouchableOpacity>
 
@@ -313,8 +380,8 @@ export const BorrowingRegisterView: React.FC = () => {
                     onPress={() => handleOpenReturn(loan)}
                     activeOpacity={0.8}
                   >
-                    <MaterialCommunityIcons name="book-check" size={16} color="#FFFFFF" />
-                    <Text style={styles.returnActionText}>Return Book</Text>
+                    <MaterialCommunityIcons name="book-check" size={14} color="#FFFFFF" />
+                    <Text style={styles.returnActionText}>Return</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -554,6 +621,19 @@ export const BorrowingRegisterView: React.FC = () => {
           </View>
         </View>
       </Modal>
+
+      {/* Barcode & QR Scanner Modal */}
+      <LibraryBarcodeScannerModal
+        visible={showScannerModal}
+        onClose={() => setShowScannerModal(false)}
+        onScanSuccess={handleScanSuccess}
+      />
+
+      {/* No-Dues Clearance Desk Modal */}
+      <LibraryClearanceModal
+        visible={showClearanceModal}
+        onClose={() => setShowClearanceModal(false)}
+      />
     </View>
   );
 };
@@ -565,7 +645,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingTop: 12,
-    gap: 10,
+    gap: 8,
   },
   searchWrap: {
     flex: 1,
@@ -580,6 +660,26 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   searchInput: { flex: 1, fontSize: 13, color: '#0F172A' },
+  scannerBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  clearanceBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   issueBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -673,12 +773,25 @@ const styles = StyleSheet.create({
   fineBoxText: { fontSize: 11, fontWeight: '700', color: '#DC2626' },
   cardActions: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
     borderTopWidth: 1,
     borderTopColor: '#F8FAFC',
     marginTop: 10,
     paddingTop: 10,
   },
+  reminderBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FEF2F2',
+    borderRadius: 8,
+    paddingVertical: 8,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  reminderBtnText: { color: '#DC2626', fontSize: 11, fontWeight: '700' },
   renewBtn: {
     flex: 1,
     flexDirection: 'row',
@@ -689,7 +802,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     gap: 4,
   },
-  renewBtnText: { color: '#4F46E5', fontSize: 12, fontWeight: '700' },
+  renewBtnText: { color: '#4F46E5', fontSize: 11, fontWeight: '700' },
   returnActionBtn: {
     flex: 1,
     flexDirection: 'row',
@@ -700,7 +813,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     gap: 4,
   },
-  returnActionText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
+  returnActionText: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',

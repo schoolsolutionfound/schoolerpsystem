@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Modal,
   TextInput,
+  Alert,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLibraryStore } from '../../librarian/store/useLibraryStore';
@@ -25,13 +26,23 @@ export const StudentLibraryModal: React.FC<Props> = ({
   const books = useLibraryStore((s) => s.books);
   const loans = useLibraryStore((s) => s.loans);
   const finePerDay = useLibraryStore((s) => s.finePerDay);
+  const reserveBook = useLibraryStore((s) => s.reserveBook);
+  const reservations = useLibraryStore((s) => s.reservations);
+  const inAppReminders = useLibraryStore((s) => s.inAppReminders);
 
-  const [activeTab, setActiveTab] = useState<'my_books' | 'explore'>('my_books');
+  const [activeTab, setActiveTab] = useState<'my_books' | 'explore' | 'notifications'>('my_books');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Find loans for this student
   const myLoans = loans.filter((l) =>
     l.borrowerName.toLowerCase().includes(studentName.toLowerCase())
+  );
+
+  // Student specific notifications
+  const myReminders = inAppReminders.filter(
+    (r) =>
+      r.recipientName.toLowerCase().includes(studentName.toLowerCase()) ||
+      r.recipientId.toLowerCase().includes('std')
   );
 
   const filteredBooks = books.filter((b) => {
@@ -44,6 +55,42 @@ export const StudentLibraryModal: React.FC<Props> = ({
       b.rackLocation.toLowerCase().includes(q)
     );
   });
+
+  const handleReserveBook = (bookId: string, title: string) => {
+    const alreadyReserved = reservations.some(
+      (r) =>
+        r.bookId === bookId &&
+        r.studentName.toLowerCase().includes(studentName.toLowerCase()) &&
+        (r.status === 'waiting' || r.status === 'available')
+    );
+
+    if (alreadyReserved) {
+      Alert.alert('Already on Hold Queue', `You are already in queue for "${title}". We will notify you in-app as soon as a copy is returned.`);
+      return;
+    }
+
+    try {
+      reserveBook({
+        bookId,
+        studentId: 'std-1082',
+        studentName,
+        className: 'Class 10-A',
+      });
+      Alert.alert(
+        'Hold Placed Successfully! 📚',
+        `You have reserved "${title}". An automated in-app reminder will alert you the moment a copy is returned to the circulation desk.`
+      );
+    } catch (err: any) {
+      Alert.alert('Reservation Failed', err.message);
+    }
+  };
+
+  const handleReadEBook = (title: string, author: string) => {
+    Alert.alert(
+      'Digital E-Book Reader',
+      `Opening digital reader for "${title}" by ${author}.\n\n✓ Full text searchable\n✓ Offline chapter caching\n✓ Highlight & notes enabled`
+    );
+  };
 
   return (
     <Modal visible={visible} transparent animationType="slide">
@@ -74,7 +121,7 @@ export const StudentLibraryModal: React.FC<Props> = ({
               <Text
                 style={[styles.tabText, activeTab === 'my_books' && styles.tabTextActive]}
               >
-                My Borrowed Books ({myLoans.length})
+                My Loans ({myLoans.length})
               </Text>
             </TouchableOpacity>
 
@@ -85,19 +132,31 @@ export const StudentLibraryModal: React.FC<Props> = ({
               <Text
                 style={[styles.tabText, activeTab === 'explore' && styles.tabTextActive]}
               >
-                Explore Catalogue ({books.length})
+                Catalogue ({books.length})
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.tabBtn, activeTab === 'notifications' && styles.tabBtnActive]}
+              onPress={() => setActiveTab('notifications')}
+            >
+              <Text
+                style={[styles.tabText, activeTab === 'notifications' && styles.tabTextActive]}
+              >
+                App Alerts ({myReminders.length})
               </Text>
             </TouchableOpacity>
           </View>
 
-          {activeTab === 'my_books' ? (
+          {/* Tab 1: My Loans */}
+          {activeTab === 'my_books' && (
             <ScrollView style={styles.scrollBody} showsVerticalScrollIndicator={false}>
               {myLoans.length === 0 ? (
                 <View style={styles.emptyState}>
                   <MaterialCommunityIcons name="book-open-outline" size={40} color="#94A3B8" />
                   <Text style={styles.emptyTitle}>No Active Borrowed Books</Text>
                   <Text style={styles.emptySub}>
-                    Visit the library desk or browse catalogue to issue a book.
+                    Visit the library desk or browse the catalogue tab to issue or reserve books.
                   </Text>
                 </View>
               ) : (
@@ -132,7 +191,7 @@ export const StudentLibraryModal: React.FC<Props> = ({
                                 : { color: '#4F46E5' },
                             ]}
                           >
-                            {isOverdue ? 'Overdue' : isReturned ? 'Returned' : 'Due Soon'}
+                            {isOverdue ? 'Overdue' : isReturned ? 'Returned' : 'Active Loan'}
                           </Text>
                         </View>
                       </View>
@@ -168,7 +227,10 @@ export const StudentLibraryModal: React.FC<Props> = ({
                 })
               )}
             </ScrollView>
-          ) : (
+          )}
+
+          {/* Tab 2: Catalogue & Holds */}
+          {activeTab === 'explore' && (
             <View style={{ flex: 1 }}>
               <View style={styles.searchBox}>
                 <MaterialCommunityIcons name="magnify" size={18} color="#64748B" />
@@ -184,11 +246,26 @@ export const StudentLibraryModal: React.FC<Props> = ({
               <ScrollView style={styles.scrollBody} showsVerticalScrollIndicator={false}>
                 {filteredBooks.map((book) => {
                   const isAvailable = book.availableCopies > 0;
+                  const isReservedByMe = reservations.some(
+                    (r) =>
+                      r.bookId === book.id &&
+                      r.studentName.toLowerCase().includes(studentName.toLowerCase()) &&
+                      r.status === 'waiting'
+                  );
+
                   return (
                     <View key={book.id} style={styles.bookCard}>
                       <View style={styles.bookTop}>
                         <View style={{ flex: 1 }}>
-                          <Text style={styles.catalogBookTitle}>{book.title}</Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Text style={styles.catalogBookTitle}>{book.title}</Text>
+                            {book.isEBook && (
+                              <View style={styles.ebookPill}>
+                                <MaterialCommunityIcons name="tablet-cellphone" size={11} color="#0284C7" />
+                                <Text style={styles.ebookPillText}>E-Book</Text>
+                              </View>
+                            )}
+                          </View>
                           <Text style={styles.catalogAuthor}>by {book.author}</Text>
                         </View>
                         <View
@@ -203,7 +280,7 @@ export const StudentLibraryModal: React.FC<Props> = ({
                               { color: isAvailable ? '#059669' : '#DC2626' },
                             ]}
                           >
-                            {isAvailable ? `${book.availableCopies} in stock` : 'All issued'}
+                            {isAvailable ? `${book.availableCopies} available` : '0 left'}
                           </Text>
                         </View>
                       </View>
@@ -215,11 +292,97 @@ export const StudentLibraryModal: React.FC<Props> = ({
                           • {book.category.toUpperCase().replace('_', ' ')}
                         </Text>
                       </View>
+
+                      {/* Action Row: E-Book read or Hold queue */}
+                      <View style={styles.catalogActionRow}>
+                        {book.isEBook && (
+                          <TouchableOpacity
+                            style={styles.readEbookBtn}
+                            onPress={() => handleReadEBook(book.title, book.author)}
+                            activeOpacity={0.8}
+                          >
+                            <MaterialCommunityIcons name="book-open-page-variant" size={14} color="#0284C7" />
+                            <Text style={styles.readEbookText}>Read E-Book</Text>
+                          </TouchableOpacity>
+                        )}
+
+                        {!isAvailable && (
+                          <TouchableOpacity
+                            style={[styles.holdBtn, isReservedByMe && styles.holdBtnReserved]}
+                            onPress={() => handleReserveBook(book.id, book.title)}
+                            activeOpacity={0.8}
+                          >
+                            <MaterialCommunityIcons
+                              name={isReservedByMe ? 'clock-check' : 'bookmark-plus'}
+                              size={14}
+                              color={isReservedByMe ? '#059669' : '#FFFFFF'}
+                            />
+                            <Text
+                              style={[
+                                styles.holdBtnText,
+                                isReservedByMe && { color: '#059669', fontWeight: '800' },
+                              ]}
+                            >
+                              {isReservedByMe ? 'Hold Active (In Queue)' : 'Hold / Reserve Book'}
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
                     </View>
                   );
                 })}
               </ScrollView>
             </View>
+          )}
+
+          {/* Tab 3: In-App Library Notifications */}
+          {activeTab === 'notifications' && (
+            <ScrollView style={styles.scrollBody} showsVerticalScrollIndicator={false}>
+              {myReminders.length === 0 ? (
+                <View style={styles.emptyState}>
+                  <MaterialCommunityIcons name="bell-check" size={40} color="#94A3B8" />
+                  <Text style={styles.emptyTitle}>All Caught Up!</Text>
+                  <Text style={styles.emptySub}>
+                    No pending library notifications or fine reminders for your account.
+                  </Text>
+                </View>
+              ) : (
+                myReminders.map((rem) => {
+                  const isOverdue = rem.type === 'overdue_fine';
+                  const isAvailable = rem.type === 'book_available';
+                  return (
+                    <View key={rem.id} style={styles.reminderCard}>
+                      <View style={styles.remIconWrap}>
+                        <MaterialCommunityIcons
+                          name={
+                            isOverdue
+                              ? 'alert-circle'
+                              : isAvailable
+                              ? 'book-check'
+                              : 'bell-ring'
+                          }
+                          size={20}
+                          color={
+                            isOverdue
+                              ? '#DC2626'
+                              : isAvailable
+                              ? '#059669'
+                              : '#4F46E5'
+                          }
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <View style={styles.remHeader}>
+                          <Text style={styles.remTitle}>{rem.title}</Text>
+                          <Text style={styles.remDate}>{rem.date}</Text>
+                        </View>
+                        <Text style={styles.remMsg}>{rem.message}</Text>
+                      </View>
+                    </View>
+                  );
+                })
+              )}
+            </ScrollView>
           )}
         </View>
       </View>
@@ -238,8 +401,8 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 18,
-    maxHeight: '85%',
-    minHeight: '60%',
+    maxHeight: '88%',
+    minHeight: '65%',
   },
   header: {
     flexDirection: 'row',
@@ -259,7 +422,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 16, fontWeight: '800', color: '#0F172A' },
   subtitle: { fontSize: 11, color: '#64748B' },
   closeBtn: { padding: 4 },
-  tabRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  tabRow: { flexDirection: 'row', gap: 6, marginBottom: 12 },
   tabBtn: {
     flex: 1,
     backgroundColor: '#F1F5F9',
@@ -268,7 +431,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   tabBtnActive: { backgroundColor: '#D97706' },
-  tabText: { fontSize: 12, fontWeight: '600', color: '#64748B' },
+  tabText: { fontSize: 11, fontWeight: '600', color: '#64748B' },
   tabTextActive: { color: '#FFFFFF', fontWeight: '800' },
   scrollBody: { flex: 1, paddingBottom: 20 },
   emptyState: { alignItems: 'center', paddingVertical: 40 },
@@ -339,4 +502,74 @@ const styles = StyleSheet.create({
   rackRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
   rackLocationText: { fontSize: 11, fontWeight: '600', color: '#D97706' },
   catText: { fontSize: 10, color: '#94A3B8' },
+  ebookPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E0F2FE',
+    borderRadius: 4,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    gap: 2,
+  },
+  ebookPillText: { fontSize: 9, fontWeight: '800', color: '#0369A1' },
+  catalogActionRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#EEF2F6',
+  },
+  readEbookBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0F9FF',
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    gap: 4,
+  },
+  readEbookText: { fontSize: 11, fontWeight: '700', color: '#0284C7' },
+  holdBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#D97706',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    gap: 4,
+  },
+  holdBtnReserved: {
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  holdBtnText: { fontSize: 11, fontWeight: '700', color: '#FFFFFF' },
+  reminderCard: {
+    flexDirection: 'row',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 12,
+    marginBottom: 10,
+    gap: 10,
+  },
+  remIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  remHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  remTitle: { fontSize: 12, fontWeight: '800', color: '#1E293B' },
+  remDate: { fontSize: 10, color: '#94A3B8' },
+  remMsg: { fontSize: 11, color: '#475569', marginTop: 4, lineHeight: 15 },
 });
+

@@ -3,10 +3,13 @@
  * @description Centralized Zustand state management for School Library Management.
  *
  * Covers:
- *  - Book Catalogue & Stock Management
+ *  - Book Catalogue & Stock Management + E-Book Support
  *  - Book Borrowing, Issue, Renew & Return Workflow
  *  - Automated Overdue & Late Return Fine Calculation (₹5/day)
  *  - Digital Entry & Exit Gatekeeper & Real-Time Footfall / Occupancy Tracker
+ *  - Book Hold & Reservation Queue with automatic availability notifications
+ *  - Official Library No-Dues Clearance Certificate Generator
+ *  - In-App Overdue & Fine Notification Dispatcher
  *  - Direct Sync to Central Finance Store on Fine Collection
  */
 
@@ -16,7 +19,9 @@ import {
   BorrowedBook,
   LibraryEntryExitLog,
   LibraryFine,
-  BookCategory,
+  BookReservation,
+  LibraryClearanceCertificate,
+  InAppLibraryReminder,
   VisitorPurpose,
 } from '../types/library';
 import { useFinanceStore } from '../../accountant/store/useFinanceStore';
@@ -26,6 +31,9 @@ interface LibraryState {
   loans: BorrowedBook[];
   entryLogs: LibraryEntryExitLog[];
   fines: LibraryFine[];
+  reservations: BookReservation[];
+  clearanceCertificates: LibraryClearanceCertificate[];
+  inAppReminders: InAppLibraryReminder[];
   maxCapacity: number;
   finePerDay: number; // default ₹5
 
@@ -74,6 +82,42 @@ interface LibraryState {
 
   checkOutVisitor: (logId: string) => void;
 
+  // Hold & Reservation Actions
+  reserveBook: (params: {
+    bookId: string;
+    studentId: string;
+    studentName: string;
+    className: string;
+  }) => BookReservation;
+
+  fulfillReservation: (reservationId: string) => void;
+  cancelReservation: (reservationId: string) => void;
+
+  // In-App Notification Actions
+  sendInAppReminder: (params: {
+    recipientId: string;
+    recipientName: string;
+    title: string;
+    message: string;
+    type: 'overdue_fine' | 'due_soon' | 'book_available' | 'clearance';
+  }) => void;
+
+  // Clearance Actions
+  generateClearanceCertificate: (params: {
+    studentId: string;
+    studentName: string;
+    className: string;
+    rollNo: string;
+    clearedBy?: string;
+  }) => LibraryClearanceCertificate;
+
+  getStudentClearanceEligibility: (studentName: string) => {
+    isEligible: boolean;
+    activeLoanCount: number;
+    pendingFinesTotal: number;
+    reason?: string;
+  };
+
   // Selectors
   getTotalBooksCount: () => number;
   getTotalCopiesCount: () => number;
@@ -98,6 +142,8 @@ const INITIAL_BOOKS: Book[] = [
     editionYear: '2024',
     coverColor: '#0284C7',
     summary: 'Essential reference for mechanics, thermodynamics, and wave optics.',
+    isEBook: true,
+    pdfUrl: 'https://example.com/ebooks/concepts-of-physics.pdf',
   },
   {
     id: 'b-102',
@@ -112,6 +158,7 @@ const INITIAL_BOOKS: Book[] = [
     editionYear: '2023',
     coverColor: '#7E57C2',
     summary: 'Comprehensive treatise on progressions, series, and permutations.',
+    isEBook: true,
   },
   {
     id: 'b-103',
@@ -126,6 +173,7 @@ const INITIAL_BOOKS: Book[] = [
     editionYear: '2020',
     coverColor: '#059669',
     summary: 'Pulitzer prize-winning masterpiece on empathy and justice.',
+    isEBook: true,
   },
   {
     id: 'b-104',
@@ -140,6 +188,7 @@ const INITIAL_BOOKS: Book[] = [
     editionYear: '2022',
     coverColor: '#EA580C',
     summary: 'Standard authoritative textbook on data structures and algorithmic complexity.',
+    isEBook: true,
   },
   {
     id: 'b-105',
@@ -168,6 +217,7 @@ const INITIAL_BOOKS: Book[] = [
     editionYear: '2024',
     coverColor: '#2563EB',
     summary: 'Definitive reference for vocabulary, pronunciation, and usage.',
+    isEBook: true,
   },
 ];
 
@@ -188,7 +238,7 @@ const INITIAL_LOANS: BorrowedBook[] = [
     status: 'overdue',
     fineAmount: 15,
     fineStatus: 'pending',
-    notes: 'Reminder SMS dispatched to parent on Sep 4.',
+    notes: 'In-app reminder sent to student.',
   },
   {
     id: 'loan-2',
@@ -322,11 +372,54 @@ const INITIAL_FINES: LibraryFine[] = [
   },
 ];
 
+const INITIAL_RESERVATIONS: BookReservation[] = [
+  {
+    id: 'res-1',
+    bookId: 'b-104',
+    bookTitle: 'Introduction to Algorithms (CLRS)',
+    studentId: 'std-1082',
+    studentName: 'Rohan Verma',
+    className: 'Class 10-A',
+    reservedDate: '2026-09-02',
+    status: 'waiting',
+  },
+];
+
+const INITIAL_CLEARANCE: LibraryClearanceCertificate[] = [
+  {
+    id: 'clr-1',
+    studentId: 'std-1045',
+    studentName: 'Kabir Mehta',
+    className: 'Class 12-A',
+    rollNo: '22',
+    certificateNo: 'LIB-NODUE-2026-904',
+    issueDate: '2026-08-25',
+    status: 'cleared',
+    clearedBy: 'Chief Librarian',
+  },
+];
+
+const INITIAL_REMINDERS: InAppLibraryReminder[] = [
+  {
+    id: 'rem-1',
+    recipientId: 'std-1082',
+    recipientName: 'Rohan Verma',
+    title: 'Book Return Overdue Notice',
+    message: 'Concepts of Physics was due on 03-Sep-2026. Current fine: ₹15. Please return at circulation desk.',
+    date: '2026-09-04',
+    type: 'overdue_fine',
+    read: false,
+  },
+];
+
 export const useLibraryStore = create<LibraryState>((set, get) => ({
   books: INITIAL_BOOKS,
   loans: INITIAL_LOANS,
   entryLogs: INITIAL_ENTRY_LOGS,
   fines: INITIAL_FINES,
+  reservations: INITIAL_RESERVATIONS,
+  clearanceCertificates: INITIAL_CLEARANCE,
+  inAppReminders: INITIAL_REMINDERS,
   maxCapacity: 60,
   finePerDay: 5,
 
@@ -469,6 +562,30 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       set((state) => ({ fines: [newFine, ...state.fines] }));
     }
 
+    // Check if there is a pending reservation waiting for this book
+    const waitingRes = get().reservations.find(
+      (r) => r.bookId === loan.bookId && r.status === 'waiting'
+    );
+
+    if (waitingRes) {
+      // Auto notify reserved student
+      get().sendInAppReminder({
+        recipientId: waitingRes.studentId,
+        recipientName: waitingRes.studentName,
+        title: 'Reserved Book Available!',
+        message: `Your reserved copy of "${waitingRes.bookTitle}" is now available at the circulation desk. Please claim it within 48 hours.`,
+        type: 'book_available',
+      });
+
+      set((state) => ({
+        reservations: state.reservations.map((r) =>
+          r.id === waitingRes.id
+            ? { ...r, status: 'available', notifiedDate: returnDateStr }
+            : r
+        ),
+      }));
+    }
+
     set((state) => ({
       loans: state.loans.map((l) =>
         l.id === loanId
@@ -589,6 +706,113 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
         };
       }),
     }));
+  },
+
+  reserveBook: ({ bookId, studentId, studentName, className }) => {
+    const book = get().books.find((b) => b.id === bookId);
+    if (!book) throw new Error('Book not found.');
+
+    const newRes: BookReservation = {
+      id: `res-${Date.now().toString().slice(-4)}`,
+      bookId,
+      bookTitle: book.title,
+      studentId,
+      studentName,
+      className,
+      reservedDate: new Date().toISOString().slice(0, 10),
+      status: 'waiting',
+    };
+
+    set((state) => ({ reservations: [newRes, ...state.reservations] }));
+    return newRes;
+  },
+
+  fulfillReservation: (reservationId) => {
+    set((state) => ({
+      reservations: state.reservations.map((r) =>
+        r.id === reservationId ? { ...r, status: 'fulfilled' } : r
+      ),
+    }));
+  },
+
+  cancelReservation: (reservationId) => {
+    set((state) => ({
+      reservations: state.reservations.map((r) =>
+        r.id === reservationId ? { ...r, status: 'cancelled' } : r
+      ),
+    }));
+  },
+
+  sendInAppReminder: ({ recipientId, recipientName, title, message, type }) => {
+    const newReminder: InAppLibraryReminder = {
+      id: `rem-${Date.now().toString().slice(-4)}`,
+      recipientId,
+      recipientName,
+      title,
+      message,
+      date: new Date().toISOString().slice(0, 10),
+      type,
+      read: false,
+    };
+
+    set((state) => ({ inAppReminders: [newReminder, ...state.inAppReminders] }));
+  },
+
+  generateClearanceCertificate: ({ studentId, studentName, className, rollNo, clearedBy = 'Chief Librarian' }) => {
+    const cert: LibraryClearanceCertificate = {
+      id: `clr-${Date.now().toString().slice(-4)}`,
+      studentId,
+      studentName,
+      className,
+      rollNo,
+      certificateNo: `LIB-NODUE-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+      issueDate: new Date().toISOString().slice(0, 10),
+      status: 'cleared',
+      clearedBy,
+    };
+
+    set((state) => ({ clearanceCertificates: [cert, ...state.clearanceCertificates] }));
+    return cert;
+  },
+
+  getStudentClearanceEligibility: (studentName) => {
+    const activeLoans = get().loans.filter(
+      (l) =>
+        l.borrowerName.toLowerCase().includes(studentName.toLowerCase()) &&
+        (l.status === 'borrowed' || l.status === 'overdue')
+    );
+
+    const pendingFines = get().fines.filter(
+      (f) =>
+        f.borrowerName.toLowerCase().includes(studentName.toLowerCase()) &&
+        f.status === 'pending'
+    );
+
+    const pendingFinesTotal = pendingFines.reduce((sum, f) => sum + f.amount, 0);
+
+    if (activeLoans.length > 0) {
+      return {
+        isEligible: false,
+        activeLoanCount: activeLoans.length,
+        pendingFinesTotal,
+        reason: `${activeLoans.length} active borrowed book(s) must be returned first.`,
+      };
+    }
+
+    if (pendingFinesTotal > 0) {
+      return {
+        isEligible: false,
+        activeLoanCount: 0,
+        pendingFinesTotal,
+        reason: `Pending library fine of ₹${pendingFinesTotal} must be settled.`,
+      };
+    }
+
+    return {
+      isEligible: true,
+      activeLoanCount: 0,
+      pendingFinesTotal: 0,
+    };
   },
 
   getTotalBooksCount: () => get().books.length,

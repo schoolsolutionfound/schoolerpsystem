@@ -26,6 +26,8 @@ export interface Book {
   editionYear: string;
   coverColor?: string;
   summary?: string;
+  pdfUrl?: string; // Digital E-Book / Sample Preview
+  isEBook?: boolean;
 }
 
 export type LoanStatus = 'borrowed' | 'returned' | 'overdue';
@@ -88,4 +90,41 @@ export interface LibraryFine {
   date: string;
   receiptNo?: string;
   waiveReason?: string;
+}
+
+export type ReservationStatus = 'waiting' | 'available' | 'fulfilled' | 'cancelled';
+
+export interface BookReservation {
+  id: string;
+  bookId: string;
+  bookTitle: string;
+  studentId: string;
+  studentName: string;
+  className: string;
+  reservedDate: string;
+  status: ReservationStatus;
+  notifiedDate?: string;
+}
+
+export interface LibraryClearanceCertificate {
+  id: string;
+  studentId: string;
+  studentName: string;
+  className: string;
+  rollNo: string;
+  certificateNo: string;
+  issueDate: string;
+  status: 'cleared' | 'pending_dues';
+  clearedBy: string;
+}
+
+export interface InAppLibraryReminder {
+  id: string;
+  recipientId: string;
+  recipientName: string;
+  title: string;
+  message: string;
+  date: string;
+  type: 'overdue_fine' | 'due_soon' | 'book_available' | 'clearance';
+  read: boolean;
 }
