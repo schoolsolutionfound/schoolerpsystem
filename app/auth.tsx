@@ -116,6 +116,14 @@ export default function AuthScreen() {
                     <MaterialCommunityIcons name="shield-account" size={14} color="#16A34A" />
                     <Text style={styles.demoChipText}>Admin</Text>
                   </TouchableOpacity>
+                  <TouchableOpacity style={styles.demoChip} onPress={() => handleFillDemo('teacher@school.com')}>
+                    <MaterialCommunityIcons name="human-male-board" size={14} color="#EA580C" />
+                    <Text style={styles.demoChipText}>Teacher</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.demoChip} onPress={() => handleFillDemo('parent@school.com')}>
+                    <MaterialCommunityIcons name="account-child" size={14} color="#4F46E5" />
+                    <Text style={styles.demoChipText}>Parent</Text>
+                  </TouchableOpacity>
                   <TouchableOpacity style={styles.demoChip} onPress={() => handleFillDemo('student@school.com')}>
                     <MaterialCommunityIcons name="school" size={14} color="#0284C7" />
                     <Text style={styles.demoChipText}>Student</Text>
