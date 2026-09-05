@@ -28,6 +28,7 @@ import { StudentHomeAssignments } from '../../features/student/components/Studen
 import { StudentTimetableView } from '../../features/student/components/StudentTimetableView';
 import { StudentAttendanceView } from '../../features/student/components/StudentAttendanceView';
 import { StudentLibraryModal } from '../../features/student/components/StudentLibraryModal';
+import { StudentPlacementModal } from '../../features/student/components/StudentPlacementModal';
 
 function toMinutes(timeStr?: string): number | null {
   if (!timeStr) return null;
@@ -58,6 +59,7 @@ export default function StudentHomeScreen() {
 
   const [activeTab, setActiveTab] = useState<'home' | 'attendance' | 'schedule' | 'reports'>('home');
   const [showLibraryModal, setShowLibraryModal] = useState(false);
+  const [showPlacementModal, setShowPlacementModal] = useState(false);
 
   const [attendanceLoading, setAttendanceLoading] = useState(true);
   const [overall, setOverall] = useState<{ present: number; total: number; percentage: number } | null>(null);
@@ -179,6 +181,24 @@ export default function StudentHomeScreen() {
               </View>
             </TouchableOpacity>
 
+            {/* Career & Placements Hub Card */}
+            <TouchableOpacity
+              style={styles.careerCard}
+              onPress={() => setShowPlacementModal(true)}
+              activeOpacity={0.8}
+            >
+              <View style={styles.careerIconWrap}>
+                <MaterialCommunityIcons name="briefcase-check" size={24} color="#059669" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.careerCardTitle}>Career & Placements Hub</Text>
+                <Text style={styles.careerCardSub}>Browse hiring drives, 1-tap apply & interview tracker</Text>
+              </View>
+              <View style={styles.careerArrowBtn}>
+                <MaterialCommunityIcons name="chevron-right" size={20} color="#059669" />
+              </View>
+            </TouchableOpacity>
+
             {/* Announcements & Notice Board */}
             <StudentHomeAnnouncements />
           </ScrollView>
@@ -188,6 +208,13 @@ export default function StudentHomeScreen() {
         <StudentLibraryModal
           visible={showLibraryModal}
           onClose={() => setShowLibraryModal(false)}
+          studentName={fullName}
+        />
+
+        {/* Student Placement Modal */}
+        <StudentPlacementModal
+          visible={showPlacementModal}
+          onClose={() => setShowPlacementModal(false)}
           studentName={fullName}
         />
 
@@ -285,6 +312,34 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
     backgroundColor: '#FEF3C7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  careerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ECFDF5',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    padding: 14,
+    gap: 12,
+  },
+  careerIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#D1FAE5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  careerCardTitle: { fontSize: 14, fontWeight: '800', color: '#065F46' },
+  careerCardSub: { fontSize: 11, color: '#047857', marginTop: 2 },
+  careerArrowBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#D1FAE5',
     alignItems: 'center',
     justifyContent: 'center',
   },

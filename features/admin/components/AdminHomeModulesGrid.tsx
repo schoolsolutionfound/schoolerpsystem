@@ -1,9 +1,11 @@
 import React from 'react';
 import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
 
 export const AdminHomeModulesGrid: React.FC = () => {
+  const router = useRouter();
   return (
     <View style={styles.container}>
       <Text style={styles.sectionTitle}>Management Modules</Text>
@@ -46,6 +48,18 @@ export const AdminHomeModulesGrid: React.FC = () => {
           </View>
           <Text style={styles.moduleName}>Results & Grades</Text>
           <Text style={styles.moduleCount}>Term Exams</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.moduleItem}
+          onPress={() => router.push('/placement' as any)}
+          activeOpacity={0.8}
+        >
+          <View style={[styles.moduleIconBox, { backgroundColor: '#ECFDF5' }]}>
+            <MaterialCommunityIcons name="briefcase-check" size={26} color="#059669" />
+          </View>
+          <Text style={styles.moduleName}>Placements</Text>
+          <Text style={styles.moduleCount}>Drives & Offers</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.moduleItem} activeOpacity={0.8}>
