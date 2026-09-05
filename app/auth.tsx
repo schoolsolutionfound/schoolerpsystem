@@ -133,6 +133,14 @@ export default function AuthScreen() {
                 onSubmit={handleAuth}
                 loading={loading}
               />
+
+              {/* Security & Provisioning Note */}
+              <View style={styles.adminAccessBox}>
+                <MaterialCommunityIcons name="shield-lock-outline" size={16} color="#7E57C2" />
+                <Text style={styles.adminAccessText}>
+                  Self-registration is disabled. All login IDs & passwords are created and issued directly by your School Administrator.
+                </Text>
+              </View>
             </Animated.View>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -185,4 +193,22 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   demoChipText: { fontSize: 11, fontWeight: '700', color: '#334155' },
+  adminAccessBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#F3E8FF',
+    borderWidth: 1,
+    borderColor: '#E9D5FF',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 16,
+  },
+  adminAccessText: {
+    flex: 1,
+    fontSize: 11,
+    color: '#6B21A8',
+    fontWeight: '600',
+    lineHeight: 15,
+  },
 });
