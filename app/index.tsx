@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Animated, Dimensions, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, Animated, Dimensions, StatusBar, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -53,12 +53,12 @@ export default function AppSplashScreen() {
         toValue: 1,
         tension: 40,
         friction: 8,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       }),
       Animated.timing(logoOpacity, {
         toValue: 1,
         duration: 500,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       }),
     ]).start();
 
@@ -68,13 +68,13 @@ export default function AppSplashScreen() {
           toValue: 0.15,
           duration: 600,
           delay: icon.delay,
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== 'web',
         }),
         Animated.timing(iconTranslates[i], {
           toValue: 0,
           duration: 600,
           delay: icon.delay,
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== 'web',
         }),
       ]).start();
     });
@@ -83,12 +83,27 @@ export default function AppSplashScreen() {
       setAuthStateResolved(true);
     });
 
-    return () => unsubscribeAuth();
+    // Web-only fallback: resolve auth state after 1s if onAuthStateChanged hasn't fired.
+    // On mobile, Firebase always fires the callback, so this is unnecessary and harmful
+    // (it causes premature navigation on slow networks).
+    let webAuthTimeout: ReturnType<typeof setTimeout> | undefined;
+    if (Platform.OS === 'web') {
+      webAuthTimeout = setTimeout(() => {
+        setAuthStateResolved(true);
+      }, 1000);
+    }
+
+    return () => {
+      if (webAuthTimeout) clearTimeout(webAuthTimeout);
+      unsubscribeAuth();
+    };
   }, [_hasHydrated]);
 
   useEffect(() => {
     const user = auth.currentUser;
-    const isReadyToNavigate = authStateResolved && _hasHydrated && (!user || isProfileSynced);
+    const isReadyToNavigate = (authStateResolved || Platform.OS === 'web') && (_hasHydrated || Platform.OS === 'web') && (!user || isProfileSynced);
+
+    // Don't navigate until all preconditions are met
     if (!isReadyToNavigate) return;
 
     let finalRoute: any = '/auth';
@@ -97,7 +112,7 @@ export default function AppSplashScreen() {
       if (userRole === 'student' && !isEmailVerified) {
         finalRoute = '/verify-email';
       } else if (userRole === 'loading') {
-        return;
+        finalRoute = '/auth';
       } else {
         finalRoute = getHomeRouteForRole(userRole);
       }
@@ -105,17 +120,13 @@ export default function AppSplashScreen() {
       finalRoute = '/auth';
     }
 
-    const remaining = Math.max(0, 1800 - (Date.now() - startTimeRef.current));
-
-    const failsafe = setTimeout(() => {
-      if (!isReadyToNavigate) router.replace('/auth');
-    }, 8000);
+    const remaining = Platform.OS === 'web' ? 800 : Math.max(0, 1800 - (Date.now() - startTimeRef.current));
 
     const timer = setTimeout(() => {
       router.replace(finalRoute);
     }, remaining);
 
-    return () => { clearTimeout(timer); clearTimeout(failsafe); };
+    return () => { clearTimeout(timer); };
   }, [authStateResolved, isProfileSynced, _hasHydrated, userRole, isEmailVerified, router]);
 
   return (

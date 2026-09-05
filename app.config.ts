@@ -10,7 +10,7 @@ export default {
     "icon": "./assets/icon.png",
     "scheme": "schooerp",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "ios": {
       "buildNumber": "1",
       "supportsTablet": true,
@@ -35,10 +35,13 @@ export default {
       "output": "single",
       "favicon": "./assets/favicon.png"
     },
+    "updates": {
+      "enabled": false,
+      "checkAutomatically": "NEVER"
+    },
     "plugins": [
       "expo-router",
       "expo-asset",
-      "expo-updates",
       [
         "expo-splash-screen",
         {
@@ -61,10 +64,10 @@ export default {
         "expo-build-properties",
         {
           "android": {
-            "newArchEnabled": true
+            "newArchEnabled": false
           },
           "ios": {
-            "newArchEnabled": true
+            "newArchEnabled": false
           }
         }
       ]

@@ -29,15 +29,9 @@ export const secureStorage = {
     return AsyncStorage.getItem(key);
   },
   setItem: async (key: string, value: string): Promise<void> => {
-    if (Platform.OS === 'web') {
-      return AsyncStorage.setItem(key, value);
-    }
-    if (isSensitive(key)) {
-      try {
-        await SecureStore.setItemAsync(key, value);
-        return;
-      } catch {}
-    }
+    // Always use AsyncStorage for Zustand state blobs.
+    // SecureStore has a 2048-char limit per value which silently fails
+    // when the serialised Zustand JSON exceeds it on mobile.
     await AsyncStorage.setItem(key, value);
   },
   removeItem: async (key: string): Promise<void> => {
