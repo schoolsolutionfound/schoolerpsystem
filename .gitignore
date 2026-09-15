@@ -52,7 +52,8 @@ serviceAccountKey.json
 # logs
 *.log
 
-# markdown docs (not README)
+# markdown docs (not README/CHANGELOG)
 *.md
 !README.md
+!CHANGELOG.md
 !developer-console/README.md
