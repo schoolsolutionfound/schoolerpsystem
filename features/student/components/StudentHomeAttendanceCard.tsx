@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet, Text } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
+import { ShimmerSkeleton } from './ShimmerSkeleton';
 
 interface StudentHomeAttendanceCardProps {
   loading?: boolean;
@@ -21,40 +22,57 @@ export const StudentHomeAttendanceCard: React.FC<StudentHomeAttendanceCardProps>
   return (
     <View style={styles.gridRow}>
       {/* Attendance Card */}
-      <View style={[styles.gridCard, { backgroundColor: '#F0FDF4', borderColor: '#DCFCE7' }]}>
+      <View style={[styles.gridCard, styles.attendanceCard]}>
         <View style={styles.metricHeader}>
-          <Text style={styles.metricTitle}>Attendance</Text>
+          <Text style={[styles.metricTitle, { color: '#A0A0A0' }]}>Attendance</Text>
         </View>
         <View style={styles.attendanceGaugeWrap}>
-          <Text style={styles.metricValue}>{loading || pct === undefined ? '—' : `${pct}%`}</Text>
+          {loading ? (
+            <ShimmerSkeleton width={60} height={32} borderRadius={4} />
+          ) : (
+            <Text style={styles.metricValue}>{pct === undefined ? '—' : `${pct}%`}</Text>
+          )}
           <View style={styles.circleProgressRing}>
-            <MaterialCommunityIcons name="calendar-check" size={24} color="#16A34A" />
+            <MaterialCommunityIcons name="calendar-check" size={24} color="#F4C430" />
           </View>
         </View>
-        <Text style={styles.metricSub}>
-          {loading ? 'Loading…' : overall && overall.total > 0 ? `${overall.present} of ${overall.total} classes` : 'No classes marked yet'}
-        </Text>
+        {loading ? (
+          <ShimmerSkeleton width="70%" height={10} borderRadius={4} />
+        ) : (
+          <Text style={[styles.metricSub, { color: '#A0A0A0' }]}>
+            {overall && overall.total > 0 ? `${overall.present} of ${overall.total} classes` : 'No classes marked yet'}
+          </Text>
+        )}
       </View>
 
       {/* Current Period Card */}
-      <View style={[styles.gridCard, { backgroundColor: '#F5F3FF', borderColor: '#DDD6FE' }]}>
-        <Text style={styles.metricTitle}>Current Period</Text>
-        <Text style={styles.periodSubject}>
-          {currentSlot?.subject?.name || (loading ? '—' : 'No class now')}
-        </Text>
-        {currentSlot ? (
-          <Text style={styles.periodTime}>
-            {periodStart}
-            {periodEnd ? ` – ${periodEnd}` : ''}
-          </Text>
-        ) : (
-          <Text style={styles.periodTime}>{loading ? 'Loading…' : 'Free period'}</Text>
-        )}
-        {currentSlot?.room ? (
-          <View style={styles.roomTag}>
-            <Text style={styles.roomTagText}>Room {currentSlot.room}</Text>
+      <View style={[styles.gridCard, styles.periodCard]}>
+        <Text style={[styles.metricTitle, { color: '#1A1B1C' }]}>Current Period</Text>
+        {loading ? (
+          <View style={{ gap: 6, marginTop: 4 }}>
+            <ShimmerSkeleton width="80%" height={16} borderRadius={4} />
+            <ShimmerSkeleton width="50%" height={10} borderRadius={4} />
           </View>
-        ) : null}
+        ) : (
+          <>
+            <Text style={styles.periodSubject}>
+              {currentSlot?.subject?.name || 'No class now'}
+            </Text>
+            {currentSlot ? (
+              <Text style={styles.periodTime}>
+                {periodStart}
+                {periodEnd ? ` – ${periodEnd}` : ''}
+              </Text>
+            ) : (
+              <Text style={styles.periodTime}>Free period</Text>
+            )}
+            {currentSlot?.room ? (
+              <View style={styles.roomTag}>
+                <Text style={styles.roomTagText}>Room {currentSlot.room}</Text>
+              </View>
+            ) : null}
+          </>
+        )}
       </View>
     </View>
   );
@@ -69,28 +87,36 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 4,
   },
+  attendanceCard: {
+    backgroundColor: '#1A1B1C',
+    borderColor: '#2A2B2C',
+  },
+  periodCard: {
+    backgroundColor: '#F4C430',
+    borderColor: '#F4C430',
+  },
   metricHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  metricTitle: { fontSize: 12, fontWeight: '700', color: '#64748B' },
+  metricTitle: { fontSize: 12, fontWeight: '700' },
   attendanceGaugeWrap: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginVertical: 4 },
-  metricValue: { fontSize: 26, fontWeight: '800', color: '#16A34A' },
+  metricValue: { fontSize: 26, fontWeight: '800', color: '#F4C430' },
   circleProgressRing: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: 'rgba(244, 196, 48, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  metricSub: { fontSize: 11, color: '#A0AEC0' },
-  periodSubject: { fontSize: 16, fontWeight: '800', color: '#7E57C2', marginTop: 4 },
-  periodTime: { fontSize: 11, color: '#64748B' },
+  metricSub: { fontSize: 11 },
+  periodSubject: { fontSize: 16, fontWeight: '800', color: '#1A1B1C', marginTop: 4 },
+  periodTime: { fontSize: 11, color: '#1A1B1C', opacity: 0.7 },
   roomTag: {
-    backgroundColor: '#EDE9F6',
+    backgroundColor: 'rgba(26, 27, 28, 0.12)',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: BorderRadius.chip,
     alignSelf: 'flex-start',
     marginTop: 6,
   },
-  roomTagText: { fontSize: 11, fontWeight: '700', color: '#7E57C2' },
+  roomTagText: { fontSize: 11, fontWeight: '700', color: '#1A1B1C' },
 });

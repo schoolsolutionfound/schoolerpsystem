@@ -33,7 +33,7 @@ export const AttendanceReportsView: React.FC<AttendanceReportsViewProps> = ({ mo
   }, [load]);
 
   if (loading) {
-    return <View style={styles.centerBox}><ActivityIndicator size="large" color="#7E57C2" /></View>;
+    return <View style={styles.centerBox}><ActivityIndicator size="large" color="#F4C430" /></View>;
   }
 
   if (error) {
@@ -58,7 +58,7 @@ export const AttendanceReportsView: React.FC<AttendanceReportsViewProps> = ({ mo
 
       {sections.length === 0 ? (
         <View style={styles.emptyCard}>
-          <MaterialCommunityIcons name="chart-donut" size={40} color="#94A3B8" />
+          <MaterialCommunityIcons name="chart-donut" size={40} color="#6B6B6B" />
           <Text style={styles.emptyTitle}>No data yet</Text>
           <Text style={styles.emptySub}>Reports appear once attendance is recorded.</Text>
         </View>
@@ -101,21 +101,21 @@ export const AttendanceReportsView: React.FC<AttendanceReportsViewProps> = ({ mo
 const styles = StyleSheet.create({
   container: { padding: 16, paddingBottom: 40 },
   centerBox: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 80 },
-  title: { fontSize: 16, fontWeight: '800', color: '#1A202C', marginBottom: 12 },
+  title: { fontSize: 16, fontWeight: '800', color: '#171717', marginBottom: 12 },
   sectionCard: {
-    backgroundColor: '#FFFFFF', borderRadius: BorderRadius.card, borderWidth: 1, borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF', borderRadius: BorderRadius.card, borderWidth: 1, borderColor: '#E8E5DC',
     padding: 14, marginBottom: 10,
   },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 },
-  sectionName: { fontSize: 14, fontWeight: '700', color: '#1A202C' },
-  sectionMeta: { fontSize: 11, color: '#94A3B8', marginTop: 3 },
+  sectionName: { fontSize: 14, fontWeight: '700', color: '#171717' },
+  sectionMeta: { fontSize: 11, color: '#6B6B6B', marginTop: 3 },
   pctBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
   pctText: { fontSize: 14, fontWeight: '900' },
-  progressTrack: { height: 6, backgroundColor: '#F1F5F9', borderRadius: 3, marginTop: 10, overflow: 'hidden' },
+  progressTrack: { height: 6, backgroundColor: '#FFFDF7', borderRadius: 3, marginTop: 10, overflow: 'hidden' },
   progressFill: { height: 6, borderRadius: 3 },
   alertRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 },
   alertText: { fontSize: 11, color: '#DC2626', fontWeight: '600' },
-  emptyCard: { backgroundColor: '#FFFFFF', borderRadius: BorderRadius.card, padding: 26, alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0', marginTop: 20 },
-  emptyTitle: { fontSize: 15, fontWeight: '700', color: '#1A202C', marginTop: 8, textAlign: 'center' },
-  emptySub: { fontSize: 12, color: '#718096', textAlign: 'center', marginTop: 6, lineHeight: 16 },
+  emptyCard: { backgroundColor: '#FFFFFF', borderRadius: BorderRadius.card, padding: 26, alignItems: 'center', borderWidth: 1, borderColor: '#E8E5DC', marginTop: 20 },
+  emptyTitle: { fontSize: 15, fontWeight: '700', color: '#171717', marginTop: 8, textAlign: 'center' },
+  emptySub: { fontSize: 12, color: '#6B6B6B', textAlign: 'center', marginTop: 6, lineHeight: 16 },
 });

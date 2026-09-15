@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
+import { FontFamily } from '../../../constants/fonts';
 
 export interface AdminDashboardStats {
   institutionCode: string;
@@ -25,18 +26,27 @@ interface AdminDashboardViewProps {
 }
 
 export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ fullName, stats, onNavigateTab }) => {
-  const institutionCode = stats?.institutionCode || 'INSTITUTION';
+  const institutionCode = stats?.institutionCode || 'INST';
   const institutionName = stats?.institutionName || 'My Institution';
 
-  const modules: { key: AdminTab; icon: keyof typeof MaterialCommunityIcons.glyphMap; name: string; sub: string; bg: string; color: string }[] = [
-    { key: 'students', icon: 'account-school', name: 'Students', sub: `${stats?.students ?? 0} enrolled`, bg: '#EDE9F6', color: '#7E57C2' },
-    { key: 'teachers', icon: 'account-tie', name: 'Teachers', sub: `${stats?.teachers ?? 0} faculty`, bg: '#DCFCE7', color: '#16A34A' },
-    { key: 'users', icon: 'account-group', name: 'Users', sub: `${stats?.totalUsers ?? 0} accounts`, bg: '#E0F2FE', color: '#0284C7' },
-    { key: 'academics', icon: 'school', name: 'Academics', sub: `${stats?.classSections ?? 0} classes`, bg: '#FEF3C7', color: '#D97706' },
-    { key: 'timetable', icon: 'timetable', name: 'Timetable', sub: 'Build weekly schedules', bg: '#F3E8FF', color: '#7E57C2' },
-    { key: 'attendance', icon: 'calendar-check', name: 'Attendance', sub: 'Track & view classes', bg: '#DCFCE7', color: '#16A34A' },
-    { key: 'institution', icon: 'office-building', name: 'Institution', sub: 'Config & structure', bg: '#FCE7F3', color: '#DB2777' },
-    { key: 'profile', icon: 'account-circle', name: 'Profile', sub: 'Account settings', bg: '#F3E8FF', color: '#7E57C2' },
+  const statItems = [
+    { label: 'Students', value: stats?.students ?? 0, icon: 'account-school' as const, accent: '#F4C430', bg: '#FFF8E1' },
+    { label: 'Teachers', value: stats?.teachers ?? 0, icon: 'human-male-board' as const, accent: '#16A34A', bg: '#ECFDF5' },
+    { label: 'Classes', value: stats?.classSections ?? 0, icon: 'google-classroom' as const, accent: '#6366F1', bg: '#EEF2FF' },
+    { label: 'Subjects', value: stats?.subjects ?? 0, icon: 'book-open-page-variant' as const, accent: '#D97706', bg: '#FFFBEB' },
+    { label: 'Users', value: stats?.totalUsers ?? 0, icon: 'account-group' as const, accent: '#DB2777', bg: '#FDF2F8' },
+    { label: 'Sessions', value: stats?.attendanceSessions ?? 0, icon: 'calendar-check' as const, accent: '#0891B2', bg: '#ECFEFF' },
+  ];
+
+  const modules: { key: AdminTab; icon: keyof typeof MaterialCommunityIcons.glyphMap; name: string; count: string; accent: string; bg: string }[] = [
+    { key: 'students', icon: 'account-school', name: 'Students', count: `${stats?.students ?? 0} enrolled`, accent: '#F4C430', bg: '#FFF8E1' },
+    { key: 'teachers', icon: 'human-male-board', name: 'Teachers', count: `${stats?.teachers ?? 0} faculty`, accent: '#16A34A', bg: '#ECFDF5' },
+    { key: 'users', icon: 'account-group', name: 'Users', count: `${stats?.totalUsers ?? 0} accounts`, accent: '#DB2777', bg: '#FDF2F8' },
+    { key: 'academics', icon: 'school', name: 'Academics', count: `${stats?.classSections ?? 0} classes`, accent: '#6366F1', bg: '#EEF2FF' },
+    { key: 'timetable', icon: 'timetable', name: 'Timetable', count: 'Weekly schedule', accent: '#D97706', bg: '#FFFBEB' },
+    { key: 'attendance', icon: 'calendar-check', name: 'Attendance', count: 'Track & report', accent: '#0891B2', bg: '#ECFEFF' },
+    { key: 'institution', icon: 'office-building', name: 'Institution', count: 'Config & setup', accent: '#8B5CF6', bg: '#F5F3FF' },
+    { key: 'profile', icon: 'cog', name: 'Settings', count: 'Account & prefs', accent: '#6B7280', bg: '#F9FAFB' },
   ];
 
   const openModule = (key: AdminTab) => {
@@ -48,251 +58,240 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ fullName
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Header Banner */}
-      <View style={styles.banner}>
-        <View style={styles.brandRow}>
-          <View style={styles.brandBadge}>
-            <MaterialCommunityIcons name="office-building" size={16} color="#7E57C2" />
-            <Text style={styles.brandBadgeText}>{institutionCode}</Text>
-          </View>
-          <View style={styles.subsBadge}>
-            <MaterialCommunityIcons name="shield-check" size={14} color="#16A34A" />
-            <Text style={styles.subsBadgeText}>{stats?.subscriptionStatus || 'active'}</Text>
-          </View>
-        </View>
-        <Text style={styles.welcomeText}>Welcome back, {fullName}</Text>
-        <Text style={styles.subText}>{institutionName} · Maintainer Dashboard</Text>
-      </View>
-
-      {/* Live Stats Grid */}
-      <View style={styles.statsGrid}>
-        <View style={styles.statCard}>
-          <View style={[styles.iconCircle, { backgroundColor: '#EDE7F6' }]}>
-            <MaterialCommunityIcons name="account-school" size={22} color="#7E57C2" />
-          </View>
-          <View style={styles.statTextContainer}>
-            <Text style={styles.statValue}>{stats?.students ?? 0}</Text>
-            <Text style={styles.statLabel}>Students</Text>
-          </View>
-        </View>
-
-        <View style={styles.statCard}>
-          <View style={[styles.iconCircle, { backgroundColor: '#DCFCE7' }]}>
-            <MaterialCommunityIcons name="account-tie" size={22} color="#16A34A" />
-          </View>
-          <View style={styles.statTextContainer}>
-            <Text style={styles.statValue}>{stats?.teachers ?? 0}</Text>
-            <Text style={styles.statLabel}>Teachers</Text>
-          </View>
-        </View>
-      </View>
-
-      <View style={styles.statsGrid}>
-        <View style={styles.statCard}>
-          <View style={[styles.iconCircle, { backgroundColor: '#E0F2FE' }]}>
-            <MaterialCommunityIcons name="school" size={22} color="#0284C7" />
-          </View>
-          <View style={styles.statTextContainer}>
-            <Text style={styles.statValue}>{stats?.classSections ?? 0}</Text>
-            <Text style={styles.statLabel}>Classes</Text>
-          </View>
-        </View>
-
-        <View style={styles.statCard}>
-          <View style={[styles.iconCircle, { backgroundColor: '#FEF3C7' }]}>
-            <MaterialCommunityIcons name="book-open-variant" size={22} color="#D97706" />
-          </View>
-          <View style={styles.statTextContainer}>
-            <Text style={styles.statValue}>{stats?.subjects ?? 0}</Text>
-            <Text style={styles.statLabel}>Subjects</Text>
-          </View>
-        </View>
-      </View>
-
-      <View style={styles.statsGrid}>
-        <View style={styles.statCard}>
-          <View style={[styles.iconCircle, { backgroundColor: '#FCE7F3' }]}>
-            <MaterialCommunityIcons name="account-group" size={22} color="#DB2777" />
-          </View>
-          <View style={styles.statTextContainer}>
-            <Text style={styles.statValue}>{stats?.totalUsers ?? 0}</Text>
-            <Text style={styles.statLabel}>Total Users</Text>
-          </View>
-        </View>
-
-        <View style={styles.statCard}>
-          <View style={[styles.iconCircle, { backgroundColor: '#E8EAF6' }]}>
-            <MaterialCommunityIcons name="calendar-check" size={22} color="#3949AB" />
-          </View>
-          <View style={styles.statTextContainer}>
-            <Text style={styles.statValue}>{stats?.attendanceSessions ?? 0}</Text>
-            <Text style={styles.statLabel}>Attendance</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Management Modules */}
-      <Text style={styles.sectionTitle}>Management Modules</Text>
-      <View style={styles.modulesGrid}>
-        {modules.map((m) => (
-          <TouchableOpacity key={m.key} style={styles.moduleItem} activeOpacity={0.8} onPress={() => openModule(m.key)}>
-            <View style={[styles.moduleIconBox, { backgroundColor: m.bg }]}>
-              <MaterialCommunityIcons name={m.icon} size={24} color={m.color} />
+    <ScrollView style={styles.scrollArea} contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      {/* Stats Strip */}
+      <View style={styles.statsSection}>
+        <Text style={styles.sectionLabel}>OVERVIEW</Text>
+        <View style={styles.statsGrid}>
+          {statItems.map((s, i) => (
+            <View key={i} style={styles.statCard}>
+              <View style={[styles.statAccent, { backgroundColor: s.accent }]} />
+              <View style={[styles.statIconWrap, { backgroundColor: s.bg }]}>
+                <MaterialCommunityIcons name={s.icon} size={18} color={s.accent} />
+              </View>
+              <Text style={styles.statValue}>{s.value}</Text>
+              <Text style={styles.statLabel}>{s.label}</Text>
             </View>
-            <View style={styles.moduleTextContainer}>
-              <Text style={styles.moduleName}>{m.name}</Text>
-              <Text style={styles.moduleCount} numberOfLines={1}>{m.sub}</Text>
+          ))}
+        </View>
+      </View>
+
+      {/* Quick Actions */}
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>QUICK ACTIONS</Text>
+        <View style={styles.actionsRow}>
+          <TouchableOpacity style={styles.actionBtn} activeOpacity={0.7} onPress={() => onNavigateTab('students')}>
+            <View style={[styles.actionIcon, { backgroundColor: '#FFF8E1' }]}>
+              <MaterialCommunityIcons name="account-plus" size={20} color="#F4C430" />
             </View>
+            <Text style={styles.actionText}>Add Student</Text>
           </TouchableOpacity>
-        ))}
+          <TouchableOpacity style={styles.actionBtn} activeOpacity={0.7} onPress={() => onNavigateTab('teachers')}>
+            <View style={[styles.actionIcon, { backgroundColor: '#ECFDF5' }]}>
+              <MaterialCommunityIcons name="account-plus" size={20} color="#16A34A" />
+            </View>
+            <Text style={styles.actionText}>Add Teacher</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionBtn} activeOpacity={0.7} onPress={() => onNavigateTab('academics')}>
+            <View style={[styles.actionIcon, { backgroundColor: '#EEF2FF' }]}>
+              <MaterialCommunityIcons name="calendar-plus" size={20} color="#6366F1" />
+            </View>
+            <Text style={styles.actionText}>Timetable</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionBtn} activeOpacity={0.7} onPress={() => onNavigateTab('institution')}>
+            <View style={[styles.actionIcon, { backgroundColor: '#F5F3FF' }]}>
+              <MaterialCommunityIcons name="cog" size={20} color="#8B5CF6" />
+            </View>
+            <Text style={styles.actionText}>Setup</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* Onboarding Shortcuts */}
-      <Text style={styles.sectionTitle}>Setup Progress</Text>
-      <TouchableOpacity style={styles.actionCard} onPress={() => onNavigateTab('institution')}>
-        <View style={[styles.actionIconCircle, { backgroundColor: '#EDE7F6' }]}>
-          <MaterialCommunityIcons name="sitemap" size={24} color="#7E57C2" />
+      {/* Modules Grid */}
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>MODULES</Text>
+        <View style={styles.modulesGrid}>
+          {modules.map((m) => (
+            <TouchableOpacity key={m.key} style={styles.moduleCard} activeOpacity={0.7} onPress={() => openModule(m.key)}>
+              <View style={[styles.moduleIconWrap, { backgroundColor: m.bg }]}>
+                <MaterialCommunityIcons name={m.icon} size={22} color={m.accent} />
+              </View>
+              <Text style={styles.moduleName}>{m.name}</Text>
+              <Text style={styles.moduleCount}>{m.count}</Text>
+              <View style={[styles.moduleAccentLine, { backgroundColor: m.accent }]} />
+            </TouchableOpacity>
+          ))}
         </View>
-        <View style={styles.actionTextContainer}>
-          <Text style={styles.actionTitle}>1. Academic Structure</Text>
-          <Text style={styles.actionSubtitle}>Departments, Years, Courses, Sections</Text>
-        </View>
-        <MaterialCommunityIcons name="chevron-right" size={22} color="#94A3B8" />
-      </TouchableOpacity>
+      </View>
 
-      <TouchableOpacity style={styles.actionCard} onPress={() => onNavigateTab('students')}>
-        <View style={[styles.actionIconCircle, { backgroundColor: '#DCFCE7' }]}>
-          <MaterialCommunityIcons name="account-plus" size={24} color="#16A34A" />
+      {/* Setup Checklist */}
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>SETUP CHECKLIST</Text>
+        <View style={styles.checklistCard}>
+          {[
+            { step: '1', title: 'Academic Structure', sub: 'Departments, years, sections', done: (stats?.classSections ?? 0) > 0, tab: 'institution' as AdminTab, accent: '#F4C430' },
+            { step: '2', title: 'Add Students', sub: 'Register with USN & class', done: (stats?.students ?? 0) > 0, tab: 'students' as AdminTab, accent: '#16A34A' },
+            { step: '3', title: 'Add Teachers', sub: 'Faculty with departments', done: (stats?.teachers ?? 0) > 0, tab: 'teachers' as AdminTab, accent: '#6366F1' },
+            { step: '4', title: 'Build Timetable', sub: 'Classes, subjects & periods', done: false, tab: 'academics' as AdminTab, accent: '#D97706' },
+          ].map((item, i) => (
+            <TouchableOpacity key={i} style={styles.checkItem} activeOpacity={0.7} onPress={() => onNavigateTab(item.tab)}>
+              <View style={[styles.checkStep, item.done ? { backgroundColor: item.accent } : { borderColor: '#D1D5DB' }]}>
+                {item.done ? (
+                  <MaterialCommunityIcons name="check" size={14} color="#FFFFFF" />
+                ) : (
+                  <Text style={[styles.checkStepNum, { color: '#9CA3AF' }]}>{item.step}</Text>
+                )}
+              </View>
+              <View style={styles.checkTextWrap}>
+                <Text style={[styles.checkTitle, item.done && { color: '#6B7280' }]}>{item.title}</Text>
+                <Text style={styles.checkSub}>{item.sub}</Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={18} color="#D1D5DB" />
+            </TouchableOpacity>
+          ))}
         </View>
-        <View style={styles.actionTextContainer}>
-          <Text style={styles.actionTitle}>2. Onboard Students</Text>
-          <Text style={styles.actionSubtitle}>Register students with USN, Department & Year</Text>
-        </View>
-        <MaterialCommunityIcons name="chevron-right" size={22} color="#94A3B8" />
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.actionCard} onPress={() => onNavigateTab('teachers')}>
-        <View style={[styles.actionIconCircle, { backgroundColor: '#FEF3C7' }]}>
-          <MaterialCommunityIcons name="account-tie" size={24} color="#D97706" />
-        </View>
-        <View style={styles.actionTextContainer}>
-          <Text style={styles.actionTitle}>3. Onboard Teachers</Text>
-          <Text style={styles.actionSubtitle}>Register faculty with Employee ID & Department</Text>
-        </View>
-        <MaterialCommunityIcons name="chevron-right" size={22} color="#94A3B8" />
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.actionCard} onPress={() => onNavigateTab('academics')}>
-        <View style={[styles.actionIconCircle, { backgroundColor: '#E0F2FE' }]}>
-          <MaterialCommunityIcons name="calendar-range" size={24} color="#0284C7" />
-        </View>
-        <View style={styles.actionTextContainer}>
-          <Text style={styles.actionTitle}>4. Build Timetable</Text>
-          <Text style={styles.actionSubtitle}>Classes, Subjects, Periods, Timetable & Attendance</Text>
-        </View>
-        <MaterialCommunityIcons name="chevron-right" size={22} color="#94A3B8" />
-      </TouchableOpacity>
+      </View>
     </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { padding: 16, gap: 14, paddingBottom: 40 },
-  banner: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.card,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+  scrollArea: { flex: 1 },
+  container: { flexGrow: 1, backgroundColor: '#FFFEFE', paddingBottom: 40 },
+
+  // Sections
+  section: { paddingHorizontal: 20, marginTop: 24 },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#6B6B6B',
+    letterSpacing: 1.2,
+    marginBottom: 12,
+    paddingHorizontal: 20,
   },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-  brandBadge: {
+
+  // Stats
+  statsSection: { marginTop: 24 },
+  statsGrid: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#EDE7F6',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: BorderRadius.chip,
+    flexWrap: 'wrap',
+    gap: 10,
+    paddingHorizontal: 20,
   },
-  brandBadgeText: { fontSize: 11, fontWeight: '800', color: '#7E57C2' },
-  subsBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#F0FDF4',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: BorderRadius.chip,
-  },
-  subsBadgeText: { fontSize: 11, fontWeight: '700', color: '#16A34A', textTransform: 'capitalize' },
-  welcomeText: { fontSize: 20, fontWeight: '800', color: '#1A202C' },
-  subText: { fontSize: 13, color: '#718096', marginTop: 4, lineHeight: 18 },
-  statsGrid: { flexDirection: 'row', gap: 10 },
   statCard: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.card,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  iconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statTextContainer: { flexShrink: 1 },
-  statValue: { fontSize: 20, fontWeight: '800', color: '#1A202C' },
-  statLabel: { fontSize: 11, color: '#718096', fontWeight: '500', marginTop: 2 },
-  sectionTitle: { fontSize: 15, fontWeight: '800', color: '#1A202C', marginTop: 6 },
-  modulesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  moduleItem: {
-    width: '48%',
+    width: '31%',
     backgroundColor: '#FFFFFF',
     borderRadius: BorderRadius.card,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    flexDirection: 'row',
+    borderColor: '#E8E5DC',
+    overflow: 'hidden',
+  },
+  statAccent: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: 3,
+    height: '100%',
+    borderTopLeftRadius: 14,
+    borderBottomLeftRadius: 14,
+  },
+  statIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  statValue: { fontSize: 22, fontWeight: '800', color: '#1A1B1C', fontFamily: FontFamily.extrabold },
+  statLabel: { fontSize: 11, color: '#6B6B6B', marginTop: 2, fontFamily: FontFamily.medium },
+
+  // Quick Actions
+  actionsRow: {
+    flexDirection: 'row',
     gap: 10,
   },
-  moduleIconBox: {
-    width: 46,
-    height: 46,
-    borderRadius: 12,
-    justifyContent: 'center',
+  actionBtn: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.card,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
     alignItems: 'center',
+    gap: 8,
   },
-  moduleTextContainer: { flex: 1 },
-  moduleName: { fontSize: 14, fontWeight: '700', color: '#1E293B' },
-  moduleCount: { fontSize: 12, color: '#64748B', marginTop: 2 },
-  actionCard: {
+  actionIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionText: { fontSize: 11, fontWeight: '600', color: '#1A1B1C', fontFamily: FontFamily.semibold },
+
+  // Modules
+  modulesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  moduleCard: {
+    width: '47%',
     backgroundColor: '#FFFFFF',
     borderRadius: BorderRadius.card,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
+    overflow: 'hidden',
+  },
+  moduleIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  moduleName: { fontSize: 14, fontWeight: '700', color: '#1A1B1C', fontFamily: FontFamily.bold },
+  moduleCount: { fontSize: 12, color: '#6B6B6B', marginTop: 3, fontFamily: FontFamily.regular },
+  moduleAccentLine: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    width: '100%',
+    height: 3,
+    borderBottomLeftRadius: 14,
+    borderBottomRightRadius: 14,
+  },
+
+  // Checklist
+  checklistCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.card,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    overflow: 'hidden',
+  },
+  checkItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F1EA',
   },
-  actionIconCircle: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+  checkStep: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  actionTextContainer: { flex: 1, gap: 2 },
-  actionTitle: { fontSize: 15, fontWeight: '700', color: '#1A202C' },
-  actionSubtitle: { fontSize: 12, color: '#718096', lineHeight: 16 },
+  checkStepNum: { fontSize: 12, fontWeight: '700', fontFamily: FontFamily.bold, color: '#9CA3AF' },
+  checkTextWrap: { flex: 1 },
+  checkTitle: { fontSize: 14, fontWeight: '600', color: '#1A1B1C', fontFamily: FontFamily.semibold },
+  checkSub: { fontSize: 12, color: '#6B6B6B', marginTop: 2, fontFamily: FontFamily.regular },
 });

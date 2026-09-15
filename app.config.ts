@@ -25,8 +25,8 @@ export default {
       "versionCode": 1,
       "package": "com.schooerp.app",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#1E3A5F"
+        "foregroundImage": "./assets/logo-transparent.png",
+        "backgroundColor": "#171717"
       },
       "edgeToEdgeEnabled": true
     },
@@ -42,8 +42,8 @@ export default {
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#F8F9FB",
-          "image": "./assets/splash-icon.png",
+          "backgroundColor": "#FFFEFE",
+          "image": "./assets/logo-transparent.png",
           "imageWidth": 200,
           "resizeMode": "contain"
         }
@@ -54,7 +54,7 @@ export default {
       [
         "expo-notifications",
         {
-          "color": "#1E3A5F"
+          "color": "#171717"
         }
       ],
       [

@@ -10,6 +10,7 @@ const ROLE_ROUTES: Record<string, string> = {
   accountant: '/(accountant)/home',
   hod: '/(hod)/home',
   librarian: '/(librarian)/home',
+  driver: '/(driver)/home',
 };
 
 const ROLE_GROUP: Record<string, string> = {
@@ -24,6 +25,7 @@ const ROLE_GROUP: Record<string, string> = {
   accountant: '/(accountant)',
   hod: '/(hod)',
   librarian: '/(librarian)',
+  driver: '/(driver)',
 };
 
 const SHARED_ROUTES = [

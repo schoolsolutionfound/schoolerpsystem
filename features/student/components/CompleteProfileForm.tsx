@@ -52,7 +52,7 @@ export const CompleteProfileForm: React.FC<CompleteProfileFormProps> = ({
           <Text style={styles.inputLabel}>First Name</Text>
           <View style={styles.readOnlyWrapper}>
             <Text style={styles.readOnlyText}>{firstName}</Text>
-            <MaterialCommunityIcons name="lock-outline" size={18} color="#A0AEC0" />
+            <MaterialCommunityIcons name="lock-outline" size={18} color="#6B6B6B" />
           </View>
           <Text style={styles.helperText}>Imported from college records</Text>
         </View>
@@ -61,7 +61,7 @@ export const CompleteProfileForm: React.FC<CompleteProfileFormProps> = ({
           <Text style={styles.inputLabel}>Last Name</Text>
           <View style={styles.readOnlyWrapper}>
             <Text style={styles.readOnlyText}>{lastName}</Text>
-            <MaterialCommunityIcons name="lock-outline" size={18} color="#A0AEC0" />
+            <MaterialCommunityIcons name="lock-outline" size={18} color="#6B6B6B" />
           </View>
           <Text style={styles.helperText}>Imported from college records</Text>
         </View>
@@ -70,7 +70,7 @@ export const CompleteProfileForm: React.FC<CompleteProfileFormProps> = ({
           <Text style={styles.inputLabel}>Email</Text>
           <View style={styles.readOnlyWrapper}>
             <Text style={styles.readOnlyText}>{email}</Text>
-            <MaterialCommunityIcons name="lock-outline" size={18} color="#A0AEC0" />
+            <MaterialCommunityIcons name="lock-outline" size={18} color="#6B6B6B" />
           </View>
           <Text style={styles.helperText}>Imported from college records</Text>
         </View>
@@ -79,7 +79,7 @@ export const CompleteProfileForm: React.FC<CompleteProfileFormProps> = ({
           <Text style={styles.inputLabel}>USN / Roll No.</Text>
           <View style={styles.readOnlyWrapper}>
             <Text style={styles.readOnlyText}>{rollNoOrUSN}</Text>
-            <MaterialCommunityIcons name="lock-outline" size={18} color="#A0AEC0" />
+            <MaterialCommunityIcons name="lock-outline" size={18} color="#6B6B6B" />
           </View>
           <Text style={styles.helperText}>Imported from college records</Text>
         </View>
@@ -92,11 +92,11 @@ export const CompleteProfileForm: React.FC<CompleteProfileFormProps> = ({
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>Student Phone Number</Text>
           <View style={styles.inputWrapper}>
-            <MaterialCommunityIcons name="phone-outline" size={18} color="#7E57C2" style={styles.iconPrefix} />
+            <MaterialCommunityIcons name="phone-outline" size={18} color="#F4C430" style={styles.iconPrefix} />
             <TextInput
               style={styles.input}
               placeholder="Enter phone"
-              placeholderTextColor="#A0AEC0"
+              placeholderTextColor="#6B6B6B"
               keyboardType="phone-pad"
               value={phone}
               onChangeText={setPhone}
@@ -107,11 +107,11 @@ export const CompleteProfileForm: React.FC<CompleteProfileFormProps> = ({
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>Parent / Guardian Phone Number *</Text>
           <View style={styles.inputWrapper}>
-            <MaterialCommunityIcons name="phone-outline" size={18} color="#7E57C2" style={styles.iconPrefix} />
+            <MaterialCommunityIcons name="phone-outline" size={18} color="#F4C430" style={styles.iconPrefix} />
             <TextInput
               style={styles.input}
               placeholder="Enter parent's phone"
-              placeholderTextColor="#A0AEC0"
+              placeholderTextColor="#6B6B6B"
               keyboardType="phone-pad"
               value={parentPhone}
               onChangeText={setParentPhone}
@@ -126,7 +126,7 @@ export const CompleteProfileForm: React.FC<CompleteProfileFormProps> = ({
               <Image source={{ uri: profilePicUri }} style={styles.previewImage} />
             ) : (
               <>
-                <MaterialCommunityIcons name="camera-plus-outline" size={28} color="#7E57C2" />
+                <MaterialCommunityIcons name="camera-plus-outline" size={28} color="#F4C430" />
                 <Text style={styles.uploadText}>Upload Photo</Text>
               </>
             )}
@@ -140,7 +140,7 @@ export const CompleteProfileForm: React.FC<CompleteProfileFormProps> = ({
               <TextInput
                 style={styles.singleInput}
                 placeholder="e.g. 85.5"
-                placeholderTextColor="#A0AEC0"
+                placeholderTextColor="#6B6B6B"
                 keyboardType="numeric"
                 value={tenthPercentage}
                 onChangeText={setTenthPercentage}
@@ -152,7 +152,7 @@ export const CompleteProfileForm: React.FC<CompleteProfileFormProps> = ({
               <TextInput
                 style={styles.singleInput}
                 placeholder="e.g. 88.0"
-                placeholderTextColor="#A0AEC0"
+                placeholderTextColor="#6B6B6B"
                 keyboardType="numeric"
                 value={twelfthPercentage}
                 onChangeText={setTwelfthPercentage}
@@ -180,63 +180,63 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.card,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
     gap: 12,
   },
-  sectionHeaderTitle: { fontSize: 14, fontWeight: '700', color: '#1A202C', marginBottom: 2 },
+  sectionHeaderTitle: { fontSize: 14, fontWeight: '700', color: '#171717', marginBottom: 2 },
   inputGroup: { gap: 4 },
-  inputLabel: { fontSize: 12, fontWeight: '600', color: '#4A5568' },
+  inputLabel: { fontSize: 12, fontWeight: '600', color: '#6B6B6B' },
   readOnlyWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#F8F9FB',
+    backgroundColor: '#FFFEFE',
     borderRadius: BorderRadius.input,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
     paddingHorizontal: 12,
     height: 44,
   },
-  readOnlyText: { fontSize: 13, color: '#718096', fontWeight: '500' },
-  helperText: { fontSize: 11, color: '#A0AEC0' },
+  readOnlyText: { fontSize: 13, color: '#6B6B6B', fontWeight: '500' },
+  helperText: { fontSize: 11, color: '#6B6B6B' },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderRadius: BorderRadius.input,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
     paddingHorizontal: 12,
     height: 44,
   },
   iconPrefix: { marginRight: 8 },
-  input: { flex: 1, fontSize: 13, color: '#1A202C' },
+  input: { flex: 1, fontSize: 13, color: '#171717' },
   singleInput: {
     backgroundColor: '#FFFFFF',
     borderRadius: BorderRadius.input,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
     paddingHorizontal: 12,
     height: 44,
     fontSize: 13,
-    color: '#1A202C',
+    color: '#171717',
   },
   photoUploadBox: {
     height: 90,
-    backgroundColor: '#F8F9FB',
+    backgroundColor: '#FFFEFE',
     borderRadius: BorderRadius.card,
     borderWidth: 1.5,
-    borderColor: '#C7D2FE',
+    borderColor: '#FFF4C7',
     borderStyle: 'dashed',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 4,
     overflow: 'hidden',
   },
-  uploadText: { fontSize: 12, color: '#7E57C2', fontWeight: '600' },
+  uploadText: { fontSize: 12, color: '#F4C430', fontWeight: '600' },
   previewImage: { width: '100%', height: '100%', resizeMode: 'cover' },
   saveBtn: {
-    backgroundColor: '#7E57C2',
+    backgroundColor: '#F4C430',
     borderRadius: BorderRadius.button,
     paddingVertical: 14,
     alignItems: 'center',

@@ -17,7 +17,7 @@ export const AdminHomeHeader: React.FC<AdminHomeHeaderProps> = ({
     <View style={styles.headerRow}>
       <View style={styles.userInfo}>
         <View style={styles.adminAvatar}>
-          <MaterialCommunityIcons name="shield-crown" size={26} color="#7E57C2" />
+          <MaterialCommunityIcons name="shield-crown" size={26} color="#F4C430" />
         </View>
         <View>
           <Text style={styles.greetingText}>Welcome, {fullName} 👋</Text>
@@ -26,7 +26,7 @@ export const AdminHomeHeader: React.FC<AdminHomeHeaderProps> = ({
       </View>
 
       <TouchableOpacity style={styles.iconBtn} onPress={onNotificationsPress}>
-        <Feather name="bell" size={20} color="#1A202C" />
+        <Feather name="bell" size={20} color="#171717" />
         <View style={styles.dotBadge} />
       </TouchableOpacity>
     </View>
@@ -46,12 +46,12 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#EDE9F6',
+    backgroundColor: '#FFF4C7',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  greetingText: { fontSize: 18, fontWeight: '800', color: '#1A202C' },
-  schoolNameText: { fontSize: 12, color: '#718096', marginTop: 2 },
+  greetingText: { fontSize: 18, fontWeight: '800', color: '#171717' },
+  schoolNameText: { fontSize: 12, color: '#6B6B6B', marginTop: 2 },
   iconBtn: {
     width: 40,
     height: 40,
@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
   },
   dotBadge: {
     position: 'absolute',

@@ -34,7 +34,7 @@ export function ProtectedRoute({ children, role }: ProtectedRouteProps) {
   if (checking || !isProfileSynced || userRole === 'loading') {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#7E57C2" />
+        <ActivityIndicator size="large" color="#F4C430" />
         <Text style={styles.loadingText}>Verifying access...</Text>
       </View>
     );
@@ -48,12 +48,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F8F9FB',
+    backgroundColor: '#FFFDF7',
     gap: 12,
   },
   loadingText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#7E57C2',
+    color: '#F4C430',
   },
 });

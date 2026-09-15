@@ -2,6 +2,7 @@ import { authRepository, IAuthRepository } from './auth.repository.js';
 import { admin, isFirebaseAdminInitialized } from '../shared/config/firebase.js';
 import { AuthenticatedUser } from '../shared/middleware/auth.js';
 import { institutionService } from '../institutions/institution.service.js';
+import { dbFindStudentByUsnInInstitution } from '../shared/db/index.js';
 
 function parseScope(val: any): Record<string, any> {
   if (!val) return {};
@@ -54,7 +55,22 @@ export class AuthService {
       profileCompleted: user.profileCompleted,
       designation: user.title || '',
       ...parseScope(user.scope),
+      ...await this.resolveParentChild(user),
     };
+  }
+
+  private async resolveParentChild(user: any): Promise<Record<string, any>> {
+    if (user.role?.toLowerCase() !== 'parent') return {};
+    const scope = parseScope(user.scope);
+    const linkedUsn = scope.linkedStudentUSN || '';
+    if (!linkedUsn) return {};
+    try {
+      const student = await dbFindStudentByUsnInInstitution(user.institutionCode || '', linkedUsn);
+      if (!student) return {};
+      return { childId: student.id, childName: student.fullName || '' };
+    } catch {
+      return {};
+    }
   }
 
   public async logout(currentUser: AuthenticatedUser) {

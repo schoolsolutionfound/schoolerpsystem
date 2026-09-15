@@ -23,8 +23,10 @@ export interface InMemoryUser {
   tenthPercentage?: string;
   twelfthPercentage?: string;
   title?: string;
+  department?: string;
   scope?: string;
   permissions?: string;
+  graduatedAt?: Date | string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -136,8 +138,10 @@ function mapUserRow(row: schema.UserRecord): InMemoryUser {
     tenthPercentage: row.tenthPercentage || '',
     twelfthPercentage: row.twelfthPercentage || '',
     title: row.title || '',
+    department: (row as any).department || '',
     scope: safeJsonStringify(row.scope, '{}'),
     permissions: safeJsonStringify(row.permissions, '[]'),
+    graduatedAt: (row as any).graduatedAt || undefined,
     createdAt: row.createdAt || new Date(),
     updatedAt: row.updatedAt || new Date(),
   };
@@ -279,6 +283,42 @@ export async function dbFindAdminsByInstitutionCode(
   return inMemoryUserStore.getAll().filter(
     (u) => u.institutionCode === institutionCode && (u.role === 'admin' || u.role === 'institution admin')
   ).slice(offset, offset + limit);
+}
+
+/**
+ * Resolve a student's currently-active class_section_id.
+ *
+ * Prefers the canonical `student_classes` table (new), falls back to the
+ * legacy `users.scope->>'classSectionId'` field for users who were enrolled
+ * before the migration.
+ */
+export async function dbFindStudentClassSectionId(studentId: string): Promise<string | undefined> {
+  if (db) {
+    try {
+      const rows = await db
+        .select({ classSectionId: schema.studentClasses.classSectionId })
+        .from(schema.studentClasses)
+        .where(
+          and(
+            eq(schema.studentClasses.studentId, studentId),
+            eq(schema.studentClasses.isActive, true)
+          )
+        )
+        .limit(1);
+      if (rows.length > 0) return rows[0].classSectionId;
+    } catch (err: any) {
+      console.warn('[PostgreSQL Drizzle Warning] dbFindStudentClassSectionId query failed:', err.message);
+    }
+  }
+  // Fallback: legacy scope field
+  const user = await dbFindUserByIdOrUid(studentId);
+  if (!user) return undefined;
+  let scope: any = (user as any).scope || {};
+  if (typeof scope === 'string') {
+    try { scope = JSON.parse(scope); } catch { /* ignore */ }
+  }
+  const fromScope = scope?.classSectionId;
+  return typeof fromScope === 'string' && fromScope.length > 0 ? fromScope : undefined;
 }
 
 /**
@@ -584,6 +624,47 @@ export async function dbUpsertUser(user: Partial<InMemoryUser> & { firebaseUid: 
     invalidateCachedAuth(fallback.firebaseUid);
     return fallback;
   }
+}
+
+export async function dbUpdateUser(id: string, fields: Partial<InMemoryUser>): Promise<InMemoryUser | undefined> {
+  if (db) {
+    try {
+      const updateData: Record<string, any> = {};
+      if (fields.email !== undefined) updateData.email = fields.email;
+      if (fields.fullName !== undefined) updateData.fullName = fields.fullName;
+      if (fields.role !== undefined) updateData.role = fields.role;
+      if (fields.title !== undefined) updateData.title = fields.title;
+      if (fields.phone !== undefined) updateData.phone = fields.phone;
+      if (fields.parentPhone !== undefined) updateData.parentPhone = fields.parentPhone;
+      if (fields.rollNoOrUSN !== undefined) updateData.rollNoOrUSN = fields.rollNoOrUSN;
+      if (fields.department !== undefined) updateData.department = fields.department;
+      if (fields.scope !== undefined) updateData.scope = fields.scope;
+      if (fields.permissions !== undefined) updateData.permissions = fields.permissions;
+      if (fields.profileCompleted !== undefined) updateData.profileCompleted = fields.profileCompleted;
+      if (fields.mustChangePassword !== undefined) updateData.mustChangePassword = fields.mustChangePassword;
+      if (fields.profilePicUrl !== undefined) updateData.profilePicUrl = fields.profilePicUrl;
+      if (fields.tenthPercentage !== undefined) updateData.tenthPercentage = fields.tenthPercentage;
+      if (fields.twelfthPercentage !== undefined) updateData.twelfthPercentage = fields.twelfthPercentage;
+      if (fields.graduatedAt !== undefined) updateData.graduatedAt = fields.graduatedAt;
+      updateData.updatedAt = new Date();
+
+      const updated = await db.update(schema.users).set(updateData).where(eq(schema.users.id, id)).returning();
+      if (updated.length > 0) {
+        invalidateCachedAuth(updated[0].firebaseUid);
+        return mapUserRow(updated[0]);
+      }
+      return undefined;
+    } catch (error: any) {
+      console.warn('[PostgreSQL Drizzle Warning] dbUpdateUser query failed:', error.message);
+    }
+  }
+  const fallback = inMemoryUserStore.getAll().find((u) => u.id === id);
+  if (fallback) {
+    Object.assign(fallback, fields, { updatedAt: new Date() });
+    invalidateCachedAuth(fallback.firebaseUid);
+    return fallback;
+  }
+  return undefined;
 }
 
 export async function dbDeleteUserById(id: string): Promise<boolean> {

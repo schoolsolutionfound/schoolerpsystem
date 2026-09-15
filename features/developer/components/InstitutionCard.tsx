@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: BorderRadius.profileImage,
-    backgroundColor: '#EDE7F6',
+    backgroundColor: '#FFF4C7',
     justifyContent: 'center',
     alignItems: 'center',
   },

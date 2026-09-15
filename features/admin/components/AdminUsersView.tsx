@@ -11,6 +11,7 @@ const SCHOOL_ROLES = [
   { key: 'parent', label: 'Parent', icon: 'account-multiple-outline' },
   { key: 'accountant', label: 'Accountant', icon: 'calculator-outline' },
   { key: 'librarian', label: 'Librarian', icon: 'book-outline' },
+  { key: 'driver', label: 'Driver', icon: 'bus' },
 ] as const;
 
 const COLLEGE_ROLES = [
@@ -21,6 +22,7 @@ const COLLEGE_ROLES = [
   { key: 'parent', label: 'Parent', icon: 'account-multiple-outline' },
   { key: 'accountant', label: 'Accountant', icon: 'calculator-outline' },
   { key: 'librarian', label: 'Librarian', icon: 'book-outline' },
+  { key: 'driver', label: 'Driver', icon: 'bus' },
 ] as const;
 
 interface UserItem {
@@ -52,6 +54,8 @@ interface AdminUsersViewProps {
     academicYear?: string;
     section?: string;
     title?: string;
+    vehicleNumber?: string;
+    licenseNumber?: string;
     password?: string;
   }) => Promise<void>;
 }
@@ -79,6 +83,8 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
   const [year, setYear] = useState(academicYears[0] || '');
   const [section, setSection] = useState(sections[0] || '');
   const [title, setTitle] = useState('');
+  const [vehicleNumber, setVehicleNumber] = useState('');
+  const [licenseNumber, setLicenseNumber] = useState('');
   const [password, setPassword] = useState('TempPass123!');
   const [submitting, setSubmitting] = useState(false);
 
@@ -112,6 +118,8 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
     setYear(academicYears[0] || '');
     setSection(sections[0] || '');
     setTitle('');
+    setVehicleNumber('');
+    setLicenseNumber('');
     setPassword('TempPass123!');
   };
 
@@ -135,6 +143,8 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
         academicYear: year || undefined,
         section: section || undefined,
         title: title || undefined,
+        vehicleNumber: role === 'driver' ? (vehicleNumber || undefined) : undefined,
+        licenseNumber: role === 'driver' ? (licenseNumber || undefined) : undefined,
         password: password || undefined,
       });
       setModalOpen(false);
@@ -149,37 +159,39 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
 
   const getAvatarBg = (role: string) => {
     const colors: Record<string, string> = {
-      admin: '#EDE7F6',
+      admin: '#FFF4C7',
       principal: '#FEF3C7',
       hod: '#FEF3C7',
-      teacher: '#E0F2FE',
-      student: '#EDE7F6',
+      teacher: '#FFFDF7',
+      student: '#FFF4C7',
       parent: '#DCFCE7',
-      accountant: '#FCE4EC',
-      librarian: '#F3E8FF',
+      accountant: '#FFF4C7',
+      librarian: '#FFF4C7',
+      driver: '#E0F2FE',
     };
-    return colors[role] || '#F1F5F9';
+    return colors[role] || '#FFFDF7';
   };
 
   const getRoleBadgeColor = (role: string) => {
     const colors: Record<string, string> = {
-      admin: '#7E57C2',
+      admin: '#F4C430',
       principal: '#D97706',
       hod: '#D97706',
-      teacher: '#0284C7',
-      student: '#7E57C2',
+      teacher: '#171717',
+      student: '#F4C430',
       parent: '#16A34A',
       accountant: '#DB2777',
-      librarian: '#9333EA',
+      librarian: '#F4C430',
+      driver: '#0EA5E9',
     };
-    return colors[role] || '#475569';
+    return colors[role] || '#6B6B6B';
   };
 
   return (
     <View style={styles.container}>
       <View style={styles.headerBar}>
         <View style={styles.searchBox}>
-          <MaterialCommunityIcons name="magnify" size={20} color="#94A3B8" />
+          <MaterialCommunityIcons name="magnify" size={20} color="#6B6B6B" />
           <TextInput
             style={styles.searchInput}
             placeholder="Search by name, email..."
@@ -217,7 +229,7 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
       <ScrollView contentContainerStyle={styles.listContainer} showsVerticalScrollIndicator={false}>
         {filteredUsers.length === 0 ? (
           <View style={styles.emptyCard}>
-            <MaterialCommunityIcons name="account-group-outline" size={40} color="#94A3B8" />
+            <MaterialCommunityIcons name="account-group-outline" size={40} color="#6B6B6B" />
             <Text style={styles.emptyTitle}>No Users Found</Text>
             <Text style={styles.emptySub}>
               {roleFilter !== 'all'
@@ -259,7 +271,7 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Create User</Text>
               <TouchableOpacity onPress={() => setModalOpen(false)}>
-                <MaterialCommunityIcons name="close" size={22} color="#64748B" />
+                <MaterialCommunityIcons name="close" size={22} color="#6B6B6B" />
               </TouchableOpacity>
             </View>
 
@@ -276,7 +288,7 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
                       <MaterialCommunityIcons
                         name={r.icon as any}
                         size={20}
-                        color={role === r.key ? '#7E57C2' : '#94A3B8'}
+                        color={role === r.key ? '#F4C430' : '#6B6B6B'}
                       />
                       <Text style={[styles.roleCardLabel, role === r.key && styles.roleCardLabelActive]}>
                         {r.label}
@@ -318,6 +330,19 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
                   <Text style={styles.label}>Employee ID</Text>
                   <TextInput style={styles.input} placeholder="EMP101" value={employeeId} onChangeText={setEmployeeId} />
                 </View>
+              )}
+
+              {role === 'driver' && (
+                <>
+                  <View style={styles.formGroup}>
+                    <Text style={styles.label}>Vehicle Number</Text>
+                    <TextInput style={styles.input} placeholder="KA01AB1234" value={vehicleNumber} onChangeText={setVehicleNumber} autoCapitalize="characters" />
+                  </View>
+                  <View style={styles.formGroup}>
+                    <Text style={styles.label}>License Number</Text>
+                    <TextInput style={styles.input} placeholder="KA-2023-0012345" value={licenseNumber} onChangeText={setLicenseNumber} autoCapitalize="characters" />
+                  </View>
+                </>
               )}
 
               {role !== 'student' && (
@@ -423,14 +448,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: BorderRadius.input,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
     paddingHorizontal: 12,
     height: 44,
     gap: 8,
   },
-  searchInput: { flex: 1, fontSize: 13, color: '#1A202C' },
+  searchInput: { flex: 1, fontSize: 13, color: '#171717' },
   addBtn: {
-    backgroundColor: '#7E57C2',
+    backgroundColor: '#F4C430',
     borderRadius: BorderRadius.button,
     paddingHorizontal: 16,
     height: 44,
@@ -445,11 +470,11 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.chip,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
     marginRight: 8,
   },
-  filterChipActive: { backgroundColor: '#7E57C2', borderColor: '#7E57C2' },
-  filterChipText: { fontSize: 12, fontWeight: '600', color: '#64748B' },
+  filterChipActive: { backgroundColor: '#F4C430', borderColor: '#F4C430' },
+  filterChipText: { fontSize: 12, fontWeight: '600', color: '#6B6B6B' },
   filterChipTextActive: { color: '#FFFFFF' },
   listContainer: { gap: 10, paddingBottom: 40 },
   emptyCard: {
@@ -458,17 +483,17 @@ const styles = StyleSheet.create({
     padding: 30,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
     marginTop: 20,
   },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: '#1A202C', marginTop: 10 },
-  emptySub: { fontSize: 12, color: '#718096', textAlign: 'center', marginTop: 4, lineHeight: 16 },
+  emptyTitle: { fontSize: 16, fontWeight: '700', color: '#171717', marginTop: 10 },
+  emptySub: { fontSize: 12, color: '#6B6B6B', textAlign: 'center', marginTop: 4, lineHeight: 16 },
   userCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: BorderRadius.card,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
@@ -482,21 +507,21 @@ const styles = StyleSheet.create({
   },
   avatarText: { fontSize: 14, fontWeight: '800' },
   userDetails: { flex: 1 },
-  userName: { fontSize: 15, fontWeight: '700', color: '#1A202C' },
-  userEmail: { fontSize: 12, color: '#718096', marginTop: 2 },
+  userName: { fontSize: 15, fontWeight: '700', color: '#171717' },
+  userEmail: { fontSize: 12, color: '#6B6B6B', marginTop: 2 },
   badgeRow: { flexDirection: 'row', gap: 6, marginTop: 6, flexWrap: 'wrap' },
   roleBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, fontSize: 10, fontWeight: '700' },
-  codeBadge: { backgroundColor: '#F1F5F9', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, fontSize: 10, fontWeight: '700', color: '#475569' },
-  deptBadge: { backgroundColor: '#EDE7F6', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, fontSize: 10, fontWeight: '700', color: '#7E57C2' },
+  codeBadge: { backgroundColor: '#FFFDF7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, fontSize: 10, fontWeight: '700', color: '#6B6B6B' },
+  deptBadge: { backgroundColor: '#FFF4C7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, fontSize: 10, fontWeight: '700', color: '#F4C430' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 20 },
   modalContent: { backgroundColor: '#FFFFFF', borderRadius: BorderRadius.modal, padding: 20, gap: 14 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  modalTitle: { fontSize: 17, fontWeight: '800', color: '#1A202C' },
+  modalTitle: { fontSize: 17, fontWeight: '800', color: '#171717' },
   formGroup: { gap: 4, marginBottom: 10 },
   formRow: { marginBottom: 0 },
-  label: { fontSize: 12, fontWeight: '700', color: '#1A202C' },
-  input: { height: 44, borderWidth: 1, borderColor: '#E2E8F0', borderRadius: BorderRadius.input, paddingHorizontal: 12, fontSize: 13, backgroundColor: '#F8F9FB' },
-  hintText: { fontSize: 11, color: '#718096', marginTop: 2 },
+  label: { fontSize: 12, fontWeight: '700', color: '#171717' },
+  input: { height: 44, borderWidth: 1, borderColor: '#E8E5DC', borderRadius: BorderRadius.input, paddingHorizontal: 12, fontSize: 13, backgroundColor: '#FFFDF7' },
+  hintText: { fontSize: 11, color: '#6B6B6B', marginTop: 2 },
   roleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   roleCard: {
     flexDirection: 'row',
@@ -506,20 +531,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: BorderRadius.button,
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
     backgroundColor: '#FFFFFF',
   },
-  roleCardActive: { borderColor: '#7E57C2', backgroundColor: '#FAF5FF' },
-  roleCardLabel: { fontSize: 12, fontWeight: '600', color: '#64748B' },
-  roleCardLabelActive: { color: '#7E57C2', fontWeight: '700' },
+  roleCardActive: { borderColor: '#F4C430', backgroundColor: '#FFF4C7' },
+  roleCardLabel: { fontSize: 12, fontWeight: '600', color: '#6B6B6B' },
+  roleCardLabelActive: { color: '#F4C430', fontWeight: '700' },
   chipRow: { flexDirection: 'row', gap: 8, paddingVertical: 4 },
-  chip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: BorderRadius.chip, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0' },
-  chipActive: { backgroundColor: '#7E57C2', borderColor: '#7E57C2' },
-  chipText: { fontSize: 12, fontWeight: '600', color: '#64748B' },
+  chip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: BorderRadius.chip, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E8E5DC' },
+  chipActive: { backgroundColor: '#F4C430', borderColor: '#F4C430' },
+  chipText: { fontSize: 12, fontWeight: '600', color: '#6B6B6B' },
   chipTextActive: { color: '#FFFFFF' },
   modalFooter: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 6 },
   cancelBtn: { height: 40, paddingHorizontal: 16, borderRadius: BorderRadius.button, justifyContent: 'center', alignItems: 'center' },
-  cancelText: { color: '#64748B', fontWeight: '700', fontSize: 13 },
-  submitBtn: { height: 40, paddingHorizontal: 20, backgroundColor: '#7E57C2', borderRadius: BorderRadius.button, justifyContent: 'center', alignItems: 'center' },
+  cancelText: { color: '#6B6B6B', fontWeight: '700', fontSize: 13 },
+  submitBtn: { height: 40, paddingHorizontal: 20, backgroundColor: '#F4C430', borderRadius: BorderRadius.button, justifyContent: 'center', alignItems: 'center' },
   submitText: { color: '#FFFFFF', fontWeight: '800', fontSize: 13 },
 });

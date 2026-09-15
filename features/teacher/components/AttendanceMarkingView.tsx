@@ -109,10 +109,10 @@ export const AttendanceMarkingView: React.FC<AttendanceMarkingViewProps> = ({ sl
       </View>
 
       {loading ? (
-        <View style={styles.centerBox}><ActivityIndicator size="large" color="#7E57C2" /></View>
+        <View style={styles.centerBox}><ActivityIndicator size="large" color="#F4C430" /></View>
       ) : roster.length === 0 ? (
         <View style={styles.emptyCard}>
-          <MaterialCommunityIcons name="account-group-outline" size={40} color="#94A3B8" />
+          <MaterialCommunityIcons name="account-group-outline" size={40} color="#6B6B6B" />
           <Text style={styles.emptyTitle}>No students in this class</Text>
           <Text style={styles.emptySub}>Add students to the matching class/section in the Admin Academics screen.</Text>
         </View>
@@ -175,10 +175,10 @@ export const AttendanceMarkingView: React.FC<AttendanceMarkingViewProps> = ({ sl
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { paddingHorizontal: 16, paddingVertical: 14, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
-  subject: { fontSize: 18, fontWeight: '800', color: '#1A202C' },
-  className: { fontSize: 13, color: '#718096', marginTop: 3 },
-  date: { fontSize: 12, color: '#7E57C2', fontWeight: '700', marginTop: 6 },
+  header: { paddingHorizontal: 16, paddingVertical: 14, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#E8E5DC' },
+  subject: { fontSize: 18, fontWeight: '800', color: '#171717' },
+  className: { fontSize: 13, color: '#6B6B6B', marginTop: 3 },
+  date: { fontSize: 12, color: '#F4C430', fontWeight: '700', marginTop: 6 },
   centerBox: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 60 },
   list: { padding: 16, paddingBottom: 20 },
   actionsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
@@ -189,20 +189,20 @@ const styles = StyleSheet.create({
   lockedBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FEF2F2', borderRadius: 8, padding: 10, marginBottom: 12 },
   lockedText: { fontSize: 12, color: '#DC2626', flex: 1 },
   studentRow: {
-    backgroundColor: '#FFFFFF', borderRadius: BorderRadius.card, borderWidth: 1, borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF', borderRadius: BorderRadius.card, borderWidth: 1, borderColor: '#E8E5DC',
     padding: 12, marginBottom: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
   },
   studentInfo: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
-  avatarCircle: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#EDE7F6', alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontSize: 12, fontWeight: '800', color: '#7E57C2' },
-  studentName: { fontSize: 13, fontWeight: '700', color: '#1A202C' },
-  studentRoll: { fontSize: 11, color: '#94A3B8', marginTop: 2 },
+  avatarCircle: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#FFF4C7', alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontSize: 12, fontWeight: '800', color: '#F4C430' },
+  studentName: { fontSize: 13, fontWeight: '700', color: '#171717' },
+  studentRoll: { fontSize: 11, color: '#6B6B6B', marginTop: 2 },
   statusPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16 },
   statusText: { fontSize: 11, fontWeight: '800' },
-  footer: { padding: 14, backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#E2E8F0' },
-  saveBtn: { backgroundColor: '#7E57C2', borderRadius: BorderRadius.button, height: 48, alignItems: 'center', justifyContent: 'center' },
+  footer: { padding: 14, backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#E8E5DC' },
+  saveBtn: { backgroundColor: '#F4C430', borderRadius: BorderRadius.button, height: 48, alignItems: 'center', justifyContent: 'center' },
   saveText: { color: '#FFFFFF', fontWeight: '800', fontSize: 14 },
-  emptyCard: { backgroundColor: '#FFFFFF', borderRadius: BorderRadius.card, padding: 30, alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0', margin: 16, marginTop: 40 },
-  emptyTitle: { fontSize: 15, fontWeight: '700', color: '#1A202C', marginTop: 8 },
-  emptySub: { fontSize: 12, color: '#718096', textAlign: 'center', marginTop: 4, lineHeight: 16 },
+  emptyCard: { backgroundColor: '#FFFFFF', borderRadius: BorderRadius.card, padding: 30, alignItems: 'center', borderWidth: 1, borderColor: '#E8E5DC', margin: 16, marginTop: 40 },
+  emptyTitle: { fontSize: 15, fontWeight: '700', color: '#171717', marginTop: 8 },
+  emptySub: { fontSize: 12, color: '#6B6B6B', textAlign: 'center', marginTop: 4, lineHeight: 16 },
 });

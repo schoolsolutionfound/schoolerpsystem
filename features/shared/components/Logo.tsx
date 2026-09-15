@@ -46,7 +46,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   iconCircle: {
-    backgroundColor: '#7E57C2',
+    backgroundColor: '#F4C430',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -55,15 +55,15 @@ const styles = StyleSheet.create({
   },
   title: {
     fontWeight: '800',
-    color: '#1A202C',
+    color: '#171717',
     letterSpacing: -0.5,
   },
   titleHighlight: {
-    color: '#7E57C2',
+    color: '#F4C430',
   },
   subtitle: {
     fontSize: 11,
-    color: '#718096',
+    color: '#6B6B6B',
     fontWeight: '500',
     marginTop: -2,
   },

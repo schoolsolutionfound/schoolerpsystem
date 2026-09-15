@@ -15,7 +15,7 @@ const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 function pctColor(pct?: number): string {
-  if (pct === undefined || pct === null) return '#E2E8F0';
+  if (pct === undefined || pct === null) return '#E8E5DC';
   if (pct >= 85) return '#16A34A';
   if (pct >= 60) return '#D97706';
   return '#DC2626';
@@ -101,7 +101,7 @@ export const AdminAttendanceView: React.FC<AdminAttendanceViewProps> = ({ classS
       <Text style={styles.sectionTitle}>Select Class / Section</Text>
       {classSections.length === 0 ? (
         <View style={styles.emptyCard}>
-          <MaterialCommunityIcons name="account-school-outline" size={40} color="#94A3B8" />
+          <MaterialCommunityIcons name="account-school-outline" size={40} color="#6B6B6B" />
           <Text style={styles.emptyTitle}>No classes yet</Text>
           <Text style={styles.emptySub}>Create a class/section first. Attendance appears once teachers mark classes.</Text>
         </View>
@@ -126,7 +126,7 @@ export const AdminAttendanceView: React.FC<AdminAttendanceViewProps> = ({ classS
                     <MaterialCommunityIcons
                       name={m === 'calendar' ? 'calendar-month' : m === 'students' ? 'account-multiple' : 'book-open-variant'}
                       size={15}
-                      color={mode === m ? '#7E57C2' : '#64748B'}
+                      color={mode === m ? '#F4C430' : '#6B6B6B'}
                     />
                     <Text style={[styles.modeChipText, mode === m && styles.modeChipTextActive]}>
                       {m === 'calendar' ? 'Calendar' : m === 'students' ? 'Students' : 'Subjects'}
@@ -137,11 +137,11 @@ export const AdminAttendanceView: React.FC<AdminAttendanceViewProps> = ({ classS
 
               <View style={styles.monthBar}>
                 <TouchableOpacity onPress={() => setMonthOffset((o) => o - 1)}>
-                  <MaterialCommunityIcons name="chevron-left" size={24} color="#7E57C2" />
+                  <MaterialCommunityIcons name="chevron-left" size={24} color="#F4C430" />
                 </TouchableOpacity>
                 <Text style={styles.monthTitle}>{MONTHS[month.getMonth()]} {month.getFullYear()}</Text>
                 <TouchableOpacity onPress={() => setMonthOffset((o) => o + 1)}>
-                  <MaterialCommunityIcons name="chevron-right" size={24} color="#7E57C2" />
+                  <MaterialCommunityIcons name="chevron-right" size={24} color="#F4C430" />
                 </TouchableOpacity>
               </View>
 
@@ -155,14 +155,14 @@ export const AdminAttendanceView: React.FC<AdminAttendanceViewProps> = ({ classS
                     <SummaryStat label="Present" value={summary.present} color="#16A34A" />
                     <SummaryStat label="Absent" value={summary.absent} color="#DC2626" />
                     <SummaryStat label="Late" value={summary.late} color="#D97706" />
-                    <SummaryStat label="Excused" value={summary.excused} color="#64748B" />
+                    <SummaryStat label="Excused" value={summary.excused} color="#6B6B6B" />
                   </View>
                 </View>
               ) : null}
 
               {loading ? (
                 <View style={styles.centerBox}>
-                  <ActivityIndicator size="large" color="#7E57C2" />
+                  <ActivityIndicator size="large" color="#F4C430" />
                 </View>
               ) : mode === 'calendar' ? (
                 <CalendarView cells={calendarCells} daysMap={daysMap} selectedDay={selectedDay} onSelectDay={setSelectedDay} />
@@ -228,7 +228,7 @@ function CalendarView({ cells, daysMap, selectedDay, onSelectDay }: any) {
           <LegendItem color="#16A34A" label="≥85%" />
           <LegendItem color="#D97706" label="60–84%" />
           <LegendItem color="#DC2626" label="<60%" />
-          <LegendItem color="#E2E8F0" label="No data" />
+          <LegendItem color="#E8E5DC" label="No data" />
         </View>
       </View>
 
@@ -274,7 +274,7 @@ function StudentsView({ students, total, loadingMore, onLoadMore }: any) {
       <Text style={styles.listMeta}>{total} students in this class</Text>
       {students.length === 0 ? (
         <View style={styles.emptyCard}>
-          <MaterialCommunityIcons name="account-multiple-outline" size={40} color="#94A3B8" />
+          <MaterialCommunityIcons name="account-multiple-outline" size={40} color="#6B6B6B" />
           <Text style={styles.emptyTitle}>No students enrolled</Text>
         </View>
       ) : (
@@ -310,7 +310,7 @@ function SubjectsView({ subjects }: any) {
     <View>
       {subjects.length === 0 ? (
         <View style={styles.emptyCard}>
-          <MaterialCommunityIcons name="book-open-variant" size={40} color="#94A3B8" />
+          <MaterialCommunityIcons name="book-open-variant" size={40} color="#6B6B6B" />
           <Text style={styles.emptyTitle}>No attendance recorded</Text>
           <Text style={styles.emptySub}>Once teachers mark classes, subject-wise attendance shows here.</Text>
         </View>
@@ -336,19 +336,19 @@ function SubjectsView({ subjects }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16, paddingBottom: 40 },
-  sectionTitle: { fontSize: 15, fontWeight: '800', color: '#1A202C', marginBottom: 10 },
+  sectionTitle: { fontSize: 15, fontWeight: '800', color: '#171717', marginBottom: 10 },
   chipRow: { gap: 8, paddingBottom: 4 },
   chip: {
     backgroundColor: '#FFFFFF',
     borderRadius: BorderRadius.button,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
     paddingHorizontal: 14,
     paddingVertical: 8,
     marginRight: 6,
   },
-  chipSelected: { backgroundColor: '#7E57C2', borderColor: '#7E57C2' },
-  chipText: { fontSize: 12, fontWeight: '700', color: '#64748B' },
+  chipSelected: { backgroundColor: '#F4C430', borderColor: '#F4C430' },
+  chipText: { fontSize: 12, fontWeight: '700', color: '#6B6B6B' },
   chipTextSelected: { color: '#FFFFFF' },
   modeRow: { flexDirection: 'row', gap: 8, marginTop: 14 },
   modeChip: {
@@ -358,13 +358,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: BorderRadius.button,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
     paddingHorizontal: 14,
     paddingVertical: 8,
   },
-  modeChipActive: { backgroundColor: '#EDE7F6', borderColor: '#7E57C2' },
-  modeChipText: { fontSize: 12, fontWeight: '700', color: '#64748B' },
-  modeChipTextActive: { color: '#7E57C2' },
+  modeChipActive: { backgroundColor: '#FFF4C7', borderColor: '#F4C430' },
+  modeChipText: { fontSize: 12, fontWeight: '700', color: '#6B6B6B' },
+  modeChipTextActive: { color: '#F4C430' },
   monthBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -373,35 +373,35 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     paddingHorizontal: 4,
   },
-  monthTitle: { fontSize: 15, fontWeight: '800', color: '#1A202C' },
+  monthTitle: { fontSize: 15, fontWeight: '800', color: '#171717' },
   summaryCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: BorderRadius.card,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
     marginBottom: 12,
   },
   summaryAvg: { alignItems: 'center' },
-  summaryAvgValue: { fontSize: 24, fontWeight: '900', color: '#7E57C2' },
-  summaryAvgLabel: { fontSize: 11, color: '#718096', marginTop: 2 },
+  summaryAvgValue: { fontSize: 24, fontWeight: '900', color: '#F4C430' },
+  summaryAvgLabel: { fontSize: 11, color: '#6B6B6B', marginTop: 2 },
   summaryStats: { flex: 1, flexDirection: 'row', justifyContent: 'space-around' },
   summaryStatItem: { alignItems: 'center' },
   summaryStatValue: { fontSize: 16, fontWeight: '800' },
-  summaryStatLabel: { fontSize: 10, color: '#94A3B8', marginTop: 2 },
+  summaryStatLabel: { fontSize: 10, color: '#6B6B6B', marginTop: 2 },
   centerBox: { justifyContent: 'center', alignItems: 'center', paddingVertical: 60 },
   calendarCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: BorderRadius.card,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
     padding: 12,
   },
   calWeekRow: { flexDirection: 'row', marginBottom: 6 },
-  calWeekLabel: { flex: 1, textAlign: 'center', fontSize: 10, fontWeight: '700', color: '#94A3B8' },
+  calWeekLabel: { flex: 1, textAlign: 'center', fontSize: 10, fontWeight: '700', color: '#6B6B6B' },
   calGrid: { flexDirection: 'row', flexWrap: 'wrap' },
   calCell: {
     width: `${100 / 7}%`,
@@ -410,35 +410,35 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 3,
   },
-  calCellSelected: { backgroundColor: '#EDE7F6', borderRadius: 8 },
-  calDayNum: { fontSize: 13, fontWeight: '600', color: '#1E293B' },
-  calDayToday: { color: '#7E57C2', fontWeight: '800' },
+  calCellSelected: { backgroundColor: '#FFF4C7', borderRadius: 8 },
+  calDayNum: { fontSize: 13, fontWeight: '600', color: '#171717' },
+  calDayToday: { color: '#F4C430', fontWeight: '800' },
   calDot: { width: 7, height: 7, borderRadius: 4 },
   legendRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10, paddingHorizontal: 6 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   legendDot: { width: 8, height: 8, borderRadius: 4 },
-  legendText: { fontSize: 10, color: '#64748B' },
+  legendText: { fontSize: 10, color: '#6B6B6B' },
   dayDetailCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: BorderRadius.card,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
     padding: 14,
     marginTop: 12,
     gap: 8,
   },
   dayDetailHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  dayDetailTitle: { fontSize: 14, fontWeight: '800', color: '#1A202C' },
+  dayDetailTitle: { fontSize: 14, fontWeight: '800', color: '#171717' },
   dayDetailPct: { fontSize: 18, fontWeight: '900' },
   dayDetailStats: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  dayDetailText: { fontSize: 12, color: '#475569', fontWeight: '600' },
-  dayDetailHint: { fontSize: 12, color: '#94A3B8', textAlign: 'center' },
-  listMeta: { fontSize: 12, color: '#718096', marginBottom: 10 },
+  dayDetailText: { fontSize: 12, color: '#6B6B6B', fontWeight: '600' },
+  dayDetailHint: { fontSize: 12, color: '#6B6B6B', textAlign: 'center' },
+  listMeta: { fontSize: 12, color: '#6B6B6B', marginBottom: 10 },
   studentCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: BorderRadius.card,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
     padding: 12,
     marginBottom: 8,
     flexDirection: 'row',
@@ -449,15 +449,15 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#EDE7F6',
+    backgroundColor: '#FFF4C7',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  studentAvatarText: { fontSize: 13, fontWeight: '800', color: '#7E57C2' },
+  studentAvatarText: { fontSize: 13, fontWeight: '800', color: '#F4C430' },
   studentInfo: { flex: 1, gap: 4 },
-  studentName: { fontSize: 14, fontWeight: '700', color: '#1A202C' },
-  studentSub: { fontSize: 11, color: '#718096' },
-  progressTrack: { height: 6, backgroundColor: '#F1F5F9', borderRadius: 3, overflow: 'hidden' },
+  studentName: { fontSize: 14, fontWeight: '700', color: '#171717' },
+  studentSub: { fontSize: 11, color: '#6B6B6B' },
+  progressTrack: { height: 6, backgroundColor: '#FFFDF7', borderRadius: 3, overflow: 'hidden' },
   progressFill: { height: 6, borderRadius: 3 },
   studentPct: { fontSize: 14, fontWeight: '800', width: 52, textAlign: 'right' },
   loadMoreBtn: {
@@ -465,33 +465,33 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: BorderRadius.button,
     borderWidth: 1,
-    borderColor: '#7E57C2',
+    borderColor: '#F4C430',
     height: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  loadMoreText: { fontSize: 13, fontWeight: '700', color: '#7E57C2' },
+  loadMoreText: { fontSize: 13, fontWeight: '700', color: '#F4C430' },
   subjectCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: BorderRadius.card,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
     padding: 14,
     marginBottom: 8,
   },
   subjectHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  subjectName: { fontSize: 14, fontWeight: '700', color: '#1A202C' },
+  subjectName: { fontSize: 14, fontWeight: '700', color: '#171717' },
   subjectPct: { fontSize: 14, fontWeight: '800' },
-  subjectDetail: { fontSize: 11, color: '#94A3B8', marginTop: 6 },
+  subjectDetail: { fontSize: 11, color: '#6B6B6B', marginTop: 6 },
   emptyCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: BorderRadius.card,
     padding: 30,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
     marginTop: 20,
   },
-  emptyTitle: { fontSize: 15, fontWeight: '700', color: '#1A202C', marginTop: 10 },
-  emptySub: { fontSize: 12, color: '#718096', textAlign: 'center', marginTop: 4, lineHeight: 16 },
+  emptyTitle: { fontSize: 15, fontWeight: '700', color: '#171717', marginTop: 10 },
+  emptySub: { fontSize: 12, color: '#6B6B6B', textAlign: 'center', marginTop: 4, lineHeight: 16 },
 });

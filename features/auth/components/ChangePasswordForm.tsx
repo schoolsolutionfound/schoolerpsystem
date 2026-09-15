@@ -51,13 +51,13 @@ export const ChangePasswordForm: React.FC<ChangePasswordFormProps> = ({
           <TextInput
             style={styles.passwordInput}
             placeholder="Enter new password"
-            placeholderTextColor="#A0AEC0"
+            placeholderTextColor="#6B6B6B"
             secureTextEntry={!showPassword1}
             value={newPassword}
             onChangeText={setNewPassword}
           />
           <TouchableOpacity onPress={() => setShowPassword1(!showPassword1)} style={styles.eyeBtn}>
-            <MaterialCommunityIcons name={showPassword1 ? 'eye-off-outline' : 'eye-outline'} size={20} color="#A0AEC0" />
+            <MaterialCommunityIcons name={showPassword1 ? 'eye-off-outline' : 'eye-outline'} size={20} color="#6B6B6B" />
           </TouchableOpacity>
         </View>
       </View>
@@ -69,13 +69,13 @@ export const ChangePasswordForm: React.FC<ChangePasswordFormProps> = ({
           <TextInput
             style={styles.passwordInput}
             placeholder="Confirm new password"
-            placeholderTextColor="#A0AEC0"
+            placeholderTextColor="#6B6B6B"
             secureTextEntry={!showPassword2}
             value={confirmPassword}
             onChangeText={setConfirmPassword}
           />
           <TouchableOpacity onPress={() => setShowPassword2(!showPassword2)} style={styles.eyeBtn}>
-            <MaterialCommunityIcons name={showPassword2 ? 'eye-off-outline' : 'eye-outline'} size={20} color="#A0AEC0" />
+            <MaterialCommunityIcons name={showPassword2 ? 'eye-off-outline' : 'eye-outline'} size={20} color="#6B6B6B" />
           </TouchableOpacity>
         </View>
       </View>
@@ -95,7 +95,7 @@ export const ChangePasswordForm: React.FC<ChangePasswordFormProps> = ({
       {/* Requirements Checklist */}
       <View style={styles.checklistCard}>
         <View style={styles.checklistHeader}>
-          <MaterialCommunityIcons name="shield-outline" size={16} color="#7E57C2" />
+          <MaterialCommunityIcons name="shield-outline" size={16} color="#F4C430" />
           <Text style={styles.checklistTitle}>Password must contain:</Text>
         </View>
 
@@ -103,7 +103,7 @@ export const ChangePasswordForm: React.FC<ChangePasswordFormProps> = ({
           <MaterialCommunityIcons
             name={hasMinLength ? 'check-circle' : 'circle-outline'}
             size={16}
-            color={hasMinLength ? '#7E57C2' : '#A0AEC0'}
+            color={hasMinLength ? '#F4C430' : '#6B6B6B'}
           />
           <Text style={[styles.checkItemText, hasMinLength && styles.checkItemActive]}>At least 8 characters</Text>
         </View>
@@ -112,7 +112,7 @@ export const ChangePasswordForm: React.FC<ChangePasswordFormProps> = ({
           <MaterialCommunityIcons
             name={hasUppercase ? 'check-circle' : 'circle-outline'}
             size={16}
-            color={hasUppercase ? '#7E57C2' : '#A0AEC0'}
+            color={hasUppercase ? '#F4C430' : '#6B6B6B'}
           />
           <Text style={[styles.checkItemText, hasUppercase && styles.checkItemActive]}>One uppercase letter</Text>
         </View>
@@ -121,7 +121,7 @@ export const ChangePasswordForm: React.FC<ChangePasswordFormProps> = ({
           <MaterialCommunityIcons
             name={hasNumber ? 'check-circle' : 'circle-outline'}
             size={16}
-            color={hasNumber ? '#7E57C2' : '#A0AEC0'}
+            color={hasNumber ? '#F4C430' : '#6B6B6B'}
           />
           <Text style={[styles.checkItemText, hasNumber && styles.checkItemActive]}>One number</Text>
         </View>
@@ -130,7 +130,7 @@ export const ChangePasswordForm: React.FC<ChangePasswordFormProps> = ({
           <MaterialCommunityIcons
             name={hasSpecial ? 'check-circle' : 'circle-outline'}
             size={16}
-            color={hasSpecial ? '#7E57C2' : '#A0AEC0'}
+            color={hasSpecial ? '#F4C430' : '#6B6B6B'}
           />
           <Text style={[styles.checkItemText, hasSpecial && styles.checkItemActive]}>One special character</Text>
         </View>
@@ -154,39 +154,39 @@ export const ChangePasswordForm: React.FC<ChangePasswordFormProps> = ({
 const styles = StyleSheet.create({
   formCard: { gap: 14 },
   inputGroup: { gap: 6 },
-  inputLabel: { fontSize: 13, fontWeight: '600', color: '#4A5568' },
+  inputLabel: { fontSize: 13, fontWeight: '600', color: '#6B6B6B' },
   passwordRow: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderRadius: BorderRadius.input,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
     paddingHorizontal: 14,
     height: 48,
   },
-  passwordInput: { flex: 1, fontSize: 14, color: '#1A202C' },
+  passwordInput: { flex: 1, fontSize: 14, color: '#171717' },
   eyeBtn: { padding: 4 },
   strengthRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
-  strengthTitle: { fontSize: 12, color: '#718096' },
+  strengthTitle: { fontSize: 12, color: '#6B6B6B' },
   strengthText: { fontSize: 12, fontWeight: '700' },
   meterTrack: { flexDirection: 'row', gap: 6, marginVertical: 4 },
-  meterSegment: { flex: 1, height: 4, borderRadius: 2, backgroundColor: '#E2E8F0' },
+  meterSegment: { flex: 1, height: 4, borderRadius: 2, backgroundColor: '#E8E5DC' },
   checklistCard: {
-    backgroundColor: '#F8F9FB',
+    backgroundColor: '#FFFDF7',
     borderRadius: BorderRadius.card,
     padding: 12,
     gap: 8,
     borderWidth: 1,
-    borderColor: '#EDF2F7',
+    borderColor: '#FFFDF7',
   },
   checklistHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
-  checklistTitle: { fontSize: 12, fontWeight: '700', color: '#4A5568' },
+  checklistTitle: { fontSize: 12, fontWeight: '700', color: '#6B6B6B' },
   checkItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  checkItemText: { fontSize: 12, color: '#A0AEC0' },
-  checkItemActive: { color: '#2D3748', fontWeight: '600' },
+  checkItemText: { fontSize: 12, color: '#6B6B6B' },
+  checkItemActive: { color: '#171717', fontWeight: '600' },
   button: {
-    backgroundColor: '#7E57C2',
+    backgroundColor: '#F4C430',
     borderRadius: BorderRadius.button,
     paddingVertical: 14,
     flexDirection: 'row',

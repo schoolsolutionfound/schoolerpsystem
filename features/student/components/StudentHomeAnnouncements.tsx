@@ -7,7 +7,7 @@ export const StudentHomeAnnouncements: React.FC = () => {
   return (
     <View style={styles.announcementCard}>
       <View style={styles.announcementIconWrap}>
-        <MaterialCommunityIcons name="bullhorn-outline" size={24} color="#7E57C2" />
+        <MaterialCommunityIcons name="bullhorn-outline" size={24} color="#1A1B1C" />
       </View>
 
       <View style={styles.announcementContent}>
@@ -28,7 +28,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.card,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
     gap: 12,
     alignItems: 'flex-start',
   },
@@ -36,13 +36,13 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: '#EDE9F6',
+    backgroundColor: '#F4C430',
     justifyContent: 'center',
     alignItems: 'center',
   },
   announcementContent: { flex: 1, gap: 4 },
   announcementTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  announcementTitle: { fontSize: 14, fontWeight: '700', color: '#1A202C' },
-  announcementBody: { fontSize: 12, color: '#64748B', lineHeight: 17, fontWeight: '600' },
-  announcementSub: { fontSize: 11, color: '#94A3B8', lineHeight: 15 },
+  announcementTitle: { fontSize: 14, fontWeight: '700', color: '#171717' },
+  announcementBody: { fontSize: 12, color: '#6B6B6B', lineHeight: 17, fontWeight: '600' },
+  announcementSub: { fontSize: 11, color: '#6B6B6B', lineHeight: 15 },
 });

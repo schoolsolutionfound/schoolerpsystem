@@ -128,13 +128,13 @@ export const ClassTeacherTimetableBuilder: React.FC<ClassTeacherTimetableBuilder
   };
 
   if (loading) {
-    return <View style={styles.centerBox}><ActivityIndicator size="large" color="#7E57C2" /></View>;
+    return <View style={styles.centerBox}><ActivityIndicator size="large" color="#F4C430" /></View>;
   }
 
   if (!classSection) {
     return (
       <View style={styles.emptyCard}>
-        <MaterialCommunityIcons name="school-outline" size={40} color="#94A3B8" />
+        <MaterialCommunityIcons name="school-outline" size={40} color="#6B6B6B" />
         <Text style={styles.emptyTitle}>No class assigned to you</Text>
         <Text style={styles.emptySub}>Your administrator has not assigned you as class teacher for any class/section.</Text>
       </View>
@@ -149,11 +149,11 @@ export const ClassTeacherTimetableBuilder: React.FC<ClassTeacherTimetableBuilder
         <Text style={styles.effectiveLabel}>Effective from: {effectiveFrom}</Text>
         <View style={styles.viewRow}>
           <TouchableOpacity style={[styles.viewChip, view === 'grid' && styles.viewChipActive]} onPress={() => setView('grid')}>
-            <MaterialCommunityIcons name="grid" size={15} color={view === 'grid' ? '#7E57C2' : '#64748B'} />
+            <MaterialCommunityIcons name="grid" size={15} color={view === 'grid' ? '#F4C430' : '#6B6B6B'} />
             <Text style={[styles.viewChipText, view === 'grid' && styles.viewChipTextActive]}>Grid</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.viewChip, view === 'list' && styles.viewChipActive]} onPress={() => setView('list')}>
-            <MaterialCommunityIcons name="format-list-bulleted" size={15} color={view === 'list' ? '#7E57C2' : '#64748B'} />
+            <MaterialCommunityIcons name="format-list-bulleted" size={15} color={view === 'list' ? '#F4C430' : '#6B6B6B'} />
             <Text style={[styles.viewChipText, view === 'list' && styles.viewChipTextActive]}>List</Text>
           </TouchableOpacity>
         </View>
@@ -198,7 +198,7 @@ export const ClassTeacherTimetableBuilder: React.FC<ClassTeacherTimetableBuilder
                         <Text style={styles.slotHint}>tap to change</Text>
                       </>
                     ) : (
-                      <MaterialCommunityIcons name="plus" size={20} color="#CBD5E1" />
+                      <MaterialCommunityIcons name="plus" size={20} color="#E8E5DC" />
                     )}
                   </TouchableOpacity>
                 );
@@ -261,14 +261,14 @@ export const ClassTeacherTimetableBuilder: React.FC<ClassTeacherTimetableBuilder
                     setPicker(null);
                   }}
                 >
-                  <MaterialCommunityIcons name="book-open-variant" size={16} color="#7E57C2" />
+                  <MaterialCommunityIcons name="book-open-variant" size={16} color="#F4C430" />
                   <Text style={styles.optionText}>{opt.label.replace(' ✓', '')}</Text>
                   {grid[picker.key] === opt.id && <MaterialCommunityIcons name="check" size={16} color="#16A34A" />}
                 </TouchableOpacity>
               ))
             )}
             <TouchableOpacity
-              style={[styles.optionRow, { borderTopWidth: 1, borderTopColor: '#F1F5F9', marginTop: 8, paddingTop: 10 }]}
+              style={[styles.optionRow, { borderTopWidth: 1, borderTopColor: '#FFFDF7', marginTop: 8, paddingTop: 10 }]}
               onPress={() => {
                 if (picker) setGrid((prev) => { const c = { ...prev }; delete c[picker.key]; return c; });
                 setPicker(null);
@@ -286,36 +286,36 @@ export const ClassTeacherTimetableBuilder: React.FC<ClassTeacherTimetableBuilder
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { padding: 16, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
-  title: { fontSize: 15, fontWeight: '800', color: '#1A202C' },
-  sub: { fontSize: 11, color: '#718096', marginTop: 4, lineHeight: 15 },
-  effectiveLabel: { fontSize: 11, color: '#7E57C2', fontWeight: '700', marginTop: 6 },
+  header: { padding: 16, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#E8E5DC' },
+  title: { fontSize: 15, fontWeight: '800', color: '#171717' },
+  sub: { fontSize: 11, color: '#6B6B6B', marginTop: 4, lineHeight: 15 },
+  effectiveLabel: { fontSize: 11, color: '#F4C430', fontWeight: '700', marginTop: 6 },
   viewRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
   viewChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#FFFDF7',
     borderRadius: 16,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
   },
-  viewChipActive: { backgroundColor: '#EDE7F6', borderColor: '#7E57C2' },
-  viewChipText: { fontSize: 12, fontWeight: '700', color: '#64748B' },
-  viewChipTextActive: { color: '#7E57C2' },
+  viewChipActive: { backgroundColor: '#FFF4C7', borderColor: '#F4C430' },
+  viewChipText: { fontSize: 12, fontWeight: '700', color: '#6B6B6B' },
+  viewChipTextActive: { color: '#F4C430' },
   listContainer: { padding: 16, gap: 12, paddingBottom: 20 },
   listDayCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: BorderRadius.card,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
     overflow: 'hidden',
   },
   listDayTitle: {
-    backgroundColor: '#EDE7F6',
-    color: '#7E57C2',
+    backgroundColor: '#FFF4C7',
+    color: '#F4C430',
     fontSize: 13,
     fontWeight: '800',
     paddingHorizontal: 14,
@@ -328,38 +328,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderTopWidth: 0.5,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: '#FFFDF7',
   },
   listTimeCol: { width: 52 },
-  listTime: { fontSize: 13, fontWeight: '800', color: '#7E57C2' },
-  listTimeEnd: { fontSize: 10, color: '#94A3B8' },
+  listTime: { fontSize: 13, fontWeight: '800', color: '#F4C430' },
+  listTimeEnd: { fontSize: 10, color: '#6B6B6B' },
   listInfoCol: { flex: 1 },
-  listSubject: { fontSize: 13, fontWeight: '700', color: '#1A202C' },
-  listMeta: { fontSize: 11, color: '#718096', marginTop: 2 },
-  listFree: { fontSize: 13, color: '#94A3B8' },
+  listSubject: { fontSize: 13, fontWeight: '700', color: '#171717' },
+  listMeta: { fontSize: 11, color: '#6B6B6B', marginTop: 2 },
+  listFree: { fontSize: 13, color: '#6B6B6B' },
   centerBox: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 80 },
-  emptyCard: { backgroundColor: '#FFFFFF', borderRadius: BorderRadius.card, padding: 30, alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0', margin: 16, marginTop: 40 },
-  emptyTitle: { fontSize: 15, fontWeight: '700', color: '#1A202C', marginTop: 8 },
-  emptySub: { fontSize: 12, color: '#718096', textAlign: 'center', marginTop: 4, lineHeight: 16 },
+  emptyCard: { backgroundColor: '#FFFFFF', borderRadius: BorderRadius.card, padding: 30, alignItems: 'center', borderWidth: 1, borderColor: '#E8E5DC', margin: 16, marginTop: 40 },
+  emptyTitle: { fontSize: 15, fontWeight: '700', color: '#171717', marginTop: 8 },
+  emptySub: { fontSize: 12, color: '#6B6B6B', textAlign: 'center', marginTop: 4, lineHeight: 16 },
   gridHeaderRow: { flexDirection: 'row' },
   gridRow: { flexDirection: 'row' },
-  cell: { width: 72, minHeight: 56, justifyContent: 'center', alignItems: 'center', borderWidth: 0.5, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF' },
-  dayHeaderCell: { backgroundColor: '#EDE7F6' },
-  dayHeaderText: { fontSize: 12, fontWeight: '800', color: '#7E57C2' },
-  periodCell: { backgroundColor: '#F8F9FB', width: 80, alignItems: 'flex-start', paddingLeft: 10 },
-  periodLabel: { fontSize: 11, fontWeight: '700', color: '#1A202C' },
-  periodTime: { fontSize: 10, color: '#94A3B8', marginTop: 2 },
+  cell: { width: 72, minHeight: 56, justifyContent: 'center', alignItems: 'center', borderWidth: 0.5, borderColor: '#E8E5DC', backgroundColor: '#FFFFFF' },
+  dayHeaderCell: { backgroundColor: '#FFF4C7' },
+  dayHeaderText: { fontSize: 12, fontWeight: '800', color: '#F4C430' },
+  periodCell: { backgroundColor: '#FFFDF7', width: 80, alignItems: 'flex-start', paddingLeft: 10 },
+  periodLabel: { fontSize: 11, fontWeight: '700', color: '#171717' },
+  periodTime: { fontSize: 10, color: '#6B6B6B', marginTop: 2 },
   slotCell: { gap: 2, paddingHorizontal: 4 },
-  slotCellFilled: { backgroundColor: '#F5F3FF' },
-  slotSubject: { fontSize: 11, fontWeight: '700', color: '#7E57C2', textAlign: 'center' },
-  slotHint: { fontSize: 9, color: '#A5B4FC' },
-  footer: { padding: 14, backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#E2E8F0' },
-  saveBtn: { backgroundColor: '#7E57C2', borderRadius: BorderRadius.button, height: 48, alignItems: 'center', justifyContent: 'center' },
+  slotCellFilled: { backgroundColor: '#FFF4C7' },
+  slotSubject: { fontSize: 11, fontWeight: '700', color: '#F4C430', textAlign: 'center' },
+  slotHint: { fontSize: 9, color: '#F4C430' },
+  footer: { padding: 14, backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#E8E5DC' },
+  saveBtn: { backgroundColor: '#F4C430', borderRadius: BorderRadius.button, height: 48, alignItems: 'center', justifyContent: 'center' },
   saveText: { color: '#FFFFFF', fontWeight: '800', fontSize: 14 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 30 },
   modalContent: { backgroundColor: '#FFFFFF', borderRadius: BorderRadius.modal, padding: 18 },
-  modalTitle: { fontSize: 16, fontWeight: '800', color: '#1A202C', marginBottom: 10 },
+  modalTitle: { fontSize: 16, fontWeight: '800', color: '#171717', marginBottom: 10 },
   optionRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12 },
-  optionText: { fontSize: 14, color: '#1A202C', flex: 1 },
-  hint: { fontSize: 12, color: '#718096', lineHeight: 17 },
+  optionText: { fontSize: 14, color: '#171717', flex: 1 },
+  hint: { fontSize: 12, color: '#6B6B6B', lineHeight: 17 },
 });

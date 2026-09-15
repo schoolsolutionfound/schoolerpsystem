@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: BorderRadius.profileImage,
-    backgroundColor: '#EDE7F6',
+    backgroundColor: '#FFF4C7',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
   },
   countBadge: {
-    backgroundColor: '#EDE7F6',
+    backgroundColor: '#FFF4C7',
     paddingHorizontal: 10,
     paddingVertical: 3,
     borderRadius: BorderRadius.chip,

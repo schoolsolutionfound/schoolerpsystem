@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KIVQUO — Full Architecture Diagrams</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d1117; color: #c9d1d9; padding: 20px; }
+  h1 { text-align: center; font-size: 28px; margin: 20px 0 10px; color: #F4C430; }
+  h2 { font-size: 20px; margin: 30px 0 10px; color: #58a6ff; border-bottom: 1px solid #30363d; padding-bottom: 6px; }
+  .subtitle { text-align: center; color: #8b949e; margin-bottom: 30px; font-size: 14px; }
+  .diagram-container { background: #ffffff; border-radius: 12px; padding: 24px; margin: 16px 0 32px; overflow-x: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
+  .diagram-container .mermaid { display: flex; justify-content: center; }
+  .nav { position: sticky; top: 0; z-index: 100; background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 12px 20px; margin-bottom: 24px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .nav a { color: #58a6ff; text-decoration: none; font-size: 13px; padding: 4px 10px; border-radius: 6px; background: #21262d; border: 1px solid #30363d; transition: all 0.2s; }
+  .nav a:hover { background: #1f6feb; color: #fff; border-color: #1f6feb; }
+  .stats { display: flex; gap: 16px; justify-content: center; margin: 16px 0 24px; flex-wrap: wrap; }
+  .stat { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 12px 20px; text-align: center; }
+  .stat .num { font-size: 28px; font-weight: 800; color: #F4C430; }
+  .stat .label { font-size: 11px; color: #8b949e; margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<h1>KIVQUO School ERP — Complete Architecture</h1>
+<p class="subtitle">Auto-generated from the full codebase — 15 diagrams, 93 API endpoints, 16 DB tables, 10 user roles</p>
+
+<div class="stats">
+  <div class="stat"><div class="num">93</div><div class="label">API Endpoints</div></div>
+  <div class="stat"><div class="num">16</div><div class="label">DB Tables</div></div>
+  <div class="stat"><div class="num">10</div><div class="label">User Roles</div></div>
+  <div class="stat"><div class="num">76+</div><div class="label">Frontend Components</div></div>
+  <div class="stat"><div class="num">30</div><div class="label">Route Files</div></div>
+</div>
+
+<div class="nav">
+  <a href="#s1">1. System Architecture</a>
+  <a href="#s2">2. Database ERD</a>
+  <a href="#s3">3. Auth Flow</a>
+  <a href="#s4">4. RBAC</a>
+  <a href="#s5">5. API Routes</a>
+  <a href="#s6">6. Attendance Flow</a>
+  <a href="#s7">7. Marks & Exam Flow</a>
+  <a href="#s8">8. Homework Flow</a>
+  <a href="#s9">9. Timetable Flow</a>
+  <a href="#s10">10. Frontend Components</a>
+  <a href="#s11">11. Data Flow by Role</a>
+  <a href="#s12">12. Tech Stack</a>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="s1">1. System Architecture (High-Level)</h2>
+<div class="diagram-container">
+<pre class="mermaid">
+graph TB
+    subgraph Client["📱 Mobile App — React Native / Expo"]
+        direction TB
+        APP["Expo Router v6"]
+        STATE["Zustand Stores\nuseUserStore, useConfigStore"]
+        API["API Client Layer\napi/*.ts — 50+ functions"]
+        FIREBASE_SDK["Firebase Auth SDK\nExpo"]
+    end
+
+    subgraph Roles["👥 Role-Based Screens"]
+        DEV["Developer Panel"]
+        ADMIN["Admin Dashboard"]
+        TEACHER["Teacher Home"]
+        STUDENT["Student Home"]
+        PARENT["Parent Dashboard"]
+        PRINCIPAL["Principal Panel"]
+        HOD["HOD Panel"]
+        LIBRARIAN["Librarian Panel"]
+        DRIVER["Driver Panel"]
+        ACCOUNTANT["Accountant Panel"]
+    end
+
+    subgraph Server["⚙️ Backend — Fastify + Node.js"]
+        direction TB
+        ENTRY["index.ts\nPort 5000\nCORS + Rate Limit"]
+        AUTH_MW["Auth Middleware\nFirebase Token Verify"]
+        ROUTES["Route Modules\n/api/v1/*"]
+        CTRL["Controllers\n6 files — 86 handlers"]
+        SVC["Services\n6 files"]
+        REPO["Repositories\n5 files"]
+    end
+
+    subgraph DB["🗄️ Database"]
+        PG[("PostgreSQL\nschoolerp")]
+        DRIZZLE["Drizzle ORM\nschema.ts — 16 tables"]
+    end
+
+    subgraph Firebase["☁️ Firebase Cloud"]
+        FAUTH["Firebase Auth\nUser Management"]
+        FSTORE["Firebase Storage\nProfile Pics + Docs"]
+        FADMIN["Firebase Admin SDK\nServer-Side"]
+    end
+
+    APP --> API
+    APP --> FIREBASE_SDK
+    APP --> STATE
+    Roles --> APP
+    API -->|HTTP REST| ENTRY
+    FIREBASE_SDK -->|ID Token| FAUTH
+    ENTRY --> AUTH_MW
+    AUTH_MW -->|verifyIdToken| FADMIN
+    ENTRY --> ROUTES
+    ROUTES --> CTRL
+    CTRL --> SVC
+    SVC --> REPO
+    REPO --> DRIZZLE
+    DRIZZLE --> PG
+    FAUTH -.->|Admin SDK| FADMIN
+
+    style Client fill:#1a1b26,stroke:#7aa2f7,color:#c0caf5
+    style Roles fill:#1a1b26,stroke:#9ece6a,color:#c0caf5
+    style Server fill:#1a1b26,stroke:#ff9e64,color:#c0caf5
+    style DB fill:#1a1b26,stroke:#7dcfff,color:#c0caf5
+    style Firebase fill:#1a1b26,stroke:#bb9af7,color:#c0caf5
+</pre>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="s2">2. Database Schema (Entity-Relationship)</h2>
+<div class="diagram-container">
+<pre class="mermaid">
+erDiagram
+    institutions ||--o{ users : "has"
+    institutions ||--o{ class_sections : "has"
+    institutions ||--o{ subjects : "has"
+    institutions ||--o{ periods : "has"
+    institutions ||--o{ exams : "has"
+    institutions ||--o{ homework : "has"
+
+    users ||--o{ student_classes : "enrolled in"
+    users ||--o{ subject_teachers : "teaches"
+    users ||--o{ timetables : "creates"
+    users ||--o{ timetable_slots : "assigned"
+    users ||--o{ attendance_records : "takes"
+    users ||--o{ marks : "receives"
+    users ||--o{ student_documents : "has"
+    users ||--o{ homework : "creates"
+
+    class_sections ||--o{ student_classes : "contains"
+    class_sections ||--o{ subject_teachers : "has"
+    class_sections ||--o{ timetables : "has"
+    class_sections ||--o{ timetable_slots : "has"
+    class_sections ||--o{ homework : "has"
+
+    subjects ||--o{ subject_teachers : "taught by"
+    subjects ||--o{ timetable_slots : "in slot"
+    subjects ||--o{ exam_subjects : "examined"
+    subjects ||--o{ marks : "for subject"
+    subjects ||--o{ homework : "assigned for"
+
+    periods ||--o{ timetable_slots : "during"
+
+    timetables ||--o{ timetable_slots : "contains"
+
+    timetable_slots ||--o{ attendance_records : "has"
+
+    attendance_records ||--o{ attendance_entries : "contains"
+
+    exams ||--o{ exam_subjects : "contains"
+    exams ||--o{ marks : "has"
+    exam_subjects ||--o{ marks : "for subject"
+
+    institutions {
+        text id PK
+        varchar institution_code UK
+        text institution_name
+        varchar institution_type "school | college"
+        varchar subscription_status
+        jsonb departments
+        jsonb academic_years
+        jsonb terms
+    }
+
+    users {
+        text id PK
+        text firebase_uid UK
+        varchar email UK
+        text full_name
+        varchar role "student|teacher|admin|parent|dev|..."
+        varchar institution_code FK
+        varchar roll_no_usn
+        boolean must_change_password
+        jsonb scope
+        jsonb permissions
+    }
+
+    class_sections {
+        text id PK
+        varchar institution_code FK
+        varchar name
+        varchar department
+        varchar academic_year
+        text class_teacher_id
+    }
+
+    subjects {
+        text id PK
+        varchar institution_code FK
+        varchar name
+        varchar code
+    }
+
+    subject_teachers {
+        text id PK
+        text class_section_id FK
+        text subject_id FK
+        text teacher_id FK
+    }
+
+    periods {
+        text id PK
+        varchar label
+        varchar start_time
+        varchar end_time
+        integer sort_order
+    }
+
+    timetables {
+        text id PK
+        text class_section_id FK
+        integer version
+        date effective_from
+        text created_by
+    }
+
+    timetable_slots {
+        text id PK
+        text timetable_id FK
+        text subject_id FK
+        text teacher_id FK
+        text period_id FK
+        integer day_of_week
+        varchar room
+    }
+
+    attendance_records {
+        text id PK
+        text timetable_slot_id FK
+        date date
+        text taken_by_teacher_id FK
+        varchar status
+    }
+
+    attendance_entries {
+        text id PK
+        text attendance_record_id FK
+        text student_id FK
+        varchar attendance_status
+    }
+
+    student_classes {
+        text id PK
+        text student_id FK
+        text class_section_id FK
+        varchar roll_no
+        varchar academic_year
+        boolean is_active
+    }
+
+    exams {
+        text id PK
+        varchar name
+        varchar status "draft|published|locked"
+        text created_by FK
+    }
+
+    exam_subjects {
+        text id PK
+        text exam_id FK
+        text subject_id FK
+        integer max_marks
+        integer pass_marks
+    }
+
+    marks {
+        text id PK
+        text exam_subject_id FK
+        text student_id FK
+        numeric marks_obtained
+        varchar grade
+        text entered_by FK
+    }
+
+    student_documents {
+        text id PK
+        text student_id FK
+        varchar document_type
+        text file_name
+        text file_url
+    }
+
+    homework {
+        text id PK
+        varchar institution_code FK
+        text class_section_id FK
+        text subject_id FK
+        text teacher_id FK
+        varchar title
+        text description
+        date due_date
+        varchar priority
+        varchar status
+        varchar assigned_to
+    }
+</pre>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="s3">3. Authentication & Authorization Flow</h2>
+<div class="diagram-container">
+<pre class="mermaid">
+sequenceDiagram
+    participant U as 👤 User (Mobile)
+    participant FA as 🔐 Firebase Auth
+    participant API as ⚙️ Fastify API
+    participant MW as 🛡️ Auth Middleware
+    participant Cache as 💾 Auth Cache (60s TTL)
+    participant DB as 🗄️ PostgreSQL
+
+    U->>FA: Login (email + password)
+    FA-->>U: ID Token + Refresh Token
+
+    U->>API: POST /auth/login-sync
+    API->>MW: authenticate()
+
+    alt Cache Hit
+        MW->>Cache: get(firebaseUid)
+        Cache-->>MW: {role, institutionCode}
+    else Cache Miss
+        MW->>FA: admin.auth().verifyIdToken(token)
+        FA-->>MW: {uid, email}
+        MW->>DB: dbFindByUid(firebaseUid)
+        DB-->>MW: {id, role, institutionCode}
+        MW->>Cache: set(firebaseUid, role, institutionCode)
+    end
+
+    MW-->>API: request.user = {uid, email, role, institutionCode}
+    API->>DB: Enrich with institution data
+    DB-->>API: Full user profile
+    API-->>U: 200 OK + user profile
+
+    Note over U,DB: Subsequent requests use cached auth (60s)
+    U->>API: GET /admin/students
+    API->>MW: authenticate() → cache hit
+    MW-->>API: request.user
+    API->>MW: requireAdmin()
+    MW-->>API: role === admin ✓
+    API->>DB: Query students
+    DB-->>API: Student list
+    API-->>U: 200 OK + students
+</pre>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="s4">4. Role-Based Access Control (RBAC)</h2>
+<div class="diagram-container">
+<pre class="mermaid">
+graph TB
+    subgraph Guards["🛡️ Middleware Guards"]
+        G1["authenticate\nAny valid token"]
+        G2["requireDeveloper\ndev only"]
+        G3["requireAdmin\nadmin only"]
+        G4["requireTeacherOrAdmin\nadmin | teacher | hod"]
+        G5["requireStaff\nadmin | hod | principal | teacher"]
+        G6["requireRole...\nCustom list"]
+    end
+
+    subgraph Access["📡 API Access"]
+        A1["DEV: /developer/*\nManage institutions + admins"]
+        A2["ADM: /admin/*\nFull CRUD on everything"]
+        A3["TCH: /attendance/*, /marks/*, /timetable/*\nMark attendance + enter marks"]
+        A4["STD: /attendance/history/student, /marks/me, /my/documents\nView own data"]
+        A5["PAR: /attendance/history/parent, /marks/parent, /timetable/parent\nView child data"]
+    end
+
+    G1 --> G2 --> A1
+    G1 --> G3 --> A2
+    G1 --> G4 --> A3
+    G1 --> G5 --> A3
+    G1 --> G6 --> A4
+    G1 --> G6 --> A5
+
+    style Guards fill:#1a1b26,stroke:#ff9e64,color:#c0caf5
+    style Access fill:#1a1b26,stroke:#9ece6a,color:#c0caf5
+</pre>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="s5">5. API Route Map (All 93 Endpoints)</h2>
+<div class="diagram-container">
+<pre class="mermaid">
+graph LR
+    subgraph Auth["/auth — 3 endpoints"]
+        direction TB
+        A1["POST /login-sync"]
+        A2["POST /logout"]
+        A3["POST /change-password"]
+    end
+
+    subgraph Users["/users — 2 endpoints"]
+        direction TB
+        U1["GET /me"]
+        U2["POST /complete-profile"]
+    end
+
+    subgraph Admin["/admin — 25 endpoints"]
+        direction TB
+        AD1["GET/PUT /institution-config"]
+        AD2["GET /dashboard-stats"]
+        AD3["GET/POST/PUT/DELETE /students"]
+        AD4["POST /students/promote"]
+        AD5["POST /students/graduate"]
+        AD6["GET /students/alumni"]
+        AD7["GET/POST/DELETE /students/:id/documents"]
+        AD8["GET/POST/DELETE /my/documents"]
+        AD9["GET/POST/PUT/DELETE /teachers"]
+        AD10["GET/POST /users"]
+    end
+
+    subgraph Academics["/admin — 37 endpoints"]
+        direction TB
+        AC1["CRUD /class-sections"]
+        AC2["CRUD /subjects"]
+        AC3["CRUD /subject-teachers"]
+        AC4["GET/POST /periods"]
+        AC5["PUT /config/terms + holidays"]
+        AC6["POST /timetable"]
+        AC7["GET /timetable/class|teacher|me|parent"]
+        AC8["GET /attendance/roster|slot|history|stats|class|export|report"]
+        AC9["POST /attendance/mark"]
+        AC10["GET/POST /exams"]
+        AC11["GET/POST /marks"]
+    end
+
+    subgraph Institutions["/institutions — 5 endpoints"]
+        direction TB
+        I1["CRUD /institutions"]
+    end
+
+    subgraph Developer["/developer — 9 endpoints"]
+        direction TB
+        D1["CRUD /institutions"]
+        D2["GET /stats"]
+        D3["CRUD /admins"]
+    end
+
+    style Auth fill:#1a1b26,stroke:#7aa2f7,color:#c0caf5
+    style Users fill:#1a1b26,stroke:#73daca,color:#c0caf5
+    style Admin fill:#1a1b26,stroke:#ff9e64,color:#c0caf5
+    style Academics fill:#1a1b26,stroke:#bb9af7,color:#c0caf5
+    style Institutions fill:#1a1b26,stroke:#9ece6a,color:#c0caf5
+    style Developer fill:#1a1b26,stroke:#f7768e,color:#c0caf5
+</pre>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="s6">6. Attendance Flow (End-to-End)</h2>
+<div class="diagram-container">
+<pre class="mermaid">
+sequenceDiagram
+    participant ADM as 👨‍💼 Admin
+    participant TCH as 👨‍🏫 Teacher
+    participant STD as 🎓 Student
+    participant PAR as 👨‍👩‍👦 Parent
+    participant API as ⚙️ API
+    participant DB as 🗄️ DB
+
+    rect rgb(30, 40, 60)
+    Note over ADM,DB: 📋 SETUP PHASE (Admin)
+    ADM->>API: POST /class-sections (10-A)
+    ADM->>API: POST /subjects (Math, Science, English)
+    ADM->>API: POST /subject-teachers (assign teacher)
+    ADM->>API: POST /periods (09:00-09:45, 09:45-10:30...)
+    ADM->>API: POST /timetable (weekly slots)
+    ADM->>API: POST /students + /students/promote
+    end
+
+    rect rgb(30, 50, 30)
+    Note over TCH,DB: ✅ DAILY ATTENDANCE (Teacher)
+    TCH->>API: GET /timetable/me?date=today
+    API-->>TCH: Today's slots
+    TCH->>API: GET /attendance/roster?slotId=ts_xxx
+    API->>DB: Query enrolled students
+    DB-->>TCH: Student roster
+    loop Each student
+        TCH->>API: Toggle present/absent/late/excused
+    end
+    TCH->>API: POST /attendance/mark {entries: [...]}
+    API->>DB: INSERT attendance_records + entries
+    API-->>TCH: Saved ✓
+    end
+
+    rect rgb(50, 30, 30)
+    Note over STD,PAR: 📊 VIEW ATTENDANCE
+    STD->>API: GET /attendance/history/student
+    API-->>STD: [{date, subject, status}]
+    PAR->>API: GET /attendance/history/parent
+    API->>DB: Resolve linked child
+    API-->>PAR: Child's attendance
+    end
+
+    rect rgb(50, 50, 20)
+    Note over TCH,DB: 📈 REPORTS & EXPORT
+    TCH->>API: GET /attendance/report?classId=cs_xxx
+    API->>DB: getClassAttendanceReport()
+    DB-->>TCH: {summary, subjects, dailyTrend, lowAttendance, topPerformers}
+    TCH->>API: GET /attendance/export?classId=cs_xxx
+    API->>DB: exportClassAttendanceCsv()
+    DB-->>TCH: CSV file download
+    end
+</pre>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="s7">7. Marks & Exam Flow</h2>
+<div class="diagram-container">
+<pre class="mermaid">
+sequenceDiagram
+    participant ADM as 👨‍💼 Admin
+    participant TCH as 👨‍🏫 Teacher
+    participant STD as 🎓 Student
+    participant PAR as 👨‍👩‍👦 Parent
+    participant API as ⚙️ API
+    participant DB as 🗄️ DB
+
+    rect rgb(30, 40, 60)
+    Note over ADM,DB: 📝 EXAM SETUP (Admin)
+    ADM->>API: POST /exams {name: "Midterm", subjects: [{subjectId, maxMarks: 100, passMarks: 35}]}
+    API->>DB: INSERT exams + exam_subjects
+    API-->>ADM: Exam created (status: draft)
+    ADM->>API: PUT /exams/:id {status: "published"}
+    API->>DB: UPDATE status → published
+    end
+
+    rect rgb(30, 50, 30)
+    Note over TCH,DB: ✏️ MARKS ENTRY (Teacher)
+    TCH->>API: GET /exams?status=published
+    API-->>TCH: Published exams
+    TCH->>API: GET /marks?examSubjectId=es_xxx&classId=cs_xxx
+    API->>DB: Query marks for exam-subject-class
+    DB-->>TCH: [{studentId, name, marks, grade}]
+    loop Each student
+        TCH->>API: Enter marks (0-100)
+    end
+    TCH->>API: POST /marks {entries: [{studentId, marksObtained, grade}]}
+    API->>DB: UPSERT marks
+    API-->>TCH: Saved ✓
+    end
+
+    rect rgb(50, 30, 30)
+    Note over STD,PAR: 📊 VIEW MARKS
+    STD->>API: GET /marks/me
+    API-->>STD: [{exam, subject, marks, grade, maxMarks}]
+    PAR->>API: GET /marks/parent
+    API->>DB: Resolve linked child
+    API-->>PAR: Child's marks
+    end
+
+    rect rgb(50, 50, 20)
+    Note over ADM,DB: 🔒 LOCK EXAM (Finalize)
+    ADM->>API: PUT /exams/:id {status: "locked"}
+    API->>DB: No more edits allowed
+    end
+</pre>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="s8">8. Homework Flow</h2>
+<div class="diagram-container">
+<pre class="mermaid">
+sequenceDiagram
+    participant TCH as 👨‍🏫 Teacher
+    participant STD as 🎓 Student
+    participant PAR as 👨‍👩‍👦 Parent
+    participant API as ⚙️ API
+    participant DB as 🗄️ DB
+
+    rect rgb(30, 40, 60)
+    Note over TCH,DB: 📝 CREATE HOMEWORK (Teacher)
+    TCH->>API: POST /homework<br/>{classSectionId, subjectId, title, description, dueDate, priority}
+    API->>DB: INSERT homework
+    API-->>TCH: 201 Created
+    end
+
+    rect rgb(30, 50, 30)
+    Note over STD: 📋 VIEW HOMEWORK (Student)
+    STD->>API: GET /homework?classSectionId=cs_xxx
+    API->>DB: Query homework WHERE class_section_id = ? AND status = 'active'
+    DB-->>API: [{id, title, subject, dueDate, priority, status}]
+    API-->>STD: Homework list
+    end
+
+    rect rgb(50, 30, 30)
+    Note over PAR: 👨‍👩‍👦 VIEW CHILD'S HOMEWORK (Parent)
+    PAR->>API: GET /homework/parent
+    API->>DB: Resolve linkedStudentUSN → classSectionId
+    API->>DB: Query homework for child's class
+    DB-->>API: [{id, title, subject, dueDate, priority}]
+    API-->>PAR: Child's homework
+    end
+
+    rect rgb(50, 50, 20)
+    Note over TCH: ✏️ MANAGE HOMEWORK (Teacher)
+    TCH->>API: PUT /homework/:id<br/>{status: 'completed'}
+    API->>DB: UPDATE homework status
+    API-->>TCH: 200 OK
+
+    TCH->>API: DELETE /homework/:id
+    API->>DB: DELETE homework
+    API-->>TCH: 200 OK
+    end
+</pre>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="s9">9. Timetable Flow</h2>
+<div class="diagram-container">
+<pre class="mermaid">
+sequenceDiagram
+    participant ADM as 👨‍💼 Admin
+    participant TCH as 👨‍🏫 Teacher
+    participant STD as 🎓 Student
+    participant API as ⚙️ API
+    participant DB as 🗄️ DB
+
+    rect rgb(30, 40, 60)
+    Note over ADM,DB: 🏗️ BUILD TIMETABLE
+    ADM->>API: POST /periods (8 periods, 45min each)
+    ADM->>API: POST /class-sections (10-A, 10-B)
+    ADM->>API: POST /subjects (Math, Science, English, History)
+    ADM->>API: POST /subject-teachers (assign teacher to subject+class)
+    ADM->>API: POST /timetable {slots: [{day:Mon, period:1, subject:Math, teacher:T1, room:101}]}
+    API->>DB: INSERT timetables (version 1)
+    API->>DB: INSERT timetable_slots (40 slots = 8 periods × 5 days)
+    API-->>ADM: Timetable v1 created ✓
+    end
+
+    rect rgb(30, 50, 30)
+    Note over TCH,STD: 👀 VIEW SCHEDULE
+    TCH->>API: GET /timetable/me?date=2026-09-05
+    API->>DB: Find latest version, filter by day
+    DB-->>TCH: [{period: "09:00", subject: "Math", class: "10-A", room: "101"}]
+    STD->>API: GET /timetable/class?classId=cs_xxx&date=today
+    DB-->>STD: Class schedule for today
+    end
+
+    rect rgb(50, 50, 20)
+    Note over ADM,DB: 🔄 VERSION CONTROL
+    ADM->>API: POST /timetable (new version)
+    API->>DB: INSERT with version = prev + 1
+    Note: Old versions preserved for historical attendance
+    end
+</pre>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="s10">10. Frontend Component Architecture</h2>
+<div class="diagram-container">
+<pre class="mermaid">
+graph TB
+    subgraph Root["app/_layout.tsx"]
+        NAV["Navigation Container"]
+        FONT["Poppins Font — Global Default"]
+        GUARD["ProtectedRoute — Auth Check"]
+    end
+
+    subgraph Shared["features/shared/"]
+        SH1["AppButton · AppInput · AppCard"]
+        SH2["AppModal · AppBadge · AppLayout"]
+        SH3["LoadingView · EmptyState · ErrorState"]
+        SH4["ProtectedRoute · Logo"]
+        SH5["useAuthGuard · useAppSync · usePushNotifications"]
+        SH6["permissions.ts · routeGuards.ts"]
+    end
+
+    subgraph Dev["features/developer/ — 10 components"]
+        D1["DeveloperDashboardContent"]
+        D2["InstitutionCard · InstitutionListScreen"]
+        D3["DeveloperAdminsContent · DeveloperHeader"]
+        D4["CreateInstitutionModal · DeleteInstitutionModal"]
+    end
+
+    subgraph Admin["features/admin/ — 20 components"]
+        A1["AdminHomeHeader · AdminHomeModulesGrid"]
+        A2["AdminHomeFeedBanner · AdminHomeFeesOverview"]
+        A3["AdminDashboardView · AdminStudentsView"]
+        A4["AdminTeachersView · AdminUsersView"]
+        A5["AdminAcademicsView · AdminAttendanceView"]
+        A6["AdminTimetableView · AdminInstitutionView"]
+        A7["AdminDrawer · AdminProfileView"]
+    end
+
+    subgraph Teacher["features/teacher/ — 11 components"]
+        T1["TeacherHomeHeader · TeacherDrawer"]
+        T2["TeacherDonutCard — SVG Donut Chart"]
+        T3["TeacherWeeklyBarCard — SVG Bar Chart"]
+        T4["TeacherHomePeriodsList · TeacherHomeAnnouncements"]
+        T5["TeacherTimetableView · AttendanceMarkingView"]
+        T6["ClassAttendanceReport · ClassTeacherTimetableBuilder"]
+        T7["TeacherHomeworkView · TeacherChatView"]
+        T8["TeacherLocateStudentsView"]
+    end
+
+    subgraph Student["features/student/ — 18 components"]
+        S1["StudentHomeHeader · StudentDrawer"]
+        S2["StudentHomeAttendanceCard · StudentHomePeriodsList"]
+        S3["StudentHomeAnnouncements"]
+        S4["StudentTimetableView · StudentAttendanceView"]
+        S5["StudentMarksView · StudentBusTrackingView"]
+        S6["StudentHomeworkView"]
+        S7["ShimmerSkeleton · 6 skeleton variants"]
+    end
+
+    subgraph Parent["features/parent/ — 7 components"]
+        P1["ParentHomeHeader · ParentDrawer"]
+        P2["ParentHomeDashboard · ParentAttendanceView"]
+        P3["ParentMarksView · ParentTrackView"]
+        P4["ParentHomeworkView"]
+    end
+
+    subgraph Driver["features/driver/ — 4 components"]
+        DR1["DriverTripsView · DriverDrawer"]
+        DR2["DriverHomeHeader · DriverCompleteProfileForm"]
+    end
+
+    Root --> Shared
+    Root --> Dev
+    Root --> Admin
+    Root --> Teacher
+    Root --> Student
+    Root --> Parent
+    Root --> Driver
+
+    style Root fill:#1a1b26,stroke:#7aa2f7,color:#c0caf5
+    style Shared fill:#1a1b26,stroke:#565f89,color:#c0caf5
+    style Dev fill:#1a1b26,stroke:#f7768e,color:#c0caf5
+    style Admin fill:#1a1b26,stroke:#ff9e64,color:#c0caf5
+    style Teacher fill:#1a1b26,stroke:#bb9af7,color:#c0caf5
+    style Student fill:#1a1b26,stroke:#9ece6a,color:#c0caf5
+    style Parent fill:#1a1b26,stroke:#73daca,color:#c0caf5
+    style Driver fill:#1a1b26,stroke:#e0af68,color:#c0caf5
+</pre>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="s11">11. Data Flow by Role</h2>
+<div class="diagram-container">
+<pre class="mermaid">
+graph TB
+    subgraph DEV["👤 DEVELOPER"]
+        direction LR
+        D1["Manage Institutions"] --> D2["Manage Admins"] --> D3["View Revenue Stats"]
+    end
+
+    subgraph ADMIN["👨‍💼 ADMIN"]
+        direction LR
+        A1["Students CRUD"] --> A2["Teachers CRUD"] --> A3["Classes & Subjects"]
+        A3 --> A4["Build Timetable"] --> A5["Create Exams"]
+        A1 & A2 --> A6["Dashboard Stats"]
+    end
+
+    subgraph TEACHER["👨‍🏫 TEACHER"]
+        direction LR
+        T1["View Timetable"] --> T2["Mark Attendance"] --> T3["Enter Marks"]
+        T3 --> T4["View Reports"]
+        T5["Create Homework"] --> T6["Chat with Parents"]
+    end
+
+    subgraph STUDENT["🎓 STUDENT"]
+        direction LR
+        S1["View Schedule"] --> S2["View Attendance"] --> S3["View Marks"]
+        S4["Track Bus"] --> S5["Upload Documents"]
+        S6["View Homework"]
+    end
+
+    subgraph PARENT["👨‍👩‍👦 PARENT"]
+        direction LR
+        P1["Select Child"] --> P2["View Attendance"]
+        P1 --> P3["View Marks"]
+        P1 --> P4["Track Bus"]
+        P1 --> P5["View Child Homework"]
+    end
+
+    style DEV fill:#1a1b26,stroke:#f7768e,color:#c0caf5
+    style ADMIN fill:#1a1b26,stroke:#ff9e64,color:#c0caf5
+    style TEACHER fill:#1a1b26,stroke:#bb9af7,color:#c0caf5
+    style STUDENT fill:#1a1b26,stroke:#9ece6a,color:#c0caf5
+    style PARENT fill:#1a1b26,stroke:#73daca,color:#c0caf5
+</pre>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="s12">12. Technology Stack</h2>
+<div class="diagram-container">
+<pre class="mermaid">
+graph TB
+    subgraph FE["📱 Frontend"]
+        direction LR
+        RN["React Native 0.81.5"]
+        EXPO["Expo SDK 54"]
+        ROUTER["Expo Router v6"]
+        ZUSTAND["Zustand 5.x"]
+        RQ["TanStack React Query 5.x"]
+        SVG["react-native-svg"]
+        FONT["Poppins Font"]
+        FIREBASE_FE["Firebase Auth SDK"]
+    end
+
+    subgraph BE["⚙️ Backend"]
+        direction LR
+        FASTIFY["Fastify"]
+        TS["TypeScript 5.9"]
+        DRIZZLE["Drizzle ORM"]
+        PG["PostgreSQL"]
+        ZOD["Zod Validation"]
+        FIREBAE_BE["Firebase Admin SDK"]
+    end
+
+    subgraph EXT["☁️ External"]
+        direction LR
+        FAUTH["Firebase Authentication"]
+        FSTORAGE["Firebase Storage"]
+        FANALYTICS["Firebase Analytics"]
+    end
+
+    RN --> EXPO --> ROUTER
+    ZUSTAND --> RN
+    RQ --> RN
+    SVG --> RN
+    FONT --> RN
+    FIREBASE_FE --> RN
+
+    FASTIFY --> TS --> DRIZZLE --> PG
+    ZOD --> FASTIFY
+    FIREBAE_BE --> FASTIFY
+    FAUTH --> FIREBAE_BE
+    FSTORAGE --> FIREBAE_BE
+
+    style FE fill:#1a1b26,stroke:#7aa2f7,color:#c0caf5
+    style BE fill:#1a1b26,stroke:#ff9e64,color:#c0caf5
+    style EXT fill:#1a1b26,stroke:#bb9af7,color:#c0caf5
+</pre>
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'default',
+    securityLevel: 'loose',
+    flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' },
+    er: { useMaxWidth: true },
+    sequence: { useMaxWidth: true, mirrorActors: false, messageMargin: 40 }
+  });
+</script>
+
+</body>
+</html>

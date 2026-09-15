@@ -5,11 +5,17 @@ import {
   UpdateClassSectionSchema,
   CreateSubjectSchema,
   CreateSubjectTeacherSchema,
+  UpdateSubjectTeacherSchema,
   CreatePeriodSchema,
   UpdateInstitutionTermsSchema,
   UpdateHolidayCalendarSchema,
   CreateTimetableSchema,
   MarkAttendanceSchema,
+  CreateExamSchema,
+  UpdateExamSchema,
+  SaveMarksSchema,
+  CreateHomeworkSchema,
+  UpdateHomeworkSchema,
 } from './academics.schema.js';
 
 function getInstCode(req: FastifyRequest): string {
@@ -145,6 +151,19 @@ export async function deleteSubjectTeacherHandler(request: FastifyRequest<{ Para
     return reply.send({ success: true, data });
   } catch (err: any) {
     return sendError(reply, err, 'Failed to remove subject-teacher assignment');
+  }
+}
+
+export async function updateSubjectTeacherHandler(
+  request: FastifyRequest<{ Params: { id: string } }>,
+  reply: FastifyReply
+) {
+  try {
+    const body = UpdateSubjectTeacherSchema.parse(request.body);
+    const data = await academicsService.updateSubjectTeacher(getInstCode(request), request.params.id, body);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to reassign subject teacher');
   }
 }
 
@@ -348,5 +367,266 @@ export async function getClassAttendanceHandler(request: FastifyRequest, reply: 
     return reply.send({ success: true, data });
   } catch (err: any) {
     return sendError(reply, err, 'Failed to fetch class attendance');
+  }
+}
+
+// ---------- Attendance Export / Report ----------
+
+export async function exportClassAttendanceHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const query = request.query as any;
+    const classSectionId = query.classSectionId || '';
+    // classSectionId is optional — teachers get auto-resolved to their own class
+    const data = await academicsService.exportClassAttendanceCsv(
+      getInstCode(request),
+      getUserId(request),
+      getRole(request),
+      classSectionId,
+      query.fromDate,
+      query.toDate
+    );
+    reply.header('Content-Type', 'text/csv');
+    reply.header('Content-Disposition', `attachment; filename="attendance-${data.className}-${data.range.fromDate}-to-${data.range.toDate}.csv"`);
+    return reply.send(data.csv);
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to export attendance');
+  }
+}
+
+export async function getClassAttendanceReportHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const query = request.query as any;
+    const classSectionId = query.classSectionId || '';
+    // classSectionId is optional — teachers get auto-resolved to their own class
+    const data = await academicsService.getClassAttendanceReport(
+      getInstCode(request),
+      getUserId(request),
+      getRole(request),
+      classSectionId,
+      query.fromDate,
+      query.toDate
+    );
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to fetch attendance report');
+  }
+}
+
+// ---------- Marks / Exams ----------
+
+export async function listExamsHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const data = await academicsService.listExams(getInstCode(request));
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to fetch exams');
+  }
+}
+
+export async function getExamHandler(
+  request: FastifyRequest<{ Params: { id: string } }>,
+  reply: FastifyReply
+) {
+  try {
+    const data = await academicsService.getExamDetails(getInstCode(request), request.params.id);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to fetch exam');
+  }
+}
+
+export async function createExamHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const body = CreateExamSchema.parse(request.body);
+    const data = await academicsService.createExam(getInstCode(request), body, getUserId(request));
+    return reply.status(201).send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to create exam');
+  }
+}
+
+export async function updateExamHandler(
+  request: FastifyRequest<{ Params: { id: string } }>,
+  reply: FastifyReply
+) {
+  try {
+    const body = UpdateExamSchema.parse(request.body);
+    const data = await academicsService.updateExam(getInstCode(request), request.params.id, body);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to update exam');
+  }
+}
+
+export async function getMarksForClassHandler(
+  request: FastifyRequest<{ Querystring: { examSubjectId: string; classSectionId: string } }>,
+  reply: FastifyReply
+) {
+  try {
+    const data = await academicsService.getMarksForClass(
+      getInstCode(request),
+      request.query.examSubjectId,
+      request.query.classSectionId,
+      getUserId(request)
+    );
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to fetch marks');
+  }
+}
+
+export async function saveMarksHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const body = SaveMarksSchema.parse(request.body);
+    const data = await academicsService.saveMarks(getInstCode(request), body, getUserId(request));
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to save marks');
+  }
+}
+
+export async function getMyMarksHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const data = await academicsService.getStudentMarks(getInstCode(request), getUserId(request));
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to fetch my marks');
+  }
+}
+
+export async function getParentMarksHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const data = await academicsService.getParentMarks(getInstCode(request), getUserId(request));
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to fetch linked student marks');
+  }
+}
+
+export async function getParentTimetableHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const query = request.query as { date?: string };
+    const dateStr = query.date || new Date().toISOString().slice(0, 10);
+    const data = await academicsService.getParentTimetable(getInstCode(request), getUserId(request), dateStr);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to fetch linked student timetable');
+  }
+}
+
+export async function getStudentMarksByIdHandler(
+  request: FastifyRequest<{ Params: { studentId: string } }>,
+  reply: FastifyReply
+) {
+  try {
+    const data = await academicsService.getStudentMarks(getInstCode(request), request.params.studentId);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to fetch student marks');
+  }
+}
+
+// ---------- Homework ----------
+
+export async function createHomeworkHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const body = CreateHomeworkSchema.parse(request.body);
+    const data = await academicsService.createHomework(getInstCode(request), getUserId(request), body);
+    return reply.status(201).send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to create homework');
+  }
+}
+
+export async function listHomeworkByClassHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const query = request.query as { classSectionId?: string };
+    const classSectionId = query.classSectionId || '';
+    if (!classSectionId) return reply.status(400).send({ success: false, error: { message: 'classSectionId is required', code: 'MISSING_PARAM' } });
+    const data = await academicsService.listHomeworkByClass(getInstCode(request), classSectionId);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to fetch homework');
+  }
+}
+
+export async function listMyHomeworkHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const data = await academicsService.listHomeworkByTeacher(getInstCode(request), getUserId(request));
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to fetch homework');
+  }
+}
+
+export async function getHomeworkByIdHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const data = await academicsService.getHomeworkById(getInstCode(request), (request.params as any).id);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to fetch homework');
+  }
+}
+
+export async function updateHomeworkHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const body = UpdateHomeworkSchema.parse(request.body);
+    const data = await academicsService.updateHomework(getInstCode(request), (request.params as any).id, body);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to update homework');
+  }
+}
+
+export async function deleteHomeworkHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    await academicsService.deleteHomework(getInstCode(request), (request.params as any).id);
+    return reply.send({ success: true, data: { deleted: true } });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to delete homework');
+  }
+}
+
+export async function listStudentHomeworkHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const userId = getUserId(request);
+    const role = getRole(request);
+    const instCode = getInstCode(request);
+    let classSectionId = '';
+    if (role === 'student') {
+      const cls = await (await import('./academics.service.js')).academicsService.getMyClassSection(instCode, userId);
+      classSectionId = cls?.id || '';
+    }
+    if (!classSectionId) {
+      const query = request.query as { classSectionId?: string };
+      classSectionId = query.classSectionId || '';
+    }
+    if (!classSectionId) return reply.send({ success: true, data: [] });
+    const data = await academicsService.listHomeworkForStudent(instCode, classSectionId);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to fetch homework');
+  }
+}
+
+export async function listParentHomeworkHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const userId = getUserId(request);
+    const instCode = getInstCode(request);
+    const parent = await (await import('../shared/db/index.js')).dbFindUserByIdOrUid(userId);
+    if (!parent || parent.role !== 'parent') {
+      return reply.status(403).send({ success: false, error: { message: 'Only parents can use this endpoint', code: 'FORBIDDEN' } });
+    }
+    const scope = typeof parent.scope === 'string' ? JSON.parse(parent.scope || '{}') : (parent.scope || {});
+    const linkedUsn = scope?.linkedStudentUSN || '';
+    if (!linkedUsn) return reply.send({ success: true, data: [] });
+    const student = await (await import('../shared/db/index.js')).dbFindStudentByUsnInInstitution(instCode, linkedUsn);
+    if (!student) return reply.send({ success: true, data: [] });
+    const enrollment = await (await import('../shared/db/index.js')).dbFindStudentClassSectionId(student.id);
+    if (!enrollment) return reply.send({ success: true, data: [] });
+    const data = await academicsService.listHomeworkForParent(instCode, enrollment);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to fetch homework');
   }
 }

@@ -103,7 +103,7 @@ export const AdminInstitutionView: React.FC<AdminInstitutionViewProps> = ({ conf
             <View key={idx} style={styles.chip}>
               <Text style={styles.chipText}>{dept}</Text>
               <TouchableOpacity onPress={() => removeItem(idx, departments, setDepartments)}>
-                <MaterialCommunityIcons name="close-circle" size={16} color="#7E57C2" />
+                <MaterialCommunityIcons name="close-circle" size={16} color="#F4C430" />
               </TouchableOpacity>
             </View>
           ))}
@@ -126,10 +126,10 @@ export const AdminInstitutionView: React.FC<AdminInstitutionViewProps> = ({ conf
         </View>
         <View style={styles.chipContainer}>
           {academicYears.map((year, idx) => (
-            <View key={idx} style={[styles.chip, { backgroundColor: '#E0F2FE' }]}>
-              <Text style={[styles.chipText, { color: '#0284C7' }]}>{year}</Text>
+            <View key={idx} style={[styles.chip, { backgroundColor: '#FFFDF7' }]}>
+              <Text style={[styles.chipText, { color: '#171717' }]}>{year}</Text>
               <TouchableOpacity onPress={() => removeItem(idx, academicYears, setAcademicYears)}>
-                <MaterialCommunityIcons name="close-circle" size={16} color="#0284C7" />
+                <MaterialCommunityIcons name="close-circle" size={16} color="#171717" />
               </TouchableOpacity>
             </View>
           ))}
@@ -179,14 +179,14 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.card,
     padding: 18,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
     gap: 14,
   },
-  cardTitle: { fontSize: 15, fontWeight: '800', color: '#1A202C' },
+  cardTitle: { fontSize: 15, fontWeight: '800', color: '#171717' },
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 28 },
-  infoLabel: { fontSize: 13, color: '#718096', fontWeight: '500', flexShrink: 1 },
-  infoValue: { fontSize: 13, fontWeight: '700', color: '#1A202C', flexShrink: 1, textAlign: 'right' },
-  codeText: { fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', color: '#7E57C2' },
+  infoLabel: { fontSize: 13, color: '#6B6B6B', fontWeight: '500', flexShrink: 1 },
+  infoValue: { fontSize: 13, fontWeight: '700', color: '#171717', flexShrink: 1, textAlign: 'right' },
+  codeText: { fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', color: '#F4C430' },
   statusBadge: { backgroundColor: '#DCFCE7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: BorderRadius.chip },
   statusBadgeText: { fontSize: 11, fontWeight: '800', color: '#16A34A' },
   inputRow: { flexDirection: 'row', gap: 8 },
@@ -194,14 +194,14 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 44,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
     borderRadius: BorderRadius.input,
     paddingHorizontal: 12,
     fontSize: 13,
-    backgroundColor: '#F8F9FB',
+    backgroundColor: '#FFFDF7',
   },
   addBtn: {
-    backgroundColor: '#7E57C2',
+    backgroundColor: '#F4C430',
     height: 44,
     paddingHorizontal: 18,
     borderRadius: BorderRadius.button,
@@ -214,14 +214,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#EDE7F6',
+    backgroundColor: '#FFF4C7',
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: BorderRadius.chip,
   },
-  chipText: { fontSize: 12, fontWeight: '700', color: '#7E57C2' },
+  chipText: { fontSize: 12, fontWeight: '700', color: '#F4C430' },
   saveBtn: {
-    backgroundColor: '#7E57C2',
+    backgroundColor: '#F4C430',
     height: 48,
     borderRadius: BorderRadius.button,
     alignItems: 'center',

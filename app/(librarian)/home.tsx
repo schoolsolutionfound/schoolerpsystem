@@ -26,12 +26,12 @@ export default function LibrarianHomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8F9FB' },
+  container: { flex: 1, backgroundColor: '#FFFDF7' },
   safe: { flex: 1 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E2E8F0', backgroundColor: '#FFFFFF' },
-  headerTitle: { fontSize: 17, fontWeight: '700', color: '#1A202C' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E8E5DC', backgroundColor: '#FFFFFF' },
+  headerTitle: { fontSize: 17, fontWeight: '700', color: '#171717' },
   profileBtn: { padding: 4 },
   content: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   icon: { fontSize: 40, fontWeight: '800', color: '#D97706', marginBottom: 16 },
-  subtitle: { fontSize: 14, color: '#718096' },
+  subtitle: { fontSize: 14, color: '#6B6B6B' },
 });

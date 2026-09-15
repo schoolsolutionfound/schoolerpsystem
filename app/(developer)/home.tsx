@@ -70,7 +70,7 @@ export default function DeveloperHomeScreen() {
                 <MaterialCommunityIcons
                   name={tab.icon}
                   size={22}
-                  color={isActive ? '#7E57C2' : '#94A3B8'}
+                  color={isActive ? '#F4C430' : '#6B6B6B'}
                 />
                 <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>{tab.label}</Text>
               </TouchableOpacity>
@@ -83,13 +83,13 @@ export default function DeveloperHomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8F9FB' },
+  container: { flex: 1, backgroundColor: '#FFFDF7' },
   safe: { flex: 1 },
   tabBar: {
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
+    borderTopColor: '#E8E5DC',
     paddingVertical: 6,
     paddingBottom: 10,
     shadowColor: '#000',
@@ -99,6 +99,6 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   tabItem: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 4 },
-  tabLabel: { fontSize: 10, fontWeight: '500', color: '#94A3B8', marginTop: 3 },
-  tabLabelActive: { color: '#7E57C2', fontWeight: '700' },
+  tabLabel: { fontSize: 10, fontWeight: '500', color: '#6B6B6B', marginTop: 3 },
+  tabLabelActive: { color: '#F4C430', fontWeight: '700' },
 });

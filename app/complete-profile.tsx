@@ -18,6 +18,7 @@ import { ParentCompleteProfileForm } from '../features/parent/components/ParentC
 import { AccountantCompleteProfileForm } from '../features/accountant/components/AccountantCompleteProfileForm';
 import { HODCompleteProfileForm } from '../features/hod/components/HODCompleteProfileForm';
 import { LibrarianCompleteProfileForm } from '../features/librarian/components/LibrarianCompleteProfileForm';
+import { DriverCompleteProfileForm } from '../features/driver/components/DriverCompleteProfileForm';
 
 export default function CompleteProfileScreen() {
   const router = useRouter();
@@ -70,6 +71,8 @@ export default function CompleteProfileScreen() {
   const [experience, setExperience] = useState('');
   const [libraryBadgeId, setLibraryBadgeId] = useState('');
   const [designation, setDesignation] = useState('');
+  const [vehicleNumber, setVehicleNumber] = useState('');
+  const [licenseNumber, setLicenseNumber] = useState('');
 
   const [profilePicUri, setProfilePicUri] = useState<string | null>(null);
 
@@ -234,6 +237,8 @@ export default function CompleteProfileScreen() {
         return <HODCompleteProfileForm {...formProps} department={department} setDepartment={setDepartment} employeeId={employeeId} setEmployeeId={setEmployeeId} />;
       case 'librarian':
         return <LibrarianCompleteProfileForm {...formProps} employeeId={employeeId} setEmployeeId={setEmployeeId} libraryBadgeId={libraryBadgeId} setLibraryBadgeId={setLibraryBadgeId} />;
+      case 'driver':
+        return <DriverCompleteProfileForm {...formProps} vehicleNumber={vehicleNumber} setVehicleNumber={setVehicleNumber} licenseNumber={licenseNumber} setLicenseNumber={setLicenseNumber} />;
       default:
         return <AdminCompleteProfileForm {...formProps} designation={designation} setDesignation={setDesignation} />;
     }
@@ -263,7 +268,7 @@ export default function CompleteProfileScreen() {
 
       {syncing && (
         <View style={styles.syncOverlay}>
-          <ActivityIndicator size="large" color="#7E57C2" />
+          <ActivityIndicator size="large" color="#F4C430" />
           <Text style={styles.syncText}>Syncing your profile...</Text>
         </View>
       )}
@@ -283,22 +288,22 @@ export default function CompleteProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8F9FB' },
+  container: { flex: 1, backgroundColor: '#FFFDF7' },
   safe: { flex: 1 },
   flex: { flex: 1 },
   scroll: { paddingHorizontal: 20, paddingVertical: 14, gap: 14 },
   progressContainer: { gap: 4, marginBottom: 4 },
-  stepText: { fontSize: 12, fontWeight: '700', color: '#7E57C2' },
-  barTrack: { height: 6, backgroundColor: '#E2E8F0', borderRadius: 3, overflow: 'hidden' },
-  barFill: { height: '100%', backgroundColor: '#7E57C2', borderRadius: 3 },
+  stepText: { fontSize: 12, fontWeight: '700', color: '#F4C430' },
+  barTrack: { height: 6, backgroundColor: '#E8E5DC', borderRadius: 3, overflow: 'hidden' },
+  barFill: { height: '100%', backgroundColor: '#F4C430', borderRadius: 3 },
   header: { gap: 4, marginBottom: 4 },
-  title: { fontSize: 22, fontWeight: '800', color: '#1A202C' },
-  subtitle: { fontSize: 13, color: '#718096' },
+  title: { fontSize: 22, fontWeight: '800', color: '#171717' },
+  subtitle: { fontSize: 13, color: '#6B6B6B' },
   syncOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(255,255,255,0.9)', justifyContent: 'center', alignItems: 'center', zIndex: 100, gap: 12 },
-  syncText: { fontSize: 15, color: '#718096', fontWeight: '600' },
+  syncText: { fontSize: 15, color: '#6B6B6B', fontWeight: '600' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 },
   modalCard: { backgroundColor: '#FFFFFF', borderRadius: BorderRadius.modal, padding: 24, alignItems: 'center', width: '100%', gap: 12 },
   checkCircleBig: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#22C55E', justifyContent: 'center', alignItems: 'center' },
-  modalTitle: { fontSize: 20, fontWeight: '800', color: '#1E293B' },
-  modalSub: { fontSize: 13, color: '#64748B', textAlign: 'center', lineHeight: 18 },
+  modalTitle: { fontSize: 20, fontWeight: '800', color: '#171717' },
+  modalSub: { fontSize: 13, color: '#6B6B6B', textAlign: 'center', lineHeight: 18 },
 });

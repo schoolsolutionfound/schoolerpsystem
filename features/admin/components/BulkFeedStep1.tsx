@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet, Text, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
+import { FontFamily } from '../../../constants/fonts';
 
 export interface BulkFeedStep1Props {
   router: any;
@@ -46,17 +47,17 @@ export const BulkFeedStep1: React.FC<BulkFeedStep1Props> = ({
     <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
       <View style={styles.topHeader}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <MaterialCommunityIcons name="chevron-left" size={24} color="#1A202C" />
+          <MaterialCommunityIcons name="chevron-left" size={24} color="#171717" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Bulk Feed Users</Text>
         <TouchableOpacity>
-          <MaterialCommunityIcons name="help-circle-outline" size={22} color="#718096" />
+          <MaterialCommunityIcons name="help-circle-outline" size={22} color="#6B6B6B" />
         </TouchableOpacity>
       </View>
 
       <View style={styles.bannerCard}>
         <View style={styles.bannerIconCircle}>
-          <MaterialCommunityIcons name="cloud-upload-outline" size={26} color="#7E57C2" />
+          <MaterialCommunityIcons name="cloud-upload-outline" size={26} color="#F4C430" />
         </View>
         <View style={styles.bannerTextWrap}>
           <Text style={styles.bannerTitle}>Import Users</Text>
@@ -73,7 +74,7 @@ export const BulkFeedStep1: React.FC<BulkFeedStep1Props> = ({
           activeOpacity={0.8}
         >
           <View style={styles.radioIconCircle}>
-            <MaterialCommunityIcons name="account-group-outline" size={22} color="#7E57C2" />
+            <MaterialCommunityIcons name="account-group-outline" size={22} color="#F4C430" />
           </View>
           <View style={styles.radioTextWrap}>
             <Text style={styles.radioTitle}>Student Bulk Feed</Text>
@@ -125,7 +126,7 @@ export const BulkFeedStep1: React.FC<BulkFeedStep1Props> = ({
 
           <View style={styles.dashedUploadBox}>
             <View style={styles.cloudCircle}>
-              <MaterialCommunityIcons name="cloud-upload" size={28} color="#7E57C2" />
+              <MaterialCommunityIcons name="cloud-upload" size={28} color="#F4C430" />
             </View>
 
             {!selectedFile ? (
@@ -136,13 +137,12 @@ export const BulkFeedStep1: React.FC<BulkFeedStep1Props> = ({
                   <Text style={styles.chooseFileText}>Choose File</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={styles.demoFileBtn}
-                  onPress={() => setSelectedFile({ name: 'students_bulk_feed.csv', size: '23 KB' })}
-                >
-                  <MaterialCommunityIcons name="lightning-bolt" size={14} color="#4F46E5" />
-                  <Text style={styles.demoFileBtnText}>Load Demo CSV File</Text>
-                </TouchableOpacity>
+                <View style={styles.csvFormatBox}>
+                  <Text style={styles.csvFormatTitle}>Expected CSV Format</Text>
+                  <Text style={styles.csvFormatHeader}>firstName, lastName, rollNo, email, password, instCode, instName, dept, year, section</Text>
+                  <Text style={styles.csvFormatExample}>Rahul, Kumar, 101, rahul@school.edu, Pass@123</Text>
+                  <Text style={styles.csvFormatNote}>Row 1 is skipped (header). Password, instCode, instName, dept, year, section are optional.</Text>
+                </View>
               </>
             ) : (
               <View style={styles.fileAttachedCard}>
@@ -202,14 +202,14 @@ export const BulkFeedStep1: React.FC<BulkFeedStep1Props> = ({
                 style={[styles.roleToggleBtn, individualRole === 'student' && styles.roleToggleActive]}
                 onPress={() => setIndividualRole?.('student')}
               >
-                <MaterialCommunityIcons name="account-school-outline" size={16} color={individualRole === 'student' ? '#7E57C2' : '#718096'} />
+                <MaterialCommunityIcons name="account-school-outline" size={16} color={individualRole === 'student' ? '#F4C430' : '#6B6B6B'} />
                 <Text style={[styles.roleToggleText, individualRole === 'student' && styles.roleToggleTextActive]}>Student</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.roleToggleBtn, individualRole === 'teacher' && styles.roleToggleActive]}
                 onPress={() => setIndividualRole?.('teacher')}
               >
-                <MaterialCommunityIcons name="account-tie-outline" size={16} color={individualRole === 'teacher' ? '#7E57C2' : '#718096'} />
+                <MaterialCommunityIcons name="account-tie-outline" size={16} color={individualRole === 'teacher' ? '#F4C430' : '#6B6B6B'} />
                 <Text style={[styles.roleToggleText, individualRole === 'teacher' && styles.roleToggleTextActive]}>Teacher</Text>
               </TouchableOpacity>
             </View>
@@ -224,7 +224,7 @@ export const BulkFeedStep1: React.FC<BulkFeedStep1Props> = ({
               setRollNoOrUSN('101');
             }}
           >
-            <MaterialCommunityIcons name="lightning-bolt" size={16} color="#4F46E5" />
+            <MaterialCommunityIcons name="lightning-bolt" size={16} color="#F4C430" />
             <Text style={styles.seedBtnText}>Auto-Fill Demo Student Record</Text>
           </TouchableOpacity>
 
@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
   scroll: { paddingHorizontal: 20, paddingVertical: 14, gap: 16 },
   topHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   backBtn: { padding: 4 },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: '#1A202C' },
+  headerTitle: { fontSize: 18, fontWeight: '700', color: '#171717' },
   bannerCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -250,22 +250,22 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.card,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
     gap: 14,
   },
   bannerIconCircle: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#EDE9F6',
+    backgroundColor: '#FFF4C7',
     justifyContent: 'center',
     alignItems: 'center',
   },
   bannerTextWrap: { flex: 1 },
-  bannerTitle: { fontSize: 16, fontWeight: '700', color: '#1A202C' },
-  bannerSub: { fontSize: 12, color: '#718096', marginTop: 2 },
+  bannerTitle: { fontSize: 16, fontWeight: '700', color: '#171717' },
+  bannerSub: { fontSize: 12, color: '#6B6B6B', marginTop: 2 },
   sectionCard: { gap: 12 },
-  sectionHeader: { fontSize: 14, fontWeight: '700', color: '#1A202C', marginBottom: 4 },
+  sectionHeader: { fontSize: 14, fontWeight: '700', color: '#171717', marginBottom: 4 },
   radioCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -273,37 +273,37 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.card,
     padding: 14,
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
     gap: 12,
   },
-  radioCardActive: { borderColor: '#7E57C2', backgroundColor: '#FAF5FF' },
+  radioCardActive: { borderColor: '#F4C430', backgroundColor: '#FFF4C7' },
   radioIconCircle: {
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: '#EDE9F6',
+    backgroundColor: '#FFF4C7',
     justifyContent: 'center',
     alignItems: 'center',
   },
   radioTextWrap: { flex: 1 },
-  radioTitle: { fontSize: 14, fontWeight: '700', color: '#1A202C' },
-  radioSub: { fontSize: 12, color: '#718096', marginTop: 2 },
+  radioTitle: { fontSize: 14, fontWeight: '700', color: '#171717' },
+  radioSub: { fontSize: 12, color: '#6B6B6B', marginTop: 2 },
   radioOuter: {
     width: 20,
     height: 20,
     borderRadius: 10,
     borderWidth: 2,
-    borderColor: '#CBD5E0',
+    borderColor: '#E8E5DC',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  radioOuterActive: { borderColor: '#7E57C2' },
-  radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#7E57C2' },
+  radioOuterActive: { borderColor: '#F4C430' },
+  radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#F4C430' },
   dashedUploadBox: {
     backgroundColor: '#FFFFFF',
     borderRadius: BorderRadius.card,
     borderWidth: 1.5,
-    borderColor: '#C7D2FE',
+    borderColor: '#FFF4C7',
     borderStyle: 'dashed',
     padding: 20,
     alignItems: 'center',
@@ -313,82 +313,83 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: '#EDE9F6',
+    backgroundColor: '#FFF4C7',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  uploadDragText: { fontSize: 13, color: '#718096' },
+  uploadDragText: { fontSize: 13, color: '#6B6B6B' },
   chooseFileBtn: {
-    backgroundColor: '#7E57C2',
+    backgroundColor: '#F4C430',
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: BorderRadius.button,
   },
   chooseFileText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
-  demoFileBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#EEF2FF',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: BorderRadius.chip,
-    marginTop: 4,
+  csvFormatBox: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: BorderRadius.card,
+    padding: 12,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
   },
-  demoFileBtnText: { fontSize: 12, color: '#4F46E5', fontWeight: '600' },
+  csvFormatTitle: { fontSize: 12, fontFamily: FontFamily.bold, color: '#171717', marginBottom: 6 },
+  csvFormatHeader: { fontSize: 11, fontFamily: FontFamily.medium, color: '#F4C430', marginBottom: 2 },
+  csvFormatExample: { fontSize: 11, fontFamily: FontFamily.regular, color: '#6B6B6B', marginBottom: 4 },
+  csvFormatNote: { fontSize: 10, fontFamily: FontFamily.regular, color: '#9CA3AF', fontStyle: 'italic' },
   fileAttachedCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8F9FB',
+    backgroundColor: '#FFFDF7',
     borderRadius: BorderRadius.card,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
     width: '100%',
     gap: 10,
   },
-  fileName: { fontSize: 13, fontWeight: '600', color: '#1A202C' },
-  fileSize: { fontSize: 11, color: '#A0AEC0' },
-  fileSupportText: { fontSize: 11, color: '#A0AEC0', textAlign: 'center' },
+  fileName: { fontSize: 13, fontWeight: '600', color: '#171717' },
+  fileSize: { fontSize: 11, color: '#6B6B6B' },
+  fileSupportText: { fontSize: 11, color: '#6B6B6B', textAlign: 'center' },
   rowInputs: { flexDirection: 'row' },
   roleToggleRow: { flexDirection: 'row', gap: 8 },
   roleToggleBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingVertical: 10, paddingHorizontal: 16,
     borderRadius: BorderRadius.button,
-    borderWidth: 1.5, borderColor: '#E2E8F0',
+    borderWidth: 1.5, borderColor: '#E8E5DC',
     flex: 1, justifyContent: 'center',
   },
-  roleToggleActive: { borderColor: '#7E57C2', backgroundColor: '#FAF5FF' },
-  roleToggleText: { fontSize: 13, fontWeight: '600', color: '#718096' },
-  roleToggleTextActive: { color: '#7E57C2' },
+  roleToggleActive: { borderColor: '#F4C430', backgroundColor: '#FFF4C7' },
+  roleToggleText: { fontSize: 13, fontWeight: '600', color: '#6B6B6B' },
+  roleToggleTextActive: { color: '#F4C430' },
   inputGroup: { marginBottom: 6 },
-  inputLabel: { fontSize: 12, fontWeight: '600', color: '#4A5568', marginBottom: 4 },
+  inputLabel: { fontSize: 12, fontWeight: '600', color: '#6B6B6B', marginBottom: 4 },
   input: {
     backgroundColor: '#FFFFFF',
     borderRadius: BorderRadius.input,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
     paddingHorizontal: 12,
     height: 44,
     fontSize: 13,
-    color: '#1A202C',
+    color: '#171717',
   },
   seedBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#EEF2FF',
+    backgroundColor: '#FFF4C7',
     paddingVertical: 10,
     borderRadius: BorderRadius.button,
     borderWidth: 1,
-    borderColor: '#C7D2FE',
+    borderColor: '#FFF4C7',
     marginVertical: 4,
     gap: 6,
   },
-  seedBtnText: { color: '#4F46E5', fontSize: 13, fontWeight: '600' },
+  seedBtnText: { color: '#F4C430', fontSize: 13, fontWeight: '600' },
   primaryActionBtn: {
-    backgroundColor: '#7E57C2',
+    backgroundColor: '#F4C430',
     borderRadius: BorderRadius.button,
     paddingVertical: 14,
     flexDirection: 'row',

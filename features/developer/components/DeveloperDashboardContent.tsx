@@ -18,10 +18,10 @@ import { CreateInstitutionModal } from './CreateInstitutionModal';
 import { AppBadge } from '../../shared/components/AppBadge';
 import { BorderRadius } from '../../../constants/theme';
 
-const PURPLE = '#7E57C2';
-const TEXT_PRIMARY = '#1A202C';
-const TEXT_MUTED = '#718096';
-const BORDER = '#E2E8F0';
+const PURPLE = '#F4C430';
+const TEXT_PRIMARY = '#171717';
+const TEXT_MUTED = '#6B6B6B';
+const BORDER = '#E8E5DC';
 
 export function DeveloperDashboardContent() {
   const [createModalVisible, setCreateModalVisible] = useState(false);
@@ -53,7 +53,7 @@ export function DeveloperDashboardContent() {
 
       <View style={styles.statsGrid}>
         <View style={styles.statCard}>
-          <View style={[styles.iconCircle, { backgroundColor: '#EDE7F6' }]}>
+          <View style={[styles.iconCircle, { backgroundColor: '#FFF4C7' }]}>
             <MaterialCommunityIcons name="office-building" size={22} color={PURPLE} />
           </View>
           <View style={styles.statTextContainer}>
@@ -71,7 +71,7 @@ export function DeveloperDashboardContent() {
           </View>
         </View>
         <View style={styles.statCard}>
-          <View style={[styles.iconCircle, { backgroundColor: '#EDE7F6' }]}>
+          <View style={[styles.iconCircle, { backgroundColor: '#FFF4C7' }]}>
             <MaterialCommunityIcons name="account-group-outline" size={22} color={PURPLE} />
           </View>
           <View style={styles.statTextContainer}>
@@ -95,14 +95,14 @@ export function DeveloperDashboardContent() {
       <Text style={styles.sectionTitle}>Onboarding Shortcuts</Text>
       <View style={styles.quickActionsRow}>
         <TouchableOpacity style={styles.quickActionCard} onPress={() => setCreateModalVisible(true)}>
-          <View style={[styles.quickIconCircle, { backgroundColor: '#EDE7F6' }]}>
+          <View style={[styles.quickIconCircle, { backgroundColor: '#FFF4C7' }]}>
             <MaterialCommunityIcons name="domain-plus" size={24} color={PURPLE} />
           </View>
           <Text style={styles.quickActionTitle}>Create Institution</Text>
           <Text style={styles.quickActionSub}>Register a new school or college</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.quickActionCard}>
-          <View style={[styles.quickIconCircle, { backgroundColor: '#EDE7F6' }]}>
+          <View style={[styles.quickIconCircle, { backgroundColor: '#FFF4C7' }]}>
             <MaterialCommunityIcons name="account-plus-outline" size={24} color={PURPLE} />
           </View>
           <Text style={styles.quickActionTitle}>Create Admin</Text>
@@ -120,7 +120,7 @@ export function DeveloperDashboardContent() {
       {recentInstitutions.map((item) => (
         <View key={item.id} style={styles.feedCard}>
           <View style={styles.feedRow}>
-            <View style={[styles.feedIconContainer, { backgroundColor: '#EDE7F6' }]}>
+            <View style={[styles.feedIconContainer, { backgroundColor: '#FFF4C7' }]}>
               <MaterialCommunityIcons name="office-building" size={20} color={PURPLE} />
             </View>
             <View style={styles.feedInfo}>
@@ -142,7 +142,7 @@ export function DeveloperDashboardContent() {
       {recentAdmins.map((admin) => (
         <View key={admin.id} style={styles.feedCard}>
           <View style={styles.feedRow}>
-            <View style={[styles.feedIconContainer, { backgroundColor: '#EDE7F6' }]}>
+            <View style={[styles.feedIconContainer, { backgroundColor: '#FFF4C7' }]}>
               <MaterialCommunityIcons name="account-tie" size={20} color={PURPLE} />
             </View>
             <View style={styles.feedInfo}>

@@ -1,8 +1,9 @@
 import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, Animated } from 'react-native';
+import { View, StyleSheet, Text, TouchableOpacity, Animated, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { FontFamily } from '../constants/fonts';
 
 export default function WelcomeScreen() {
   const router = useRouter();
@@ -38,12 +39,12 @@ export default function WelcomeScreen() {
             {/* Logo */}
             <View style={styles.logoWrap}>
               <View style={styles.logoCircle}>
-                <MaterialCommunityIcons name="school" size={40} color="#7E57C2" />
+                <Image source={require('../assets/logo-transparent.png')} style={styles.logoImage} resizeMode="contain" />
               </View>
             </View>
 
             {/* Title */}
-            <Text style={styles.title}>Welcome to{'\n'}SchoolHub</Text>
+            <Text style={styles.title}>Welcome to{'\n'}KIVQUO</Text>
             <Text style={styles.subtitle}>
               Select your role to continue
             </Text>
@@ -56,13 +57,13 @@ export default function WelcomeScreen() {
                 activeOpacity={0.7}
               >
                 <View style={styles.btnIconWrap}>
-                  <MaterialCommunityIcons name="shield-crown" size={20} color="#7E57C2" />
+                  <MaterialCommunityIcons name="shield-crown" size={20} color="#F4C430" />
                 </View>
                 <View style={styles.btnTextWrap}>
                   <Text style={styles.btnTitle}>Admin</Text>
                   <Text style={styles.btnDesc}>Manage school settings</Text>
                 </View>
-                <MaterialCommunityIcons name="chevron-right" size={20} color="#CBD5E0" />
+                <MaterialCommunityIcons name="chevron-right" size={20} color="#E8E5DC" />
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -71,13 +72,13 @@ export default function WelcomeScreen() {
                 activeOpacity={0.7}
               >
                 <View style={styles.btnIconWrap}>
-                  <MaterialCommunityIcons name="account-tie" size={20} color="#7E57C2" />
+                  <MaterialCommunityIcons name="account-tie" size={20} color="#F4C430" />
                 </View>
                 <View style={styles.btnTextWrap}>
                   <Text style={styles.btnTitle}>Teacher</Text>
                   <Text style={styles.btnDesc}>Manage classes & students</Text>
                 </View>
-                <MaterialCommunityIcons name="chevron-right" size={20} color="#CBD5E0" />
+                <MaterialCommunityIcons name="chevron-right" size={20} color="#E8E5DC" />
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -86,13 +87,13 @@ export default function WelcomeScreen() {
                 activeOpacity={0.7}
               >
                 <View style={styles.btnIconWrap}>
-                  <MaterialCommunityIcons name="book-open-variant" size={20} color="#7E57C2" />
+                  <MaterialCommunityIcons name="book-open-variant" size={20} color="#F4C430" />
                 </View>
                 <View style={styles.btnTextWrap}>
                   <Text style={styles.btnTitle}>Student</Text>
                   <Text style={styles.btnDesc}>Access your dashboard</Text>
                 </View>
-                <MaterialCommunityIcons name="chevron-right" size={20} color="#CBD5E0" />
+                <MaterialCommunityIcons name="chevron-right" size={20} color="#E8E5DC" />
               </TouchableOpacity>
             </View>
 
@@ -110,7 +111,7 @@ export default function WelcomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F9',
+    backgroundColor: '#FFFDF7',
   },
   safeArea: {
     flex: 1,
@@ -132,27 +133,32 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 24,
-    backgroundColor: '#EDE7F6',
+    backgroundColor: '#FFF4C7',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  logoImage: {
+    width: 64,
+    height: 64,
   },
 
   // Text
   title: {
     fontSize: 26,
-    fontWeight: '700',
-    color: '#1A202C',
+    fontFamily: FontFamily.bold,
+    color: '#171717',
     textAlign: 'center',
     letterSpacing: -0.5,
     lineHeight: 34,
   },
   subtitle: {
     fontSize: 15,
-    color: '#A0AEC0',
+    fontFamily: FontFamily.medium,
+    color: '#6B6B6B',
     textAlign: 'center',
     marginTop: 10,
     marginBottom: 40,
-    fontWeight: '500',
   },
 
   // Buttons
@@ -167,7 +173,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
   },
   teacherBtn: {
     flexDirection: 'row',
@@ -176,7 +182,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
   },
   studentBtn: {
     flexDirection: 'row',
@@ -185,13 +191,13 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
   },
   btnIconWrap: {
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: '#EDE7F6',
+    backgroundColor: '#FFF4C7',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
@@ -201,19 +207,20 @@ const styles = StyleSheet.create({
   },
   btnTitle: {
     fontSize: 15,
-    fontWeight: '600',
-    color: '#1A202C',
+    fontFamily: FontFamily.semibold,
+    color: '#171717',
   },
   btnDesc: {
     fontSize: 12,
-    color: '#A0AEC0',
+    fontFamily: FontFamily.regular,
+    color: '#6B6B6B',
     marginTop: 2,
   },
 
   // Footer
   footer: {
     fontSize: 12,
-    color: '#CBD5E0',
+    color: '#E8E5DC',
     marginTop: 48,
     textAlign: 'center',
   },

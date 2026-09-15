@@ -1,8 +1,9 @@
 import { Stack, usePathname, useRouter } from 'expo-router';
 import { useFonts } from 'expo-font';
+import { Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold, Poppins_800ExtraBold } from '@expo-google-fonts/poppins';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform, TextProps } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 
@@ -17,6 +18,7 @@ import * as Sentry from '@sentry/react-native';
 import { useAuthGuard } from '../features/shared/hooks/useAuthGuard';
 import { usePushNotifications } from '../features/shared/hooks/usePushNotifications';
 import { useAppSync } from '../features/shared/hooks/useAppSync';
+import { FontFamily } from '../constants/fonts';
 
 const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
@@ -48,6 +50,17 @@ if (hasSentryDsn) {
 
 const queryClient = new QueryClient();
 SplashScreen.preventAutoHideAsync();
+
+// Force Poppins font on all Text elements globally
+// @ts-ignore – defaultProps exists at runtime on RN Text
+if (!Text.defaultProps?.fontFamily) {
+  // @ts-ignore
+  Text.defaultProps = {
+    // @ts-ignore
+    ...(Text.defaultProps || {}),
+    style: [{ fontFamily: 'Poppins_400Regular' }],
+  };
+}
 
 const AppLayout = function Layout() {
   const setUserProfile = useUserStore((state) => state.setUserProfile);
@@ -89,6 +102,7 @@ const AppLayout = function Layout() {
         '/(hod)': 'hod',
         '/(librarian)': 'librarian',
         '/(developer)': 'dev',
+        '/(driver)': 'driver',
       };
       const requiredRole = groupToRole[routeGroup];
       if (requiredRole && requiredRole !== currentRole) return;
@@ -156,7 +170,13 @@ const AppLayout = function Layout() {
     return 0;
   };
 
-  const [loaded, fontError] = useFonts({});
+  const [loaded, fontError] = useFonts({
+    Poppins_400Regular,
+    Poppins_500Medium,
+    Poppins_600SemiBold,
+    Poppins_700Bold,
+    Poppins_800ExtraBold,
+  });
 
   const needsUpdate = compareVersions(CURRENT_APP_VERSION, minVersion) === -1;
 
@@ -183,7 +203,7 @@ const AppLayout = function Layout() {
   if (needsUpdate && !isDevPage) {
     return (
       <View style={styles.maintenanceContainer} onLayout={onLayoutRootView}>
-        <MaterialCommunityIcons name="rocket-launch" size={80} color="#1E3A5F" />
+        <MaterialCommunityIcons name="rocket-launch" size={80} color="#171717" />
         <Text style={styles.maintenanceTitle}>New Update Available!</Text>
         <Text style={styles.maintenanceText}>A newer version of the app is available. Please update to continue.</Text>
       </View>
@@ -221,6 +241,7 @@ const AppLayout = function Layout() {
           <Stack.Screen name="(hod)" />
           <Stack.Screen name="(librarian)" />
           <Stack.Screen name="(developer)" />
+          <Stack.Screen name="(driver)" />
         </Stack>
       </View>
     </QueryClientProvider>
@@ -231,7 +252,7 @@ const RootLayout = hasSentryDsn ? Sentry.wrap(AppLayout) : AppLayout;
 export default RootLayout;
 
 const styles = StyleSheet.create({
-  maintenanceContainer: { flex: 1, backgroundColor: '#F8F9FB', justifyContent: 'center', alignItems: 'center', padding: 40 },
-  maintenanceTitle: { fontSize: 24, fontWeight: 'bold', color: '#1E3A5F', marginTop: 20, textAlign: 'center' },
-  maintenanceText: { fontSize: 16, color: '#666', textAlign: 'center', marginTop: 15, lineHeight: 24 },
+  maintenanceContainer: { flex: 1, backgroundColor: '#FFFDF7', justifyContent: 'center', alignItems: 'center', padding: 40 },
+  maintenanceTitle: { fontSize: 24, fontFamily: FontFamily.bold, color: '#171717', marginTop: 20, textAlign: 'center' },
+  maintenanceText: { fontSize: 16, fontFamily: FontFamily.regular, color: '#666', textAlign: 'center', marginTop: 15, lineHeight: 24 },
 });

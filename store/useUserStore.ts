@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { secureStorage } from './secureStorage';
 
-export type UserRole = 'student' | 'teacher' | 'admin' | 'parent' | 'dev' | 'principal' | 'accountant' | 'hod' | 'librarian' | 'institution admin' | 'loading';
+export type UserRole = 'student' | 'teacher' | 'admin' | 'parent' | 'dev' | 'principal' | 'accountant' | 'hod' | 'librarian' | 'driver' | 'institution admin' | 'loading';
 export type InstitutionType = 'school' | 'college';
 
 interface UserState {
@@ -33,6 +33,8 @@ interface UserState {
   department: string;
   linkedStudentUSN: string;
   relation: string;
+  childId: string;
+  childName: string;
   qualification: string;
   experience: string;
   libraryBadgeId: string;
@@ -76,6 +78,8 @@ export const useUserStore = create<UserState>()(
       department: '',
       linkedStudentUSN: '',
       relation: '',
+      childId: '',
+      childName: '',
       qualification: '',
       experience: '',
       libraryBadgeId: '',
@@ -160,6 +164,8 @@ export const useUserStore = create<UserState>()(
         department: state.department,
         linkedStudentUSN: state.linkedStudentUSN,
         relation: state.relation,
+        childId: state.childId,
+        childName: state.childName,
         qualification: state.qualification,
         experience: state.experience,
         libraryBadgeId: state.libraryBadgeId,

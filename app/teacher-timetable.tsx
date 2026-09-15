@@ -13,7 +13,7 @@ export default function TeacherTimetableScreen() {
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()}>
-            <MaterialCommunityIcons name="arrow-left" size={24} color="#1A202C" />
+            <MaterialCommunityIcons name="arrow-left" size={24} color="#171717" />
           </TouchableOpacity>
           <Text style={styles.title}>Build Timetable</Text>
           <View style={{ width: 24 }} />
@@ -28,7 +28,7 @@ export default function TeacherTimetableScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8F9FB' },
+  container: { flex: 1, backgroundColor: '#FFFDF7' },
   safe: { flex: 1 },
   header: {
     flexDirection: 'row',
@@ -37,9 +37,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: '#E8E5DC',
     backgroundColor: '#FFFFFF',
   },
-  title: { fontSize: 17, fontWeight: '800', color: '#1A202C' },
+  title: { fontSize: 17, fontWeight: '800', color: '#171717' },
   body: { flex: 1 },
 });

@@ -48,7 +48,7 @@ export default function AdminProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8F9FB' },
-  header: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E2E8F0', backgroundColor: '#FFFFFF' },
-  headerTitle: { fontSize: 17, fontWeight: '700', color: '#1A202C' },
+  container: { flex: 1, backgroundColor: '#FFFDF7' },
+  header: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E8E5DC', backgroundColor: '#FFFFFF' },
+  headerTitle: { fontSize: 17, fontWeight: '700', color: '#171717' },
 });

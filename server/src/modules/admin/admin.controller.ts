@@ -78,6 +78,168 @@ export async function createStudentHandler(request: FastifyRequest, reply: Fasti
   }
 }
 
+export async function getStudentByIdHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const instCode = extractInstCode(request);
+    const { id } = request.params as { id: string };
+    const data = await adminService.getStudentById(id, instCode);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return reply.status(err.statusCode || 404).send({
+      success: false,
+      error: { message: err.message || 'Student not found' },
+    });
+  }
+}
+
+export async function updateStudentHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const instCode = extractInstCode(request);
+    const { id } = request.params as { id: string };
+    const body = request.body as any;
+    const data = await adminService.updateStudent(id, body, instCode);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return reply.status(err.statusCode || 400).send({
+      success: false,
+      error: { message: err.message || 'Failed to update student' },
+    });
+  }
+}
+
+export async function deleteStudentHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const instCode = extractInstCode(request);
+    const { id } = request.params as { id: string };
+    const data = await adminService.deleteStudent(id, instCode);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return reply.status(err.statusCode || 400).send({
+      success: false,
+      error: { message: err.message || 'Failed to delete student' },
+    });
+  }
+}
+
+export async function promoteStudentsHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const instCode = extractInstCode(request);
+    const { studentIds, targetClassSectionId, academicYear } = request.body as any;
+    const data = await adminService.promoteStudents(studentIds, targetClassSectionId, academicYear, instCode);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return reply.status(err.statusCode || 400).send({
+      success: false,
+      error: { message: err.message || 'Failed to promote students' },
+    });
+  }
+}
+
+export async function graduateStudentsHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const instCode = extractInstCode(request);
+    const { studentIds } = request.body as any;
+    const data = await adminService.graduateStudents(studentIds, instCode);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return reply.status(err.statusCode || 400).send({
+      success: false,
+      error: { message: err.message || 'Failed to graduate students' },
+    });
+  }
+}
+
+export async function getAlumniHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const instCode = extractInstCode(request);
+    const q = (request.query as any) || {};
+    const limit = Math.min(Math.max(Number(q.limit) || 100, 1), 500);
+    const offset = Math.max(Number(q.offset) || 0, 0);
+    const data = await adminService.getAlumni(instCode, limit, offset);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return reply.status(500).send({
+      success: false,
+      error: { message: err.message || 'Failed to fetch alumni' },
+    });
+  }
+}
+
+export async function addMyDocumentHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const user = (request as any).user;
+    const studentId = user?.id;
+    const instCode = extractInstCode(request);
+    const body = request.body as { documentType: string; fileName: string; fileUrl: string };
+    const data = await adminService.addStudentDocument(studentId, instCode, body);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return reply.status(err.statusCode || 400).send({
+      success: false,
+      error: { message: err.message || 'Failed to add document' },
+    });
+  }
+}
+
+export async function deleteMyDocumentHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const user = (request as any).user;
+    const studentId = user?.id;
+    const instCode = extractInstCode(request);
+    const { docId } = request.params as { docId: string };
+    const data = await adminService.deleteStudentDocument(studentId, docId, instCode);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return reply.status(err.statusCode || 400).send({
+      success: false,
+      error: { message: err.message || 'Failed to delete document' },
+    });
+  }
+}
+
+export async function getStudentDocumentsHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const instCode = extractInstCode(request);
+    const { id } = request.params as { id: string };
+    const data = await adminService.getStudentDocuments(id, instCode);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return reply.status(err.statusCode || 500).send({
+      success: false,
+      error: { message: err.message || 'Failed to fetch documents' },
+    });
+  }
+}
+
+export async function addStudentDocumentHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const instCode = extractInstCode(request);
+    const { id } = request.params as { id: string };
+    const body = request.body as { documentType: string; fileName: string; fileUrl: string };
+    const data = await adminService.addStudentDocument(id, instCode, body);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return reply.status(err.statusCode || 400).send({
+      success: false,
+      error: { message: err.message || 'Failed to add document' },
+    });
+  }
+}
+
+export async function deleteStudentDocumentHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const instCode = extractInstCode(request);
+    const { id, docId } = request.params as { id: string; docId: string };
+    const data = await adminService.deleteStudentDocument(id, docId, instCode);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return reply.status(err.statusCode || 400).send({
+      success: false,
+      error: { message: err.message || 'Failed to delete document' },
+    });
+  }
+}
+
 export async function getTeachersHandler(request: FastifyRequest, reply: FastifyReply) {
   try {
     const instCode = extractInstCode(request);
@@ -104,6 +266,35 @@ export async function createTeacherHandler(request: FastifyRequest, reply: Fasti
     return reply.status(err.statusCode || 400).send({
       success: false,
       error: { message: err.message || 'Failed to create teacher' },
+    });
+  }
+}
+
+export async function updateTeacherHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const instCode = extractInstCode(request);
+    const { id } = request.params as { id: string };
+    const body = request.body as any;
+    const data = await adminService.updateTeacher(id, body, instCode);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return reply.status(err.statusCode || 400).send({
+      success: false,
+      error: { message: err.message || 'Failed to update teacher' },
+    });
+  }
+}
+
+export async function deleteTeacherHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const instCode = extractInstCode(request);
+    const { id } = request.params as { id: string };
+    const data = await adminService.deleteTeacher(id, instCode);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return reply.status(err.statusCode || 400).send({
+      success: false,
+      error: { message: err.message || 'Failed to delete teacher' },
     });
   }
 }
@@ -159,7 +350,7 @@ export async function singleFeedHandler(request: FastifyRequest, reply: FastifyR
 }
 
 export async function bulkFeedHandler(request: FastifyRequest, reply: FastifyReply) {
-  const body = request.body as { records: SingleFeedPayload[] };
+  const body = request.body as { records: SingleFeedPayload[]; sendEmails?: boolean; overwriteUsers?: boolean };
 
   if (!body || !Array.isArray(body.records)) {
     return reply.status(400).send({
@@ -169,7 +360,10 @@ export async function bulkFeedHandler(request: FastifyRequest, reply: FastifyRep
   }
 
   try {
-    const data = await adminService.bulkFeed(body.records);
+    const data = await adminService.bulkFeed(body.records, {
+      sendEmails: body.sendEmails,
+      overwriteUsers: body.overwriteUsers,
+    });
     return reply.send({
       success: true,
       data,

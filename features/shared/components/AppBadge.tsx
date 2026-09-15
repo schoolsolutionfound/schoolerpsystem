@@ -21,11 +21,11 @@ export const AppBadge: React.FC<AppBadgeProps> = ({ label, type = 'active', styl
       case 'trial':
         return { bg: '#FEF3C7', text: Colors.light.warning, border: '#FDE68A' };
       case 'college':
-        return { bg: '#EDE7F6', text: Colors.light.primary, border: '#DDD6FE' };
+        return { bg: '#FFF4C7', text: Colors.light.primary, border: '#FFF4C7' };
       case 'school':
-        return { bg: '#E0F2FE', text: '#0284C7', border: '#BAE6FD' };
+        return { bg: '#FFFDF7', text: '#171717', border: '#E8E5DC' };
       default:
-        return { bg: '#F1F5F9', text: Colors.light.muted, border: '#E2E8F0' };
+        return { bg: '#FFFDF7', text: Colors.light.muted, border: '#E8E5DC' };
     }
   };
 

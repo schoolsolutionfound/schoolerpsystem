@@ -1,251 +1,405 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Text } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Text, Platform, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useUserStore } from '../../store/useUserStore';
-import { BorderRadius } from '../../constants/theme';
+import { fetchTeacherTimetableApi } from '../../api/academics';
+import { TeacherHomeHeader } from '../../features/teacher/components/TeacherHomeHeader';
+import { TeacherDonutCard } from '../../features/teacher/components/TeacherDonutCard';
+import { TeacherWeeklyBarCard } from '../../features/teacher/components/TeacherWeeklyBarCard';
+import { TeacherHomeAnnouncements } from '../../features/teacher/components/TeacherHomeAnnouncements';
+import { TeacherHomePeriodsList } from '../../features/teacher/components/TeacherHomePeriodsList';
 import { TeacherTimetableView } from '../../features/teacher/components/TeacherTimetableView';
 import { AttendanceMarkingView } from '../../features/teacher/components/AttendanceMarkingView';
-import { fetchTeacherTimetableApi } from '../../api/academics';
+import { TeacherMarksView } from '../../features/teacher/components/TeacherMarksView';
+import { TeacherHomeworkView } from '../../features/teacher/components/TeacherHomeworkView';
+import { TeacherChatView } from '../../features/teacher/components/TeacherChatView';
+import { TeacherLocateStudentsView } from '../../features/teacher/components/TeacherLocateStudentsView';
+import { ClassAttendanceReport } from '../../features/teacher/components/ClassAttendanceReport';
+import { TeacherDrawer } from '../../features/teacher/components/TeacherDrawer';
+import { ShimmerProvider } from '../../features/student/components/ShimmerSkeleton';
+import { FontFamily } from '../../constants/fonts';
 
-type Tab = 'home' | 'schedule' | 'attendance' | 'profile';
+type Tab = 'home' | 'schedule' | 'attendance' | 'marks' | 'reports' | 'homework' | 'chat' | 'locate' | 'profile';
+
+function toMinutes(timeStr?: string): number | null {
+  if (!timeStr) return null;
+  const m = timeStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)?$/);
+  if (!m) return null;
+  let h = parseInt(m[1], 10);
+  const min = parseInt(m[2], 10);
+  const suffix = (m[3] || '').toUpperCase();
+  if (suffix === 'PM' && h < 12) h += 12;
+  if (suffix === 'AM' && h === 12) h = 0;
+  return h * 60 + min;
+}
+
+function findCurrentSlot(slots: any[]): any | undefined {
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  return slots.find((s) => {
+    const start = toMinutes(s?.period?.startTime);
+    const end = toMinutes(s?.period?.endTime);
+    return start !== null && end !== null && nowMin >= start && nowMin < end;
+  });
+}
+
+function getWeekDates(): string[] {
+  const now = new Date();
+  const utcDay = now.getUTCDay();
+  const mondayOffset = utcDay === 0 ? -6 : 1 - utcDay;
+  const monday = new Date(now);
+  monday.setUTCDate(now.getUTCDate() + mondayOffset);
+  return [0, 1, 2, 3, 4].map((i) => {
+    const d = new Date(monday);
+    d.setUTCDate(monday.getUTCDate() + i);
+    return d.toISOString().slice(0, 10);
+  });
+}
+
+const TABS: { key: Tab; label: string; icon: string; iconFilled: string }[] = [
+  { key: 'home', label: 'Home', icon: 'home-outline', iconFilled: 'home' },
+  { key: 'schedule', label: 'Schedule', icon: 'calendar-outline', iconFilled: 'calendar' },
+  { key: 'attendance', label: 'Attendance', icon: 'clipboard-check-outline', iconFilled: 'clipboard-check' },
+  { key: 'marks', label: 'Marks', icon: 'certificate-outline', iconFilled: 'certificate' },
+  { key: 'reports', label: 'Reports', icon: 'chart-bar', iconFilled: 'chart-bar' },
+];
 
 export default function TeacherHomeScreen() {
   const router = useRouter();
   const fullName = useUserStore((state) => state.fullName) || 'Teacher';
+  const profilePic = useUserStore((state) => state.profilePic);
+  const email = useUserStore((state) => state.email) || '';
   const institutionName = useUserStore((state) => state.institutionName) || '';
-  const institutionCode = useUserStore((state) => state.institutionCode) || '';
 
   const [activeTab, setActiveTab] = useState<Tab>('home');
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeSlot, setActiveSlot] = useState<{ slotId: string; subjectName: string } | null>(null);
-  const [todayCount, setTodayCount] = useState(0);
-  const [loadingCount, setLoadingCount] = useState(true);
 
-  const loadTodayCount = useCallback(async () => {
-    setLoadingCount(true);
+  const [loading, setLoading] = useState(true);
+  const [todayCount, setTodayCount] = useState(0);
+  const [todaySlots, setTodaySlots] = useState<any[]>([]);
+  const [completedCount, setCompletedCount] = useState(0);
+  const [weekData, setWeekData] = useState<number[]>([0, 0, 0, 0, 0]);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchAll = useCallback(async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const utcDay = new Date(`${today}T00:00:00Z`).getUTCDay();
+
     try {
-      const date = new Date().toISOString().slice(0, 10);
-      const res = await fetchTeacherTimetableApi(date);
-      setTodayCount(res?.periods?.length || 0);
+      const weekDates = getWeekDates();
+      const results = await Promise.allSettled(
+        weekDates.map((d) => fetchTeacherTimetableApi(d))
+      );
+
+      const todayRes = results[0]?.status === 'fulfilled' ? results[0].value : null;
+      const periods = todayRes?.periods || [];
+      setTodayCount(periods.length);
+      setTodaySlots(periods.filter((s: any) => s.dayOfWeek === utcDay));
+
+      const wData = results.map((r) =>
+        r.status === 'fulfilled' ? (r.value?.periods?.length || 0) : 0
+      );
+      setWeekData(wData);
     } catch (err: any) {
-      console.warn('[Teacher Home] Could not load today schedule:', err.message);
+      console.warn('[Teacher Home] Could not load schedule:', err.message);
     } finally {
-      setLoadingCount(false);
+      setLoading(false);
     }
   }, []);
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    setLoading(true);
+    try {
+      await fetchAll();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [fetchAll]);
+
   useEffect(() => {
-    loadTodayCount();
-  }, [loadTodayCount]);
+    fetchAll();
+  }, [fetchAll]);
+
+  useEffect(() => {
+    if (activeTab === 'home') {
+      setCompletedCount(0);
+    }
+  }, [activeTab]);
+
+  const currentSlot = findCurrentSlot(todaySlots);
 
   const openSlot = (slotId: string, subjectName: string) => {
     setActiveSlot({ slotId, subjectName });
     setActiveTab('attendance');
   };
 
+  const refreshControl = (
+    <RefreshControl
+      refreshing={refreshing}
+      onRefresh={onRefresh}
+      tintColor="#1A1B1C"
+      colors={['#1A1B1C']}
+      progressBackgroundColor="#FFFFFF"
+    />
+  );
+
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'home':
+        return (
+          <ShimmerProvider>
+            <ScrollView
+              contentContainerStyle={styles.scroll}
+              showsVerticalScrollIndicator={false}
+              refreshControl={refreshControl}
+            >
+              <TeacherDonutCard
+                completed={completedCount}
+                total={todayCount}
+                loading={loading}
+              />
+              <TeacherWeeklyBarCard weekData={weekData} loading={loading} />
+              <TeacherHomeAnnouncements />
+              <TeacherHomePeriodsList
+                loading={loading}
+                slots={todaySlots}
+                onMarkAttendance={openSlot}
+              />
+            </ScrollView>
+          </ShimmerProvider>
+        );
+      case 'schedule':
+        return <TeacherTimetableView onOpenAttendance={openSlot} />;
+      case 'attendance':
+        return activeSlot ? (
+          <AttendanceMarkingView
+            slotId={activeSlot.slotId}
+            subjectName={activeSlot.subjectName}
+            onSaved={() => {
+              setCompletedCount((c) => c + 1);
+              setActiveSlot(null);
+              fetchAll();
+            }}
+          />
+        ) : (
+          <TeacherTimetableView onOpenAttendance={openSlot} />
+        );
+      case 'marks':
+        return <TeacherMarksView />;
+      case 'homework':
+        return <TeacherHomeworkView />;
+      case 'chat':
+        return <TeacherChatView />;
+      case 'locate':
+        return <TeacherLocateStudentsView />;
+      case 'reports':
+        return <ClassAttendanceReport />;
+      default:
+        return null;
+    }
+  };
+
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safe}>
-        {activeTab === 'home' && (
-          <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-            {/* Greeting Banner */}
-            <View style={styles.banner}>
-              <View>
-                <Text style={styles.greeting}>Hello, {fullName}</Text>
-                <Text style={styles.schoolName}>{institutionName || institutionCode || 'My Institution'}</Text>
-              </View>
-              <TouchableOpacity onPress={() => router.push('/(teacher)/profile')} style={styles.avatarBtn}>
-                <View style={styles.avatarCircle}>
-                  <Text style={styles.avatarText}>{fullName.substring(0, 2).toUpperCase()}</Text>
-                </View>
-              </TouchableOpacity>
-            </View>
+        <TeacherHomeHeader
+          fullName={fullName}
+          profilePic={profilePic}
+          onMenuPress={() => setDrawerOpen(true)}
+          onNotificationsPress={() => router.push('/notifications')}
+          onProfilePress={() => router.push('/(teacher)/profile')}
+        />
 
-            {/* Today stat */}
-            <View style={styles.statsRow}>
-              <View style={styles.statCard}>
-                <View style={[styles.iconCircle, { backgroundColor: '#E0F2FE' }]}>
-                  <MaterialCommunityIcons name="calendar-check" size={22} color="#0284C7" />
-                </View>
-                <View>
-                  <Text style={styles.statValue}>{loadingCount ? '—' : todayCount}</Text>
-                  <Text style={styles.statLabel}>Classes Today</Text>
-                </View>
-              </View>
-              <View style={styles.statCard}>
-                <View style={[styles.iconCircle, { backgroundColor: '#EDE7F6' }]}>
-                  <MaterialCommunityIcons name="school" size={22} color="#7E57C2" />
-                </View>
-                <View>
-                  <Text style={styles.statValue}>{institutionCode || '—'}</Text>
-                  <Text style={styles.statLabel}>Institution</Text>
-                </View>
-              </View>
-            </View>
-
-            <Text style={styles.sectionTitle}>Quick Actions</Text>
-            <TouchableOpacity style={styles.actionCard} onPress={() => setActiveTab('schedule')}>
-              <View style={[styles.actionIconCircle, { backgroundColor: '#EDE7F6' }]}>
-                <MaterialCommunityIcons name="timetable" size={24} color="#7E57C2" />
-              </View>
-              <View style={styles.actionTextContainer}>
-                <Text style={styles.actionTitle}>My Schedule</Text>
-                <Text style={styles.actionSubtitle}>View today&apos;s periods and upcoming classes</Text>
-              </View>
-              <MaterialCommunityIcons name="chevron-right" size={22} color="#94A3B8" />
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.actionCard} onPress={() => setActiveTab('attendance')}>
-              <View style={[styles.actionIconCircle, { backgroundColor: '#DCFCE7' }]}>
-                <MaterialCommunityIcons name="checkbox-marked-circle-plus-outline" size={24} color="#16A34A" />
-              </View>
-              <View style={styles.actionTextContainer}>
-                <Text style={styles.actionTitle}>Mark Attendance</Text>
-                <Text style={styles.actionSubtitle}>Take roll for your assigned classes</Text>
-              </View>
-              <MaterialCommunityIcons name="chevron-right" size={22} color="#94A3B8" />
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/teacher-timetable')}>
-              <View style={[styles.actionIconCircle, { backgroundColor: '#FEF3C7' }]}>
-                <MaterialCommunityIcons name="calendar-edit" size={24} color="#D97706" />
-              </View>
-              <View style={styles.actionTextContainer}>
-                <Text style={styles.actionTitle}>Build Timetable</Text>
-                <Text style={styles.actionSubtitle}>Plan your class teacher&apos;s weekly timetable</Text>
-              </View>
-              <MaterialCommunityIcons name="chevron-right" size={22} color="#94A3B8" />
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/notifications')}>
-              <View style={[styles.actionIconCircle, { backgroundColor: '#FCE7F3' }]}>
-                <MaterialCommunityIcons name="bell" size={24} color="#DB2777" />
-              </View>
-              <View style={styles.actionTextContainer}>
-                <Text style={styles.actionTitle}>Notifications</Text>
-                <Text style={styles.actionSubtitle}>School updates and announcements</Text>
-              </View>
-              <MaterialCommunityIcons name="chevron-right" size={22} color="#94A3B8" />
-            </TouchableOpacity>
-          </ScrollView>
-        )}
-
-        {activeTab === 'schedule' && <TeacherTimetableView onOpenAttendance={openSlot} />}
-
-        {activeTab === 'attendance' && (
-          activeSlot ? (
-            <AttendanceMarkingView
-              slotId={activeSlot.slotId}
-              subjectName={activeSlot.subjectName}
-              onSaved={() => { setActiveSlot(null); loadTodayCount(); }}
-            />
-          ) : (
-            <TeacherTimetableView onOpenAttendance={openSlot} />
-          )
-        )}
-
-        {activeTab === 'profile' && (
-          <View style={styles.centerBox}>
-            <TouchableOpacity style={styles.profileBtn} onPress={() => router.push('/(teacher)/profile')}>
-              <MaterialCommunityIcons name="account-circle" size={48} color="#7E57C2" />
-              <Text style={styles.profileBtnText}>Open Profile</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+        <View style={styles.content}>
+          {renderTabContent()}
+        </View>
 
         {/* Bottom Tab Bar */}
-        <View style={styles.tabBar}>
-          <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('home')}>
-            <MaterialCommunityIcons name="home" size={22} color={activeTab === 'home' ? '#7E57C2' : '#94A3B8'} />
-            <Text style={[styles.tabLabel, activeTab === 'home' && styles.tabLabelActive]}>Home</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.tabItem} onPress={() => { setActiveSlot(null); setActiveTab('schedule'); }}>
-            <MaterialCommunityIcons name="calendar-outline" size={22} color={activeTab === 'schedule' ? '#7E57C2' : '#94A3B8'} />
-            <Text style={[styles.tabLabel, activeTab === 'schedule' && styles.tabLabelActive]}>Schedule</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('attendance')}>
-            <MaterialCommunityIcons name="clipboard-check-outline" size={22} color={activeTab === 'attendance' ? '#7E57C2' : '#94A3B8'} />
-            <Text style={[styles.tabLabel, activeTab === 'attendance' && styles.tabLabelActive]}>Attendance</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('profile')}>
-            <MaterialCommunityIcons name="account-circle-outline" size={22} color={activeTab === 'profile' ? '#7E57C2' : '#94A3B8'} />
-            <Text style={[styles.tabLabel, activeTab === 'profile' && styles.tabLabelActive]}>Profile</Text>
-          </TouchableOpacity>
+        <View style={styles.tabBarBg}>
+          <View style={styles.tabBar}>
+            {TABS.map((tab) => {
+              const isCenter = tab.key === 'attendance';
+              const isActive = activeTab === tab.key;
+
+              if (isCenter) {
+                return (
+                  <TouchableOpacity
+                    key={tab.key}
+                    style={styles.centerBtnWrap}
+                    onPress={() => {
+                      setActiveSlot(null);
+                      setActiveTab(tab.key);
+                    }}
+                    activeOpacity={0.85}
+                  >
+                    <View style={[styles.centerBtnRing, isActive && styles.centerBtnRingActive]}>
+                      <View style={[styles.centerBtn, isActive && styles.centerBtnActive]}>
+                        <MaterialCommunityIcons
+                          name={tab.iconFilled as any}
+                          size={26}
+                          color={isActive ? '#F4C430' : '#E8E5DC'}
+                        />
+                      </View>
+                    </View>
+                    <Text style={[styles.centerLabel, isActive && styles.centerLabelActive]}>{tab.label}</Text>
+                  </TouchableOpacity>
+                );
+              }
+
+              return (
+                <TouchableOpacity
+                  key={tab.key}
+                  style={styles.tabItem}
+                  onPress={() => {
+                    if (tab.key === 'schedule') setActiveSlot(null);
+                    setActiveTab(tab.key);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.tabIconBg, isActive && styles.tabIconBgActive]}>
+                    <MaterialCommunityIcons
+                      name={isActive ? (tab.iconFilled as any) : (tab.icon as any)}
+                      size={22}
+                      color={isActive ? '#1A1B1C' : '#9CA3AF'}
+                    />
+                  </View>
+                  <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>{tab.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
       </SafeAreaView>
+
+      <TeacherDrawer
+        visible={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        fullName={fullName}
+        email={email}
+        profilePic={profilePic}
+        institutionName={institutionName}
+        activeTab={activeTab}
+        onTabSwitch={(tab: Tab) => {
+          setDrawerOpen(false);
+          setTimeout(() => {
+            if (tab === 'schedule') setActiveSlot(null);
+            setActiveTab(tab);
+          }, 120);
+        }}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8F9FB' },
+  container: { flex: 1, backgroundColor: '#FFFEFE' },
   safe: { flex: 1 },
-  scroll: { padding: 16, gap: 14, paddingBottom: 40 },
-  banner: {
+  content: { flex: 1 },
+  scroll: { paddingHorizontal: 20, paddingVertical: 14, gap: 16 },
+
+  // Center box
+  centerBox: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 8, paddingHorizontal: 40 },
+  centerTitle: { fontSize: 17, fontWeight: '800', color: '#171717', marginTop: 4 },
+  centerSub: { fontSize: 13, color: '#6B6B6B', textAlign: 'center', lineHeight: 18 },
+  profileBtn: { alignItems: 'center', gap: 8 },
+  profileBtnText: { fontSize: 14, fontWeight: '700', color: '#F4C430' },
+
+  // Tab bar
+  tabBarBg: {
     backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.card,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    borderRadius: 32,
+    marginHorizontal: 16,
+    marginBottom: Platform.OS === 'ios' ? 16 : 8,
+    paddingTop: 8,
+    paddingBottom: Platform.OS === 'ios' ? 16 : 8,
+    shadowColor: '#171717',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 12,
   },
-  greeting: { fontSize: 20, fontWeight: '800', color: '#1A202C' },
-  schoolName: { fontSize: 13, color: '#718096', marginTop: 4 },
-  avatarBtn: { padding: 4 },
-  avatarCircle: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: '#EDE7F6',
+  tabBar: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    paddingHorizontal: 6,
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: 2,
+  },
+  tabIconBg: {
+    width: 44,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { fontSize: 15, fontWeight: '800', color: '#7E57C2' },
-  statsRow: { flexDirection: 'row', gap: 10 },
-  statCard: {
+  tabIconBgActive: {
+    backgroundColor: '#F4C430',
+  },
+  tabLabel: {
+    fontSize: 10,
+    fontFamily: FontFamily.medium,
+    color: '#9CA3AF',
+    marginTop: 4,
+  },
+  tabLabelActive: {
+    color: '#1A1B1C',
+    fontFamily: FontFamily.bold,
+  },
+
+  // Center floating button
+  centerBtnWrap: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.card,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    justifyContent: 'center',
+    paddingBottom: 2,
+    marginTop: -28,
   },
-  iconCircle: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  statValue: { fontSize: 20, fontWeight: '800', color: '#1A202C' },
-  statLabel: { fontSize: 11, color: '#718096', fontWeight: '500', marginTop: 2 },
-  sectionTitle: { fontSize: 15, fontWeight: '800', color: '#1A202C', marginTop: 6 },
-  actionCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.card,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    flexDirection: 'row',
+  centerBtnRing: {
+    width: 66,
+    height: 66,
+    borderRadius: 33,
+    borderWidth: 3,
+    borderColor: '#E8E5DC',
     alignItems: 'center',
-    gap: 14,
+    justifyContent: 'center',
+    shadowColor: '#171717',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  actionIconCircle: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
-  actionTextContainer: { flex: 1, gap: 2 },
-  actionTitle: { fontSize: 15, fontWeight: '700', color: '#1A202C' },
-  actionSubtitle: { fontSize: 12, color: '#718096', lineHeight: 16 },
-  centerBox: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  profileBtn: { alignItems: 'center', gap: 8 },
-  profileBtnText: { fontSize: 14, fontWeight: '700', color: '#7E57C2' },
-  tabBar: {
-    flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-    paddingVertical: 8,
-    paddingBottom: 12,
+  centerBtnRingActive: {
+    borderColor: '#F4C430',
+    shadowColor: '#F4C430',
+    shadowOpacity: 0.35,
   },
-  tabItem: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  tabLabel: { fontSize: 10, fontWeight: '500', color: '#94A3B8', marginTop: 2 },
-  tabLabelActive: { color: '#7E57C2', fontWeight: '700' },
+  centerBtn: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#171717',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  centerBtnActive: {
+    backgroundColor: '#171717',
+  },
+  centerLabel: {
+    fontSize: 10,
+    fontFamily: FontFamily.medium,
+    color: '#9CA3AF',
+    marginTop: 5,
+  },
+  centerLabelActive: {
+    color: '#F4C430',
+    fontFamily: FontFamily.bold,
+  },
 });

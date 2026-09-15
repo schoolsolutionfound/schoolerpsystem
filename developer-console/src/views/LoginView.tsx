@@ -37,7 +37,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
           <div style={{
             width: '48px', height: '48px', borderRadius: '6px',
-            background: 'linear-gradient(135deg, var(--color-primary), #9C72DC)',
+            background: 'linear-gradient(135deg, var(--color-primary), #F4C430)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             margin: '0 auto 16px', fontSize: '18px', fontWeight: 700, color: '#fff',
             boxShadow: '0 4px 12px rgba(126, 87, 194, 0.35)',

@@ -67,15 +67,15 @@ export const AdminProfileView: React.FC<AdminProfileViewProps> = ({
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Account & Security</Text>
         <TouchableOpacity style={styles.menuItem} onPress={onChangePassword}>
-          <MaterialCommunityIcons name="lock-reset" size={20} color="#7E57C2" />
+          <MaterialCommunityIcons name="lock-reset" size={20} color="#F4C430" />
           <Text style={styles.menuText}>Change Password</Text>
-          <MaterialCommunityIcons name="chevron-right" size={20} color="#94A3B8" style={{ marginLeft: 'auto' }} />
+          <MaterialCommunityIcons name="chevron-right" size={20} color="#6B6B6B" style={{ marginLeft: 'auto' }} />
         </TouchableOpacity>
 
         <TouchableOpacity style={[styles.menuItem, { borderBottomWidth: 0 }]} onPress={onLogout}>
           <MaterialCommunityIcons name="logout" size={20} color="#DC3545" />
           <Text style={[styles.menuText, { color: '#DC3545' }]}>Logout</Text>
-          <MaterialCommunityIcons name="chevron-right" size={20} color="#94A3B8" style={{ marginLeft: 'auto' }} />
+          <MaterialCommunityIcons name="chevron-right" size={20} color="#6B6B6B" style={{ marginLeft: 'auto' }} />
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.card,
     padding: 18,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
     gap: 14,
   },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
@@ -97,21 +97,21 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: '#EDE7F6',
+    backgroundColor: '#FFF4C7',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { fontSize: 18, fontWeight: '800', color: '#7E57C2' },
-  nameText: { fontSize: 18, fontWeight: '800', color: '#1A202C' },
-  emailText: { fontSize: 13, color: '#718096', marginTop: 2 },
+  avatarText: { fontSize: 18, fontWeight: '800', color: '#F4C430' },
+  nameText: { fontSize: 18, fontWeight: '800', color: '#171717' },
+  emailText: { fontSize: 13, color: '#6B6B6B', marginTop: 2 },
   badgeRow: { marginTop: 6 },
-  roleBadge: { backgroundColor: '#EDE7F6', paddingHorizontal: 10, paddingVertical: 3, borderRadius: BorderRadius.chip, alignSelf: 'flex-start' },
-  roleBadgeText: { fontSize: 11, fontWeight: '800', color: '#7E57C2' },
-  sectionTitle: { fontSize: 15, fontWeight: '800', color: '#1A202C' },
+  roleBadge: { backgroundColor: '#FFF4C7', paddingHorizontal: 10, paddingVertical: 3, borderRadius: BorderRadius.chip, alignSelf: 'flex-start' },
+  roleBadgeText: { fontSize: 11, fontWeight: '800', color: '#F4C430' },
+  sectionTitle: { fontSize: 15, fontWeight: '800', color: '#171717' },
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 28 },
-  infoLabel: { fontSize: 13, color: '#718096', fontWeight: '500', flexShrink: 1 },
-  infoValue: { fontSize: 13, fontWeight: '700', color: '#1A202C', flexShrink: 1, textAlign: 'right' },
-  codeText: { color: '#7E57C2' },
-  menuItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  menuText: { fontSize: 14, fontWeight: '600', color: '#1A202C' },
+  infoLabel: { fontSize: 13, color: '#6B6B6B', fontWeight: '500', flexShrink: 1 },
+  infoValue: { fontSize: 13, fontWeight: '700', color: '#171717', flexShrink: 1, textAlign: 'right' },
+  codeText: { color: '#F4C430' },
+  menuItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#FFFDF7' },
+  menuText: { fontSize: 14, fontWeight: '600', color: '#171717' },
 });

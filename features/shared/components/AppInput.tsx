@@ -36,7 +36,7 @@ export const AppInput: React.FC<AppInputProps> = ({
         <TextInput
           style={[styles.input, style]}
           placeholder={placeholder}
-          placeholderTextColor="#94A3B8"
+          placeholderTextColor="#6B6B6B"
           accessibilityLabel={label || placeholder}
           accessibilityHint={error || helperText}
           {...props}

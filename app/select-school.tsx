@@ -11,6 +11,6 @@ export default function SelectSchoolScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8F9FB' },
-  text: { fontSize: 18, color: '#1E3A5F' },
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFDF7' },
+  text: { fontSize: 18, color: '#171717' },
 });

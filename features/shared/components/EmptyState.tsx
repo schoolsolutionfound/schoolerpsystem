@@ -44,7 +44,7 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: BorderRadius.profileImage,
-    backgroundColor: '#EDE7F6',
+    backgroundColor: '#FFF4C7',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,

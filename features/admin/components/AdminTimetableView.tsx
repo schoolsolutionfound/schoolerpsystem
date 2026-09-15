@@ -18,7 +18,7 @@ export const AdminTimetableView: React.FC<AdminTimetableViewProps> = ({ classSec
       <Text style={styles.sectionTitle}>Select Class / Section</Text>
       {classSections.length === 0 ? (
         <View style={styles.emptyCard}>
-          <MaterialCommunityIcons name="school-outline" size={40} color="#94A3B8" />
+          <MaterialCommunityIcons name="school-outline" size={40} color="#6B6B6B" />
           <Text style={styles.emptyTitle}>No classes yet</Text>
           <Text style={styles.emptySub}>Create a class/section first, then come back to build its timetable.</Text>
         </View>
@@ -45,7 +45,7 @@ export const AdminTimetableView: React.FC<AdminTimetableViewProps> = ({ classSec
             </View>
           ) : (
             <View style={styles.emptyCard}>
-              <MaterialCommunityIcons name="timetable" size={40} color="#94A3B8" />
+              <MaterialCommunityIcons name="timetable" size={40} color="#6B6B6B" />
               <Text style={styles.emptyTitle}>Select a class</Text>
             </View>
           )}
@@ -57,19 +57,19 @@ export const AdminTimetableView: React.FC<AdminTimetableViewProps> = ({ classSec
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16, paddingBottom: 40 },
-  sectionTitle: { fontSize: 15, fontWeight: '800', color: '#1A202C', marginBottom: 10 },
+  sectionTitle: { fontSize: 15, fontWeight: '800', color: '#171717', marginBottom: 10 },
   chipRow: { gap: 8, paddingBottom: 4 },
   chip: {
     backgroundColor: '#FFFFFF',
     borderRadius: BorderRadius.button,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
     paddingHorizontal: 14,
     paddingVertical: 8,
     marginRight: 6,
   },
-  chipSelected: { backgroundColor: '#7E57C2', borderColor: '#7E57C2' },
-  chipText: { fontSize: 12, fontWeight: '700', color: '#64748B' },
+  chipSelected: { backgroundColor: '#F4C430', borderColor: '#F4C430' },
+  chipText: { fontSize: 12, fontWeight: '700', color: '#6B6B6B' },
   chipTextSelected: { color: '#FFFFFF' },
   builderWrap: { flex: 1, marginTop: 14 },
   emptyCard: {
@@ -78,9 +78,9 @@ const styles = StyleSheet.create({
     padding: 30,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
     marginTop: 20,
   },
-  emptyTitle: { fontSize: 15, fontWeight: '700', color: '#1A202C', marginTop: 10 },
-  emptySub: { fontSize: 12, color: '#718096', textAlign: 'center', marginTop: 4, lineHeight: 16 },
+  emptyTitle: { fontSize: 15, fontWeight: '700', color: '#171717', marginTop: 10 },
+  emptySub: { fontSize: 12, color: '#6B6B6B', textAlign: 'center', marginTop: 4, lineHeight: 16 },
 });

@@ -6,9 +6,14 @@ import {
   subjectTeachers,
   periods,
   timetables,
+  studentClasses,
+  exams,
+  examSubjects,
+  marks,
   timetableSlots,
   attendanceRecords,
   attendanceEntries,
+  homework,
   ClassSectionRecord,
   SubjectRecord,
   SubjectTeacherRecord,
@@ -17,6 +22,10 @@ import {
   TimetableSlotRecord,
   AttendanceRecordRecord,
   AttendanceEntryRecord,
+  ExamRecord,
+  ExamSubjectRecord,
+  MarkRecord,
+  HomeworkRecord,
 } from '../shared/db/schema.js';
 
 function toClassSection(r: ClassSectionRecord): ClassSectionRecord {
@@ -137,6 +146,9 @@ const periodMem = new InMemoryStore<PeriodRecord>();
 const timetableMem = new InMemoryStore<TimetableRecord>();
 const timetableSlotMem = new InMemoryStore<TimetableSlotRecord>();
 const attendanceRecordMem = new InMemoryStore<AttendanceRecordRecord>();
+const examMem = new InMemoryStore<ExamRecord>();
+const examSubjectMem = new InMemoryStore<ExamSubjectRecord>();
+const markMem = new InMemoryStore<MarkRecord>();
 const attendanceEntryMem = new InMemoryStore<AttendanceEntryRecord>();
 
 export class AcademicsRepository {
@@ -356,6 +368,68 @@ export class AcademicsRepository {
       }
     }
     return true;
+  }
+
+  public async updateSubjectTeacher(id: string, data: { teacherId: string }): Promise<SubjectTeacherRecord | undefined> {
+    const existing = subjectTeacherMem.getById(id);
+    if (!existing) return undefined;
+    const updated: SubjectTeacherRecord = {
+      ...existing,
+      teacherId: data.teacherId,
+      updatedAt: new Date(),
+    };
+    subjectTeacherMem.save(updated);
+    if (db) {
+      try {
+        const [row] = await db
+          .update(subjectTeachers)
+          .set({ teacherId: data.teacherId, updatedAt: new Date() })
+          .where(eq(subjectTeachers.id, id))
+          .returning();
+        if (row) return toSubjectTeacher(row);
+      } catch (err: any) {
+        console.warn('[PostgreSQL Academics Warning] updateSubjectTeacher failed:', err.message);
+      }
+    }
+    return updated;
+  }
+
+  public async reassignTimetableSlotsForSubjectTeacher(
+    institutionCode: string,
+    classSectionId: string,
+    subjectId: string,
+    newTeacherId: string
+  ): Promise<number> {
+    let updated = 0;
+    const matches = timetableSlotMem.filter(
+      (s) => s.institutionCode.toLowerCase() === institutionCode.toLowerCase()
+        && s.classSectionId === classSectionId
+        && s.subjectId === subjectId
+    );
+    for (const slot of matches) {
+      const next: TimetableSlotRecord = { ...slot, teacherId: newTeacherId, updatedAt: new Date() };
+      timetableSlotMem.save(next);
+      updated++;
+    }
+    if (db) {
+      try {
+        const result = await db
+          .update(timetableSlots)
+          .set({ teacherId: newTeacherId, updatedAt: new Date() })
+          .where(
+            and(
+              eq(timetableSlots.institutionCode, institutionCode),
+              eq(timetableSlots.classSectionId, classSectionId),
+              eq(timetableSlots.subjectId, subjectId)
+            )
+          )
+          .returning({ id: timetableSlots.id });
+        if (Array.isArray(result) && result.length > 0) updated = result.length;
+      } catch (err: any) {
+        console.warn('[PostgreSQL Academics Warning] reassignTimetableSlotsForSubjectTeacher failed:', err.message);
+      }
+    }
+    return updated;
   }
 
   // ---------- Periods ----------
@@ -1115,6 +1189,306 @@ export class AcademicsRepository {
       return okInst && okClass && okTeacher;
     });
     return { items: filtered.slice(opts.offset, opts.offset + opts.limit), total: filtered.length };
+  }
+
+  // ---------- Exams / Marks ----------
+
+  public async listExams(institutionCode: string): Promise<ExamRecord[]> {
+    if (db) {
+      try {
+        const rows = await db.select().from(exams).where(eq(exams.institutionCode, institutionCode)).orderBy(desc(exams.createdAt));
+        rows.forEach((r) => examMem.save({ ...r, createdAt: r.createdAt ?? new Date(), updatedAt: r.updatedAt ?? new Date() }));
+        return rows;
+      } catch (err: any) {
+        console.warn('[PostgreSQL Academics Warning] listExams failed:', err.message);
+      }
+    }
+    return examMem
+      .filter((r) => r.institutionCode.toLowerCase() === institutionCode.toLowerCase())
+      .sort((a, b) => (b.createdAt?.getTime?.() ?? 0) - (a.createdAt?.getTime?.() ?? 0));
+  }
+
+  public async getExamById(id: string): Promise<ExamRecord | undefined> {
+    if (db) {
+      try {
+        const rows = await db.select().from(exams).where(eq(exams.id, id)).limit(1);
+        if (rows[0]) {
+          const r = rows[0];
+          const rec = { ...r, createdAt: r.createdAt ?? new Date(), updatedAt: r.updatedAt ?? new Date() };
+          examMem.save(rec);
+          return rec;
+        }
+      } catch (err: any) {
+        console.warn('[PostgreSQL Academics Warning] getExamById failed:', err.message);
+      }
+    }
+    return examMem.getById(id);
+  }
+
+  public async createExam(data: any): Promise<ExamRecord> {
+    const record: ExamRecord = {
+      id: data.id || `ex_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      institutionCode: data.institutionCode,
+      name: data.name,
+      term: data.term || '',
+      academicYear: data.academicYear || '',
+      startDate: data.startDate || null,
+      endDate: data.endDate || null,
+      status: data.status || 'draft',
+      createdBy: data.createdBy,
+      createdAt: data.createdAt || new Date(),
+      updatedAt: data.updatedAt || new Date(),
+    };
+    examMem.save(record);
+    if (db) {
+      try {
+        await db.insert(exams).values(record).onConflictDoNothing();
+      } catch (err: any) {
+        console.warn('[PostgreSQL Academics Warning] createExam failed:', err.message);
+      }
+    }
+    return record;
+  }
+
+  public async updateExam(id: string, data: any): Promise<ExamRecord | undefined> {
+    const existing = examMem.getById(id);
+    if (!existing) return undefined;
+    const updated: ExamRecord = {
+      ...existing,
+      ...(data.name !== undefined ? { name: data.name } : {}),
+      ...(data.term !== undefined ? { term: data.term } : {}),
+      ...(data.academicYear !== undefined ? { academicYear: data.academicYear } : {}),
+      ...(data.startDate !== undefined ? { startDate: data.startDate } : {}),
+      ...(data.endDate !== undefined ? { endDate: data.endDate } : {}),
+      ...(data.status !== undefined ? { status: data.status } : {}),
+      updatedAt: new Date(),
+    };
+    examMem.save(updated);
+    if (db) {
+      try {
+        await db.update(exams).set({
+          ...(data.name !== undefined ? { name: data.name } : {}),
+          ...(data.term !== undefined ? { term: data.term } : {}),
+          ...(data.academicYear !== undefined ? { academicYear: data.academicYear } : {}),
+          ...(data.startDate !== undefined ? { startDate: data.startDate } : {}),
+          ...(data.endDate !== undefined ? { endDate: data.endDate } : {}),
+          ...(data.status !== undefined ? { status: data.status } : {}),
+          updatedAt: new Date(),
+        }).where(eq(exams.id, id));
+      } catch (err: any) {
+        console.warn('[PostgreSQL Academics Warning] updateExam failed:', err.message);
+      }
+    }
+    return updated;
+  }
+
+  public async listExamSubjects(examId: string): Promise<ExamSubjectRecord[]> {
+    if (db) {
+      try {
+        const rows = await db.select().from(examSubjects).where(eq(examSubjects.examId, examId));
+        rows.forEach((r) => examSubjectMem.save({ ...r, createdAt: r.createdAt ?? new Date() }));
+        return rows;
+      } catch (err: any) {
+        console.warn('[PostgreSQL Academics Warning] listExamSubjects failed:', err.message);
+      }
+    }
+    return examSubjectMem.filter((r) => r.examId === examId);
+  }
+
+  public async upsertExamSubject(data: any): Promise<ExamSubjectRecord> {
+    const existing = examSubjectMem.filter((r) => r.examId === data.examId && r.subjectId === data.subjectId)[0];
+    const id = existing?.id || data.id || `es_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const record: ExamSubjectRecord = {
+      id,
+      examId: data.examId,
+      institutionCode: data.institutionCode,
+      subjectId: data.subjectId,
+      maxMarks: data.maxMarks ?? 100,
+      passMarks: data.passMarks ?? 35,
+      createdAt: existing?.createdAt || new Date(),
+    };
+    examSubjectMem.save(record);
+    if (db) {
+      try {
+        await db.insert(examSubjects).values(record).onConflictDoNothing();
+      } catch (err: any) {
+        console.warn('[PostgreSQL Academics Warning] upsertExamSubject failed:', err.message);
+      }
+    }
+    return record;
+  }
+
+  public async getExamSubjectById(id: string): Promise<ExamSubjectRecord | undefined> {
+    if (db) {
+      try {
+        const rows = await db.select().from(examSubjects).where(eq(examSubjects.id, id)).limit(1);
+        if (rows[0]) {
+          const rec = { ...rows[0], createdAt: rows[0].createdAt ?? new Date() };
+          examSubjectMem.save(rec);
+          return rec;
+        }
+      } catch (err: any) {
+        console.warn('[PostgreSQL Academics Warning] getExamSubjectById failed:', err.message);
+      }
+    }
+    return examSubjectMem.getById(id);
+  }
+
+  public async listMarksForExamSubject(examSubjectId: string): Promise<MarkRecord[]> {
+    if (db) {
+      try {
+        const rows = await db.select().from(marks).where(eq(marks.examSubjectId, examSubjectId));
+        rows.forEach((r) => markMem.save({ ...r, enteredAt: r.enteredAt ?? new Date(), updatedAt: r.updatedAt ?? new Date() }));
+        return rows;
+      } catch (err: any) {
+        console.warn('[PostgreSQL Academics Warning] listMarksForExamSubject failed:', err.message);
+      }
+    }
+    return markMem.filter((r) => r.examSubjectId === examSubjectId);
+  }
+
+  public async listMarksForStudent(institutionCode: string, studentId: string): Promise<MarkRecord[]> {
+    if (db) {
+      try {
+        const rows = await db.select().from(marks)
+          .where(and(eq(marks.institutionCode, institutionCode), eq(marks.studentId, studentId)));
+        rows.forEach((r) => markMem.save({ ...r, enteredAt: r.enteredAt ?? new Date(), updatedAt: r.updatedAt ?? new Date() }));
+        return rows;
+      } catch (err: any) {
+        console.warn('[PostgreSQL Academics Warning] listMarksForStudent failed:', err.message);
+      }
+    }
+    return markMem.filter((r) => r.institutionCode.toLowerCase() === institutionCode.toLowerCase() && r.studentId === studentId);
+  }
+
+  public async upsertMark(data: any): Promise<MarkRecord> {
+    const existing = markMem.filter((r) => r.examSubjectId === data.examSubjectId && r.studentId === data.studentId)[0];
+    const id = existing?.id || data.id || `mk_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const record: MarkRecord = {
+      id,
+      examId: data.examId,
+      examSubjectId: data.examSubjectId,
+      institutionCode: data.institutionCode,
+      studentId: data.studentId,
+      classSectionId: data.classSectionId,
+      subjectId: data.subjectId,
+      marksObtained: String(data.marksObtained ?? 0),
+      grade: data.grade || '',
+      remarks: data.remarks || '',
+      enteredBy: data.enteredBy,
+      enteredAt: existing?.enteredAt || new Date(),
+      updatedAt: new Date(),
+    };
+    markMem.save(record);
+    if (db) {
+      try {
+        await db.insert(marks).values(record).onConflictDoNothing();
+      } catch (err: any) {
+        console.warn('[PostgreSQL Academics Warning] upsertMark failed:', err.message);
+      }
+    }
+    return record;
+  }
+
+  // ---------- Homework ----------
+  private hwMem = new InMemoryStore<HomeworkRecord>();
+
+  public async createHomework(data: any): Promise<HomeworkRecord> {
+    const record: HomeworkRecord = {
+      id: `hw_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      institutionCode: data.institutionCode,
+      classSectionId: data.classSectionId,
+      subjectId: data.subjectId,
+      teacherId: data.teacherId,
+      title: data.title,
+      description: data.description || '',
+      dueDate: data.dueDate,
+      assignedDate: data.assignedDate || new Date().toISOString().slice(0, 10),
+      priority: data.priority || 'normal',
+      status: data.status || 'active',
+      attachments: data.attachments || [],
+      createdBy: data.createdBy,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.hwMem.save(record);
+    if (db) {
+      try {
+        await db.insert(homework).values(record);
+      } catch (err: any) {
+        console.warn('[PostgreSQL Warning] createHomework failed:', err.message);
+      }
+    }
+    return record;
+  }
+
+  public async listHomeworkByClass(classSectionId: string): Promise<HomeworkRecord[]> {
+    if (db) {
+      try {
+        const rows = await db.select().from(homework)
+          .where(eq(homework.classSectionId, classSectionId))
+          .orderBy(desc(homework.createdAt));
+        rows.forEach((r) => this.hwMem.save({ ...r, createdAt: r.createdAt ?? new Date(), updatedAt: r.updatedAt ?? new Date() }));
+        return rows;
+      } catch (err: any) {
+        console.warn('[PostgreSQL Warning] listHomeworkByClass failed:', err.message);
+      }
+    }
+    return this.hwMem.filter((r) => r.classSectionId === classSectionId).sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
+  }
+
+  public async listHomeworkByTeacher(teacherId: string): Promise<HomeworkRecord[]> {
+    if (db) {
+      try {
+        const rows = await db.select().from(homework)
+          .where(eq(homework.teacherId, teacherId))
+          .orderBy(desc(homework.createdAt));
+        rows.forEach((r) => this.hwMem.save({ ...r, createdAt: r.createdAt ?? new Date(), updatedAt: r.updatedAt ?? new Date() }));
+        return rows;
+      } catch (err: any) {
+        console.warn('[PostgreSQL Warning] listHomeworkByTeacher failed:', err.message);
+      }
+    }
+    return this.hwMem.filter((r) => r.teacherId === teacherId).sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
+  }
+
+  public async getHomeworkById(id: string): Promise<HomeworkRecord | undefined> {
+    if (db) {
+      try {
+        const rows = await db.select().from(homework).where(eq(homework.id, id)).limit(1);
+        if (rows[0]) return rows[0];
+      } catch (err: any) {
+        console.warn('[PostgreSQL Warning] getHomeworkById failed:', err.message);
+      }
+    }
+    return this.hwMem.get(id);
+  }
+
+  public async updateHomework(id: string, data: Partial<HomeworkRecord>): Promise<HomeworkRecord | undefined> {
+    const existing = await this.getHomeworkById(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...data, updatedAt: new Date() };
+    this.hwMem.save(updated);
+    if (db) {
+      try {
+        await db.update(homework).set(data).where(eq(homework.id, id));
+      } catch (err: any) {
+        console.warn('[PostgreSQL Warning] updateHomework failed:', err.message);
+      }
+    }
+    return updated;
+  }
+
+  public async deleteHomework(id: string): Promise<boolean> {
+    this.hwMem.delete(id);
+    if (db) {
+      try {
+        await db.delete(homework).where(eq(homework.id, id));
+      } catch (err: any) {
+        console.warn('[PostgreSQL Warning] deleteHomework failed:', err.message);
+      }
+    }
+    return true;
   }
 }
 

@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: '#EDE9F6',
+    backgroundColor: '#FFF4C7',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.light.border,
   },
   tabItemActive: {
-    backgroundColor: '#EDE9F6',
+    backgroundColor: '#FFF4C7',
     borderColor: Colors.light.primary,
   },
   tabLabel: {
@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   statusBox: {
-    backgroundColor: '#F8F9FB',
+    backgroundColor: '#FFFDF7',
     borderRadius: 8,
     padding: 14,
     borderWidth: 1,

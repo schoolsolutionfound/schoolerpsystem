@@ -1,5 +1,7 @@
 import { academicsRepository } from './academics.repository.js';
-import { dbFindUsersByInstitution, dbFindUserByIdOrUid, dbFindStudentByUsnInInstitution, dbFindStudentsByClassScope, dbCountStudentsByClassScope } from '../shared/db/index.js';
+import { db, dbFindUsersByInstitution, dbFindUserByIdOrUid, dbFindStudentByUsnInInstitution, dbFindStudentsByClassScope, dbCountStudentsByClassScope } from '../shared/db/index.js';
+import { eq as eqSql, and as andSql } from 'drizzle-orm';
+import { studentClasses, users as usersTable, subjectTeachers } from '../shared/db/schema.js';
 import {
   CreateClassSectionInput,
   UpdateClassSectionInput,
@@ -10,6 +12,11 @@ import {
   UpdateHolidayCalendarInput,
   CreateTimetableInput,
   MarkAttendanceInput,
+  CreateExamInput,
+  UpdateExamInput,
+  SaveMarksInput,
+  CreateHomeworkInput,
+  UpdateHomeworkInput,
   ATTENDANCE_STATUSES,
 } from './academics.schema.js';
 
@@ -118,6 +125,41 @@ export class AcademicsService {
       throw { statusCode: 403, code: 'FORBIDDEN', message: 'Access denied: assignment belongs to another institution' };
     }
     return academicsRepository.deleteSubjectTeacher(id);
+  }
+
+  public async updateSubjectTeacher(institutionCode: string, id: string, input: { teacherId: string }) {
+    const existing = await academicsRepository.getSubjectTeacherById(id);
+    if (!existing) {
+      throw { statusCode: 404, code: 'SUBJECT_TEACHER_NOT_FOUND', message: 'Subject-teacher assignment not found' };
+    }
+    if (existing.institutionCode.toLowerCase() !== institutionCode.toLowerCase()) {
+      throw { statusCode: 403, code: 'FORBIDDEN', message: 'Access denied: assignment belongs to another institution' };
+    }
+
+    const teacher = await this.findTeacher(institutionCode, input.teacherId);
+    if (!teacher) {
+      throw { statusCode: 400, code: 'INVALID_TEACHER', message: 'teacherId does not reference a valid teacher in this institution' };
+    }
+
+    if (existing.teacherId === input.teacherId) {
+      return existing;
+    }
+
+    const updated = await academicsRepository.updateSubjectTeacher(id, { teacherId: input.teacherId });
+
+    // Cascade: keep timetable_slots.teacher_id in sync so student timetables reflect the new teacher.
+    try {
+      await academicsRepository.reassignTimetableSlotsForSubjectTeacher(
+        institutionCode,
+        existing.classSectionId,
+        existing.subjectId,
+        input.teacherId
+      );
+    } catch (err: any) {
+      console.warn('[SubjectTeacher reassign warning] timetable cascade failed:', err?.message);
+    }
+
+    return updated;
   }
 
   // ---------- Periods ----------
@@ -269,7 +311,59 @@ export class AcademicsService {
     if (!student) {
       throw { statusCode: 404, code: 'STUDENT_NOT_FOUND', message: 'Linked student was not found in this institution' };
     }
-    return this.buildStudentSummary(student.id);
+    const summary = await this.buildStudentSummary(student.id);
+    const studentScope = this.parseScope(student.scope);
+    const result = {
+      ...summary,
+      childId: student.id,
+      childName: student.fullName || '',
+      childEmail: student.email || '',
+      childUSN: student.rollNoOrUSN || linkedUsn,
+      childPhone: student.phone || '',
+      childProfilePic: student.profilePicUrl || '',
+      childDepartment: studentScope.department || student.department || '',
+      childAcademicYear: studentScope.academicYear || '',
+      childSection: studentScope.section || '',
+      childClassSectionName: studentScope.classSectionName || '',
+      childTenthPercentage: student.tenthPercentage || '',
+      childTwelfthPercentage: student.twelfthPercentage || '',
+      relation: scope?.relation || '',
+    };
+    return result;
+  }
+
+  public async getParentMarks(institutionCode: string, parentUserId: string) {
+    const parent = await this.findUser(institutionCode, parentUserId);
+    if (!parent || parent.role.toLowerCase() !== 'parent') {
+      throw { statusCode: 403, code: 'FORBIDDEN', message: 'Only parents can use this endpoint' };
+    }
+    const scope = this.parseScope(parent.scope);
+    const linkedUsn = scope?.linkedStudentUSN || '';
+    if (!linkedUsn) {
+      throw { statusCode: 404, code: 'NO_LINKED_STUDENT', message: 'No linked student found.' };
+    }
+    const student = await dbFindStudentByUsnInInstitution(institutionCode, linkedUsn);
+    if (!student) {
+      throw { statusCode: 404, code: 'STUDENT_NOT_FOUND', message: 'Linked student was not found in this institution' };
+    }
+    return this.getStudentMarks(institutionCode, student.id);
+  }
+
+  public async getParentTimetable(institutionCode: string, parentUserId: string, dateStr: string) {
+    const parent = await this.findUser(institutionCode, parentUserId);
+    if (!parent || parent.role.toLowerCase() !== 'parent') {
+      throw { statusCode: 403, code: 'FORBIDDEN', message: 'Only parents can use this endpoint' };
+    }
+    const scope = this.parseScope(parent.scope);
+    const linkedUsn = scope?.linkedStudentUSN || '';
+    if (!linkedUsn) {
+      throw { statusCode: 404, code: 'NO_LINKED_STUDENT', message: 'No linked student found.' };
+    }
+    const student = await dbFindStudentByUsnInInstitution(institutionCode, linkedUsn);
+    if (!student) {
+      throw { statusCode: 404, code: 'STUDENT_NOT_FOUND', message: 'Linked student was not found in this institution' };
+    }
+    return this.getMyTimetable(institutionCode, student.id, dateStr);
   }
 
   private async buildStudentSummary(studentId: string, fromDate?: string, toDate?: string) {
@@ -293,6 +387,16 @@ export class AcademicsService {
     const grandTotal = rows.length;
     const presentTotal = rows.filter((r) => r.attendanceStatus !== 'absent').length;
 
+    const daily = rows
+      .filter((r) => r.date)
+      .map((r) => ({
+        date: this.dateStr(r.date),
+        subjectId: r.subjectId,
+        subjectName: r.subjectName || '',
+        status: r.attendanceStatus,
+      }))
+      .sort((a, b) => (a.date > b.date ? -1 : a.date < b.date ? 1 : 0));
+
     return {
       studentId,
       overall: {
@@ -301,6 +405,7 @@ export class AcademicsService {
         percentage: grandTotal > 0 ? Math.round((presentTotal / grandTotal) * 100) : 0,
       },
       perSubject,
+      daily,
     };
   }
 
@@ -522,8 +627,34 @@ export class AcademicsService {
     if (!user) {
       throw { statusCode: 403, code: 'FORBIDDEN', message: 'User not found in institution' };
     }
-    const scope = this.parseScope(user.scope);
+
+    // 1) Check if teacher is assigned as class teacher of any class
     const classSections = await academicsRepository.listClassSections(institutionCode);
+    const asClassTeacher = classSections.find((cs) => cs.classTeacherId === user.id);
+    if (asClassTeacher) return asClassTeacher;
+
+    // 2) Check if teacher has subject assignments — return the first class they teach in
+    if (db) {
+      try {
+        const stRows = await db
+          .select({ classSectionId: subjectTeachers.classSectionId })
+          .from(subjectTeachers)
+          .where(
+            andSql(
+              eqSql(subjectTeachers.institutionCode, institutionCode),
+              eqSql(subjectTeachers.teacherId, user.id)
+            )
+          )
+          .limit(1);
+        if (stRows.length > 0) {
+          const cs = classSections.find((c) => c.id === stRows[0].classSectionId);
+          if (cs) return cs;
+        }
+      } catch {}
+    }
+
+    // 3) Fallback: match by scope
+    const scope = this.parseScope(user.scope);
     const match = classSections.find((cs) => {
       const matchesDept = !cs.department || (scope.department || '').toLowerCase() === cs.department.toLowerCase();
       const matchesYear = !cs.academicYear || (scope.academicYear || '').toLowerCase() === cs.academicYear.toLowerCase();
@@ -607,12 +738,28 @@ export class AcademicsService {
     toDate?: string,
     opts?: { limit: number; offset: number }
   ) {
-    const cls = await academicsRepository.getClassSectionById(classSectionId);
+    const normalizedRole = (role || '').toLowerCase();
+
+    // If no classSectionId provided and user is a teacher, auto-resolve their own class
+    let resolvedClassSectionId = classSectionId;
+    if (!resolvedClassSectionId && ['teacher', 'hod'].includes(normalizedRole)) {
+      const myClass = await this.getMyClassSection(institutionCode, userId);
+      if (!myClass) {
+        throw { statusCode: 404, code: 'NO_CLASS', message: 'No class section assigned to you' };
+      }
+      resolvedClassSectionId = myClass.id;
+    }
+
+    if (!resolvedClassSectionId) {
+      throw { statusCode: 400, code: 'VALIDATION_ERROR', message: 'classSectionId is required' };
+    }
+
+    const cls = await academicsRepository.getClassSectionById(resolvedClassSectionId);
     if (!cls || cls.institutionCode.toLowerCase() !== institutionCode.toLowerCase()) {
       throw { statusCode: 404, code: 'CLASS_SECTION_NOT_FOUND', message: 'Class/section not found in this institution' };
     }
 
-    const normalizedRole = (role || '').toLowerCase();
+    // Teachers can only view their own class (admins/hod/principal can view any)
     if (!['admin', 'hod', 'principal'].includes(normalizedRole)) {
       const caller = await this.findUser(institutionCode, userId);
       if (!caller || cls.classTeacherId !== caller.id) {
@@ -744,10 +891,157 @@ export class AcademicsService {
     };
   }
 
+  // ---------- Attendance Export ----------
+  public async exportClassAttendanceCsv(
+    institutionCode: string,
+    userId: string,
+    role: string,
+    classSectionId: string,
+    fromDate?: string,
+    toDate?: string
+  ) {
+    const summary = await this.getClassAttendanceSummary(institutionCode, userId, role, classSectionId, fromDate, toDate);
+
+    const header = ['Student Name', 'USN/Roll No', 'Present', 'Absent', 'Late', 'Excused', 'Total', 'Percentage'];
+    const rows = summary.students.map((s: any) => [
+      s.fullName,
+      s.rollNoOrUSN,
+      s.present,
+      s.absent,
+      s.late,
+      s.excused,
+      s.total,
+      `${s.percentage}%`,
+    ]);
+
+    const subjectHeader = ['Subject', 'Present', 'Absent', 'Late', 'Excused', 'Total', 'Percentage'];
+    const subjectRows = summary.subjects.map((s: any) => [
+      s.subjectName,
+      s.present,
+      s.absent,
+      s.late,
+      s.excused,
+      s.total,
+      `${s.percentage}%`,
+    ]);
+
+    const dayHeader = ['Date', 'Present', 'Absent', 'Late', 'Excused', 'Total', 'Percentage'];
+    const dayRows = summary.days.map((d: any) => [
+      d.date,
+      d.present,
+      d.absent,
+      d.late,
+      d.excused,
+      d.total,
+      `${d.percentage}%`,
+    ]);
+
+    let csv = `Class Attendance Report\n`;
+    csv += `Class: ${summary.classSection.name}\n`;
+    csv += `Period: ${summary.range.fromDate} to ${summary.range.toDate}\n`;
+    csv += `Overall Average: ${summary.summary.averagePercentage}%\n`;
+    csv += `Total Students: ${summary.summary.studentsCount}\n\n`;
+
+    csv += `--- Student Summary ---\n`;
+    csv += header.join(',') + '\n';
+    for (const row of rows) csv += row.join(',') + '\n';
+
+    csv += `\n--- Subject Breakdown ---\n`;
+    csv += subjectHeader.join(',') + '\n';
+    for (const row of subjectRows) csv += row.join(',') + '\n';
+
+    csv += `\n--- Daily Breakdown ---\n`;
+    csv += dayHeader.join(',') + '\n';
+    for (const row of dayRows) csv += row.join(',') + '\n';
+
+    return { csv, className: summary.classSection.name, summary: summary.summary };
+  }
+
+  public async getClassAttendanceReport(
+    institutionCode: string,
+    userId: string,
+    role: string,
+    classSectionId: string,
+    fromDate?: string,
+    toDate?: string
+  ) {
+    const summary = await this.getClassAttendanceSummary(institutionCode, userId, role, classSectionId, fromDate, toDate);
+
+    const lowAttendance = summary.students
+      .filter((s: any) => s.total > 0 && s.percentage < 75)
+      .sort((a: any, b: any) => a.percentage - b.percentage);
+
+    const topPerformers = summary.students
+      .filter((s: any) => s.total > 0)
+      .sort((a: any, b: any) => b.percentage - a.percentage)
+      .slice(0, 5);
+
+    const dailyTrend = summary.days.map((d: any) => ({
+      date: d.date,
+      percentage: d.percentage,
+      present: d.present,
+      total: d.total,
+    }));
+
+    return {
+      classSection: summary.classSection,
+      range: summary.range,
+      summary: summary.summary,
+      subjects: summary.subjects,
+      dailyTrend,
+      lowAttendance,
+      topPerformers,
+      totalStudents: summary.totalStudents,
+    };
+  }
+
   // ---------- Helpers ----------
+  /**
+   * Roster for a class section. Prefers the canonical `student_classes` table
+   * and falls back to the legacy (department, academicYear, section) string
+   * triple match against `users.scope` for institutions that haven't migrated.
+   */
   private async getStudentsForClassSection(classSectionId: string) {
     const classSection = await academicsRepository.getClassSectionById(classSectionId);
     if (!classSection) return [];
+
+    // 1) New path: student_classes join
+    if (db) {
+      try {
+        const rows = await db
+          .select({
+            id: studentClasses.studentId,
+            fullName: usersTable.fullName,
+            rollNoOrUSN: usersTable.rollNoOrUSN,
+          })
+          .from(studentClasses)
+          .leftJoin(usersTable, eqSql(usersTable.id, studentClasses.studentId))
+          .where(
+            andSql(
+              eqSql(studentClasses.classSectionId, classSectionId),
+              eqSql(studentClasses.isActive, true)
+            )
+          );
+
+        if (rows.length > 0) {
+          return rows
+            .filter((r) => r.id)
+            .map((r) => ({
+              id: r.id!,
+              fullName: r.fullName || '',
+              rollNoOrUSN: r.rollNoOrUSN || '',
+              department: classSection.department || '',
+              academicYear: classSection.academicYear || '',
+              section: classSection.section || '',
+            }))
+            .sort((a, b) => (a.rollNoOrUSN || '').localeCompare(b.rollNoOrUSN || ''));
+        }
+      } catch (err: any) {
+        console.warn('[Academics] getStudentsForClassSection via student_classes failed, falling back:', err?.message);
+      }
+    }
+
+    // 2) Legacy fallback: string-triple match against users.scope
     const scope = {
       department: classSection.department || '',
       academicYear: classSection.academicYear || '',
@@ -781,6 +1075,227 @@ export class AcademicsService {
     if (!user) return undefined;
     if (user.institutionCode.toLowerCase() !== institutionCode.toLowerCase()) return undefined;
     return user;
+  }
+
+  // ---------- Exams / Marks ----------
+
+  public async listExams(institutionCode: string) {
+    return academicsRepository.listExams(institutionCode);
+  }
+
+  public async getExamDetails(institutionCode: string, examId: string) {
+    const exam = await academicsRepository.getExamById(examId);
+    if (!exam || exam.institutionCode.toLowerCase() !== institutionCode.toLowerCase()) {
+      throw { statusCode: 404, code: 'EXAM_NOT_FOUND', message: 'Exam not found' };
+    }
+    const subjects = await academicsRepository.listExamSubjects(examId);
+    return { exam, subjects };
+  }
+
+  public async createExam(institutionCode: string, input: CreateExamInput, createdBy: string) {
+    const created = await academicsRepository.createExam({
+      institutionCode,
+      name: input.name,
+      term: input.term || '',
+      academicYear: input.academicYear || '',
+      startDate: input.startDate || null,
+      endDate: input.endDate || null,
+      status: 'draft',
+      createdBy,
+    });
+    for (const s of input.subjects) {
+      const subj = await academicsRepository.getSubjectById(s.subjectId);
+      if (!subj || subj.institutionCode.toLowerCase() !== institutionCode.toLowerCase()) {
+        throw { statusCode: 400, code: 'INVALID_SUBJECT', message: `subjectId ${s.subjectId} is not in this institution` };
+      }
+      await academicsRepository.upsertExamSubject({
+        examId: created.id,
+        institutionCode,
+        subjectId: s.subjectId,
+        maxMarks: s.maxMarks ?? 100,
+        passMarks: s.passMarks ?? 35,
+      });
+    }
+    return created;
+  }
+
+  public async updateExam(institutionCode: string, examId: string, input: UpdateExamInput) {
+    const existing = await academicsRepository.getExamById(examId);
+    if (!existing || existing.institutionCode.toLowerCase() !== institutionCode.toLowerCase()) {
+      throw { statusCode: 404, code: 'EXAM_NOT_FOUND', message: 'Exam not found' };
+    }
+    if (existing.status === 'locked') {
+      throw { statusCode: 409, code: 'EXAM_LOCKED', message: 'Exam is locked and cannot be modified' };
+    }
+    return academicsRepository.updateExam(examId, input);
+  }
+
+  public async getMarksForClass(institutionCode: string, examSubjectId: string, classSectionId: string, enteredBy: string) {
+    const examSubject = await academicsRepository.getExamSubjectById(examSubjectId);
+    if (!examSubject || examSubject.institutionCode.toLowerCase() !== institutionCode.toLowerCase()) {
+      throw { statusCode: 404, code: 'EXAM_SUBJECT_NOT_FOUND', message: 'Exam subject not found' };
+    }
+    const classSection = await academicsRepository.getClassSectionById(classSectionId);
+    if (!classSection || classSection.institutionCode.toLowerCase() !== institutionCode.toLowerCase()) {
+      throw { statusCode: 400, code: 'INVALID_CLASS_SECTION', message: 'classSectionId not in this institution' };
+    }
+    const roster = await this.getStudentsForClassSection(classSectionId);
+    const existing = await academicsRepository.listMarksForExamSubject(examSubjectId);
+    const byStudent = new Map(existing.map((m) => [m.studentId, m]));
+    return roster.map((stu) => {
+      const m = byStudent.get(stu.id);
+      return {
+        studentId: stu.id,
+        fullName: stu.fullName,
+        rollNoOrUSN: stu.rollNoOrUSN,
+        marksObtained: m ? Number(m.marksObtained) : 0,
+        grade: m?.grade || '',
+        remarks: m?.remarks || '',
+        entered: !!m,
+      };
+    });
+  }
+
+  public async saveMarks(institutionCode: string, input: SaveMarksInput, enteredBy: string) {
+    const examSubject = await academicsRepository.getExamSubjectById(input.examSubjectId);
+    if (!examSubject || examSubject.institutionCode.toLowerCase() !== institutionCode.toLowerCase()) {
+      throw { statusCode: 404, code: 'EXAM_SUBJECT_NOT_FOUND', message: 'Exam subject not found' };
+    }
+    const exam = await academicsRepository.getExamById(examSubject.examId);
+    if (!exam) {
+      throw { statusCode: 404, code: 'EXAM_NOT_FOUND', message: 'Exam not found' };
+    }
+    if (exam.status === 'locked') {
+      throw { statusCode: 409, code: 'EXAM_LOCKED', message: 'Exam is locked; marks cannot be saved' };
+    }
+    const classSection = await academicsRepository.getClassSectionById(input.classSectionId);
+    if (!classSection || classSection.institutionCode.toLowerCase() !== institutionCode.toLowerCase()) {
+      throw { statusCode: 400, code: 'INVALID_CLASS_SECTION', message: 'classSectionId not in this institution' };
+    }
+    const roster = await this.getStudentsForClassSection(input.classSectionId);
+    const validIds = new Set(roster.map((r) => r.id));
+    const out: any[] = [];
+    for (const entry of input.entries) {
+      if (!validIds.has(entry.studentId)) {
+        throw { statusCode: 400, code: 'STUDENT_NOT_IN_CLASS', message: `Student ${entry.studentId} is not in class ${input.classSectionId}` };
+      }
+      const mark = await academicsRepository.upsertMark({
+        examId: examSubject.examId,
+        examSubjectId: examSubject.id,
+        institutionCode,
+        studentId: entry.studentId,
+        classSectionId: input.classSectionId,
+        subjectId: examSubject.subjectId,
+        marksObtained: entry.marksObtained,
+        grade: entry.grade || '',
+        remarks: entry.remarks || '',
+        enteredBy,
+      });
+      out.push(mark);
+    }
+    return { saved: out.length };
+  }
+
+  public async getStudentMarks(institutionCode: string, studentUserId: string) {
+    const student = await this.findUser(institutionCode, studentUserId);
+    if (!student) {
+      throw { statusCode: 404, code: 'STUDENT_NOT_FOUND', message: 'Student not found' };
+    }
+    const allMarks = await academicsRepository.listMarksForStudent(institutionCode, student.id);
+    if (allMarks.length === 0) return { exams: [], totals: { present: 0, total: 0, percentage: 0 } };
+
+    const examIds = Array.from(new Set(allMarks.map((m) => m.examId)));
+    const examRows = await Promise.all(examIds.map((id) => academicsRepository.getExamById(id)));
+    const examById = new Map(examRows.filter(Boolean).map((e) => [e!.id, e!]));
+
+    const examSubjectIds = Array.from(new Set(allMarks.map((m) => m.examSubjectId)));
+    const examSubjectRows = await Promise.all(examSubjectIds.map((id) => academicsRepository.getExamSubjectById(id)));
+    const examSubjectById = new Map(examSubjectRows.filter(Boolean).map((es) => [es!.id, es!]));
+
+    // Group by exam
+    const byExam = new Map<string, any>();
+    for (const m of allMarks) {
+      const es = examSubjectById.get(m.examSubjectId);
+      if (!es) continue;
+      const e = examById.get(m.examId);
+      if (!e) continue;
+      const bucket = byExam.get(e.id) || {
+        exam: { id: e.id, name: e.name, term: e.term, academicYear: e.academicYear, status: e.status },
+        subjects: [],
+        totalObtained: 0,
+        totalMax: 0,
+      };
+      bucket.subjects.push({
+        subjectId: es.subjectId,
+        marksObtained: Number(m.marksObtained),
+        maxMarks: es.maxMarks,
+        passMarks: es.passMarks,
+        grade: m.grade,
+        remarks: m.remarks,
+      });
+      bucket.totalObtained += Number(m.marksObtained);
+      bucket.totalMax += es.maxMarks;
+      byExam.set(e.id, bucket);
+    }
+
+    const exams = Array.from(byExam.values()).map((b) => ({
+      ...b,
+      percentage: b.totalMax > 0 ? Math.round((b.totalObtained / b.totalMax) * 100) : 0,
+    }));
+
+    const totalObtained = exams.reduce((s, e) => s + e.totalObtained, 0);
+    const totalMax = exams.reduce((s, e) => s + e.totalMax, 0);
+    return {
+      exams,
+      totals: {
+        present: totalObtained,
+        total: totalMax,
+        percentage: totalMax > 0 ? Math.round((totalObtained / totalMax) * 100) : 0,
+      },
+    };
+  }
+
+  // ---------- Homework ----------
+  public async createHomework(institutionCode: string, teacherId: string, input: CreateHomeworkInput) {
+    return academicsRepository.createHomework({
+      ...input,
+      institutionCode,
+      teacherId,
+      createdBy: teacherId,
+    });
+  }
+
+  public async listHomeworkByClass(institutionCode: string, classSectionId: string) {
+    return academicsRepository.listHomeworkByClass(classSectionId);
+  }
+
+  public async listHomeworkByTeacher(institutionCode: string, teacherId: string) {
+    return academicsRepository.listHomeworkByTeacher(teacherId);
+  }
+
+  public async getHomeworkById(institutionCode: string, id: string) {
+    const hw = await academicsRepository.getHomeworkById(id);
+    if (!hw) throw { statusCode: 404, code: 'HOMEWORK_NOT_FOUND', message: 'Homework not found' };
+    if (hw.institutionCode !== institutionCode) throw { statusCode: 403, code: 'FORBIDDEN', message: 'Access denied' };
+    return hw;
+  }
+
+  public async updateHomework(institutionCode: string, id: string, input: UpdateHomeworkInput) {
+    const existing = await this.getHomeworkById(institutionCode, id);
+    return academicsRepository.updateHomework(id, input);
+  }
+
+  public async deleteHomework(institutionCode: string, id: string) {
+    await this.getHomeworkById(institutionCode, id);
+    return academicsRepository.deleteHomework(id);
+  }
+
+  public async listHomeworkForStudent(institutionCode: string, classSectionId: string) {
+    return academicsRepository.listHomeworkByClass(classSectionId);
+  }
+
+  public async listHomeworkForParent(institutionCode: string, classSectionId: string) {
+    return academicsRepository.listHomeworkByClass(classSectionId);
   }
 }
 

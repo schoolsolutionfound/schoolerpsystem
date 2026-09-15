@@ -23,7 +23,7 @@ export default function VerifyEmailScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <MaterialCommunityIcons name="email-check-outline" size={48} color="#7E57C2" />
+        <MaterialCommunityIcons name="email-check-outline" size={48} color="#F4C430" />
         <Text style={styles.title}>Email Verification Disabled</Text>
         <Text style={styles.subtitle}>Redirecting to dashboard...</Text>
       </View>
@@ -32,8 +32,8 @@ export default function VerifyEmailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8F9FB' },
+  container: { flex: 1, backgroundColor: '#FFFDF7' },
   content: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, gap: 12 },
-  title: { fontSize: 18, fontWeight: '700', color: '#1A202C' },
-  subtitle: { fontSize: 14, color: '#718096' },
+  title: { fontSize: 18, fontWeight: '700', color: '#171717' },
+  subtitle: { fontSize: 14, color: '#6B6B6B' },
 });

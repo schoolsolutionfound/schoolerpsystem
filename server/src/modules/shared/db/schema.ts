@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean, varchar, jsonb, integer, date, index, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, boolean, varchar, jsonb, integer, numeric, date, index, uniqueIndex } from 'drizzle-orm/pg-core';
 
 export const institutions = pgTable('institutions', {
   id: text('id')
@@ -40,6 +40,7 @@ export const users = pgTable('users', {
   title: text('title').default(''),
   scope: jsonb('scope').$type<Record<string, any>>().default({}),
   permissions: jsonb('permissions').$type<string[]>().default([]),
+  graduatedAt: timestamp('graduated_at'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 }, (table) => ({
@@ -199,3 +200,148 @@ export const attendanceEntries = pgTable('attendance_entries', {
 
 export type AttendanceEntryRecord = typeof attendanceEntries.$inferSelect;
 export type NewAttendanceEntryRecord = typeof attendanceEntries.$inferInsert;
+
+/**
+ * Canonical student-to-class enrollment. Replaces the old `users.scope` string-triple
+ * pattern (department/academicYear/section) for any new code paths. Old code keeps reading
+ * `users.scope` until callers are migrated, so this is purely additive.
+ */
+export const studentClasses = pgTable('student_classes', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('sc')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  studentId: text('student_id').notNull(),
+  classSectionId: text('class_section_id').notNull(),
+  rollNo: varchar('roll_no', { length: 50 }).default(''),
+  academicYear: varchar('academic_year', { length: 50 }).default(''),
+  effectiveFrom: date('effective_from').notNull().default('2024-01-01'),
+  effectiveTo: date('effective_to'),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  instCodeIdx: index('idx_student_classes_inst').on(table.institutionCode),
+  studentIdx: index('idx_student_classes_student').on(table.studentId),
+  classIdx: index('idx_student_classes_class').on(table.classSectionId),
+  activeStudentIdx: index('idx_student_classes_active_student').on(table.studentId, table.isActive),
+  classStudentYearUnique: uniqueIndex('uq_student_classes_class_student_year').on(
+    table.classSectionId,
+    table.studentId,
+    table.academicYear
+  ),
+}));
+
+export type StudentClassRecord = typeof studentClasses.$inferSelect;
+export type NewStudentClassRecord = typeof studentClasses.$inferInsert;
+
+/**
+ * Marks module — exams per (class, term) with per-subject scores per student.
+ *
+ * exams        — one row per exam ("Unit Test 1", "Term 1 Final", etc.)
+ * exam_subjects — which subjects are part of an exam + max marks per subject
+ * marks        — actual scores: one row per (exam, subject, student)
+ */
+export const exams = pgTable('exams', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('ex')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  name: varchar('name', { length: 200 }).notNull(),
+  term: varchar('term', { length: 100 }).default(''),
+  academicYear: varchar('academic_year', { length: 50 }).default(''),
+  startDate: date('start_date'),
+  endDate: date('end_date'),
+  status: varchar('status', { length: 20 }).notNull().default('draft'), // draft | published | locked
+  createdBy: text('created_by').notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  instCodeIdx: index('idx_exams_inst').on(table.institutionCode),
+  statusIdx: index('idx_exams_status').on(table.status),
+}));
+
+export type ExamRecord = typeof exams.$inferSelect;
+export type NewExamRecord = typeof exams.$inferInsert;
+
+export const examSubjects = pgTable('exam_subjects', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('es')),
+  examId: text('exam_id').notNull(),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  subjectId: text('subject_id').notNull(),
+  maxMarks: integer('max_marks').notNull().default(100),
+  passMarks: integer('pass_marks').notNull().default(35),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  examIdx: index('idx_exam_subjects_exam').on(table.examId),
+  examSubjectUnique: uniqueIndex('uq_exam_subjects_exam_subject').on(table.examId, table.subjectId),
+}));
+
+export type ExamSubjectRecord = typeof examSubjects.$inferSelect;
+export type NewExamSubjectRecord = typeof examSubjects.$inferInsert;
+
+export const marks = pgTable('marks', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('mk')),
+  examId: text('exam_id').notNull(),
+  examSubjectId: text('exam_subject_id').notNull(),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  studentId: text('student_id').notNull(),
+  classSectionId: text('class_section_id').notNull(),
+  subjectId: text('subject_id').notNull(),
+  marksObtained: numeric('marks_obtained', { precision: 6, scale: 2 }).notNull().default('0'),
+  grade: varchar('grade', { length: 5 }).default(''),
+  remarks: text('remarks').default(''),
+  enteredBy: text('entered_by').notNull(),
+  enteredAt: timestamp('entered_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  examIdx: index('idx_marks_exam').on(table.examId),
+  studentIdx: index('idx_marks_student').on(table.studentId),
+  classIdx: index('idx_marks_class').on(table.classSectionId),
+  examSubjectStudentUnique: uniqueIndex('uq_marks_exam_subject_student').on(
+    table.examSubjectId,
+    table.studentId
+  ),
+}));
+
+export type MarkRecord = typeof marks.$inferSelect;
+export type NewMarkRecord = typeof marks.$inferInsert;
+
+export const homework = pgTable('homework', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('hw')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  classSectionId: text('class_section_id').notNull(),
+  subjectId: text('subject_id').notNull(),
+  teacherId: text('teacher_id').notNull(),
+  title: varchar('title', { length: 300 }).notNull(),
+  description: text('description').default(''),
+  dueDate: date('due_date').notNull(),
+  assignedDate: date('assigned_date').notNull().default('2024-01-01'),
+  priority: varchar('priority', { length: 20 }).notNull().default('normal'),
+  status: varchar('status', { length: 20 }).notNull().default('active'),
+  attachments: jsonb('attachments').$type<{ name: string; url: string }[]>().default([]),
+  createdBy: text('created_by').notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  instCodeIdx: index('idx_homework_inst').on(table.institutionCode),
+  classIdx: index('idx_homework_class').on(table.classSectionId),
+  teacherIdx: index('idx_homework_teacher').on(table.teacherId),
+  subjectIdx: index('idx_homework_subject').on(table.subjectId),
+  dueDateIdx: index('idx_homework_due_date').on(table.dueDate),
+}));
+
+export type HomeworkRecord = typeof homework.$inferSelect;
+export type NewHomeworkRecord = typeof homework.$inferInsert;
+
+export const studentDocuments = pgTable('student_documents', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('sd')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  studentId: text('student_id').notNull(),
+  documentType: varchar('document_type', { length: 100 }).notNull(),
+  fileName: text('file_name').default(''),
+  fileUrl: text('file_url').default(''),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  instCodeIdx: index('idx_student_documents_inst').on(table.institutionCode),
+  studentIdx: index('idx_student_documents_student').on(table.studentId),
+}));
+
+export type StudentDocumentRecord = typeof studentDocuments.$inferSelect;
+export type NewStudentDocumentRecord = typeof studentDocuments.$inferInsert;

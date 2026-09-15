@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet, Text } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
+import { ShimmerSkeleton } from './ShimmerSkeleton';
 
 interface StudentHomePeriodsListProps {
   loading?: boolean;
@@ -40,7 +41,7 @@ export const StudentHomePeriodsList: React.FC<StudentHomePeriodsListProps> = ({ 
   return (
     <View style={styles.periodsSection}>
       <View style={styles.sectionHeaderRow}>
-        <MaterialCommunityIcons name="calendar-month-outline" size={20} color="#7E57C2" />
+        <MaterialCommunityIcons name="calendar-month-outline" size={20} color="#1A1B1C" />
         <Text style={styles.sectionHeaderTitle}>Today&apos;s Periods</Text>
       </View>
 
@@ -48,19 +49,20 @@ export const StudentHomePeriodsList: React.FC<StudentHomePeriodsListProps> = ({ 
         <View style={styles.periodsListCard}>
           {[0, 1, 2].map((i) => (
             <View key={i} style={styles.periodRow}>
-              <View style={[styles.periodBadge, styles.placeholderBlock]} />
-              <View style={[styles.timeWrap, styles.placeholderBlock]} />
+              <ShimmerSkeleton width={52} height={30} borderRadius={6} />
+              <ShimmerSkeleton width={70} height={28} borderRadius={6} />
               <View style={{ flex: 1, gap: 6 }}>
-                <View style={[styles.placeholderLine, { width: '45%' }]} />
-                <View style={[styles.placeholderLine, { width: '30%' }]} />
+                <ShimmerSkeleton width="80%" height={12} borderRadius={4} />
+                <ShimmerSkeleton width="50%" height={10} borderRadius={4} />
               </View>
+              <ShimmerSkeleton width={28} height={18} borderRadius={4} />
             </View>
           ))}
         </View>
       ) : slots.length === 0 ? (
         <View style={styles.periodsListCard}>
           <View style={styles.emptyCard}>
-            <MaterialCommunityIcons name="calendar-blank-outline" size={36} color="#94A3B8" />
+            <MaterialCommunityIcons name="calendar-blank-outline" size={36} color="#6B6B6B" />
             <Text style={styles.emptyTitle}>No classes today</Text>
             <Text style={styles.emptySub}>Your timetable shows up here once your class schedule is published.</Text>
           </View>
@@ -79,14 +81,14 @@ export const StudentHomePeriodsList: React.FC<StudentHomePeriodsListProps> = ({ 
                     </Text>
                   </View>
                   <View style={styles.timeWrap}>
-                    <Text style={[styles.timeText, active && { color: '#7E57C2' }]}>
+                    <Text style={[styles.timeText, active && { color: '#F4C430' }]}>
                       {slot?.period?.startTime || ''}
                     </Text>
                     <Text style={styles.timeSubText}>{slot?.period?.endTime || ''}</Text>
                   </View>
                   <View style={styles.iconSubjectWrap}>
                     <View style={styles.subjectIconCircle}>
-                      <MaterialCommunityIcons name="book-open-page-variant-outline" size={18} color="#7E57C2" />
+                      <MaterialCommunityIcons name="book-open-page-variant-outline" size={18} color="#1A1B1C" />
                     </View>
                     <View>
                       <Text style={styles.subjectName}>{slot?.subject?.name || 'Subject'}</Text>
@@ -115,12 +117,12 @@ export const StudentHomePeriodsList: React.FC<StudentHomePeriodsListProps> = ({ 
 const styles = StyleSheet.create({
   periodsSection: { gap: 10 },
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  sectionHeaderTitle: { fontSize: 15, fontWeight: '800', color: '#1E293B' },
+  sectionHeaderTitle: { fontSize: 15, fontWeight: '800', color: '#171717' },
   periodsListCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: BorderRadius.card,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
     overflow: 'hidden',
   },
   periodRow: {
@@ -130,44 +132,42 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     gap: 12,
   },
-  activePeriodRow: { backgroundColor: '#FAF5FF' },
+  activePeriodRow: { backgroundColor: '#FFF4C7' },
   periodBadge: {
-    width: 44,
-    height: 44,
-    borderRadius: 8,
-    backgroundColor: '#F8F9FB',
+    width: 52,
+    height: 30,
+    borderRadius: 6,
+    backgroundColor: '#1A1B1C',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#2A2B2C',
   },
-  activePeriodBadge: { backgroundColor: '#7E57C2', borderColor: '#7E57C2' },
-  periodBadgeNum: { fontSize: 13, fontWeight: '800', color: '#1E293B' },
+  activePeriodBadge: { backgroundColor: '#F4C430', borderColor: '#F4C430' },
+  periodBadgeNum: { fontSize: 9, fontWeight: '800', color: '#F4C430' },
   timeWrap: { width: 70 },
-  timeText: { fontSize: 12, fontWeight: '700', color: '#1E293B' },
-  timeSubText: { fontSize: 10, color: '#94A3B8' },
+  timeText: { fontSize: 12, fontWeight: '700', color: '#171717' },
+  timeSubText: { fontSize: 10, color: '#6B6B6B' },
   iconSubjectWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
   subjectIconCircle: {
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: '#EDE9F6',
+    backgroundColor: '#F4C430',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  subjectName: { fontSize: 13, fontWeight: '700', color: '#1E293B' },
-  roomName: { fontSize: 11, color: '#94A3B8' },
+  subjectName: { fontSize: 13, fontWeight: '700', color: '#171717' },
+  roomName: { fontSize: 11, color: '#6B6B6B' },
   nowChip: {
-    backgroundColor: '#7E57C2',
+    backgroundColor: '#F4C430',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: BorderRadius.chip,
   },
   nowChipText: { fontSize: 10, fontWeight: '700', color: '#FFFFFF' },
-  divider: { height: 1, backgroundColor: '#F1F5F9' },
-  placeholderBlock: { backgroundColor: '#F1F5F9', borderRadius: 6 },
-  placeholderLine: { height: 10, backgroundColor: '#F1F5F9', borderRadius: 5 },
+  divider: { height: 1, backgroundColor: '#FFFEFE' },
   emptyCard: { padding: 24, alignItems: 'center', gap: 6 },
-  emptyTitle: { fontSize: 14, fontWeight: '700', color: '#1E293B' },
-  emptySub: { fontSize: 12, color: '#94A3B8', textAlign: 'center', lineHeight: 16 },
+  emptyTitle: { fontSize: 14, fontWeight: '700', color: '#171717' },
+  emptySub: { fontSize: 12, color: '#6B6B6B', textAlign: 'center', lineHeight: 16 },
 });

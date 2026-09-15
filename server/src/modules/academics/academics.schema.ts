@@ -24,6 +24,10 @@ export const CreateSubjectTeacherSchema = z.object({
   teacherId: z.string().min(1, 'teacherId is required').max(100),
 });
 
+export const UpdateSubjectTeacherSchema = z.object({
+  teacherId: z.string().min(1, 'teacherId is required').max(100),
+});
+
 export const CreatePeriodSchema = z.object({
   label: z.string().min(1, 'Period label is required').max(100),
   startTime: z.string().regex(timeRegex, 'startTime must be in HH:MM 24h format'),
@@ -90,3 +94,76 @@ export const MarkAttendanceSchema = z.object({
 
 export type AttendanceEntryInput = z.infer<typeof AttendanceEntryInputSchema>;
 export type MarkAttendanceInput = z.infer<typeof MarkAttendanceSchema>;
+
+// ---------- Marks / Exams ----------
+
+export const EXAM_STATUSES = ['draft', 'published', 'locked'] as const;
+
+export const CreateExamSchema = z.object({
+  name: z.string().min(1, 'Exam name is required').max(200),
+  term: z.string().max(100).optional().default(''),
+  academicYear: z.string().max(50).optional().default(''),
+  startDate: z.string().regex(dateRegex, 'startDate must be YYYY-MM-DD').optional(),
+  endDate: z.string().regex(dateRegex, 'endDate must be YYYY-MM-DD').optional(),
+  subjects: z
+    .array(
+      z.object({
+        subjectId: z.string().min(1).max(100),
+        maxMarks: z.number().int().min(1).max(1000).default(100),
+        passMarks: z.number().int().min(0).max(1000).default(35),
+      })
+    )
+    .min(1, 'At least one subject is required')
+    .max(20),
+});
+
+export const UpdateExamSchema = z.object({
+  name: z.string().min(1).max(200).optional(),
+  term: z.string().max(100).optional(),
+  academicYear: z.string().max(50).optional(),
+  startDate: z.string().regex(dateRegex).optional(),
+  endDate: z.string().regex(dateRegex).optional(),
+  status: z.enum(EXAM_STATUSES).optional(),
+});
+
+export const MarkEntryInputSchema = z.object({
+  studentId: z.string().min(1).max(100),
+  marksObtained: z.number().min(0).max(1000),
+  grade: z.string().max(5).optional().default(''),
+  remarks: z.string().max(300).optional().default(''),
+});
+
+export const SaveMarksSchema = z.object({
+  examSubjectId: z.string().min(1, 'examSubjectId is required'),
+  classSectionId: z.string().min(1, 'classSectionId is required'),
+  entries: z.array(MarkEntryInputSchema).max(500),
+});
+
+export type CreateExamInput = z.infer<typeof CreateExamSchema>;
+export type UpdateExamInput = z.infer<typeof UpdateExamSchema>;
+export type MarkEntryInput = z.infer<typeof MarkEntryInputSchema>;
+export type SaveMarksInput = z.infer<typeof SaveMarksSchema>;
+
+// ---------- Homework ----------
+
+export const HOMEWORK_PRIORITIES = ['low', 'normal', 'high', 'urgent'] as const;
+
+export const CreateHomeworkSchema = z.object({
+  classSectionId: z.string().min(1, 'classSectionId is required').max(100),
+  subjectId: z.string().min(1, 'subjectId is required').max(100),
+  title: z.string().min(1, 'Title is required').max(300),
+  description: z.string().max(5000).optional().default(''),
+  dueDate: z.string().regex(dateRegex, 'dueDate must be YYYY-MM-DD'),
+  priority: z.enum(HOMEWORK_PRIORITIES).optional().default('normal'),
+});
+
+export const UpdateHomeworkSchema = z.object({
+  title: z.string().min(1).max(300).optional(),
+  description: z.string().max(5000).optional(),
+  dueDate: z.string().regex(dateRegex).optional(),
+  priority: z.enum(HOMEWORK_PRIORITIES).optional(),
+  status: z.enum(['active', 'closed', 'archived']).optional(),
+});
+
+export type CreateHomeworkInput = z.infer<typeof CreateHomeworkSchema>;
+export type UpdateHomeworkInput = z.infer<typeof UpdateHomeworkSchema>;

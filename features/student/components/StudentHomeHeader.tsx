@@ -5,27 +5,41 @@ import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 interface StudentHomeHeaderProps {
   fullName: string;
   profilePic?: string;
+  onMenuPress: () => void;
   onNotificationsPress: () => void;
   onProfilePress: () => void;
 }
 
+const getGreeting = (): string => {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good Morning';
+  if (hour < 17) return 'Good Afternoon';
+  return 'Good Evening';
+};
+
 export const StudentHomeHeader: React.FC<StudentHomeHeaderProps> = ({
   fullName,
   profilePic,
+  onMenuPress,
   onNotificationsPress,
   onProfilePress,
 }) => {
+  const firstName = fullName.split(' ')[0];
+  const greeting = getGreeting();
+
   return (
     <View style={styles.container}>
       <View style={styles.topHeader}>
-        <TouchableOpacity style={styles.iconBtn}>
-          <Feather name="menu" size={22} color="#1A202C" />
+        <TouchableOpacity style={styles.iconBtn} onPress={onMenuPress}>
+          <Feather name="menu" size={22} color="#171717" />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.iconBtn} onPress={onNotificationsPress}>
-          <Feather name="bell" size={22} color="#1A202C" />
+        <Image source={require('../../../assets/text-logo.png')} style={styles.logoImage} resizeMode="contain" />
+
+        <View style={styles.iconBtn}>
+          <Feather name="bell" size={22} color="#171717" />
           <View style={styles.dotBadge} />
-        </TouchableOpacity>
+        </View>
       </View>
 
       <TouchableOpacity style={styles.userGreetingRow} onPress={onProfilePress} activeOpacity={0.7}>
@@ -34,34 +48,34 @@ export const StudentHomeHeader: React.FC<StudentHomeHeaderProps> = ({
             <Image source={{ uri: profilePic }} style={styles.avatarImage} />
           ) : (
             <View style={styles.avatarPlaceholder}>
-              <MaterialCommunityIcons name="account" size={36} color="#7E57C2" />
+              <MaterialCommunityIcons name="account" size={36} color="#1A1B1C" />
             </View>
           )}
         </View>
 
         <View style={styles.greetingTextWrap}>
-          <Text style={styles.welcomeLabel}>Welcome,</Text>
-          <View style={styles.nameRow}>
-            <Text style={styles.userNameText}>{fullName}</Text>
-            <Text style={styles.waveHand}>👋</Text>
-          </View>
-          <Text style={styles.timeGreeting}>Good Morning!</Text>
+          <Text style={styles.greetingText}>{greeting},</Text>
+          <Text style={styles.userNameText}>{firstName}</Text>
         </View>
 
-        <MaterialCommunityIcons name="chevron-right" size={20} color="#A0AEC0" />
+        <MaterialCommunityIcons name="chevron-right" size={20} color="#6B6B6B" />
       </TouchableOpacity>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { gap: 12 },
+  container: { gap: 4 },
   topHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 8,
+  },
+  logoImage: {
+    height: 56,
+    width: 180,
   },
   iconBtn: {
     width: 40,
@@ -71,7 +85,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
   },
   dotBadge: {
     position: 'absolute',
@@ -87,6 +101,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 14,
     paddingHorizontal: 20,
+    marginBottom: 10,
   },
   avatarWrap: {
     width: 60,
@@ -94,20 +109,17 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     overflow: 'hidden',
     borderWidth: 2,
-    borderColor: '#7E57C2',
+    borderColor: '#1A1B1C',
   },
   avatarImage: { width: '100%', height: '100%' },
   avatarPlaceholder: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#EDE9F6',
+    backgroundColor: '#F4C430',
     justifyContent: 'center',
     alignItems: 'center',
   },
   greetingTextWrap: { flex: 1 },
-  welcomeLabel: { fontSize: 13, color: '#718096' },
-  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  userNameText: { fontSize: 20, fontWeight: '800', color: '#1A202C' },
-  waveHand: { fontSize: 18 },
-  timeGreeting: { fontSize: 12, color: '#A0AEC0', marginTop: 1 },
+  greetingText: { fontSize: 14, color: '#6B6B6B', marginBottom: 2 },
+  userNameText: { fontSize: 22, fontWeight: '800', color: '#171717' },
 });

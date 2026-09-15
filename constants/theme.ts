@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 
-const tintColorLight = '#7E57C2';
-const tintColorDark = '#9333EA';
+const tintColorLight = '#F4C430';
+const tintColorDark = '#F4C430';
 
 export const BorderRadius = {
   input: 6,
@@ -15,38 +15,38 @@ export const BorderRadius = {
 
 export const Colors = {
   light: {
-    text: '#1A202C',
-    background: '#F8F9FB',
+    text: '#171717',
+    background: '#FFFEFE',
     tint: tintColorLight,
-    icon: '#718096',
-    tabIconDefault: '#94A3B8',
+    icon: '#6B6B6B',
+    tabIconDefault: '#6B6B6B',
     tabIconSelected: tintColorLight,
-    primary: '#7E57C2',
-    secondary: '#4A90D9',
-    accent: '#F4A261',
+    primary: '#F4C430',
+    secondary: '#171717',
+    accent: '#FFF4C7',
     success: '#16A34A',
     danger: '#DC3545',
     warning: '#D97706',
-    card: '#FFFFFF',
-    border: '#E2E8F0',
-    muted: '#718096',
+    card: '#FFFEFE',
+    border: '#E8E5DC',
+    muted: '#6B6B6B',
   },
   dark: {
-    text: '#ECEDEE',
-    background: '#151718',
+    text: '#FFFDF7',
+    background: '#0E0E0E',
     tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
+    icon: '#6B6B6B',
+    tabIconDefault: '#6B6B6B',
     tabIconSelected: tintColorDark,
-    primary: '#9333EA',
-    secondary: '#7C3AED',
-    accent: '#F4A261',
+    primary: '#F4C430',
+    secondary: '#171717',
+    accent: '#FFF4C7',
     success: '#16A34A',
     danger: '#DC3545',
     warning: '#D97706',
-    card: '#1E2022',
-    border: '#2D3135',
-    muted: '#9CA3AF',
+    card: '#171717',
+    border: '#E8E5DC',
+    muted: '#6B6B6B',
   },
 };
 

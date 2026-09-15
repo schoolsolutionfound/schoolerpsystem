@@ -33,6 +33,10 @@ export default function AdminBulkFeedScreen() {
   const [csvRecords, setCsvRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [importCount, setImportCount] = useState(0);
+  const [successCount, setSuccessCount] = useState(0);
+  const [failureCount, setFailureCount] = useState(0);
+  const [emailsSent, setEmailsSent] = useState(0);
+  const [importErrors, setImportErrors] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'bulk' | 'users' | 'reports' | 'settings'>('bulk');
 
   const parseCsvFromUri = async (uri: string): Promise<any[]> => {
@@ -56,6 +60,9 @@ export default function AdminBulkFeedScreen() {
             institutionName: row[6] || storeInstitutionName,
             institutionType: 'college',
             role: feedType === 'teacher_bulk' ? 'teacher' : 'student',
+            department: row[7] || '',
+            academicYear: row[8] || '',
+            section: row[9] || '',
           });
         }
       }
@@ -110,6 +117,10 @@ export default function AdminBulkFeedScreen() {
           role: individualRole,
         });
         setImportCount(1);
+        setSuccessCount(1);
+        setFailureCount(0);
+        setEmailsSent(0);
+        setImportErrors([]);
       } else {
         const records = selectedFile?.uri ? await parseCsvFromUri(selectedFile.uri) : csvRecords;
         if (records.length === 0) {
@@ -117,8 +128,13 @@ export default function AdminBulkFeedScreen() {
           setLoading(false);
           return;
         }
-        await bulkFeedApi(records);
-        setImportCount(records.length);
+        const res = await bulkFeedApi(records, { sendEmails, overwriteUsers });
+        const data = res?.data || res;
+        setImportCount(data.totalProcessed || records.length);
+        setSuccessCount(data.successCount || 0);
+        setFailureCount(data.failureCount || 0);
+        setEmailsSent(data.emailsSent || 0);
+        setImportErrors(data.errors || []);
       }
       setWizardStep(3);
     } catch (err: any) {
@@ -173,10 +189,18 @@ export default function AdminBulkFeedScreen() {
           <BulkFeedStep3
             router={router}
             importCount={importCount}
+            successCount={successCount}
+            failureCount={failureCount}
+            emailsSent={emailsSent}
+            errors={importErrors}
             roleName={feedType === 'teacher_bulk' || individualRole === 'teacher' ? 'teacher' : 'student'}
             onResetStep={() => {
               setWizardStep(1);
               setImportCount(0);
+              setSuccessCount(0);
+              setFailureCount(0);
+              setEmailsSent(0);
+              setImportErrors([]);
               setImportError(null);
             }}
           />
@@ -184,27 +208,27 @@ export default function AdminBulkFeedScreen() {
 
         <View style={styles.tabBar}>
           <TouchableOpacity style={styles.tabItem} onPress={() => router.replace('/(admin)/home')}>
-            <MaterialCommunityIcons name="home-outline" size={22} color={activeTab === 'dashboard' ? '#7E57C2' : '#94A3B8'} />
+            <MaterialCommunityIcons name="home-outline" size={22} color={activeTab === 'dashboard' ? '#F4C430' : '#6B6B6B'} />
             <Text style={[styles.tabLabel, activeTab === 'dashboard' && styles.tabLabelActive]}>Dashboard</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('bulk')}>
-            <MaterialCommunityIcons name="cloud-upload-outline" size={22} color={activeTab === 'bulk' ? '#7E57C2' : '#94A3B8'} />
+            <MaterialCommunityIcons name="cloud-upload-outline" size={22} color={activeTab === 'bulk' ? '#F4C430' : '#6B6B6B'} />
             <Text style={[styles.tabLabel, activeTab === 'bulk' && styles.tabLabelActive]}>Bulk Feed</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('users')}>
-            <MaterialCommunityIcons name="account-group-outline" size={22} color={activeTab === 'users' ? '#7E57C2' : '#94A3B8'} />
+            <MaterialCommunityIcons name="account-group-outline" size={22} color={activeTab === 'users' ? '#F4C430' : '#6B6B6B'} />
             <Text style={[styles.tabLabel, activeTab === 'users' && styles.tabLabelActive]}>Users</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('reports')}>
-            <MaterialCommunityIcons name="chart-bar" size={22} color={activeTab === 'reports' ? '#7E57C2' : '#94A3B8'} />
+            <MaterialCommunityIcons name="chart-bar" size={22} color={activeTab === 'reports' ? '#F4C430' : '#6B6B6B'} />
             <Text style={[styles.tabLabel, activeTab === 'reports' && styles.tabLabelActive]}>Reports</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('settings')}>
-            <MaterialCommunityIcons name="cog-outline" size={22} color={activeTab === 'settings' ? '#7E57C2' : '#94A3B8'} />
+            <MaterialCommunityIcons name="cog-outline" size={22} color={activeTab === 'settings' ? '#F4C430' : '#6B6B6B'} />
             <Text style={[styles.tabLabel, activeTab === 'settings' && styles.tabLabelActive]}>Settings</Text>
           </TouchableOpacity>
         </View>
@@ -214,16 +238,16 @@ export default function AdminBulkFeedScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8F9FB' },
+  container: { flex: 1, backgroundColor: '#FFFDF7' },
   safe: { flex: 1 },
   tabBar: {
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
+    borderTopColor: '#E8E5DC',
     paddingVertical: 8,
   },
   tabItem: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  tabLabel: { fontSize: 10, fontWeight: '500', color: '#94A3B8', marginTop: 2 },
-  tabLabelActive: { color: '#7E57C2', fontWeight: '700' },
+  tabLabel: { fontSize: 10, fontWeight: '500', color: '#6B6B6B', marginTop: 2 },
+  tabLabelActive: { color: '#F4C430', fontWeight: '700' },
 });

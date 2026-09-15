@@ -23,7 +23,7 @@ export const AdminHomeFeedBanner: React.FC<AdminHomeFeedBannerProps> = ({ onPres
       </View>
 
       <View style={styles.bannerArrowCircle}>
-        <MaterialCommunityIcons name="arrow-right" size={20} color="#7E57C2" />
+        <MaterialCommunityIcons name="arrow-right" size={20} color="#F4C430" />
       </View>
     </TouchableOpacity>
   );
@@ -33,7 +33,7 @@ const styles = StyleSheet.create({
   feedBannerCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#7E57C2',
+    backgroundColor: '#F4C430',
     borderRadius: BorderRadius.card,
     padding: 16,
     gap: 14,

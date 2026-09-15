@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, ActivityIndicator, Alert } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text, ActivityIndicator, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -12,8 +12,17 @@ import {
   fetchDashboardStatsApi,
   fetchStudentsApi,
   createStudentApi,
+  updateStudentApi,
+  deleteStudentApi,
+  promoteStudentsApi,
+  graduateStudentsApi,
+  fetchStudentDocumentsApi,
+  uploadStudentDocumentApi,
+  deleteStudentDocumentApi,
   fetchTeachersApi,
   createTeacherApi,
+  updateTeacherApi,
+  deleteTeacherApi,
   fetchUsersApi,
   createUserApi,
 } from '../../api/admin';
@@ -31,6 +40,16 @@ import { AdminTeachersView } from '../../features/admin/components/AdminTeachers
 import { AdminUsersView } from '../../features/admin/components/AdminUsersView';
 import { AdminProfileView } from '../../features/admin/components/AdminProfileView';
 import { AdminAcademicsView } from '../../features/admin/components/AdminAcademicsView';
+import { AdminHeader } from '../../features/admin/components/AdminHeader';
+import { AdminDrawer } from '../../features/admin/components/AdminDrawer';
+
+const TABS: { key: 'dashboard' | 'institution' | 'students' | 'teachers' | 'profile'; label: string; icon: string; iconFilled: string }[] = [
+  { key: 'dashboard', label: 'Dashboard', icon: 'view-dashboard-outline', iconFilled: 'view-dashboard' },
+  { key: 'institution', label: 'Institution', icon: 'office-building', iconFilled: 'office-building' },
+  { key: 'students', label: 'Students', icon: 'account-school-outline', iconFilled: 'account-school' },
+  { key: 'teachers', label: 'Teachers', icon: 'human-male-board', iconFilled: 'human-male-board' },
+  { key: 'profile', label: 'Profile', icon: 'account-circle-outline', iconFilled: 'account-circle' },
+];
 
 export default function AdminHomeScreen() {
   const router = useRouter();
@@ -56,6 +75,7 @@ export default function AdminHomeScreen() {
   };
 
   const [activeTab, setActiveTab] = useState<'dashboard' | 'institution' | 'students' | 'teachers' | 'users' | 'academics' | 'timetable' | 'attendance' | 'profile'>('dashboard');
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // Server State
@@ -149,11 +169,65 @@ export default function AdminHomeScreen() {
     }
   };
 
+  const handleUpdateStudent = async (id: string, payload: any) => {
+    const res = await updateStudentApi(id, payload);
+    if (res) {
+      setStudents((prev) => prev.map((s) => (s.id === id ? { ...s, ...res } : s)));
+    }
+  };
+
+  const handleDeleteStudent = async (id: string) => {
+    await deleteStudentApi(id);
+    setStudents((prev) => prev.filter((s) => s.id !== id));
+  };
+
+  const handlePromoteStudents = async (studentIds: string[], targetClassSectionId: string, academicYear: string) => {
+    await promoteStudentsApi(studentIds, targetClassSectionId, academicYear);
+    // Refresh students list to reflect new scope
+    const studentsRes = await fetchStudentsApi().catch(() => null);
+    if (studentsRes) {
+      setStudents((Array.isArray(studentsRes) ? studentsRes : (studentsRes as any)?.data || []).map(normalizeUser));
+    }
+  };
+
+  const handleGraduateStudents = async (studentIds: string[]) => {
+    await graduateStudentsApi(studentIds);
+    // Update local state to mark as graduated
+    setStudents((prev) =>
+      prev.map((s) => (studentIds.includes(s.id) ? { ...s, graduatedAt: new Date().toISOString() } : s))
+    );
+  };
+
+  const handleFetchDocuments = async (studentId: string) => {
+    const res = await fetchStudentDocumentsApi(studentId);
+    return (res as any)?.data || [];
+  };
+
+  const handleAddDocument = async (studentId: string, payload: { documentType: string; fileName: string; fileUrl: string }) => {
+    await uploadStudentDocumentApi(studentId, payload);
+  };
+
+  const handleDeleteDocument = async (studentId: string, docId: string) => {
+    await deleteStudentDocumentApi(studentId, docId);
+  };
+
   const handleCreateTeacher = async (teacherPayload: any) => {
     const res = await createTeacherApi(teacherPayload);
     if (res) {
       setTeachers((prev) => [res, ...prev]);
     }
+  };
+
+  const handleUpdateTeacher = async (id: string, payload: any) => {
+    const res = await updateTeacherApi(id, payload);
+    if (res) {
+      setTeachers((prev) => prev.map((t) => (t.id === id ? { ...t, ...res } : t)));
+    }
+  };
+
+  const handleDeleteTeacher = async (id: string) => {
+    await deleteTeacherApi(id);
+    setTeachers((prev) => prev.filter((t) => t.id !== id));
   };
 
   const handleCreateUser = async (userPayload: any) => {
@@ -187,13 +261,20 @@ export default function AdminHomeScreen() {
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safe}>
+        <AdminHeader
+          fullName={fullName}
+          onMenuPress={() => setDrawerOpen(true)}
+          onNotificationsPress={() => router.push('/notifications')}
+          onProfilePress={() => setActiveTab('profile')}
+        />
+
         {loading ? (
           <View style={styles.loadingBox}>
-            <ActivityIndicator size="large" color="#7E57C2" />
+            <ActivityIndicator size="large" color="#F4C430" />
             <Text style={styles.loadingText}>Loading Admin Workspace...</Text>
           </View>
         ) : (
-          <View style={{ flex: 1 }}>
+          <View style={styles.content}>
             {activeTab === 'dashboard' && (
               <AdminDashboardView
                 fullName={fullName}
@@ -212,7 +293,16 @@ export default function AdminHomeScreen() {
                 departments={config.departments || []}
                 academicYears={config.academicYears || []}
                 sections={config.sections || []}
+                classSections={classSections}
+                institutionType={config.institutionType || 'college'}
                 onCreateStudent={handleCreateStudent}
+                onUpdateStudent={handleUpdateStudent}
+                onDeleteStudent={handleDeleteStudent}
+                onPromoteStudents={handlePromoteStudents}
+                onGraduateStudents={handleGraduateStudents}
+                onFetchDocuments={handleFetchDocuments}
+                onAddDocument={handleAddDocument}
+                onDeleteDocument={handleDeleteDocument}
               />
             )}
 
@@ -221,6 +311,8 @@ export default function AdminHomeScreen() {
                 teachers={teachers}
                 departments={config.departments || []}
                 onCreateTeacher={handleCreateTeacher}
+                onUpdateTeacher={handleUpdateTeacher}
+                onDeleteTeacher={handleDeleteTeacher}
               />
             )}
 
@@ -267,67 +359,91 @@ export default function AdminHomeScreen() {
           </View>
         )}
 
-        {/* Workspace Bottom Navigation Bar */}
-        <View style={styles.tabBar}>
-          <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('dashboard')}>
-            <MaterialCommunityIcons name="view-dashboard-outline" size={22} color={activeTab === 'dashboard' ? '#7E57C2' : '#94A3B8'} />
-            <Text style={[styles.tabLabel, activeTab === 'dashboard' && styles.tabLabelActive]}>Dashboard</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('institution')}>
-            <MaterialCommunityIcons name="office-building" size={22} color={activeTab === 'institution' ? '#7E57C2' : '#94A3B8'} />
-            <Text style={[styles.tabLabel, activeTab === 'institution' && styles.tabLabelActive]}>Institution</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('students')}>
-            <MaterialCommunityIcons name="account-school-outline" size={22} color={activeTab === 'students' ? '#7E57C2' : '#94A3B8'} />
-            <Text style={[styles.tabLabel, activeTab === 'students' && styles.tabLabelActive]}>Students</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('teachers')}>
-            <MaterialCommunityIcons name="human-male-board" size={22} color={activeTab === 'teachers' ? '#7E57C2' : '#94A3B8'} />
-            <Text style={[styles.tabLabel, activeTab === 'teachers' && styles.tabLabelActive]}>Teachers</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('users')}>
-            <MaterialCommunityIcons name="account-group-outline" size={22} color={activeTab === 'users' ? '#7E57C2' : '#94A3B8'} />
-            <Text style={[styles.tabLabel, activeTab === 'users' && styles.tabLabelActive]}>Users</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('academics')}>
-            <MaterialCommunityIcons name="school-outline" size={22} color={activeTab === 'academics' ? '#7E57C2' : '#94A3B8'} />
-            <Text style={[styles.tabLabel, activeTab === 'academics' && styles.tabLabelActive]}>Academics</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.tabItem} onPress={() => setActiveTab('profile')}>
-            <MaterialCommunityIcons name="account-circle-outline" size={22} color={activeTab === 'profile' ? '#7E57C2' : '#94A3B8'} />
-            <Text style={[styles.tabLabel, activeTab === 'profile' && styles.tabLabelActive]}>Profile</Text>
-          </TouchableOpacity>
+        {/* Floating Bottom Tab Bar */}
+        <View style={styles.tabBarBg}>
+          <View style={styles.tabBar}>
+            {TABS.map((tab) => {
+              const isActive = activeTab === tab.key;
+              return (
+                <TouchableOpacity
+                  key={tab.key}
+                  style={styles.tabItem}
+                  onPress={() => setActiveTab(tab.key)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.tabIconBg, isActive && styles.tabIconBgActive]}>
+                    <MaterialCommunityIcons
+                      name={isActive ? (tab.iconFilled as any) : (tab.icon as any)}
+                      size={22}
+                      color={isActive ? '#1A1B1C' : '#9CA3AF'}
+                    />
+                  </View>
+                  <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>{tab.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
       </SafeAreaView>
+
+      <AdminDrawer
+        visible={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        onNavigate={(tab) => setActiveTab(tab)}
+        onLogout={handleLogout}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8F9FB' },
+  container: { flex: 1, backgroundColor: '#FFFDF7' },
   safe: { flex: 1 },
+  content: { flex: 1 },
   loadingBox: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
-  loadingText: { fontSize: 14, fontWeight: '600', color: '#7E57C2' },
+  loadingText: { fontSize: 14, fontWeight: '600', color: '#F4C430' },
+
+  // Floating tab bar
+  tabBarBg: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 32,
+    marginHorizontal: 16,
+    marginBottom: Platform.OS === 'ios' ? 16 : 8,
+    paddingTop: 8,
+    paddingBottom: Platform.OS === 'ios' ? 16 : 8,
+    shadowColor: '#171717',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 12,
+  },
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-    paddingVertical: 6,
-    paddingBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 4,
+    alignItems: 'center',
+    paddingHorizontal: 6,
   },
-  tabItem: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 4 },
-  tabLabel: { fontSize: 10, fontWeight: '500', color: '#94A3B8', marginTop: 3 },
-  tabLabelActive: { color: '#7E57C2', fontWeight: '700' },
+  tabItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabIconBg: {
+    width: 44,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabIconBgActive: {
+    backgroundColor: '#F4C430',
+  },
+  tabLabel: {
+    fontSize: 10,
+    color: '#9CA3AF',
+    marginTop: 4,
+  },
+  tabLabelActive: {
+    color: '#1A1B1C',
+    fontWeight: '700',
+  },
 });

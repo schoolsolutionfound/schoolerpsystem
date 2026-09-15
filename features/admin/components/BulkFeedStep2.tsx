@@ -32,7 +32,7 @@ export const BulkFeedStep2: React.FC<BulkFeedStep2Props> = ({
     <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
       <View style={styles.topHeader}>
         <TouchableOpacity onPress={onBack} style={styles.backBtn}>
-          <MaterialCommunityIcons name="chevron-left" size={24} color="#1A202C" />
+          <MaterialCommunityIcons name="chevron-left" size={24} color="#171717" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Preview Data</Text>
         <View style={{ width: 24 }} />
@@ -40,7 +40,7 @@ export const BulkFeedStep2: React.FC<BulkFeedStep2Props> = ({
 
       <View style={styles.previewHeaderCard}>
         <View style={styles.bannerIconCircle}>
-          <MaterialCommunityIcons name="file-document-outline" size={24} color="#7E57C2" />
+          <MaterialCommunityIcons name="file-document-outline" size={24} color="#F4C430" />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.previewCardTitle}>
@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
   scroll: { paddingHorizontal: 20, paddingVertical: 14, gap: 16 },
   topHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   backBtn: { padding: 4 },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: '#1A202C' },
+  headerTitle: { fontSize: 18, fontWeight: '700', color: '#171717' },
   previewHeaderCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -127,43 +127,43 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.card,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
     gap: 12,
   },
   bannerIconCircle: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#EDE9F6',
+    backgroundColor: '#FFF4C7',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  previewCardTitle: { fontSize: 15, fontWeight: '700', color: '#1A202C' },
-  previewCardSub: { fontSize: 12, color: '#7E57C2', fontWeight: '600', marginTop: 2 },
-  previewNoticeText: { fontSize: 13, color: '#718096', marginVertical: 4 },
+  previewCardTitle: { fontSize: 15, fontWeight: '700', color: '#171717' },
+  previewCardSub: { fontSize: 12, color: '#F4C430', fontWeight: '600', marginTop: 2 },
+  previewNoticeText: { fontSize: 13, color: '#6B6B6B', marginVertical: 4 },
   tableCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: BorderRadius.card,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
     overflow: 'hidden',
   },
   tableHeaderRow: {
     flexDirection: 'row',
-    backgroundColor: '#F8F9FB',
+    backgroundColor: '#FFFDF7',
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: '#E8E5DC',
   },
-  colHeader: { fontSize: 12, fontWeight: '700', color: '#64748B' },
+  colHeader: { fontSize: 12, fontWeight: '700', color: '#6B6B6B' },
   tableDataRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: '#FFFDF7',
   },
   avatarCircleSmall: {
     width: 32,
@@ -173,17 +173,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   avatarTextSmall: { fontSize: 12, fontWeight: '700' },
-  rowNameText: { flex: 1, fontSize: 13, fontWeight: '600', color: '#1E293B', marginLeft: 10 },
-  rowRollText: { width: 70, fontSize: 12, color: '#64748B' },
+  rowNameText: { flex: 1, fontSize: 13, fontWeight: '600', color: '#171717', marginLeft: 10 },
+  rowRollText: { width: 70, fontSize: 12, color: '#6B6B6B' },
   typeBadge: {
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: BorderRadius.chip,
   },
   typeBadgeText: { fontSize: 11, fontWeight: '700' },
-  tableFooterHint: { fontSize: 11, color: '#A0AEC0', textAlign: 'center', marginVertical: 4 },
+  tableFooterHint: { fontSize: 11, color: '#6B6B6B', textAlign: 'center', marginVertical: 4 },
   sectionCard: { gap: 12 },
-  sectionHeader: { fontSize: 14, fontWeight: '700', color: '#1A202C', marginBottom: 4 },
+  sectionHeader: { fontSize: 14, fontWeight: '700', color: '#171717', marginBottom: 4 },
   checkboxRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.card,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
     gap: 12,
   },
   checkboxOuter: {
@@ -199,15 +199,15 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 4,
     borderWidth: 2,
-    borderColor: '#CBD5E0',
+    borderColor: '#E8E5DC',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  checkboxActive: { backgroundColor: '#7E57C2', borderColor: '#7E57C2' },
-  optionTitle: { fontSize: 13, fontWeight: '700', color: '#1A202C' },
-  optionSub: { fontSize: 11, color: '#718096', marginTop: 2 },
+  checkboxActive: { backgroundColor: '#F4C430', borderColor: '#F4C430' },
+  optionTitle: { fontSize: 13, fontWeight: '700', color: '#171717' },
+  optionSub: { fontSize: 11, color: '#6B6B6B', marginTop: 2 },
   primaryActionBtn: {
-    backgroundColor: '#7E57C2',
+    backgroundColor: '#F4C430',
     borderRadius: BorderRadius.button,
     paddingVertical: 14,
     flexDirection: 'row',
@@ -223,9 +223,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
     marginTop: 4,
     width: '100%',
   },
-  cancelBtnText: { color: '#64748B', fontSize: 14, fontWeight: '600' },
+  cancelBtnText: { color: '#6B6B6B', fontSize: 14, fontWeight: '600' },
 });

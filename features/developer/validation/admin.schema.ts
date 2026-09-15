@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const ROLES = ['admin', 'teacher', 'student', 'principal', 'parent', 'accountant', 'hod', 'librarian'] as const;
+export const ROLES = ['admin', 'teacher', 'student', 'principal', 'parent', 'accountant', 'hod', 'librarian', 'driver'] as const;
 
 export const CreateAdminSchema = z.object({
   fullName: z.string().min(2, 'Full name must be at least 2 characters'),

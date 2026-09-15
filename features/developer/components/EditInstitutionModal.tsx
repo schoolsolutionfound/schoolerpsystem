@@ -225,7 +225,7 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   readOnlyBox: {
-    backgroundColor: '#F8F9FB',
+    backgroundColor: '#FFFDF7',
     borderRadius: 6,
     borderWidth: 1,
     borderColor: Colors.light.border,

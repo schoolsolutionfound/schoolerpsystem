@@ -437,7 +437,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.light.border,
   },
   activePermChip: {
-    backgroundColor: '#EDE7F6',
+    backgroundColor: '#FFF4C7',
     borderColor: Colors.light.primary,
   },
   permChipText: {

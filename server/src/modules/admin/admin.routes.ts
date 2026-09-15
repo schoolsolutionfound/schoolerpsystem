@@ -5,14 +5,27 @@ import {
   getDashboardStatsHandler,
   getStudentsHandler,
   createStudentHandler,
+  getStudentByIdHandler,
+  updateStudentHandler,
+  deleteStudentHandler,
+  promoteStudentsHandler,
+  graduateStudentsHandler,
+  getAlumniHandler,
+  getStudentDocumentsHandler,
+  addStudentDocumentHandler,
+  deleteStudentDocumentHandler,
+  addMyDocumentHandler,
+  deleteMyDocumentHandler,
   getTeachersHandler,
   createTeacherHandler,
+  updateTeacherHandler,
+  deleteTeacherHandler,
   getUsersHandler,
   createUserHandler,
   singleFeedHandler,
   bulkFeedHandler,
 } from './admin.controller.js';
-import { authenticate, requireAdmin } from '../shared/middleware/auth.js';
+import { authenticate, requireAdmin, requireRole } from '../shared/middleware/auth.js';
 
 export async function adminRoutes(fastify: FastifyInstance) {
   // Academic Config (read is safe for any authenticated user; writes are admin-only)
@@ -24,11 +37,29 @@ export async function adminRoutes(fastify: FastifyInstance) {
 
   // Student Management
   fastify.get('/students', { preHandler: [requireAdmin] }, getStudentsHandler);
+  fastify.get('/students/alumni', { preHandler: [requireAdmin] }, getAlumniHandler);
+  fastify.get('/students/:id', { preHandler: [requireAdmin] }, getStudentByIdHandler);
   fastify.post('/students', { preHandler: [requireAdmin], config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, createStudentHandler);
+  fastify.put('/students/:id', { preHandler: [requireAdmin], config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, updateStudentHandler);
+  fastify.delete('/students/:id', { preHandler: [requireAdmin], config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, deleteStudentHandler);
+  fastify.post('/students/promote', { preHandler: [requireAdmin], config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, promoteStudentsHandler);
+  fastify.post('/students/graduate', { preHandler: [requireAdmin], config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, graduateStudentsHandler);
+
+  // Student Documents
+  fastify.get('/students/:id/documents', { preHandler: [requireAdmin] }, getStudentDocumentsHandler);
+  fastify.post('/students/:id/documents', { preHandler: [requireAdmin], config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, addStudentDocumentHandler);
+  fastify.delete('/students/:id/documents/:docId', { preHandler: [requireAdmin], config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, deleteStudentDocumentHandler);
+
+  // Student Self-Document Upload (student auth)
+  fastify.get('/my/documents', { preHandler: [requireRole('student')] }, getStudentDocumentsHandler);
+  fastify.post('/my/documents', { preHandler: [requireRole('student')], config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, addMyDocumentHandler);
+  fastify.delete('/my/documents/:docId', { preHandler: [requireRole('student')], config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, deleteMyDocumentHandler);
 
   // Teacher Management
   fastify.get('/teachers', { preHandler: [requireAdmin] }, getTeachersHandler);
   fastify.post('/teachers', { preHandler: [requireAdmin], config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, createTeacherHandler);
+  fastify.put('/teachers/:id', { preHandler: [requireAdmin], config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, updateTeacherHandler);
+  fastify.delete('/teachers/:id', { preHandler: [requireAdmin], config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, deleteTeacherHandler);
 
   // Unified User Management (all roles)
   fastify.get('/users', { preHandler: [requireAdmin] }, getUsersHandler);

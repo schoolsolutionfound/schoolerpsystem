@@ -29,7 +29,7 @@ export const AppButton: React.FC<AppButtonProps> = ({
   textStyle,
 }) => {
   const getBackgroundColor = (): string => {
-    if (disabled) return '#CBD5E1';
+    if (disabled) return '#E8E5DC';
     switch (variant) {
       case 'secondary':
         return Colors.light.secondary;
@@ -44,13 +44,13 @@ export const AppButton: React.FC<AppButtonProps> = ({
   };
 
   const getTextColor = (): string => {
-    if (disabled) return '#94A3B8';
+    if (disabled) return '#6B6B6B';
     if (variant === 'outline') return Colors.light.primary;
     return '#FFFFFF';
   };
 
   const getBorderColor = (): string => {
-    if (disabled) return '#CBD5E1';
+    if (disabled) return '#E8E5DC';
     if (variant === 'outline') return Colors.light.primary;
     return 'transparent';
   };

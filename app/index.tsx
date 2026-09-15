@@ -1,36 +1,25 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Animated, Dimensions, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, Animated, Dimensions, StatusBar, Image } from 'react-native';
 import { useRouter } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { onAuthStateChanged } from 'firebase/auth';
+import LottieView from 'lottie-react-native';
 import { auth } from '../firebaseConfig';
 import { useUserStore } from '../store/useUserStore';
 import { getHomeRouteForRole } from '../features/shared/utils/routeGuards';
+import { FontFamily } from '../constants/fonts';
 
-const { width, height } = Dimensions.get('window');
-
-const FLOATING_ICONS = [
-  { name: 'book-open-variant', size: 24, x: width * 0.12, y: height * 0.18, delay: 200 },
-  { name: 'pencil', size: 18, x: width * 0.8, y: height * 0.15, delay: 400 },
-  { name: 'calculator-variant', size: 22, x: width * 0.88, y: height * 0.42, delay: 600 },
-  { name: 'palette', size: 20, x: width * 0.1, y: height * 0.55, delay: 300 },
-  { name: 'flask', size: 26, x: width * 0.82, y: height * 0.65, delay: 500 },
-  { name: 'music-note', size: 18, x: width * 0.15, y: height * 0.78, delay: 700 },
-  { name: 'trophy', size: 22, x: width * 0.85, y: height * 0.82, delay: 350 },
-  { name: 'earth', size: 20, x: width * 0.5, y: height * 0.1, delay: 450 },
-];
+const { width } = Dimensions.get('window');
 
 export default function AppSplashScreen() {
   const router = useRouter();
   const startTimeRef = useRef(Date.now());
 
   const progressAnim = useRef(new Animated.Value(0)).current;
-  const logoScale = useRef(new Animated.Value(0.3)).current;
+  const logoScale = useRef(new Animated.Value(0.6)).current;
   const logoOpacity = useRef(new Animated.Value(0)).current;
-  const iconOpacitiesRef = useRef(FLOATING_ICONS.map(() => new Animated.Value(0)));
-  const iconOpacities = iconOpacitiesRef.current;
-  const iconTranslatesRef = useRef(FLOATING_ICONS.map(() => new Animated.Value(20)));
-  const iconTranslates = iconTranslatesRef.current;
+  const textOpacity = useRef(new Animated.Value(0)).current;
+  const glowAnim = useRef(new Animated.Value(0.3)).current;
 
   const _hasHydrated = useUserStore((state) => state._hasHydrated);
   const isProfileSynced = useUserStore((state) => state.isProfileSynced);
@@ -42,42 +31,53 @@ export default function AppSplashScreen() {
   useEffect(() => {
     if (!_hasHydrated) return;
 
-    Animated.timing(progressAnim, {
-      toValue: 1,
-      duration: 1800,
-      useNativeDriver: false,
-    }).start();
-
     Animated.parallel([
-      Animated.spring(logoScale, {
+      Animated.timing(progressAnim, {
         toValue: 1,
-        tension: 40,
-        friction: 8,
-        useNativeDriver: true,
+        duration: 2200,
+        useNativeDriver: false,
       }),
-      Animated.timing(logoOpacity, {
-        toValue: 1,
-        duration: 500,
-        useNativeDriver: true,
-      }),
+      Animated.sequence([
+        Animated.delay(300),
+        Animated.parallel([
+          Animated.spring(logoScale, {
+            toValue: 1,
+            tension: 50,
+            friction: 7,
+            useNativeDriver: true,
+          }),
+          Animated.timing(logoOpacity, {
+            toValue: 1,
+            duration: 600,
+            useNativeDriver: true,
+          }),
+        ]),
+      ]),
+      Animated.sequence([
+        Animated.delay(800),
+        Animated.timing(textOpacity, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+      ]),
     ]).start();
 
-    FLOATING_ICONS.forEach((icon, i) => {
-      Animated.parallel([
-        Animated.timing(iconOpacities[i], {
-          toValue: 0.15,
-          duration: 600,
-          delay: icon.delay,
+    // Subtle pulsing glow behind logo
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowAnim, {
+          toValue: 0.6,
+          duration: 1200,
           useNativeDriver: true,
         }),
-        Animated.timing(iconTranslates[i], {
-          toValue: 0,
-          duration: 600,
-          delay: icon.delay,
+        Animated.timing(glowAnim, {
+          toValue: 0.3,
+          duration: 1200,
           useNativeDriver: true,
         }),
-      ]).start();
-    });
+      ])
+    ).start();
 
     const unsubscribeAuth = onAuthStateChanged(auth, () => {
       setAuthStateResolved(true);
@@ -105,7 +105,7 @@ export default function AppSplashScreen() {
       finalRoute = '/auth';
     }
 
-    const remaining = Math.max(0, 1800 - (Date.now() - startTimeRef.current));
+    const remaining = Math.max(0, 2200 - (Date.now() - startTimeRef.current));
 
     const failsafe = setTimeout(() => {
       if (!isReadyToNavigate) router.replace('/auth');
@@ -122,40 +122,45 @@ export default function AppSplashScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
 
-      {/* Floating school icons */}
-      {FLOATING_ICONS.map((icon, i) => (
+      {/* Lottie animation */}
+      <View style={styles.lottieContainer}>
+        <LottieView
+          source={{ uri: 'https://assets9.lottiefiles.com/packages/lf20_u4yrau.json' }}
+          autoPlay
+          loop
+          style={styles.lottie}
+        />
+      </View>
+
+      {/* Center content */}
+      <View style={styles.content}>
+        {/* Logo with glow */}
         <Animated.View
-          key={i}
           style={[
-            styles.floatingIcon,
+            styles.logoGlow,
+            { opacity: glowAnim },
+          ]}
+        />
+        <Animated.View
+          style={[
+            styles.logoContainer,
             {
-              left: icon.x,
-              top: icon.y,
-              opacity: iconOpacities[i],
-              transform: [{ translateY: iconTranslates[i] }, { scale: logoScale }],
+              opacity: logoOpacity,
+              transform: [{ scale: logoScale }],
             },
           ]}
         >
-          <MaterialCommunityIcons name={icon.name as any} size={icon.size} color="#7E57C2" />
+          <View style={styles.logoCircle}>
+            <Image source={require('../assets/logo-transparent.png')} style={styles.logoImage} resizeMode="contain" />
+          </View>
         </Animated.View>
-      ))}
 
-      {/* Center logo */}
-      <Animated.View
-        style={[
-          styles.logoContainer,
-          {
-            opacity: logoOpacity,
-            transform: [{ scale: logoScale }],
-          },
-        ]}
-      >
-        <View style={styles.logoCircle}>
-          <MaterialCommunityIcons name="school" size={48} color="#7E57C2" />
-        </View>
-        <Text style={styles.appName}>SchoolHub</Text>
-        <Text style={styles.subtitle}>Smart School Management</Text>
-      </Animated.View>
+        {/* App name + subtitle */}
+        <Animated.View style={{ opacity: textOpacity, alignItems: 'center' }}>
+          <Text style={styles.appName}>KIVQUO</Text>
+          <Text style={styles.subtitle}>Smart School Management</Text>
+        </Animated.View>
+      </View>
 
       {/* Progress bar */}
       <View style={styles.progressContainer}>
@@ -172,6 +177,7 @@ export default function AppSplashScreen() {
             ]}
           />
         </View>
+        <Text style={styles.loadingText}>Loading your experience...</Text>
       </View>
     </View>
   );
@@ -180,52 +186,93 @@ export default function AppSplashScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F9',
+    backgroundColor: '#FFFDF7',
   },
-  floatingIcon: {
+  lottieContainer: {
     position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: Dimensions.get('window').height * 0.45,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  logoContainer: {
+  lottie: {
+    width: width * 0.75,
+    height: width * 0.75,
+  },
+  content: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingTop: 60,
   },
-  logoCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 28,
-    backgroundColor: '#EDE7F6',
-    alignItems: 'center',
-    justifyContent: 'center',
+  logoGlow: {
+    position: 'absolute',
+    width: 160,
+    height: 160,
+    borderRadius: 40,
+    backgroundColor: '#F4C430',
+    top: '50%',
+    marginTop: -100,
+  },
+  logoContainer: {
     marginBottom: 24,
   },
+  logoCircle: {
+    width: 120,
+    height: 120,
+    borderRadius: 28,
+    backgroundColor: '#FFF4C7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    shadowColor: '#F4C430',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 12,
+  },
+  logoImage: {
+    width: 100,
+    height: 100,
+  },
   appName: {
-    fontSize: 30,
-    fontWeight: '700',
-    color: '#1A202C',
+    fontSize: 32,
+    fontFamily: FontFamily.extrabold,
+    color: '#171717',
     letterSpacing: -0.5,
+    textAlign: 'center',
   },
   subtitle: {
     fontSize: 14,
-    color: '#A0AEC0',
-    marginTop: 8,
+    fontFamily: FontFamily.medium,
+    color: '#6B6B6B',
+    marginTop: 6,
     letterSpacing: 0.3,
-    fontWeight: '500',
+    textAlign: 'center',
   },
   progressContainer: {
     alignItems: 'center',
     paddingBottom: 60,
   },
   progressTrack: {
-    width: 140,
-    height: 2,
-    backgroundColor: '#E2E8F0',
-    borderRadius: 1,
+    width: 160,
+    height: 3,
+    backgroundColor: '#E8E5DC',
+    borderRadius: 2,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#7E57C2',
-    borderRadius: 1,
+    backgroundColor: '#F4C430',
+    borderRadius: 2,
+  },
+  loadingText: {
+    fontSize: 11,
+    fontFamily: FontFamily.medium,
+    color: '#6B6B6B',
+    marginTop: 12,
+    letterSpacing: 0.5,
   },
 });

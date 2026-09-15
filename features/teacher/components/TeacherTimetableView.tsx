@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, StyleSheet, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, RefreshControl } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
 import { fetchTeacherTimetableApi } from '../../../api/academics';
@@ -17,6 +17,7 @@ export const TeacherTimetableView: React.FC<TeacherTimetableViewProps> = ({ onOp
   const [view, setView] = useState<'day' | 'week'>('day');
   const [weekMap, setWeekMap] = useState<Record<number, any[]>>({});
   const [weekLoading, setWeekLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -63,6 +64,13 @@ export const TeacherTimetableView: React.FC<TeacherTimetableViewProps> = ({ onOp
     }
   }, [date]);
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await load();
+    if (view === 'week') await loadWeek();
+    setRefreshing(false);
+  }, [load, loadWeek, view]);
+
   const switchView = (v: 'day' | 'week') => {
     setView(v);
     if (v === 'week') loadWeek();
@@ -85,32 +93,34 @@ export const TeacherTimetableView: React.FC<TeacherTimetableViewProps> = ({ onOp
   return (
     <View style={styles.container}>
       <View style={styles.dateBar}>
-        <TouchableOpacity onPress={() => shiftDay(-1)}><MaterialCommunityIcons name="chevron-left" size={24} color="#7E57C2" /></TouchableOpacity>
+        <TouchableOpacity onPress={() => shiftDay(-1)}><MaterialCommunityIcons name="chevron-left" size={24} color="#F4C430" /></TouchableOpacity>
         <View style={{ alignItems: 'center' }}>
           <Text style={styles.dateTitle}>{dayLabel}</Text>
           <Text style={styles.dateSub}>{periods.length} periods today</Text>
         </View>
-        <TouchableOpacity onPress={() => shiftDay(1)}><MaterialCommunityIcons name="chevron-right" size={24} color="#7E57C2" /></TouchableOpacity>
+        <TouchableOpacity onPress={() => shiftDay(1)}><MaterialCommunityIcons name="chevron-right" size={24} color="#F4C430" /></TouchableOpacity>
       </View>
 
       <View style={styles.viewRow}>
         <TouchableOpacity style={[styles.viewChip, view === 'day' && styles.viewChipActive]} onPress={() => switchView('day')}>
-          <MaterialCommunityIcons name="calendar-today" size={15} color={view === 'day' ? '#7E57C2' : '#64748B'} />
+          <MaterialCommunityIcons name="calendar-today" size={15} color={view === 'day' ? '#F4C430' : '#6B6B6B'} />
           <Text style={[styles.viewChipText, view === 'day' && styles.viewChipTextActive]}>Day</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.viewChip, view === 'week' && styles.viewChipActive]} onPress={() => switchView('week')}>
-          <MaterialCommunityIcons name="calendar-week" size={15} color={view === 'week' ? '#7E57C2' : '#64748B'} />
+          <MaterialCommunityIcons name="calendar-week" size={15} color={view === 'week' ? '#F4C430' : '#6B6B6B'} />
           <Text style={[styles.viewChipText, view === 'week' && styles.viewChipTextActive]}>Week</Text>
         </TouchableOpacity>
       </View>
 
       {loading ? (
-        <View style={styles.centerBox}><ActivityIndicator size="large" color="#7E57C2" /></View>
+        <View style={styles.centerBox}><ActivityIndicator size="large" color="#F4C430" /></View>
       ) : view === 'week' ? (
         weekLoading ? (
-          <View style={styles.centerBox}><ActivityIndicator size="large" color="#7E57C2" /></View>
+          <View style={styles.centerBox}><ActivityIndicator size="large" color="#F4C430" /></View>
         ) : (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.weekWrap}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.weekWrap}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1A1B1C" colors={['#1A1B1C']} progressBackgroundColor="#FFFFFF" />}
+          >
             <View>
               <View style={styles.gridHeaderRow}>
                 <View style={[styles.cell, styles.dayHeaderCell]}>
@@ -155,12 +165,14 @@ export const TeacherTimetableView: React.FC<TeacherTimetableViewProps> = ({ onOp
         )
       ) : periods.length === 0 ? (
         <View style={styles.emptyCard}>
-          <MaterialCommunityIcons name="calendar-blank" size={40} color="#94A3B8" />
+          <MaterialCommunityIcons name="calendar-blank" size={40} color="#6B6B6B" />
           <Text style={styles.emptyTitle}>No classes scheduled</Text>
           <Text style={styles.emptySub}>You have no periods assigned on this day.</Text>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1A1B1C" colors={['#1A1B1C']} progressBackgroundColor="#FFFFFF" />}
+        >
           {periods.map((p: any, i: number) => (
             <View key={p.id || i} style={styles.periodCard}>
               <View style={styles.timeCol}>
@@ -191,56 +203,56 @@ export const TeacherTimetableView: React.FC<TeacherTimetableViewProps> = ({ onOp
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  dateBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
-  dateTitle: { fontSize: 15, fontWeight: '800', color: '#1A202C' },
-  dateSub: { fontSize: 11, color: '#718096', marginTop: 2 },
+  dateBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#E8E5DC' },
+  dateTitle: { fontSize: 15, fontWeight: '800', color: '#171717' },
+  dateSub: { fontSize: 11, color: '#6B6B6B', marginTop: 2 },
   centerBox: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 60 },
   list: { padding: 16, gap: 10, paddingBottom: 40 },
   periodCard: {
-    backgroundColor: '#FFFFFF', borderRadius: BorderRadius.card, borderWidth: 1, borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF', borderRadius: BorderRadius.card, borderWidth: 1, borderColor: '#E8E5DC',
     padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12,
   },
   timeCol: { width: 52, gap: 2 },
-  timeStart: { fontSize: 14, fontWeight: '800', color: '#7E57C2' },
-  timeEnd: { fontSize: 11, color: '#94A3B8' },
+  timeStart: { fontSize: 14, fontWeight: '800', color: '#F4C430' },
+  timeEnd: { fontSize: 11, color: '#6B6B6B' },
   infoCol: { flex: 1 },
-  subject: { fontSize: 14, fontWeight: '700', color: '#1A202C' },
-  detail: { fontSize: 12, color: '#718096', marginTop: 2 },
+  subject: { fontSize: 14, fontWeight: '700', color: '#171717' },
+  detail: { fontSize: 12, color: '#6B6B6B', marginTop: 2 },
   markBtn: {
-    backgroundColor: '#7E57C2', borderRadius: BorderRadius.button, paddingHorizontal: 12, paddingVertical: 8,
+    backgroundColor: '#F4C430', borderRadius: BorderRadius.button, paddingHorizontal: 12, paddingVertical: 8,
     flexDirection: 'row', alignItems: 'center', gap: 4,
   },
   markBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 12 },
-  emptyCard: { backgroundColor: '#FFFFFF', borderRadius: BorderRadius.card, padding: 30, alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0', margin: 16, marginTop: 40 },
-  emptyTitle: { fontSize: 15, fontWeight: '700', color: '#1A202C', marginTop: 8 },
-  emptySub: { fontSize: 12, color: '#718096', textAlign: 'center', marginTop: 4 },
+  emptyCard: { backgroundColor: '#FFFFFF', borderRadius: BorderRadius.card, padding: 30, alignItems: 'center', borderWidth: 1, borderColor: '#E8E5DC', margin: 16, marginTop: 40 },
+  emptyTitle: { fontSize: 15, fontWeight: '700', color: '#171717', marginTop: 8 },
+  emptySub: { fontSize: 12, color: '#6B6B6B', textAlign: 'center', marginTop: 4 },
   viewRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingVertical: 10 },
   viewChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#FFFDF7',
     borderRadius: 16,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
   },
-  viewChipActive: { backgroundColor: '#EDE7F6', borderColor: '#7E57C2' },
-  viewChipText: { fontSize: 12, fontWeight: '700', color: '#64748B' },
-  viewChipTextActive: { color: '#7E57C2' },
+  viewChipActive: { backgroundColor: '#FFF4C7', borderColor: '#F4C430' },
+  viewChipText: { fontSize: 12, fontWeight: '700', color: '#6B6B6B' },
+  viewChipTextActive: { color: '#F4C430' },
   weekWrap: { padding: 16, paddingBottom: 40 },
   gridHeaderRow: { flexDirection: 'row' },
   gridRow: { flexDirection: 'row' },
-  cell: { width: 88, minHeight: 52, justifyContent: 'center', alignItems: 'center', borderWidth: 0.5, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF' },
-  dayHeaderCell: { backgroundColor: '#EDE7F6' },
-  dayHeaderText: { fontSize: 12, fontWeight: '800', color: '#7E57C2' },
-  periodCell: { backgroundColor: '#F8F9FB', width: 80, alignItems: 'flex-start', paddingLeft: 10 },
-  periodLabel: { fontSize: 11, fontWeight: '700', color: '#1A202C' },
-  periodTime: { fontSize: 10, color: '#94A3B8', marginTop: 2 },
+  cell: { width: 88, minHeight: 52, justifyContent: 'center', alignItems: 'center', borderWidth: 0.5, borderColor: '#E8E5DC', backgroundColor: '#FFFFFF' },
+  dayHeaderCell: { backgroundColor: '#FFF4C7' },
+  dayHeaderText: { fontSize: 12, fontWeight: '800', color: '#F4C430' },
+  periodCell: { backgroundColor: '#FFFDF7', width: 80, alignItems: 'flex-start', paddingLeft: 10 },
+  periodLabel: { fontSize: 11, fontWeight: '700', color: '#171717' },
+  periodTime: { fontSize: 10, color: '#6B6B6B', marginTop: 2 },
   slotCell: { gap: 2, paddingHorizontal: 4 },
-  slotCellFilled: { backgroundColor: '#F5F3FF' },
-  slotSubject: { fontSize: 11, fontWeight: '700', color: '#7E57C2', textAlign: 'center' },
-  slotRoom: { fontSize: 9, color: '#94A3B8' },
-  slotEmpty: { fontSize: 13, color: '#CBD5E1' },
+  slotCellFilled: { backgroundColor: '#FFF4C7' },
+  slotSubject: { fontSize: 11, fontWeight: '700', color: '#F4C430', textAlign: 'center' },
+  slotRoom: { fontSize: 9, color: '#6B6B6B' },
+  slotEmpty: { fontSize: 13, color: '#E8E5DC' },
 });

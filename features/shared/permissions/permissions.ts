@@ -24,6 +24,11 @@ export function isStudent(role?: string): boolean {
   return norm === Role.Student;
 }
 
+export function isDriver(role?: string): boolean {
+  const norm = normalizeRole(role);
+  return norm === Role.Driver;
+}
+
 export function canManageInstitutions(role?: string): boolean {
   return isDeveloper(role);
 }

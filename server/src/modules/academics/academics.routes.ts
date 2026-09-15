@@ -8,6 +8,7 @@ import {
   createSubjectHandler,
   listSubjectTeachersHandler,
   createSubjectTeacherHandler,
+  updateSubjectTeacherHandler,
   deleteSubjectTeacherHandler,
   listPeriodsHandler,
   createPeriodHandler,
@@ -24,9 +25,29 @@ import {
   getAttendanceForSlotHandler,
   getStudentAttendanceHistoryHandler,
   getParentAttendanceHandler,
+  getParentMarksHandler,
+  getParentTimetableHandler,
   getDepartmentOverviewHandler,
   getInstitutionOverviewHandler,
   getClassAttendanceHandler,
+  exportClassAttendanceHandler,
+  getClassAttendanceReportHandler,
+  listExamsHandler,
+  getExamHandler,
+  createExamHandler,
+  updateExamHandler,
+  getMarksForClassHandler,
+  saveMarksHandler,
+  getMyMarksHandler,
+  getStudentMarksByIdHandler,
+  createHomeworkHandler,
+  listHomeworkByClassHandler,
+  listMyHomeworkHandler,
+  getHomeworkByIdHandler,
+  updateHomeworkHandler,
+  deleteHomeworkHandler,
+  listStudentHomeworkHandler,
+  listParentHomeworkHandler,
 } from './academics.controller.js';
 import { authenticate, requireAdmin, requireTeacherOrAdmin, requireStaff, requireRole } from '../shared/middleware/auth.js';
 
@@ -44,6 +65,7 @@ export async function academicsRoutes(fastify: FastifyInstance) {
   // Subject Teachers
   fastify.get('/subject-teachers', { preHandler: [authenticate] }, (req, reply) => listSubjectTeachersHandler(req, reply));
   fastify.post('/subject-teachers', { preHandler: [requireAdmin] }, (req, reply) => createSubjectTeacherHandler(req, reply));
+  fastify.put('/subject-teachers/:id', { preHandler: [requireAdmin] }, (req, reply) => updateSubjectTeacherHandler(req as any, reply));
   fastify.delete('/subject-teachers/:id', { preHandler: [requireAdmin] }, (req, reply) => deleteSubjectTeacherHandler(req as any, reply));
 
   // Periods
@@ -71,4 +93,30 @@ export async function academicsRoutes(fastify: FastifyInstance) {
   fastify.get('/attendance/stats/department', { preHandler: [requireStaff] }, (req, reply) => getDepartmentOverviewHandler(req, reply));
   fastify.get('/attendance/stats/institution', { preHandler: [requireStaff] }, (req, reply) => getInstitutionOverviewHandler(req, reply));
   fastify.get('/attendance/class', { preHandler: [requireStaff] }, (req, reply) => getClassAttendanceHandler(req, reply));
+  fastify.get('/attendance/export', { preHandler: [requireStaff] }, (req, reply) => exportClassAttendanceHandler(req, reply));
+  fastify.get('/attendance/report', { preHandler: [requireStaff] }, (req, reply) => getClassAttendanceReportHandler(req, reply));
+
+  // Marks / Exams
+  fastify.get('/exams', { preHandler: [requireStaff] }, (req, reply) => listExamsHandler(req, reply));
+  fastify.get('/exams/:id', { preHandler: [requireStaff] }, (req, reply) => getExamHandler(req as any, reply));
+  fastify.post('/exams', { preHandler: [requireAdmin] }, (req, reply) => createExamHandler(req, reply));
+  fastify.put('/exams/:id', { preHandler: [requireAdmin] }, (req, reply) => updateExamHandler(req as any, reply));
+  fastify.get('/marks', { preHandler: [requireStaff] }, (req, reply) => getMarksForClassHandler(req as any, reply));
+  fastify.post('/marks', { preHandler: [requireStaff] }, (req, reply) => saveMarksHandler(req, reply));
+  fastify.get('/marks/student/:studentId', { preHandler: [requireStaff] }, (req, reply) => getStudentMarksByIdHandler(req as any, reply));
+  fastify.get('/marks/me', { preHandler: [requireRole('student')] }, (req, reply) => getMyMarksHandler(req, reply));
+  fastify.get('/marks/parent', { preHandler: [requireRole('parent')] }, (req, reply) => getParentMarksHandler(req, reply));
+
+  // Parent timetable
+  fastify.get('/timetable/parent', { preHandler: [requireRole('parent')] }, (req, reply) => getParentTimetableHandler(req, reply));
+
+  // Homework
+  fastify.post('/homework', { preHandler: [requireStaff] }, (req, reply) => createHomeworkHandler(req, reply));
+  fastify.get('/homework', { preHandler: [requireStaff] }, (req, reply) => listHomeworkByClassHandler(req, reply));
+  fastify.get('/homework/mine', { preHandler: [requireStaff] }, (req, reply) => listMyHomeworkHandler(req, reply));
+  fastify.get('/homework/student', { preHandler: [requireRole('student')] }, (req, reply) => listStudentHomeworkHandler(req, reply));
+  fastify.get('/homework/parent', { preHandler: [requireRole('parent')] }, (req, reply) => listParentHomeworkHandler(req, reply));
+  fastify.get('/homework/:id', { preHandler: [authenticate] }, (req, reply) => getHomeworkByIdHandler(req as any, reply));
+  fastify.put('/homework/:id', { preHandler: [requireStaff] }, (req, reply) => updateHomeworkHandler(req as any, reply));
+  fastify.delete('/homework/:id', { preHandler: [requireStaff] }, (req, reply) => deleteHomeworkHandler(req as any, reply));
 }
