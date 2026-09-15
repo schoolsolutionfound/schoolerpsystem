@@ -53,7 +53,43 @@ npx tsc --noEmit
 
 ---
 
+## 🗑️ Complete Deprecated & Deleted Files Reference
+
+For all collaborators comparing current branch releases with earlier commits or the base `main` branch, here is the complete historical record of removed/consolidated files and their current replacements:
+
+### 1. UI Routes & Navigation
+| Deleted File | Reason for Removal / Consolidation | Current Active Replacement |
+|---|---|---|
+| `app/(tabs)/_layout.tsx` | Default Expo boilerplate tab bar | Replaced by role-scoped folder routing (`app/(student)/*`, `app/(parent)/*`, etc.) |
+| `app/(tabs)/explore.tsx` | Default Expo boilerplate tab | Replaced by feature modules (`app/placement.tsx`, `features/librarian/*`) |
+| `app/(tabs)/index.tsx` | Default Expo boilerplate home tab | Replaced by dedicated role-scoped home dashboards |
+| `app/admin-login.tsx` | Legacy separate admin login route | Unified into single multi-role portal [`app/auth.tsx`](file:///c:/Users/LENOVO/Desktop/schoolerpsystem/app/auth.tsx) |
+| `app/teacher-login.tsx` | Legacy separate teacher login route | Unified into single multi-role portal [`app/auth.tsx`](file:///c:/Users/LENOVO/Desktop/schoolerpsystem/app/auth.tsx) |
+| `app/dev-login.tsx` | Legacy developer login route | Unified into single multi-role portal [`app/auth.tsx`](file:///c:/Users/LENOVO/Desktop/schoolerpsystem/app/auth.tsx) |
+| `app/home1.tsx` | Legacy temporary test home screen | Consolidated into official role dashboards |
+| `app/admin-profile.tsx` | Redundant profile screen | Consolidated into `app/(student)/profile.tsx` and role profile sheets |
+| `app/profile.tsx` | Redundant root profile screen | Replaced by `app/(student)/profile.tsx` |
+
+### 2. Components, Hooks & Scripts
+| Deleted File | Reason for Removal / Consolidation | Current Active Replacement |
+|---|---|---|
+| `features/auth/components/AuthBypassButtons.tsx` | Insecure demo bypass buttons | Disabled self-registration; enforced Firebase Admin user provisioning |
+| `components/Logo.tsx` | Static image component | Replaced with vector brand icons in headers (`StudentHomeHeader`, etc.) |
+| `scripts/verify-features.ts` | Temporary scratch script | Replaced with official scripts in [`server/scripts/seedTestAccounts.ts`](file:///c:/Users/LENOVO/Desktop/schoolerpsystem/server/scripts/seedTestAccounts.ts) |
+| `hooks/useAppSync.ts` | Root hooks directory consolidation | Standardized under [`features/shared/hooks/useAppSync.ts`](file:///c:/Users/LENOVO/Desktop/schoolerpsystem/features/shared/hooks/useAppSync.ts) |
+| `hooks/usePushNotifications.ts` | Root hooks directory consolidation | Standardized under [`features/shared/hooks/useAppSync.ts`](file:///c:/Users/LENOVO/Desktop/schoolerpsystem/features/shared/hooks/useAppSync.ts) |
+
+### 3. Early Documentation & Static Specs
+| Deleted Files / Folders | Reason for Removal | Current Active Replacement |
+|---|---|---|
+| `.agents/rules/*.md` (15 files) | Early development workflow rules | Consolidated into active repository code architecture |
+| `docs/*.md` (12 files) | Static conceptual design documents | Replaced with live TypeScript definitions & [`CHANGELOG.md`](file:///c:/Users/LENOVO/Desktop/schoolerpsystem/CHANGELOG.md) |
+| `specs/*.md` (3 files) | Preliminary feature specifications | Replaced by typed feature models in `features/*/types/` |
+| `PHASE1.md` | Legacy phase-1 checklist | Replaced by [`CHANGELOG.md`](file:///c:/Users/LENOVO/Desktop/schoolerpsystem/CHANGELOG.md) |
+
+---
+
 ## 📖 Architecture & Changelog
 
-For a full breakdown of all added, modified, and consolidated/deleted legacy files compared to `main`, please refer to:
+For the complete architectural migration guide and module-by-module additions, please refer to:
 👉 **[`CHANGELOG.md`](file:///c:/Users/LENOVO/Desktop/schoolerpsystem/CHANGELOG.md)**
