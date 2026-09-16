@@ -22,6 +22,7 @@ import { useUserStore } from '../../../store/useUserStore';
 interface ParentDrawerProps {
   visible: boolean;
   onClose: () => void;
+  onSwitchTab?: (tab: string) => void;
   fullName: string;
   email: string;
   profilePic?: string;
@@ -33,8 +34,9 @@ const PRIMARY = [
   { key: 'attendance', label: "Child's Attendance", icon: 'book-outline', tab: 'attendance' as const },
   { key: 'homework', label: "Child's Homework", icon: 'book-plus-outline', tab: 'homework' as const },
   { key: 'marks', label: "Child's Marks", icon: 'certificate-outline', tab: 'marks' as const },
+  { key: 'fees', label: "Child's Fees", icon: 'cash', tab: 'fees' as const },
   { key: 'track', label: 'Track Child', icon: 'bus', tab: 'track' as const },
-  { key: 'schedule', label: "Child's Schedule", icon: 'calendar-outline', tab: 'fees' as const },
+  { key: 'schedule', label: "Child's Schedule", icon: 'calendar-outline', tab: 'schedule' as const },
 ];
 
 const SECONDARY = [
@@ -46,6 +48,7 @@ const SECONDARY = [
 export const ParentDrawer: React.FC<ParentDrawerProps> = ({
   visible,
   onClose,
+  onSwitchTab,
   fullName,
   email,
   profilePic,
@@ -101,7 +104,9 @@ export const ParentDrawer: React.FC<ParentDrawerProps> = ({
 
   const switchTabAndClose = (tab: string) => {
     onClose();
-    setTimeout(() => router.push({ pathname: '/(parent)/home', params: { tab } } as any), 120);
+    if (onSwitchTab) {
+      setTimeout(() => onSwitchTab(tab), 120);
+    }
   };
 
   const handleLogout = () => {

@@ -199,3 +199,65 @@ export async function createUserApi(payload: {
     body: JSON.stringify(payload),
   });
 }
+
+// Fee Management APIs
+export async function fetchFeesApi() {
+  return apiClient('/admin/fees');
+}
+
+export async function createFeeApi(payload: {
+  classSectionId?: string;
+  title: string;
+  category?: string;
+  amount: number;
+  term?: string;
+  academicYear?: string;
+  dueDate?: string;
+  status?: string;
+}) {
+  return apiClient('/admin/fees', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateFeeApi(id: string, payload: Record<string, any>) {
+  return apiClient(`/admin/fees/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteFeeApi(id: string) {
+  return apiClient(`/admin/fees/${id}`, { method: 'DELETE' });
+}
+
+export async function fetchFeePaymentsApi() {
+  return apiClient('/admin/fee-payments');
+}
+
+export async function createFeePaymentApi(payload: {
+  feeStructureId: string;
+  studentId: string;
+  amount: number;
+  paymentMethod?: string;
+  paymentDate?: string;
+  status?: string;
+  notes?: string;
+}) {
+  return apiClient('/admin/fee-payments', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateFeePaymentApi(id: string, payload: Record<string, any>) {
+  return apiClient(`/admin/fee-payments/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteFeePaymentApi(id: string) {
+  return apiClient(`/admin/fee-payments/${id}`, { method: 'DELETE' });
+}

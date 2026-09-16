@@ -345,3 +345,50 @@ export const studentDocuments = pgTable('student_documents', {
 
 export type StudentDocumentRecord = typeof studentDocuments.$inferSelect;
 export type NewStudentDocumentRecord = typeof studentDocuments.$inferInsert;
+
+export const feeStructures = pgTable('fee_structures', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('fs')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  classSectionId: text('class_section_id'),
+  title: varchar('title', { length: 255 }).notNull(),
+  category: varchar('category', { length: 50 }).notNull().default('student_fee'),
+  amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
+  term: varchar('term', { length: 100 }),
+  academicYear: varchar('academic_year', { length: 20 }),
+  dueDate: date('due_date'),
+  status: varchar('status', { length: 20 }).notNull().default('active'),
+  createdBy: text('created_by'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  instCodeIdx: index('idx_fee_structures_inst').on(table.institutionCode),
+  classIdx: index('idx_fee_structures_class').on(table.classSectionId),
+  categoryIdx: index('idx_fee_structures_category').on(table.category),
+}));
+
+export type FeeStructureRecord = typeof feeStructures.$inferSelect;
+export type NewFeeStructureRecord = typeof feeStructures.$inferInsert;
+
+export const feePayments = pgTable('fee_payments', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('fp')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  feeStructureId: text('fee_structure_id').notNull(),
+  studentId: text('student_id').notNull(),
+  amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
+  paymentMethod: varchar('payment_method', { length: 30 }).notNull().default('upi'),
+  paymentDate: date('payment_date'),
+  status: varchar('status', { length: 20 }).notNull().default('pending'),
+  receiptNo: varchar('receipt_no', { length: 50 }),
+  notes: text('notes'),
+  createdBy: text('created_by'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  instCodeIdx: index('idx_fee_payments_inst').on(table.institutionCode),
+  studentIdx: index('idx_fee_payments_student').on(table.studentId),
+  feeStructureIdx: index('idx_fee_payments_fee_structure').on(table.feeStructureId),
+  statusIdx: index('idx_fee_payments_status').on(table.status),
+}));
+
+export type FeePaymentRecord = typeof feePayments.$inferSelect;
+export type NewFeePaymentRecord = typeof feePayments.$inferInsert;

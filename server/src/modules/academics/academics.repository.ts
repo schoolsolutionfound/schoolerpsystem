@@ -1461,7 +1461,7 @@ export class AcademicsRepository {
         console.warn('[PostgreSQL Warning] getHomeworkById failed:', err.message);
       }
     }
-    return this.hwMem.get(id);
+    return this.hwMem.getById(id);
   }
 
   public async updateHomework(id: string, data: Partial<HomeworkRecord>): Promise<HomeworkRecord | undefined> {

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, Platform, RefreshControl, ScrollView, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useUserStore } from '../../store/useUserStore';
 import { fetchParentAttendanceApi } from '../../api/academics';
@@ -31,7 +31,8 @@ export default function ParentHomeScreen() {
   const email = useUserStore((state) => state.email) || '';
   const institutionName = useUserStore((state) => state.institutionName) || '';
 
-  const [activeTab, setActiveTab] = useState<Tab>('home');
+  const { tab } = useLocalSearchParams<{ tab?: string }>();
+  const [activeTab, setActiveTab] = useState<Tab>((tab as Tab) || 'home');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -224,6 +225,7 @@ export default function ParentHomeScreen() {
       <ParentDrawer
         visible={drawerOpen}
         onClose={() => setDrawerOpen(false)}
+        onSwitchTab={(tab: string) => setActiveTab(tab as Tab)}
         fullName={fullName}
         email={email}
         profilePic={profilePic}

@@ -22,6 +22,7 @@ import { useUserStore } from '../../../store/useUserStore';
 interface StudentDrawerProps {
   visible: boolean;
   onClose: () => void;
+  onSwitchTab?: (tab: string) => void;
   fullName: string;
   email: string;
   profilePic?: string;
@@ -35,6 +36,7 @@ const PRIMARY = [
   { key: 'homework', label: 'Homework', icon: 'book-plus-outline', iconFilled: 'book-plus', tab: 'homework' as const },
   { key: 'bus', label: 'Bus Tracking', icon: 'bus', iconFilled: 'bus', tab: 'bus' as const },
   { key: 'marks', label: 'Marks & Grades', icon: 'certificate-outline', iconFilled: 'certificate', tab: 'marks' as const },
+  { key: 'fees', label: 'Fee Summary', icon: 'cash', iconFilled: 'cash', tab: 'fees' as const },
   { key: 'schedule', label: 'Schedule', icon: 'calendar-outline', iconFilled: 'calendar', tab: 'schedule' as const },
 ];
 
@@ -47,6 +49,7 @@ const SECONDARY = [
 export const StudentDrawer: React.FC<StudentDrawerProps> = ({
   visible,
   onClose,
+  onSwitchTab,
   fullName,
   email,
   profilePic,
@@ -101,9 +104,11 @@ export const StudentDrawer: React.FC<StudentDrawerProps> = ({
     setTimeout(() => router.push(route as any), 120);
   };
 
-  const switchTabAndClose = (tab: 'attendance' | 'bus' | 'marks' | 'schedule' | 'homework') => {
+  const switchTabAndClose = (tab: string) => {
     onClose();
-    setTimeout(() => router.push({ pathname: '/(student)/home', params: { tab } } as any), 120);
+    if (onSwitchTab) {
+      setTimeout(() => onSwitchTab(tab), 120);
+    }
   };
 
   const handleLogout = () => {

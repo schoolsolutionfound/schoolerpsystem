@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Text, Platform, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useUserStore } from '../../store/useUserStore';
 import { fetchMyTimetableApi, fetchStudentAttendanceHistoryApi } from '../../api/academics';
@@ -15,10 +15,11 @@ import { StudentMarksView } from '../../features/student/components/StudentMarks
 import { StudentHomeworkView } from '../../features/student/components/StudentHomeworkView';
 import { StudentDrawer } from '../../features/student/components/StudentDrawer';
 import { StudentBusTrackingView } from '../../features/student/components/StudentBusTrackingView';
+import { StudentHomeFeeSummary } from '../../features/student/components/StudentHomeFeeSummary';
 import { ShimmerProvider } from '../../features/student/components/ShimmerSkeleton';
 import { FontFamily } from '../../constants/fonts';
 
-type Tab = 'home' | 'attendance' | 'bus' | 'marks' | 'schedule' | 'homework';
+  type Tab = 'home' | 'attendance' | 'bus' | 'marks' | 'schedule' | 'homework' | 'fees';
 
 function toMinutes(timeStr?: string): number | null {
   if (!timeStr) return null;
@@ -58,7 +59,8 @@ export default function HomeScreen() {
   const institutionName = useUserStore((state) => state.institutionName) || '';
   const rollNoOrUSN = useUserStore((state) => state.rollNoOrUSN) || '';
 
-  const [activeTab, setActiveTab] = useState<Tab>('home');
+  const { tab } = useLocalSearchParams<{ tab?: string }>();
+  const [activeTab, setActiveTab] = useState<Tab>((tab as Tab) || 'home');
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const [attendanceLoading, setAttendanceLoading] = useState(true);
@@ -172,6 +174,12 @@ export default function HomeScreen() {
         return <StudentHomeworkView />;
       case 'bus':
         return <StudentBusTrackingView />;
+      case 'fees':
+        return (
+          <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} refreshControl={refreshControl}>
+            <StudentHomeFeeSummary />
+          </ScrollView>
+        );
       default:
         return null;
     }
@@ -246,6 +254,7 @@ export default function HomeScreen() {
       <StudentDrawer
         visible={drawerOpen}
         onClose={() => setDrawerOpen(false)}
+        onSwitchTab={(tab: string) => setActiveTab(tab as Tab)}
         fullName={fullName}
         email={email}
         profilePic={profilePic}

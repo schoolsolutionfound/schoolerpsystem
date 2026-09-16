@@ -954,7 +954,7 @@ export class AcademicsService {
     csv += dayHeader.join(',') + '\n';
     for (const row of dayRows) csv += row.join(',') + '\n';
 
-    return { csv, className: summary.classSection.name, summary: summary.summary };
+    return { csv, className: summary.classSection.name, range: summary.range, summary: summary.summary };
   }
 
   public async getClassAttendanceReport(
@@ -991,7 +991,7 @@ export class AcademicsService {
       dailyTrend,
       lowAttendance,
       topPerformers,
-      totalStudents: summary.totalStudents,
+      totalStudents: summary.summary.studentsCount,
     };
   }
 

@@ -24,6 +24,14 @@ import {
   createUserHandler,
   singleFeedHandler,
   bulkFeedHandler,
+  getFeesHandler,
+  createFeeHandler,
+  updateFeeHandler,
+  deleteFeeHandler,
+  getFeePaymentsHandler,
+  createFeePaymentHandler,
+  updateFeePaymentHandler,
+  deleteFeePaymentHandler,
 } from './admin.controller.js';
 import { authenticate, requireAdmin, requireRole } from '../shared/middleware/auth.js';
 
@@ -64,6 +72,16 @@ export async function adminRoutes(fastify: FastifyInstance) {
   // Unified User Management (all roles)
   fastify.get('/users', { preHandler: [requireAdmin] }, getUsersHandler);
   fastify.post('/users', { preHandler: [requireAdmin], config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, createUserHandler);
+
+  // Fee Management
+  fastify.get('/fees', { preHandler: [requireAdmin] }, getFeesHandler);
+  fastify.post('/fees', { preHandler: [requireAdmin], config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, createFeeHandler);
+  fastify.put('/fees/:id', { preHandler: [requireAdmin], config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, updateFeeHandler);
+  fastify.delete('/fees/:id', { preHandler: [requireAdmin], config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, deleteFeeHandler);
+  fastify.get('/fee-payments', { preHandler: [requireAdmin] }, getFeePaymentsHandler);
+  fastify.post('/fee-payments', { preHandler: [requireAdmin], config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, createFeePaymentHandler);
+  fastify.put('/fee-payments/:id', { preHandler: [requireAdmin], config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, updateFeePaymentHandler);
+  fastify.delete('/fee-payments/:id', { preHandler: [requireAdmin], config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, deleteFeePaymentHandler);
 
   // Legacy Feeds
   fastify.post('/single-feed', { preHandler: [requireAdmin], config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, singleFeedHandler);

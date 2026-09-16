@@ -12,7 +12,7 @@ import {
   dbDeleteUserById,
   db,
 } from '../shared/db/index.js';
-import { studentClasses, users, studentDocuments } from '../shared/db/schema.js';
+import { studentClasses, users, studentDocuments, feeStructures, feePayments } from '../shared/db/schema.js';
 import { and as andSql, eq as eqSql } from 'drizzle-orm';
 import { admin, isFirebaseAdminInitialized } from '../shared/config/firebase.js';
 
@@ -837,6 +837,82 @@ export class AdminService {
       emailsSent: options?.sendEmails ? successCount : 0,
       errors,
     };
+  }
+
+  // Fee Management Methods
+  async getFees(institutionCode: string) {
+    if (!db) return [];
+    const result = await db.select().from(feeStructures).where(eqSql(feeStructures.institutionCode, institutionCode));
+    return result;
+  }
+
+  async createFee(institutionCode: string, data: any) {
+    if (!db) throw Object.assign(new Error('Database not available'), { statusCode: 500 });
+    const id = `fs_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const [result] = await db.insert(feeStructures).values({
+      id,
+      institutionCode,
+      classSectionId: data.classSectionId,
+      title: data.title,
+      category: data.category || 'student_fee',
+      amount: String(data.amount),
+      term: data.term,
+      academicYear: data.academicYear,
+      dueDate: data.dueDate,
+      status: data.status || 'active',
+      createdBy: data.createdBy,
+    }).returning();
+    return result;
+  }
+
+  async updateFee(id: string, data: any) {
+    if (!db) throw Object.assign(new Error('Database not available'), { statusCode: 500 });
+    const [result] = await db.update(feeStructures).set(data).where(eqSql(feeStructures.id, id)).returning();
+    if (!result) throw Object.assign(new Error('Fee not found'), { statusCode: 404 });
+    return result;
+  }
+
+  async deleteFee(id: string) {
+    if (!db) throw Object.assign(new Error('Database not available'), { statusCode: 500 });
+    await db.delete(feeStructures).where(eqSql(feeStructures.id, id));
+  }
+
+  async getFeePayments(institutionCode: string) {
+    if (!db) return [];
+    const result = await db.select().from(feePayments).where(eqSql(feePayments.institutionCode, institutionCode));
+    return result;
+  }
+
+  async createFeePayment(institutionCode: string, data: any) {
+    if (!db) throw Object.assign(new Error('Database not available'), { statusCode: 500 });
+    const id = `fp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const receiptNo = `REC-${Date.now().toString().slice(-6)}`;
+    const [result] = await db.insert(feePayments).values({
+      id,
+      institutionCode,
+      feeStructureId: data.feeStructureId,
+      studentId: data.studentId,
+      amount: String(data.amount),
+      paymentMethod: data.paymentMethod || 'upi',
+      paymentDate: data.paymentDate,
+      status: data.status || 'paid',
+      receiptNo,
+      notes: data.notes,
+      createdBy: data.createdBy,
+    }).returning();
+    return result;
+  }
+
+  async updateFeePayment(id: string, data: any) {
+    if (!db) throw Object.assign(new Error('Database not available'), { statusCode: 500 });
+    const [result] = await db.update(feePayments).set(data).where(eqSql(feePayments.id, id)).returning();
+    if (!result) throw Object.assign(new Error('Fee payment not found'), { statusCode: 404 });
+    return result;
+  }
+
+  async deleteFeePayment(id: string) {
+    if (!db) throw Object.assign(new Error('Database not available'), { statusCode: 500 });
+    await db.delete(feePayments).where(eqSql(feePayments.id, id));
   }
 }
 

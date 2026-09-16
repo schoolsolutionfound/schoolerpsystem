@@ -375,3 +375,88 @@ export async function bulkFeedHandler(request: FastifyRequest, reply: FastifyRep
     });
   }
 }
+
+// Fee Management Handlers
+export async function getFeesHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const instCode = extractInstCode(request);
+    const data = await adminService.getFees(instCode);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return reply.status(err.statusCode || 500).send({ success: false, error: { message: err.message } });
+  }
+}
+
+export async function createFeeHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const instCode = extractInstCode(request);
+    const body = request.body as any;
+    const data = await adminService.createFee(instCode, body);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return reply.status(err.statusCode || 400).send({ success: false, error: { message: err.message } });
+  }
+}
+
+export async function updateFeeHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const { id } = request.params as { id: string };
+    const body = request.body as any;
+    const data = await adminService.updateFee(id, body);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return reply.status(err.statusCode || 400).send({ success: false, error: { message: err.message } });
+  }
+}
+
+export async function deleteFeeHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const { id } = request.params as { id: string };
+    await adminService.deleteFee(id);
+    return reply.send({ success: true });
+  } catch (err: any) {
+    return reply.status(err.statusCode || 400).send({ success: false, error: { message: err.message } });
+  }
+}
+
+export async function getFeePaymentsHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const instCode = extractInstCode(request);
+    const data = await adminService.getFeePayments(instCode);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return reply.status(err.statusCode || 500).send({ success: false, error: { message: err.message } });
+  }
+}
+
+export async function createFeePaymentHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const instCode = extractInstCode(request);
+    const body = request.body as any;
+    const data = await adminService.createFeePayment(instCode, body);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return reply.status(err.statusCode || 400).send({ success: false, error: { message: err.message } });
+  }
+}
+
+export async function updateFeePaymentHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const { id } = request.params as { id: string };
+    const body = request.body as any;
+    const data = await adminService.updateFeePayment(id, body);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return reply.status(err.statusCode || 400).send({ success: false, error: { message: err.message } });
+  }
+}
+
+export async function deleteFeePaymentHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const { id } = request.params as { id: string };
+    await adminService.deleteFeePayment(id);
+    return reply.send({ success: true });
+  } catch (err: any) {
+    return reply.status(err.statusCode || 400).send({ success: false, error: { message: err.message } });
+  }
+}

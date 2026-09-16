@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Text, Platform, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useUserStore } from '../../store/useUserStore';
 import { fetchTeacherTimetableApi } from '../../api/academics';
@@ -73,7 +73,8 @@ export default function TeacherHomeScreen() {
   const email = useUserStore((state) => state.email) || '';
   const institutionName = useUserStore((state) => state.institutionName) || '';
 
-  const [activeTab, setActiveTab] = useState<Tab>('home');
+  const { tab } = useLocalSearchParams<{ tab?: string }>();
+  const [activeTab, setActiveTab] = useState<Tab>((tab as Tab) || 'home');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeSlot, setActiveSlot] = useState<{ slotId: string; subjectName: string } | null>(null);
 

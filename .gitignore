@@ -51,7 +51,12 @@ yarn-error.*
 # logs
 *.log
 
-# markdown docs (not README)
-*.md
+# markdown docs (not README or project docs)
+docs/*.md
+specs/*.md
+.agents/rules/*.md
+PHASE1.md
+
 !README.md
 !developer-console/README.md
+!ARCHITECTURE.md
