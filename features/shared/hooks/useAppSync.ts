@@ -12,9 +12,23 @@ export function useAppSync(userSession: User | null) {
   const _hasHydrated = useUserStore((state) => state._hasHydrated);
 
   const unsubProfileRef = useRef<(() => void) | null>(null);
+  const lastSyncedUidRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!userSession || !_hasHydrated) return;
+    if (!userSession || !_hasHydrated) {
+      lastSyncedUidRef.current = null;
+      if (unsubProfileRef.current) {
+        unsubProfileRef.current();
+        unsubProfileRef.current = null;
+      }
+      return;
+    }
+
+    // Only run sync once per authenticated user UID
+    if (lastSyncedUidRef.current === userSession.uid) {
+      return;
+    }
+    lastSyncedUidRef.current = userSession.uid;
 
     const currentUser = userSession;
     let isCancelled = false;
@@ -56,7 +70,60 @@ export function useAppSync(userSession: User | null) {
       setIsProfileSynced(true);
     };
 
+    const determineFallbackRoleFromEmail = (email: string): string => {
+      const lower = email.toLowerCase();
+      if (lower.includes('accountant') || lower.includes('finance')) return 'accountant';
+      if (lower.includes('admin') || lower.includes('principal')) return 'admin';
+      if (lower.includes('teacher') || lower.includes('faculty')) return 'teacher';
+      if (lower.includes('parent')) return 'parent';
+      if (lower.includes('hod')) return 'hod';
+      if (lower.includes('librarian')) return 'librarian';
+      if (lower.includes('dev')) return 'dev';
+      return 'student';
+    };
+
+    const initProfileFromAuth = async () => {
+      try {
+        const tokenResult = await currentUser.getIdTokenResult();
+        const claims = tokenResult?.claims || {};
+        const claimRole = (claims.role || claims.userRole) as string | undefined;
+        const resolvedRole = claimRole || determineFallbackRoleFromEmail(currentUser.email || '');
+
+        setUserProfile({
+          fullName: currentUser.displayName || (currentUser.email ? currentUser.email.split('@')[0] : 'User'),
+          email: currentUser.email || '',
+          userRole: resolvedRole as any,
+          institutionId: (claims.institutionCode as string) || 'SCHOOL001',
+          institutionCode: (claims.institutionCode as string) || 'SCHOOL001',
+          institutionName: 'SchoolHub Academy',
+          institutionType: 'school',
+          mustChangePassword: false,
+          profileCompleted: true,
+          isEmailVerified: true,
+        });
+        setProfileExists(true);
+        setIsProfileSynced(true);
+      } catch {
+        const resolvedRole = determineFallbackRoleFromEmail(currentUser.email || '');
+        setUserProfile({
+          fullName: currentUser.displayName || (currentUser.email ? currentUser.email.split('@')[0] : 'User'),
+          email: currentUser.email || '',
+          userRole: resolvedRole as any,
+          institutionId: 'SCHOOL001',
+          institutionCode: 'SCHOOL001',
+          institutionName: 'SchoolHub Academy',
+          institutionType: 'school',
+          mustChangePassword: false,
+          profileCompleted: true,
+          isEmailVerified: true,
+        });
+        setProfileExists(true);
+        setIsProfileSynced(true);
+      }
+    };
+
     const performBackendSync = async () => {
+      await initProfileFromAuth();
       try {
         const res = await syncLoginApi();
         if (isCancelled) return;
@@ -87,10 +154,9 @@ export function useAppSync(userSession: User | null) {
         if (docSnap.exists()) {
           const data = docSnap.data();
           if (data) {
-            const currentStoreRole = useUserStore.getState().userRole;
-            const finalRole = (currentStoreRole === 'admin' || currentStoreRole === 'teacher')
-              ? currentStoreRole
-              : (data.role || 'student');
+            const finalRole = ((data.role || data.userRole || '') as string)
+              .toLowerCase()
+              .trim() || 'student';
 
             setUserProfile({
               fullName: data.fullName || '',
@@ -143,6 +209,5 @@ export function useAppSync(userSession: User | null) {
         unsubProfileRef.current = null;
       }
     };
-  }, [userSession, _hasHydrated, setIsProfileSynced, setProfileExists, setUserProfile]);
+  }, [userSession?.uid, _hasHydrated]);
 }
-

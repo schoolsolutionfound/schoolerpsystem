@@ -26,4 +26,6 @@ Use these credentials to test:
 | Role | Email | Password |
 |---|---|---|
 | Admin | admin@school.com | admin123 |
+| Accountant / Finance | accountant@school.com | admin123 |
 | Student | student@school.com | admin123 |
+

@@ -29,15 +29,21 @@ const trackEvent = (name: string, params?: Record<string, any>) => {
   }
 };
 
+import { Platform } from 'react-native';
+
 let auth: any;
-try {
-  const { getReactNativePersistence } = require('firebase/auth');
-  const ReactNativeAsyncStorage = require('@react-native-async-storage/async-storage').default;
-  auth = initializeAuth(app, {
-    persistence: getReactNativePersistence(ReactNativeAsyncStorage)
-  });
-} catch {
+if (Platform.OS === 'web') {
   auth = getAuth(app);
+} else {
+  try {
+    const { getReactNativePersistence } = require('firebase/auth');
+    const ReactNativeAsyncStorage = require('@react-native-async-storage/async-storage').default;
+    auth = initializeAuth(app, {
+      persistence: getReactNativePersistence(ReactNativeAsyncStorage)
+    });
+  } catch {
+    auth = getAuth(app);
+  }
 }
 
 const db = getFirestore(app);

@@ -28,9 +28,10 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ fullName
   const institutionCode = stats?.institutionCode || 'INSTITUTION';
   const institutionName = stats?.institutionName || 'My Institution';
 
-  const modules: { key: AdminTab; icon: keyof typeof MaterialCommunityIcons.glyphMap; name: string; sub: string; bg: string; color: string }[] = [
+  const modules: { key: AdminTab | 'finance'; icon: keyof typeof MaterialCommunityIcons.glyphMap; name: string; sub: string; bg: string; color: string }[] = [
     { key: 'students', icon: 'account-school', name: 'Students', sub: `${stats?.students ?? 0} enrolled`, bg: '#EDE9F6', color: '#7E57C2' },
     { key: 'teachers', icon: 'account-tie', name: 'Teachers', sub: `${stats?.teachers ?? 0} faculty`, bg: '#DCFCE7', color: '#16A34A' },
+    { key: 'finance' as any, icon: 'finance', name: 'Finance & Fees', sub: 'Tally, Incomes & Expenses', bg: '#DCFCE7', color: '#16A34A' },
     { key: 'users', icon: 'account-group', name: 'Users', sub: `${stats?.totalUsers ?? 0} accounts`, bg: '#E0F2FE', color: '#0284C7' },
     { key: 'academics', icon: 'school', name: 'Academics', sub: `${stats?.classSections ?? 0} classes`, bg: '#FEF3C7', color: '#D97706' },
     { key: 'timetable', icon: 'timetable', name: 'Timetable', sub: 'Build weekly schedules', bg: '#F3E8FF', color: '#7E57C2' },
@@ -39,7 +40,12 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ fullName
     { key: 'profile', icon: 'account-circle', name: 'Profile', sub: 'Account settings', bg: '#F3E8FF', color: '#7E57C2' },
   ];
 
-  const openModule = (key: AdminTab) => {
+  const openModule = (key: AdminTab | 'finance') => {
+    if (key === 'finance') {
+      const router = require('expo-router').router;
+      router.push('/(accountant)/home');
+      return;
+    }
     if (key === 'timetable' || key === 'attendance') {
       onNavigateTab('academics');
       return;

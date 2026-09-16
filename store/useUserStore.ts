@@ -150,6 +150,11 @@ export const useUserStore = create<UserState>()(
         schoolName: state.schoolName,
         profilePic: state.profilePic,
         language: state.language,
+        // ← Persisted so role survives cold starts without network
+        userRole: state.userRole,
+        isEmailVerified: state.isEmailVerified,
+        institutionType: state.institutionType,
+        profileExists: state.profileExists,
         mustChangePassword: state.mustChangePassword,
         profileCompleted: state.profileCompleted,
         rollNoOrUSN: state.rollNoOrUSN,

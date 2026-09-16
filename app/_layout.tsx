@@ -47,7 +47,9 @@ if (hasSentryDsn) {
 }
 
 const queryClient = new QueryClient();
-SplashScreen.preventAutoHideAsync();
+if (Platform.OS !== 'web') {
+  SplashScreen.preventAutoHideAsync().catch(() => {});
+}
 
 const AppLayout = function Layout() {
   const setUserProfile = useUserStore((state) => state.setUserProfile);
@@ -119,6 +121,10 @@ const AppLayout = function Layout() {
       }
     }, Platform.OS === 'web' ? 5000 : 8000);
 
+    const authSafetyTimeout = setTimeout(() => {
+      setAuthLoading(false);
+    }, 1500);
+
     const unsubAuth = onAuthStateChanged(auth, (user) => {
       setUserSession(user);
       if (!user) {
@@ -146,6 +152,7 @@ const AppLayout = function Layout() {
 
     return () => {
       clearTimeout(splashTimeout);
+      clearTimeout(authSafetyTimeout);
       unsubAuth();
     };
   }, [setUserProfile, validateAndRedirect, resetUser, setIsProfileSynced]);
@@ -156,7 +163,8 @@ const AppLayout = function Layout() {
     return 0;
   };
 
-  const [loaded, fontError] = useFonts({});
+  const [customFontsLoaded, fontError] = useFonts({});
+  const loaded = true; // No custom font files required
 
   const needsUpdate = compareVersions(CURRENT_APP_VERSION, minVersion) === -1;
 
@@ -174,7 +182,7 @@ const AppLayout = function Layout() {
     }
   }, [loaded, fontError, isMCheckLoading, _hasHydrated, authLoading, needsUpdate, isMaintenance]);
 
-  if ((!loaded && !fontError) || isMCheckLoading || !_hasHydrated || authLoading) {
+  if (Platform.OS !== 'web' && ((!loaded && !fontError) || isMCheckLoading || !_hasHydrated || authLoading)) {
     return null;
   }
 
