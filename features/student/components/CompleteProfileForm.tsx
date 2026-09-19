@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet, Text, TextInput, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
+import { FontFamily } from '../../../constants/fonts';
 
 interface CompleteProfileFormProps {
   firstName: string;
@@ -183,21 +184,21 @@ const styles = StyleSheet.create({
     borderColor: '#E8E5DC',
     gap: 12,
   },
-  sectionHeaderTitle: { fontSize: 14, fontWeight: '700', color: '#171717', marginBottom: 2 },
+  sectionHeaderTitle: { fontSize: 14, fontWeight: '700', fontFamily: FontFamily.bold, color: '#171717', marginBottom: 2 },
   inputGroup: { gap: 4 },
-  inputLabel: { fontSize: 12, fontWeight: '600', color: '#6B6B6B' },
+  inputLabel: { fontSize: 12, fontWeight: '600', fontFamily: FontFamily.semibold, color: '#6B6B6B' },
   readOnlyWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FFFEFE',
+    backgroundColor: '#FFFDF7',
     borderRadius: BorderRadius.input,
     borderWidth: 1,
     borderColor: '#E8E5DC',
     paddingHorizontal: 12,
     height: 44,
   },
-  readOnlyText: { fontSize: 13, color: '#6B6B6B', fontWeight: '500' },
+  readOnlyText: { fontSize: 13, color: '#6B6B6B', fontWeight: '500', fontFamily: FontFamily.medium },
   helperText: { fontSize: 11, color: '#6B6B6B' },
   inputWrapper: {
     flexDirection: 'row',
@@ -223,7 +224,7 @@ const styles = StyleSheet.create({
   },
   photoUploadBox: {
     height: 90,
-    backgroundColor: '#FFFEFE',
+    backgroundColor: '#FFFDF7',
     borderRadius: BorderRadius.card,
     borderWidth: 1.5,
     borderColor: '#FFF4C7',
@@ -233,7 +234,7 @@ const styles = StyleSheet.create({
     gap: 4,
     overflow: 'hidden',
   },
-  uploadText: { fontSize: 12, color: '#F4C430', fontWeight: '600' },
+  uploadText: { fontSize: 12, color: '#F4C430', fontWeight: '600', fontFamily: FontFamily.semibold },
   previewImage: { width: '100%', height: '100%', resizeMode: 'cover' },
   saveBtn: {
     backgroundColor: '#F4C430',
@@ -242,5 +243,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 4,
   },
-  saveBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
+  saveBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700', fontFamily: FontFamily.bold },
 });

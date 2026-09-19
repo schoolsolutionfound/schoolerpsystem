@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet, Text, TextInput, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
+import { FontFamily } from '../../../constants/fonts';
 
 interface AdminCompleteProfileFormProps {
   fullName: string;
@@ -122,9 +123,9 @@ const styles = StyleSheet.create({
     borderColor: '#E8E5DC',
     gap: 12,
   },
-  sectionHeaderTitle: { fontSize: 14, fontWeight: '700', color: '#171717', marginBottom: 2 },
+  sectionHeaderTitle: { fontSize: 14, fontWeight: '700', fontFamily: FontFamily.bold, color: '#171717', marginBottom: 2 },
   inputGroup: { gap: 4 },
-  inputLabel: { fontSize: 12, fontWeight: '600', color: '#6B6B6B' },
+  inputLabel: { fontSize: 12, fontWeight: '600', fontFamily: FontFamily.semibold, color: '#6B6B6B' },
   readOnlyWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -136,7 +137,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     height: 44,
   },
-  readOnlyText: { fontSize: 13, color: '#6B6B6B', fontWeight: '500' },
+  readOnlyText: { fontSize: 13, color: '#6B6B6B', fontWeight: '500', fontFamily: FontFamily.medium },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -161,7 +162,7 @@ const styles = StyleSheet.create({
     gap: 4,
     overflow: 'hidden',
   },
-  uploadText: { fontSize: 12, color: '#F4C430', fontWeight: '600' },
+  uploadText: { fontSize: 12, color: '#F4C430', fontWeight: '600', fontFamily: FontFamily.semibold },
   previewImage: { width: '100%', height: '100%', resizeMode: 'cover' },
   saveBtn: {
     backgroundColor: '#F4C430',
@@ -170,5 +171,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 4,
   },
-  saveBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
+  saveBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700', fontFamily: FontFamily.bold },
 });

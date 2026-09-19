@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet, Text, TextInput, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
+import { FontFamily } from '../../../constants/fonts';
 
 interface DriverCompleteProfileFormProps {
   fullName: string;
@@ -60,7 +61,7 @@ export const DriverCompleteProfileForm: React.FC<DriverCompleteProfileFormProps>
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>Vehicle Number</Text>
           <View style={styles.inputWrapper}>
-            <MaterialCommunityIcons name="bus" size={18} color="#0EA5E9" style={styles.iconPrefix} />
+            <MaterialCommunityIcons name="bus" size={18} color="#F4C430" style={styles.iconPrefix} />
             <TextInput
               style={styles.input}
               placeholder="e.g. KA01AB1234"
@@ -75,7 +76,7 @@ export const DriverCompleteProfileForm: React.FC<DriverCompleteProfileFormProps>
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>License Number</Text>
           <View style={styles.inputWrapper}>
-            <MaterialCommunityIcons name="card-account-details-outline" size={18} color="#0EA5E9" style={styles.iconPrefix} />
+            <MaterialCommunityIcons name="card-account-details-outline" size={18} color="#F4C430" style={styles.iconPrefix} />
             <TextInput
               style={styles.input}
               placeholder="e.g. KA-2023-0012345"
@@ -94,7 +95,7 @@ export const DriverCompleteProfileForm: React.FC<DriverCompleteProfileFormProps>
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>Phone Number</Text>
           <View style={styles.inputWrapper}>
-            <MaterialCommunityIcons name="phone-outline" size={18} color="#0EA5E9" style={styles.iconPrefix} />
+            <MaterialCommunityIcons name="phone-outline" size={18} color="#F4C430" style={styles.iconPrefix} />
             <TextInput
               style={styles.input}
               placeholder="Enter your phone number"
@@ -113,7 +114,7 @@ export const DriverCompleteProfileForm: React.FC<DriverCompleteProfileFormProps>
               <Image source={{ uri: profilePicUri }} style={styles.previewImage} />
             ) : (
               <>
-                <MaterialCommunityIcons name="camera-plus-outline" size={28} color="#0EA5E9" />
+                <MaterialCommunityIcons name="camera-plus-outline" size={28} color="#F4C430" />
                 <Text style={styles.uploadText}>Upload Photo</Text>
               </>
             )}
@@ -142,9 +143,9 @@ const styles = StyleSheet.create({
     borderColor: '#E8E5DC',
     gap: 12,
   },
-  sectionHeaderTitle: { fontSize: 14, fontWeight: '700', color: '#171717', marginBottom: 2 },
+  sectionHeaderTitle: { fontSize: 14, fontWeight: '700', fontFamily: FontFamily.bold, color: '#171717', marginBottom: 2 },
   inputGroup: { gap: 4 },
-  inputLabel: { fontSize: 12, fontWeight: '600', color: '#6B6B6B' },
+  inputLabel: { fontSize: 12, fontWeight: '600', fontFamily: FontFamily.semibold, color: '#6B6B6B' },
   readOnlyWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -156,7 +157,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     height: 44,
   },
-  readOnlyText: { fontSize: 13, color: '#6B6B6B', fontWeight: '500' },
+  readOnlyText: { fontSize: 13, color: '#6B6B6B', fontWeight: '500', fontFamily: FontFamily.medium },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -174,21 +175,21 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFDF7',
     borderRadius: BorderRadius.card,
     borderWidth: 1.5,
-    borderColor: '#BFEBFA',
+    borderColor: '#FFF4C7',
     borderStyle: 'dashed',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 4,
     overflow: 'hidden',
   },
-  uploadText: { fontSize: 12, color: '#0EA5E9', fontWeight: '600' },
+  uploadText: { fontSize: 12, color: '#F4C430', fontWeight: '600', fontFamily: FontFamily.semibold },
   previewImage: { width: '100%', height: '100%', resizeMode: 'cover' },
   saveBtn: {
-    backgroundColor: '#0EA5E9',
+    backgroundColor: '#F4C430',
     borderRadius: BorderRadius.button,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 4,
   },
-  saveBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
+  saveBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700', fontFamily: FontFamily.bold },
 });

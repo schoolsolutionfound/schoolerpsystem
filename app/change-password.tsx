@@ -6,6 +6,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { changePasswordApi } from '../api/auth';
 import { useUserStore } from '../store/useUserStore';
 import { BorderRadius } from '../constants/theme';
+import { FontFamily } from '../constants/fonts';
 import { handleGlobalError } from '../utils/errorHandler';
 import { ChangePasswordForm } from '../features/auth/components/ChangePasswordForm';
 
@@ -142,16 +143,16 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   scroll: { paddingHorizontal: 20, paddingVertical: 14, gap: 16 },
   progressContainer: { gap: 4, marginBottom: 4 },
-  stepText: { fontSize: 12, fontWeight: '700', color: '#F4C430' },
+  stepText: { fontSize: 12, fontWeight: '700', fontFamily: FontFamily.bold, color: '#F4C430' },
   barTrack: { height: 6, backgroundColor: '#E8E5DC', borderRadius: 3, overflow: 'hidden' },
   barFill: { height: '100%', backgroundColor: '#F4C430', borderRadius: 3 },
   header: { alignItems: 'center', textAlign: 'center', gap: 6 },
   iconCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#FFF4C7', justifyContent: 'center', alignItems: 'center', marginBottom: 4 },
-  title: { fontSize: 22, fontWeight: '800', color: '#171717' },
+  title: { fontSize: 22, fontWeight: '800', fontFamily: FontFamily.extrabold, color: '#171717' },
   subtitle: { fontSize: 13, color: '#6B6B6B', textAlign: 'center', lineHeight: 18 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 },
   modalCard: { backgroundColor: '#FFFFFF', borderRadius: BorderRadius.modal, padding: 24, alignItems: 'center', width: '100%', gap: 12 },
   checkCircleBig: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#22C55E', justifyContent: 'center', alignItems: 'center' },
-  modalTitle: { fontSize: 20, fontWeight: '800', color: '#171717' },
+  modalTitle: { fontSize: 20, fontWeight: '800', fontFamily: FontFamily.extrabold, color: '#171717' },
   modalSub: { fontSize: 13, color: '#6B6B6B', textAlign: 'center', lineHeight: 18 },
 });

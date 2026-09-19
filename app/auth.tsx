@@ -7,8 +7,6 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { LoginForm } from '../features/auth/components/LoginForm';
 import { FontFamily } from '../constants/fonts';
 
-const { width } = Dimensions.get('window');
-
 export default function AuthScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

@@ -1,5 +1,14 @@
 import React from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, Modal, Animated, Dimensions } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  Modal,
+  Animated,
+  Dimensions,
+  useWindowDimensions,
+} from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { FontFamily } from '../../../constants/fonts';
 
@@ -30,7 +39,8 @@ export const DriverDrawer: React.FC<DriverDrawerProps> = ({
   institutionName,
   onLogout,
 }) => {
-  const screenWidth = Dimensions.get('window').width;
+  const { width } = useWindowDimensions();
+  const screenWidth = width;
   const slideAnim = React.useRef(new Animated.Value(-screenWidth)).current;
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
 
@@ -97,7 +107,7 @@ export const DriverDrawer: React.FC<DriverDrawerProps> = ({
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, flexDirection: 'row' },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
+backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.4)' },
   drawer: {
     width: 280,
     backgroundColor: '#FFFFFF',

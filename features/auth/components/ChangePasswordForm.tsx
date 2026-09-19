@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet, Text, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
+import { FontFamily } from '../../../constants/fonts';
 
 interface ChangePasswordFormProps {
   newPassword: string;
@@ -154,7 +155,7 @@ export const ChangePasswordForm: React.FC<ChangePasswordFormProps> = ({
 const styles = StyleSheet.create({
   formCard: { gap: 14 },
   inputGroup: { gap: 6 },
-  inputLabel: { fontSize: 13, fontWeight: '600', color: '#6B6B6B' },
+  inputLabel: { fontSize: 13, fontWeight: '600', fontFamily: FontFamily.semibold, color: '#6B6B6B' },
   passwordRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -169,7 +170,7 @@ const styles = StyleSheet.create({
   eyeBtn: { padding: 4 },
   strengthRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
   strengthTitle: { fontSize: 12, color: '#6B6B6B' },
-  strengthText: { fontSize: 12, fontWeight: '700' },
+  strengthText: { fontSize: 12, fontWeight: '700', fontFamily: FontFamily.bold },
   meterTrack: { flexDirection: 'row', gap: 6, marginVertical: 4 },
   meterSegment: { flex: 1, height: 4, borderRadius: 2, backgroundColor: '#E8E5DC' },
   checklistCard: {
@@ -181,10 +182,10 @@ const styles = StyleSheet.create({
     borderColor: '#FFFDF7',
   },
   checklistHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
-  checklistTitle: { fontSize: 12, fontWeight: '700', color: '#6B6B6B' },
+  checklistTitle: { fontSize: 12, fontWeight: '700', fontFamily: FontFamily.bold, color: '#6B6B6B' },
   checkItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   checkItemText: { fontSize: 12, color: '#6B6B6B' },
-  checkItemActive: { color: '#171717', fontWeight: '600' },
+  checkItemActive: { color: '#171717', fontWeight: '600', fontFamily: FontFamily.semibold },
   button: {
     backgroundColor: '#F4C430',
     borderRadius: BorderRadius.button,
@@ -194,5 +195,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 10,
   },
-  buttonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
+  buttonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700', fontFamily: FontFamily.bold },
 });

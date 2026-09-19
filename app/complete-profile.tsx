@@ -10,6 +10,7 @@ import { uploadProfilePictureApi } from '../api/upload';
 import { BorderRadius } from '../constants/theme';
 import { handleGlobalError, AppError } from '../utils/errorHandler';
 import { getHomeRouteForRole } from '../features/shared/utils/routeGuards';
+import { FontFamily } from '../constants/fonts';
 import { CompleteProfileForm } from '../features/student/components/CompleteProfileForm';
 import { AdminCompleteProfileForm } from '../features/admin/components/AdminCompleteProfileForm';
 import { TeacherCompleteProfileForm } from '../features/teacher/components/TeacherCompleteProfileForm';
@@ -293,17 +294,17 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   scroll: { paddingHorizontal: 20, paddingVertical: 14, gap: 14 },
   progressContainer: { gap: 4, marginBottom: 4 },
-  stepText: { fontSize: 12, fontWeight: '700', color: '#F4C430' },
+  stepText: { fontSize: 12, fontWeight: '700', fontFamily: FontFamily.bold, color: '#F4C430' },
   barTrack: { height: 6, backgroundColor: '#E8E5DC', borderRadius: 3, overflow: 'hidden' },
   barFill: { height: '100%', backgroundColor: '#F4C430', borderRadius: 3 },
   header: { gap: 4, marginBottom: 4 },
-  title: { fontSize: 22, fontWeight: '800', color: '#171717' },
+  title: { fontSize: 22, fontWeight: '800', fontFamily: FontFamily.extrabold, color: '#171717' },
   subtitle: { fontSize: 13, color: '#6B6B6B' },
-  syncOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(255,255,255,0.9)', justifyContent: 'center', alignItems: 'center', zIndex: 100, gap: 12 },
-  syncText: { fontSize: 15, color: '#6B6B6B', fontWeight: '600' },
+syncOverlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(255,255,255,0.9)', justifyContent: 'center', alignItems: 'center', zIndex: 100, gap: 12 },
+  syncText: { fontSize: 15, color: '#6B6B6B', fontWeight: '600', fontFamily: FontFamily.semibold },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 },
   modalCard: { backgroundColor: '#FFFFFF', borderRadius: BorderRadius.modal, padding: 24, alignItems: 'center', width: '100%', gap: 12 },
   checkCircleBig: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#22C55E', justifyContent: 'center', alignItems: 'center' },
-  modalTitle: { fontSize: 20, fontWeight: '800', color: '#171717' },
+  modalTitle: { fontSize: 20, fontWeight: '800', fontFamily: FontFamily.extrabold, color: '#171717' },
   modalSub: { fontSize: 13, color: '#6B6B6B', textAlign: 'center', lineHeight: 18 },
 });

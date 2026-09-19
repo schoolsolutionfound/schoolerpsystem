@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet, Text, TextInput, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
+import { FontFamily } from '../../../constants/fonts';
 
 interface PrincipalCompleteProfileFormProps {
   fullName: string;
@@ -90,17 +91,17 @@ export const PrincipalCompleteProfileForm: React.FC<PrincipalCompleteProfileForm
 const styles = StyleSheet.create({
   formWrap: { gap: 16 },
   sectionCard: { backgroundColor: '#FFFFFF', borderRadius: BorderRadius.card, padding: 16, borderWidth: 1, borderColor: '#E8E5DC', gap: 12 },
-  sectionHeaderTitle: { fontSize: 14, fontWeight: '700', color: '#171717', marginBottom: 2 },
+  sectionHeaderTitle: { fontSize: 14, fontWeight: '700', fontFamily: FontFamily.bold, color: '#171717', marginBottom: 2 },
   inputGroup: { gap: 4 },
-  inputLabel: { fontSize: 12, fontWeight: '600', color: '#6B6B6B' },
+  inputLabel: { fontSize: 12, fontWeight: '600', fontFamily: FontFamily.semibold, color: '#6B6B6B' },
   readOnlyWrapper: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FFFDF7', borderRadius: BorderRadius.input, borderWidth: 1, borderColor: '#E8E5DC', paddingHorizontal: 12, height: 44 },
-  readOnlyText: { fontSize: 13, color: '#6B6B6B', fontWeight: '500' },
+  readOnlyText: { fontSize: 13, color: '#6B6B6B', fontWeight: '500', fontFamily: FontFamily.medium },
   inputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: BorderRadius.input, borderWidth: 1, borderColor: '#E8E5DC', paddingHorizontal: 12, height: 44 },
   iconPrefix: { marginRight: 8 },
   input: { flex: 1, fontSize: 13, color: '#171717' },
   photoUploadBox: { height: 90, backgroundColor: '#FFFDF7', borderRadius: BorderRadius.card, borderWidth: 1.5, borderColor: '#FFF4C7', borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center', gap: 4, overflow: 'hidden' },
-  uploadText: { fontSize: 12, color: '#F4C430', fontWeight: '600' },
+  uploadText: { fontSize: 12, color: '#F4C430', fontWeight: '600', fontFamily: FontFamily.semibold },
   previewImage: { width: '100%', height: '100%', resizeMode: 'cover' },
   saveBtn: { backgroundColor: '#F4C430', borderRadius: BorderRadius.button, paddingVertical: 14, alignItems: 'center', marginTop: 4 },
-  saveBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
+  saveBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700', fontFamily: FontFamily.bold },
 });

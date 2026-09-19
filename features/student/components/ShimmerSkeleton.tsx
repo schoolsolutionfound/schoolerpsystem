@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   base: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: '#E0DDD5',
   },
   shineWrap: {

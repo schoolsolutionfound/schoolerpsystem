@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useUserStore } from '../store/useUserStore';
+import { FontFamily } from '../constants/fonts';
 import { getHomeRouteForRole } from '../features/shared/utils/routeGuards';
 
 export default function VerifyEmailScreen() {
@@ -34,6 +35,6 @@ export default function VerifyEmailScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFFDF7' },
   content: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, gap: 12 },
-  title: { fontSize: 18, fontWeight: '700', color: '#171717' },
+  title: { fontSize: 18, fontWeight: '700', fontFamily: FontFamily.bold, color: '#171717' },
   subtitle: { fontSize: 14, color: '#6B6B6B' },
 });

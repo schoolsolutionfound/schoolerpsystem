@@ -11,6 +11,7 @@ import {
   Dimensions,
   Easing,
   Image,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -61,8 +62,9 @@ export const TeacherDrawer: React.FC<TeacherDrawerProps> = ({
   const router = useRouter();
   const resetUser = useUserStore((s) => s.resetUser);
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
 
-  const slideX = useRef(new Animated.Value(-Dimensions.get('window').width)).current;
+  const slideX = useRef(new Animated.Value(-width)).current;
   const fade = useRef(new Animated.Value(0)).current;
   const [mounted, setMounted] = useState(visible);
 
@@ -85,7 +87,7 @@ export const TeacherDrawer: React.FC<TeacherDrawerProps> = ({
     } else if (mounted) {
       Animated.parallel([
         Animated.timing(slideX, {
-          toValue: -Dimensions.get('window').width,
+          toValue: -width,
           duration: 320,
           easing: Easing.in(Easing.cubic),
           useNativeDriver: true,
@@ -99,7 +101,7 @@ export const TeacherDrawer: React.FC<TeacherDrawerProps> = ({
         if (finished) setMounted(false);
       });
     }
-  }, [visible, slideX, fade, mounted]);
+  }, [visible, slideX, fade, mounted, width]);
 
   const navigateAndClose = (route: string) => {
     onClose();
@@ -244,7 +246,7 @@ export const TeacherDrawer: React.FC<TeacherDrawerProps> = ({
 
 const styles = StyleSheet.create({
   root: { flex: 1, flexDirection: 'row' },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.55)' },
+backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.55)' },
   drawerWrap: {
     width: '82%',
     maxWidth: 360,
