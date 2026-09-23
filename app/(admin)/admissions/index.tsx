@@ -11,10 +11,12 @@ import {
   ScrollView,
   Modal,
   TextInput,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useUserStore } from '../../../store/useUserStore';
 import {
   fetchAdmissionsApi,
@@ -23,6 +25,21 @@ import {
 } from '../../../api/admissions';
 import { fetchInstitutionsApi } from '../../../api/institutions';
 import { Institution } from '../../../features/developer/types/developer.types';
+
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
+const DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+
+const TIME_SLOTS = [
+  { label: '09:00 AM', h: 9, m: 0 },
+  { label: '10:00 AM', h: 10, m: 0 },
+  { label: '11:30 AM', h: 11, m: 30 },
+  { label: '02:00 PM', h: 14, m: 0 },
+  { label: '03:30 PM', h: 15, m: 30 },
+];
 
 export default function AdminAdmissionsScreen() {
   const router = useRouter();
@@ -39,7 +56,18 @@ export default function AdminAdmissionsScreen() {
   // Entrance Test Modal state
   const [scheduleModalVisible, setScheduleModalVisible] = useState(false);
   const [selectedAppForTest, setSelectedAppForTest] = useState<ExtendedAdmissionApplication | null>(null);
-  const [testDateStr, setTestDateStr] = useState('');
+
+  // Interactive Calendar State
+  const [selectedTestDate, setSelectedTestDate] = useState<Date>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 3);
+    d.setHours(10, 0, 0, 0);
+    return d;
+  });
+  const [viewingMonth, setViewingMonth] = useState<Date>(() => new Date());
+  const [showNativeDatePicker, setShowNativeDatePicker] = useState(false);
+  const [showNativeTimePicker, setShowNativeTimePicker] = useState(false);
+
   const [testVenueStr, setTestVenueStr] = useState('');
   const [testInstructionsStr, setTestInstructionsStr] = useState('');
   const [submittingTest, setSubmittingTest] = useState(false);
@@ -99,16 +127,20 @@ export default function AdminAdmissionsScreen() {
 
   const openScheduleModal = (app: ExtendedAdmissionApplication) => {
     setSelectedAppForTest(app);
-    const d = new Date();
-    d.setDate(d.getDate() + 3);
-    d.setHours(10, 0, 0, 0);
+    let initDate = new Date();
+    initDate.setDate(initDate.getDate() + 3);
+    initDate.setHours(10, 0, 0, 0);
 
-    const initialDateStr = app.entranceTestDate
-      ? new Date(app.entranceTestDate).toISOString().slice(0, 16).replace('T', ' ')
-      : d.toISOString().slice(0, 16).replace('T', ' ');
+    if (app.entranceTestDate) {
+      const parsed = new Date(app.entranceTestDate);
+      if (!isNaN(parsed.getTime())) {
+        initDate = parsed;
+      }
+    }
 
-    setTestDateStr(initialDateStr);
-    setTestVenueStr(app.entranceTestVenue || 'Main Auditorium & Examination Hall');
+    setSelectedTestDate(initDate);
+    setViewingMonth(new Date(initDate.getFullYear(), initDate.getMonth(), 1));
+    setTestVenueStr(app.entranceTestVenue || 'Main Campus Auditorium & Examination Hall');
     setTestInstructionsStr(
       app.entranceTestInstructions ||
         'Please arrive 15 minutes before time. Bring previous marks card copy, birth certificate, and examination stationery.'
@@ -116,26 +148,67 @@ export default function AdminAdmissionsScreen() {
     setScheduleModalVisible(true);
   };
 
-  const handleApplyPreset = (daysAhead: number, timeStr: string = '10:00') => {
+  const handleApplyPreset = (daysAhead: number, hours: number = 10, minutes: number = 0) => {
     const d = new Date();
     d.setDate(d.getDate() + daysAhead);
-    const datePart = d.toISOString().slice(0, 10);
-    setTestDateStr(`${datePart} ${timeStr}`);
+    d.setHours(hours, minutes, 0, 0);
+    setSelectedTestDate(d);
+    setViewingMonth(new Date(d.getFullYear(), d.getMonth(), 1));
   };
+
+  const changeViewingMonth = (offset: number) => {
+    const newMonth = new Date(viewingMonth.getFullYear(), viewingMonth.getMonth() + offset, 1);
+    setViewingMonth(newMonth);
+  };
+
+  const handleSelectDay = (day: number) => {
+    const next = new Date(selectedTestDate);
+    next.setFullYear(viewingMonth.getFullYear(), viewingMonth.getMonth(), day);
+    setSelectedTestDate(next);
+  };
+
+  const handleSelectTimeSlot = (h: number, m: number) => {
+    const next = new Date(selectedTestDate);
+    next.setHours(h, m, 0, 0);
+    setSelectedTestDate(next);
+  };
+
+  // Generate calendar days for viewing month
+  const calendarDays = useMemo(() => {
+    const year = viewingMonth.getFullYear();
+    const month = viewingMonth.getMonth();
+    const firstDayOfWeek = new Date(year, month, 1).getDay();
+    const totalDays = new Date(year, month + 1, 0).getDate();
+
+    const days: { day: number | null; dateObj: Date | null }[] = [];
+    for (let i = 0; i < firstDayOfWeek; i++) {
+      days.push({ day: null, dateObj: null });
+    }
+    for (let d = 1; d <= totalDays; d++) {
+      days.push({
+        day: d,
+        dateObj: new Date(year, month, d),
+      });
+    }
+    return days;
+  }, [viewingMonth]);
+
+  const isSameDay = (d1: Date, d2: Date) => {
+    return (
+      d1.getFullYear() === d2.getFullYear() &&
+      d1.getMonth() === d2.getMonth() &&
+      d1.getDate() === d2.getDate()
+    );
+  };
+
+  const isToday = (d: Date) => isSameDay(d, new Date());
 
   const handleSaveEntranceTest = async () => {
     if (!selectedAppForTest) return;
-    if (!testDateStr.trim()) {
-      Alert.alert('Missing Date', 'Please provide a valid entrance test date and time.');
-      return;
-    }
 
     setSubmittingTest(true);
     try {
-      const parsedDate = new Date(testDateStr.replace(' ', 'T'));
-      const isoDate = isNaN(parsedDate.getTime())
-        ? new Date(Date.now() + 3 * 24 * 3600 * 1000).toISOString()
-        : parsedDate.toISOString();
+      const isoDate = selectedTestDate.toISOString();
 
       const updated = await updateAdmissionStatusApi(selectedAppForTest.id, {
         status: 'test_scheduled',
@@ -370,7 +443,6 @@ export default function AdminAdmissionsScreen() {
             const isPending = item.status === 'pending';
             const isTestScheduled = item.status === 'test_scheduled';
             const isAccepted = item.status === 'accepted';
-            const isRejected = item.status === 'rejected';
 
             return (
               <View style={styles.card}>
@@ -565,7 +637,7 @@ export default function AdminAdmissionsScreen() {
                       activeOpacity={0.8}
                     >
                       <MaterialCommunityIcons name="pencil-outline" size={14} color="#4F46E5" />
-                      <Text style={styles.rescheduleBtnText}>Modify Entrance Test Date</Text>
+                      <Text style={styles.rescheduleBtnText}>Modify Entrance Test Schedule</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -581,7 +653,7 @@ export default function AdminAdmissionsScreen() {
                     >
                       <MaterialCommunityIcons name="calendar-plus" size={16} color="#4F46E5" />
                       <Text style={styles.scheduleTestBtnText}>
-                        {isTestScheduled ? 'Update Entrance Test' : 'Schedule Entrance Test'}
+                        {isTestScheduled ? 'Modify Entrance Test' : 'Schedule Entrance Test'}
                       </Text>
                     </TouchableOpacity>
 
@@ -657,7 +729,7 @@ export default function AdminAdmissionsScreen() {
         />
       )}
 
-      {/* SCHEDULE ENTRANCE TEST MODAL */}
+      {/* SCHEDULE ENTRANCE TEST MODAL WITH INTERACTIVE CALENDAR */}
       <Modal
         visible={scheduleModalVisible}
         transparent
@@ -666,6 +738,7 @@ export default function AdminAdmissionsScreen() {
       >
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
+            {/* Modal Header */}
             <View style={styles.modalHeader}>
               <View style={styles.modalIconWrap}>
                 <MaterialCommunityIcons name="calendar-clock" size={22} color="#4F46E5" />
@@ -684,39 +757,192 @@ export default function AdminAdmissionsScreen() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
               {/* Quick presets */}
               <Text style={styles.fieldLabel}>QUICK DATE PRESETS:</Text>
               <View style={styles.presetsRow}>
                 <TouchableOpacity
                   style={styles.presetChip}
-                  onPress={() => handleApplyPreset(3, '10:00')}
+                  onPress={() => handleApplyPreset(3, 10, 0)}
+                  activeOpacity={0.7}
                 >
                   <Text style={styles.presetChipText}>In 3 Days (10 AM)</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.presetChip}
-                  onPress={() => handleApplyPreset(5, '10:00')}
+                  onPress={() => handleApplyPreset(5, 10, 0)}
+                  activeOpacity={0.7}
                 >
                   <Text style={styles.presetChipText}>In 5 Days (10 AM)</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.presetChip}
-                  onPress={() => handleApplyPreset(7, '11:00')}
+                  onPress={() => handleApplyPreset(7, 11, 0)}
+                  activeOpacity={0.7}
                 >
                   <Text style={styles.presetChipText}>In 1 Week (11 AM)</Text>
                 </TouchableOpacity>
               </View>
 
-              {/* Date & Time Input */}
-              <Text style={styles.fieldLabel}>TEST DATE & TIME (YYYY-MM-DD HH:MM):</Text>
-              <TextInput
-                style={styles.input}
-                value={testDateStr}
-                onChangeText={setTestDateStr}
-                placeholder="2026-10-15 10:00"
-                placeholderTextColor="#94A3B8"
-              />
+              {/* INTERACTIVE CALENDAR SELECTOR */}
+              <View style={styles.calendarSection}>
+                <View style={styles.calendarHeaderRow}>
+                  <Text style={styles.fieldLabel}>SELECT TEST DATE FROM CALENDAR:</Text>
+                  <TouchableOpacity
+                    style={styles.systemPickerBtn}
+                    onPress={() => setShowNativeDatePicker(true)}
+                    activeOpacity={0.7}
+                  >
+                    <MaterialCommunityIcons name="calendar-search" size={14} color="#4F46E5" />
+                    <Text style={styles.systemPickerText}>System Dialog</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.calendarContainer}>
+                  {/* Month Navigation */}
+                  <View style={styles.monthNavRow}>
+                    <TouchableOpacity
+                      onPress={() => changeViewingMonth(-1)}
+                      style={styles.monthNavBtn}
+                      activeOpacity={0.7}
+                    >
+                      <MaterialCommunityIcons name="chevron-left" size={22} color="#1E293B" />
+                    </TouchableOpacity>
+                    <Text style={styles.monthNavTitle}>
+                      {MONTH_NAMES[viewingMonth.getMonth()]} {viewingMonth.getFullYear()}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => changeViewingMonth(1)}
+                      style={styles.monthNavBtn}
+                      activeOpacity={0.7}
+                    >
+                      <MaterialCommunityIcons name="chevron-right" size={22} color="#1E293B" />
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Day of Week Labels */}
+                  <View style={styles.dayLabelsRow}>
+                    {DAY_LABELS.map((label, idx) => (
+                      <Text
+                        key={label}
+                        style={[
+                          styles.dayLabelText,
+                          (idx === 0 || idx === 6) && styles.dayLabelWeekend,
+                        ]}
+                      >
+                        {label}
+                      </Text>
+                    ))}
+                  </View>
+
+                  {/* Calendar Days Grid */}
+                  <View style={styles.daysGrid}>
+                    {calendarDays.map((item, index) => {
+                      if (!item.day || !item.dateObj) {
+                        return <View key={`empty-${index}`} style={styles.dayCellEmpty} />;
+                      }
+
+                      const isSelected = isSameDay(item.dateObj, selectedTestDate);
+                      const currentIsToday = isToday(item.dateObj);
+
+                      return (
+                        <TouchableOpacity
+                          key={`day-${item.day}`}
+                          style={[
+                            styles.dayCell,
+                            currentIsToday && styles.dayCellToday,
+                            isSelected && styles.dayCellSelected,
+                          ]}
+                          onPress={() => handleSelectDay(item.day!)}
+                          activeOpacity={0.7}
+                        >
+                          <Text
+                            style={[
+                              styles.dayCellText,
+                              currentIsToday && styles.dayCellTextToday,
+                              isSelected && styles.dayCellTextSelected,
+                            ]}
+                          >
+                            {item.day}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              </View>
+
+              {/* TIME SLOT SELECTION */}
+              <View style={styles.timeSection}>
+                <View style={styles.calendarHeaderRow}>
+                  <Text style={styles.fieldLabel}>SELECT TEST TIME:</Text>
+                  <TouchableOpacity
+                    style={styles.systemPickerBtn}
+                    onPress={() => setShowNativeTimePicker(true)}
+                    activeOpacity={0.7}
+                  >
+                    <MaterialCommunityIcons name="clock-outline" size={14} color="#4F46E5" />
+                    <Text style={styles.systemPickerText}>Exact Time Picker</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.timeSlotsRow}>
+                  {TIME_SLOTS.map((slot) => {
+                    const isSelected =
+                      selectedTestDate.getHours() === slot.h &&
+                      selectedTestDate.getMinutes() === slot.m;
+
+                    return (
+                      <TouchableOpacity
+                        key={slot.label}
+                        style={[
+                          styles.timeSlotChip,
+                          isSelected && styles.timeSlotChipSelected,
+                        ]}
+                        onPress={() => handleSelectTimeSlot(slot.h, slot.m)}
+                        activeOpacity={0.7}
+                      >
+                        <MaterialCommunityIcons
+                          name="clock-time-four"
+                          size={13}
+                          color={isSelected ? '#FFFFFF' : '#4F46E5'}
+                        />
+                        <Text
+                          style={[
+                            styles.timeSlotText,
+                            isSelected && styles.timeSlotTextSelected,
+                          ]}
+                        >
+                          {slot.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* ACTIVE SELECTION SUMMARY CARD */}
+              <View style={styles.selectionSummaryCard}>
+                <View style={styles.selectionSummaryIconWrap}>
+                  <MaterialCommunityIcons name="calendar-check" size={24} color="#4F46E5" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.selectionSummaryLabel}>SCHEDULED TEST DATE & TIME:</Text>
+                  <Text style={styles.selectionSummaryValue}>
+                    {selectedTestDate.toLocaleDateString(undefined, {
+                      weekday: 'long',
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })}
+                    {' at '}
+                    {selectedTestDate.toLocaleTimeString(undefined, {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </Text>
+                </View>
+              </View>
 
               {/* Venue Input */}
               <Text style={styles.fieldLabel}>TEST VENUE / LOCATION:</Text>
@@ -743,7 +969,7 @@ export default function AdminAdmissionsScreen() {
               <View style={styles.modalNotice}>
                 <MaterialCommunityIcons name="information-outline" size={16} color="#0284C7" />
                 <Text style={styles.modalNoticeText}>
-                  The applicant will see these test details immediately in their portal tracking screen.
+                  The applicant will see this entrance test date and instructions immediately on their tracker.
                 </Text>
               </View>
 
@@ -776,6 +1002,42 @@ export default function AdminAdmissionsScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Native Date Picker Dialog for Android/iOS */}
+      {showNativeDatePicker && (
+        <DateTimePicker
+          value={selectedTestDate}
+          mode="date"
+          display="default"
+          onChange={(event: DateTimePickerEvent, date?: Date) => {
+            setShowNativeDatePicker(false);
+            if (event.type === 'set' && date) {
+              const next = new Date(selectedTestDate);
+              next.setFullYear(date.getFullYear(), date.getMonth(), date.getDate());
+              setSelectedTestDate(next);
+              setViewingMonth(new Date(date.getFullYear(), date.getMonth(), 1));
+            }
+          }}
+        />
+      )}
+
+      {/* Native Time Picker Dialog for Android/iOS */}
+      {showNativeTimePicker && (
+        <DateTimePicker
+          value={selectedTestDate}
+          mode="time"
+          display="default"
+          is24Hour={false}
+          onChange={(event: DateTimePickerEvent, time?: Date) => {
+            setShowNativeTimePicker(false);
+            if (event.type === 'set' && time) {
+              const next = new Date(selectedTestDate);
+              next.setHours(time.getHours(), time.getMinutes(), 0, 0);
+              setSelectedTestDate(next);
+            }
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -1189,29 +1451,29 @@ const styles = StyleSheet.create({
   // Modal Styles
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
     justifyContent: 'flex-end',
   },
   modalCard: {
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     padding: 20,
-    maxHeight: '90%',
+    maxHeight: '92%',
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    marginBottom: 16,
+    marginBottom: 14,
     paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
   },
   modalIconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     backgroundColor: '#EEF2FF',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1254,13 +1516,186 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#334155',
   },
+
+  // CALENDAR SECTION
+  calendarSection: {
+    marginBottom: 14,
+  },
+  calendarHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  systemPickerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: '#EEF2FF',
+  },
+  systemPickerText: {
+    fontSize: 11,
+    color: '#4F46E5',
+    fontWeight: '700',
+  },
+  calendarContainer: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 12,
+  },
+  monthNavRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+    paddingHorizontal: 4,
+  },
+  monthNavBtn: {
+    padding: 4,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  monthNavTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  dayLabelsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    paddingBottom: 6,
+  },
+  dayLabelText: {
+    width: 36,
+    textAlign: 'center',
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  dayLabelWeekend: {
+    color: '#EF4444',
+  },
+  daysGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  dayCellEmpty: {
+    width: '14.28%',
+    height: 36,
+  },
+  dayCell: {
+    width: '14.28%',
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 18,
+  },
+  dayCellToday: {
+    borderWidth: 1,
+    borderColor: '#4F46E5',
+  },
+  dayCellSelected: {
+    backgroundColor: '#4F46E5',
+  },
+  dayCellText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1E293B',
+  },
+  dayCellTextToday: {
+    color: '#4F46E5',
+    fontWeight: '700',
+  },
+  dayCellTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
+
+  // TIME SECTION
+  timeSection: {
+    marginBottom: 14,
+  },
+  timeSlotsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  timeSlotChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  timeSlotChipSelected: {
+    backgroundColor: '#4F46E5',
+    borderColor: '#4F46E5',
+  },
+  timeSlotText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#334155',
+  },
+  timeSlotTextSelected: {
+    color: '#FFFFFF',
+  },
+
+  // SELECTION SUMMARY CARD
+  selectionSummaryCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#EEF2FF',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+  },
+  selectionSummaryIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E0E7FF',
+  },
+  selectionSummaryLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#4F46E5',
+    letterSpacing: 0.5,
+  },
+  selectionSummaryValue: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#1E1B4B',
+    marginTop: 2,
+  },
+
   input: {
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
     borderColor: '#CBD5E1',
-    borderRadius: 8,
+    borderRadius: 10,
     paddingHorizontal: 12,
-    paddingVertical: 9,
+    paddingVertical: 10,
     fontSize: 13,
     color: '#0F172A',
     marginBottom: 14,
@@ -1275,7 +1710,7 @@ const styles = StyleSheet.create({
     gap: 8,
     backgroundColor: '#F0F9FF',
     padding: 10,
-    borderRadius: 8,
+    borderRadius: 10,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: '#BAE6FD',
@@ -1288,14 +1723,14 @@ const styles = StyleSheet.create({
   modalActionsRow: {
     flexDirection: 'row',
     gap: 10,
-    marginTop: 6,
+    marginTop: 4,
     paddingBottom: 10,
   },
   modalCancelBtn: {
     flex: 1,
     backgroundColor: '#F1F5F9',
-    borderRadius: 10,
-    paddingVertical: 12,
+    borderRadius: 12,
+    paddingVertical: 13,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1307,8 +1742,8 @@ const styles = StyleSheet.create({
   modalConfirmBtn: {
     flex: 2,
     backgroundColor: '#4F46E5',
-    borderRadius: 10,
-    paddingVertical: 12,
+    borderRadius: 12,
+    paddingVertical: 13,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
