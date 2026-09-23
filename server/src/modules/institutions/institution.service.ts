@@ -106,6 +106,63 @@ async function seedClassSectionsForInstitution(
   }
 }
 
+const SCHOOL_METADATA: Record<string, any> = {
+  TST001: {
+    averageRating: 4.8,
+    totalReviews: 142,
+    logoUrl: 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=800&auto=format&fit=crop&q=80',
+    description: 'Greenfield International is a premier CBSE institution offering world-class academics, vibrant sports programs, and robotics labs from Kindergarten through Grade 12.',
+    facilities: ['Smart Classrooms', 'Olympic Swimming Pool', 'Robotics & AI Lab', 'Basketball & Cricket Turf', 'AC Transport'],
+  },
+  OAK002: {
+    averageRating: 4.9,
+    totalReviews: 98,
+    logoUrl: 'https://images.unsplash.com/photo-1541829070764-84a7d30dd3f3?w=800&auto=format&fit=crop&q=80',
+    description: 'An authorized IB World School fostering inquisitive young minds through experiential global curricula, performing arts, and international exchange opportunities.',
+    facilities: ['IB Curriculum', 'Auditorium & Amphitheater', 'Indoor Badminton Court', 'Organic Cafeteria', 'Day Boarding'],
+  },
+  DPS003: {
+    averageRating: 4.7,
+    totalReviews: 215,
+    logoUrl: 'https://images.unsplash.com/photo-1562774053-701939374585?w=800&auto=format&fit=crop&q=80',
+    description: 'Excellence in education since 1995. Emphasizing disciplined learning, national competitive exam prep (JEE/NEET), and leadership skills.',
+    facilities: ['Science Innovation Park', 'Digital Library', 'Hostel Facilities', 'Football Ground', 'Medical Center'],
+  },
+  STX004: {
+    averageRating: 4.6,
+    totalReviews: 180,
+    logoUrl: 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=800&auto=format&fit=crop&q=80',
+    description: 'Holistic character building and ICSE curriculum with century-old heritage, distinguished alumni, and championship athletics.',
+    facilities: ['Heritage Campus', 'Music Conservatory', 'Tennis Courts', 'Chapel & Meditation Hall'],
+  },
+  HCS005: {
+    averageRating: 4.9,
+    totalReviews: 165,
+    logoUrl: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?w=800&auto=format&fit=crop&q=80',
+    description: 'Global benchmark education offering Cambridge IGCSE and A-Levels with modern STEAM research centers, equestrian training, and dual-language immersion.',
+    facilities: ['Cambridge IGCSE & A-Levels', 'STEAM Research Hub', 'Horse Riding Academy', 'All-Weather Athletics Track'],
+  },
+  LEM006: {
+    averageRating: 4.8,
+    totalReviews: 88,
+    logoUrl: 'https://images.unsplash.com/photo-1577896851231-70ef18881754?w=800&auto=format&fit=crop&q=80',
+    description: 'Nurturing discovery-based learning from Toddlers to Grade 5 with authentic Montessori apparatus, organic kitchen garden, and child-centric creative studios.',
+    facilities: ['Montessori Apparatus Labs', 'Child Splash Pool', 'Sensory Discovery Garden', 'Day Care & Nutritionist'],
+  },
+};
+
+function enrichInstitution(inst: any) {
+  if (!inst) return inst;
+  const meta = SCHOOL_METADATA[inst.institutionCode] || SCHOOL_METADATA[inst.id] || {
+    averageRating: 4.5,
+    totalReviews: 50,
+    logoUrl: 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=800&auto=format&fit=crop&q=80',
+    description: `${inst.institutionName} provides comprehensive education with modern infrastructure and student-centered curriculum.`,
+    facilities: ['Smart Classrooms', 'Library', 'Science Lab', 'Sports Ground'],
+  };
+  return { ...meta, ...inst };
+}
+
 export class InstitutionService {
   constructor(private repo: IInstitutionRepository = institutionRepository) {}
 
@@ -141,16 +198,22 @@ export class InstitutionService {
     return { ...created, seededClassSections: seededCount };
   }
 
+
   public async getInstitutions() {
-    return this.repo.findAll();
+    const list = await this.repo.findAll();
+    return list.map(enrichInstitution);
   }
 
   public async getInstitutionByCode(code: string) {
-    return this.repo.findByCode(code);
+    const item = await this.repo.findByCode(code);
+    return item ? enrichInstitution(item) : undefined;
   }
 
   public async getInstitutionById(id: string) {
-    const item = await this.repo.findById(id);
+    let item = await this.repo.findById(id);
+    if (!item) {
+      item = await this.repo.findByCode(id);
+    }
     if (!item) {
       throw {
         statusCode: 404,
@@ -158,7 +221,7 @@ export class InstitutionService {
         message: `Institution with ID "${id}" was not found.`,
       };
     }
-    return item;
+    return enrichInstitution(item);
   }
 
   public async updateInstitution(id: string, input: UpdateInstitutionInput) {

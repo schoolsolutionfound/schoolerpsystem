@@ -29,6 +29,7 @@ export function useAppSync(userSession: User | null) {
         fullName: res.fullName || currentUser.displayName || '',
         email: res.email || currentUser.email || '',
         userRole: finalRole as any,
+        roles: Array.isArray(res.roles) && res.roles.length > 0 ? res.roles : [finalRole],
         institutionId: res.institutionCode || '',
         institutionCode: res.institutionCode || '',
         institutionName: res.institutionName || res.institutionCode || '',

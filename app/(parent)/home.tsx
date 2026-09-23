@@ -12,12 +12,15 @@ import { ParentMarksView } from '../../features/parent/components/ParentMarksVie
 import { ParentHomeworkView } from '../../features/parent/components/ParentHomeworkView';
 import { ParentTrackView } from '../../features/parent/components/ParentTrackView';
 import { ParentDrawer } from '../../features/parent/components/ParentDrawer';
+import { SchoolDiscoveryFeed } from '../../features/parent/components/SchoolDiscoveryFeed';
+import { ApplicationStatusTracker } from '../../features/parent/components/ApplicationStatusTracker';
 import { FontFamily } from '../../constants/fonts';
 
-type Tab = 'home' | 'fees' | 'track' | 'attendance' | 'marks' | 'homework';
+type Tab = 'home' | 'fees' | 'track' | 'attendance' | 'marks' | 'homework' | 'discover' | 'applications';
 
 const TABS: { key: Tab; label: string; icon: string; iconFilled: string }[] = [
   { key: 'home', label: 'Home', icon: 'home-outline', iconFilled: 'home' },
+  { key: 'discover', label: 'Discover', icon: 'compass-outline', iconFilled: 'compass' },
   { key: 'fees', label: 'Fees', icon: 'cash', iconFilled: 'cash' },
   { key: 'track', label: 'Track', icon: 'bus', iconFilled: 'bus' },
   { key: 'attendance', label: 'Attendance', icon: 'book-outline', iconFilled: 'book' },
@@ -63,8 +66,10 @@ export default function ParentHomeScreen() {
           });
         }
       }
-    } catch (err) {
-      console.warn('[ParentHome] fetchAttendance error:', err);
+    } catch (err: any) {
+      if (!err?.message?.includes('No linked student found')) {
+        console.warn('[ParentHome] fetchAttendance error:', err);
+      }
     }
   }, []);
 
@@ -86,8 +91,10 @@ export default function ParentHomeScreen() {
           });
         }
       }
-    } catch (err) {
-      console.warn('[ParentHome] openChildProfile fetch error:', err);
+    } catch (err: any) {
+      if (!err?.message?.includes('No linked student found')) {
+        console.warn('[ParentHome] openChildProfile fetch error:', err);
+      }
     } finally {
       setProfileLoading(false);
     }
@@ -151,6 +158,10 @@ export default function ParentHomeScreen() {
         return <ParentMarksView />;
       case 'homework':
         return <ParentHomeworkView />;
+      case 'discover':
+        return <SchoolDiscoveryFeed />;
+      case 'applications':
+        return <ApplicationStatusTracker />;
       default:
         return null;
     }

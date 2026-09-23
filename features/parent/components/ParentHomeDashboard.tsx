@@ -57,8 +57,63 @@ export const ParentHomeDashboard: React.FC<ParentHomeDashboardProps> = ({
         </View>
       </View>
 
+      {/* Admissions Hero Banner */}
+      <View style={styles.admissionBanner}>
+        <View style={styles.admissionBadge}>
+          <MaterialCommunityIcons name="creation" size={13} color="#D97706" />
+          <Text style={styles.admissionBadgeText}>ADMISSIONS OPEN 2026</Text>
+        </View>
+        <Text style={styles.admissionTitle}>Find & Apply to Top Schools</Text>
+        <Text style={styles.admissionSubtitle}>
+          {childName
+            ? 'Exploring new schools or sibling admissions? Discover top institutions and apply online.'
+            : 'Welcome! Discover verified schools, explore facilities, compare fee structures & submit applications.'}
+        </Text>
+        <View style={styles.admissionBtnRow}>
+          <TouchableOpacity
+            style={styles.admissionPrimaryBtn}
+            onPress={() => onTabSwitch('discover')}
+            activeOpacity={0.8}
+          >
+            <MaterialCommunityIcons name="compass" size={17} color="#1A1B1C" />
+            <Text style={styles.admissionPrimaryBtnText}>Explore Schools</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.admissionSecondaryBtn}
+            onPress={() => onTabSwitch('applications')}
+            activeOpacity={0.8}
+          >
+            <MaterialCommunityIcons name="file-document-edit-outline" size={17} color="#FFFFFF" />
+            <Text style={styles.admissionSecondaryBtnText}>Track Applications</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
       {/* What You Can Do — stacked list */}
       <Text style={styles.sectionTitle}>What You Can Do</Text>
+
+      <TouchableOpacity style={styles.listCard} onPress={() => onTabSwitch('discover')} activeOpacity={0.7}>
+        <View style={[styles.listIcon, { backgroundColor: '#FEF3C7' }]}>
+          <MaterialCommunityIcons name="compass-outline" size={24} color="#D97706" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.listTitle}>School Discovery & Admissions</Text>
+          <Text style={styles.listDesc}>Browse top institutions, compare fees & apply</Text>
+        </View>
+        <MaterialCommunityIcons name="chevron-right" size={18} color="#C0C0C0" />
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.listCard} onPress={() => onTabSwitch('applications')} activeOpacity={0.7}>
+        <View style={[styles.listIcon, { backgroundColor: '#EDE9FE' }]}>
+          <MaterialCommunityIcons name="file-document-edit-outline" size={24} color="#7C3AED" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.listTitle}>My Admission Applications</Text>
+          <Text style={styles.listDesc}>Track real-time status of submitted applications</Text>
+        </View>
+        <MaterialCommunityIcons name="chevron-right" size={18} color="#C0C0C0" />
+      </TouchableOpacity>
 
       <TouchableOpacity style={styles.listCard} onPress={() => onTabSwitch('attendance')} activeOpacity={0.7}>
         <View style={styles.listIcon}>
@@ -78,17 +133,6 @@ export const ParentHomeDashboard: React.FC<ParentHomeDashboardProps> = ({
         <View style={{ flex: 1 }}>
           <Text style={styles.listTitle}>Exam Results</Text>
           <Text style={styles.listDesc}>View marks and grades for each subject</Text>
-        </View>
-        <MaterialCommunityIcons name="chevron-right" size={18} color="#C0C0C0" />
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.listCard} onPress={() => onTabSwitch('timetable')} activeOpacity={0.7}>
-        <View style={styles.listIcon}>
-          <MaterialCommunityIcons name="calendar-clock" size={24} color="#1A1B1C" />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.listTitle}>Class Schedule</Text>
-          <Text style={styles.listDesc}>See your child&apos;s weekly timetable</Text>
         </View>
         <MaterialCommunityIcons name="chevron-right" size={18} color="#C0C0C0" />
       </TouchableOpacity>
@@ -196,4 +240,79 @@ const styles = StyleSheet.create({
   announcementTitle: { fontSize: 14, fontFamily: FontFamily.bold, color: '#171717' },
   announcementBody: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B6B6B', lineHeight: 17 },
   announcementSub: { fontSize: 11, fontFamily: FontFamily.regular, color: '#6B6B6B', lineHeight: 15 },
+
+  // Admissions Hero Banner
+  admissionBanner: {
+    backgroundColor: '#1E293B',
+    borderRadius: BorderRadius.card,
+    padding: 18,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  admissionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BorderRadius.chip,
+    alignSelf: 'flex-start',
+  },
+  admissionBadgeText: {
+    fontSize: 10,
+    fontFamily: FontFamily.extrabold,
+    color: '#F59E0B',
+    letterSpacing: 0.8,
+  },
+  admissionTitle: {
+    fontSize: 17,
+    fontFamily: FontFamily.bold,
+    color: '#FFFFFF',
+    marginTop: 2,
+  },
+  admissionSubtitle: {
+    fontSize: 12,
+    fontFamily: FontFamily.regular,
+    color: '#94A3B8',
+    lineHeight: 18,
+  },
+  admissionBtnRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 8,
+  },
+  admissionPrimaryBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#F4C430',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+  },
+  admissionPrimaryBtnText: {
+    fontSize: 13,
+    fontFamily: FontFamily.bold,
+    color: '#1A1B1C',
+  },
+  admissionSecondaryBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#334155',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+  },
+  admissionSecondaryBtnText: {
+    fontSize: 13,
+    fontFamily: FontFamily.bold,
+    color: '#FFFFFF',
+  },
 });

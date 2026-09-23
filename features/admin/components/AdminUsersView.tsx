@@ -6,10 +6,11 @@ import { BorderRadius } from '../../../constants/theme';
 const SCHOOL_ROLES = [
   { key: 'admin', label: 'Admin', icon: 'shield-account-outline' },
   { key: 'principal', label: 'Principal', icon: 'account-tie-outline' },
+  { key: 'admission_officer', label: 'Admission Officer', icon: 'account-plus-outline' },
+  { key: 'accountant', label: 'Accountant', icon: 'calculator-outline' },
   { key: 'teacher', label: 'Teacher', icon: 'human-male-board' },
   { key: 'student', label: 'Student', icon: 'account-school-outline' },
   { key: 'parent', label: 'Parent', icon: 'account-multiple-outline' },
-  { key: 'accountant', label: 'Accountant', icon: 'calculator-outline' },
   { key: 'librarian', label: 'Librarian', icon: 'book-outline' },
   { key: 'driver', label: 'Driver', icon: 'bus' },
 ] as const;
@@ -17,10 +18,11 @@ const SCHOOL_ROLES = [
 const COLLEGE_ROLES = [
   { key: 'admin', label: 'Admin', icon: 'shield-account-outline' },
   { key: 'hod', label: 'HOD', icon: 'account-tie-outline' },
+  { key: 'admission_officer', label: 'Admission Officer', icon: 'account-plus-outline' },
+  { key: 'accountant', label: 'Accountant', icon: 'calculator-outline' },
   { key: 'teacher', label: 'Teacher', icon: 'human-male-board' },
   { key: 'student', label: 'Student', icon: 'account-school-outline' },
   { key: 'parent', label: 'Parent', icon: 'account-multiple-outline' },
-  { key: 'accountant', label: 'Accountant', icon: 'calculator-outline' },
   { key: 'librarian', label: 'Librarian', icon: 'book-outline' },
   { key: 'driver', label: 'Driver', icon: 'bus' },
 ] as const;
@@ -30,9 +32,11 @@ interface UserItem {
   fullName: string;
   email: string;
   role: string;
+  roles?: string[];
   title?: string;
   rollNoOrUSN?: string;
   department?: string;
+  phone?: string;
   scope?: string;
 }
 
@@ -46,6 +50,7 @@ interface AdminUsersViewProps {
     fullName: string;
     email: string;
     role: string;
+    roles?: string[];
     phone?: string;
     parentPhone?: string;
     employeeId?: string;
@@ -58,6 +63,17 @@ interface AdminUsersViewProps {
     licenseNumber?: string;
     password?: string;
   }) => Promise<void>;
+  onUpdateUser?: (
+    id: string,
+    updates: {
+      fullName?: string;
+      role?: string;
+      roles?: string[];
+      phone?: string;
+      department?: string;
+      title?: string;
+    }
+  ) => Promise<void>;
 }
 
 export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
@@ -67,14 +83,16 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
   academicYears,
   sections,
   onCreateUser,
+  onUpdateUser,
 }) => {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [modalOpen, setModalOpen] = useState(false);
 
+  // Create form state
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState('student');
+  const [selectedRoles, setSelectedRoles] = useState<string[]>(['student']);
   const [phone, setPhone] = useState('');
   const [parentPhone, setParentPhone] = useState('');
   const [employeeId, setEmployeeId] = useState('');
@@ -88,28 +106,54 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
   const [password, setPassword] = useState('TempPass123!');
   const [submitting, setSubmitting] = useState(false);
 
+  // Edit / Promote modal state
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<UserItem | null>(null);
+  const [editFullName, setEditFullName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editTitle, setEditTitle] = useState('');
+  const [editDept, setEditDept] = useState('');
+  const [editingRoles, setEditingRoles] = useState<string[]>([]);
+  const [editPrimaryRole, setEditPrimaryRole] = useState('');
+  const [editSubmitting, setEditSubmitting] = useState(false);
+
   const roleOptions = institutionType === 'college' ? COLLEGE_ROLES : SCHOOL_ROLES;
 
   const filteredUsers = users.filter((u) => {
     const matchesSearch =
       u.fullName.toLowerCase().includes(search.toLowerCase()) ||
       u.email.toLowerCase().includes(search.toLowerCase());
-    const matchesRole = roleFilter === 'all' || u.role === roleFilter;
+    const userRoles = (u.roles && u.roles.length > 0) ? u.roles : [u.role];
+    const matchesRole = roleFilter === 'all' || u.role === roleFilter || userRoles.includes(roleFilter);
     return matchesSearch && matchesRole;
   });
 
   const roleCounts = users.reduce(
     (acc, u) => {
-      acc[u.role] = (acc[u.role] || 0) + 1;
+      const uRoles = (u.roles && u.roles.length > 0) ? u.roles : [u.role];
+      uRoles.forEach((r) => {
+        acc[r] = (acc[r] || 0) + 1;
+      });
       return acc;
     },
     {} as Record<string, number>
   );
 
+  const toggleCreateRole = (roleKey: string) => {
+    setSelectedRoles((prev) => {
+      if (prev.includes(roleKey)) {
+        if (prev.length <= 1) return prev; // keep at least one
+        return prev.filter((r) => r !== roleKey);
+      } else {
+        return [...prev, roleKey];
+      }
+    });
+  };
+
   const resetForm = () => {
     setFullName('');
     setEmail('');
-    setRole('student');
+    setSelectedRoles(['student']);
     setPhone('');
     setParentPhone('');
     setEmployeeId('');
@@ -128,32 +172,97 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
       Alert.alert('Missing Fields', 'Full Name and Email are required.');
       return;
     }
+    if (selectedRoles.length === 0) {
+      Alert.alert('Missing Role', 'Please select at least one role.');
+      return;
+    }
 
+    const primaryRole = selectedRoles[0];
     setSubmitting(true);
     try {
       await onCreateUser({
         fullName: fullName.trim(),
         email: email.trim().toLowerCase(),
-        role,
+        role: primaryRole,
+        roles: selectedRoles,
         phone: phone || undefined,
-        parentPhone: role === 'student' ? (parentPhone || undefined) : undefined,
+        parentPhone: selectedRoles.includes('student') ? (parentPhone || undefined) : undefined,
         employeeId: employeeId || undefined,
         rollNoOrUSN: rollNoOrUSN || undefined,
         department: dept || undefined,
         academicYear: year || undefined,
         section: section || undefined,
         title: title || undefined,
-        vehicleNumber: role === 'driver' ? (vehicleNumber || undefined) : undefined,
-        licenseNumber: role === 'driver' ? (licenseNumber || undefined) : undefined,
+        vehicleNumber: selectedRoles.includes('driver') ? (vehicleNumber || undefined) : undefined,
+        licenseNumber: selectedRoles.includes('driver') ? (licenseNumber || undefined) : undefined,
         password: password || undefined,
       });
       setModalOpen(false);
       resetForm();
-      Alert.alert('Success', `${role.charAt(0).toUpperCase() + role.slice(1)} account created! They can log in using their email and temporary password.`);
+      Alert.alert(
+        'Success',
+        `User account created with ${selectedRoles.length > 1 ? `${selectedRoles.length} roles` : selectedRoles[0]}! They can log in using their email and temporary password.`
+      );
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Failed to create user');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const openEditModal = (u: UserItem) => {
+    setEditingUser(u);
+    setEditFullName(u.fullName);
+    setEditPhone(u.phone || '');
+    setEditTitle(u.title || '');
+    setEditDept(u.department || '');
+    const userRoles = (u.roles && u.roles.length > 0) ? u.roles : [u.role];
+    setEditingRoles(userRoles);
+    setEditPrimaryRole(u.role || userRoles[0]);
+    setEditModalOpen(true);
+  };
+
+  const toggleEditRole = (roleKey: string) => {
+    setEditingRoles((prev) => {
+      if (prev.includes(roleKey)) {
+        if (prev.length <= 1) {
+          Alert.alert('Minimum Role Required', 'A user must have at least one role.');
+          return prev;
+        }
+        const filtered = prev.filter((r) => r !== roleKey);
+        if (editPrimaryRole === roleKey) {
+          setEditPrimaryRole(filtered[0]);
+        }
+        return filtered;
+      } else {
+        return [...prev, roleKey];
+      }
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingUser || !onUpdateUser) return;
+    if (editingRoles.length === 0) {
+      Alert.alert('Missing Role', 'Please select at least one role.');
+      return;
+    }
+
+    setEditSubmitting(true);
+    try {
+      await onUpdateUser(editingUser.id, {
+        fullName: editFullName.trim(),
+        phone: editPhone.trim() || undefined,
+        title: editTitle.trim() || undefined,
+        department: editDept || undefined,
+        role: editPrimaryRole || editingRoles[0],
+        roles: editingRoles,
+      });
+      setEditModalOpen(false);
+      Alert.alert('Roles Updated', 'User roles and promotion settings have been saved successfully!');
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Failed to update user roles');
+    } finally {
+      setEditSubmitting(false);
     }
   };
 
@@ -165,7 +274,8 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
       teacher: '#FFFDF7',
       student: '#FFF4C7',
       parent: '#DCFCE7',
-      accountant: '#FFF4C7',
+      accountant: '#FCE7F3',
+      admission_officer: '#E0F2FE',
       librarian: '#FFF4C7',
       driver: '#E0F2FE',
     };
@@ -174,14 +284,15 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
 
   const getRoleBadgeColor = (role: string) => {
     const colors: Record<string, string> = {
-      admin: '#F4C430',
+      admin: '#B45309',
       principal: '#D97706',
       hod: '#D97706',
       teacher: '#171717',
-      student: '#F4C430',
+      student: '#B45309',
       parent: '#16A34A',
-      accountant: '#DB2777',
-      librarian: '#F4C430',
+      accountant: '#BE185D',
+      admission_officer: '#0284C7',
+      librarian: '#B45309',
       driver: '#0EA5E9',
     };
     return colors[role] || '#6B6B6B';
@@ -189,6 +300,7 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
 
   return (
     <View style={styles.container}>
+      {/* Search and Action Bar */}
       <View style={styles.headerBar}>
         <View style={styles.searchBox}>
           <MaterialCommunityIcons name="magnify" size={20} color="#6B6B6B" />
@@ -200,10 +312,12 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
           />
         </View>
         <TouchableOpacity style={styles.addBtn} onPress={() => { resetForm(); setModalOpen(true); }}>
+          <MaterialCommunityIcons name="account-plus" size={18} color="#FFFFFF" />
           <Text style={styles.addBtnText}>+ Create User</Text>
         </TouchableOpacity>
       </View>
 
+      {/* Role Filter Chips */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow}>
         <TouchableOpacity
           style={[styles.filterChip, roleFilter === 'all' && styles.filterChipActive]}
@@ -226,6 +340,7 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
         ))}
       </ScrollView>
 
+      {/* User Cards List */}
       <ScrollView contentContainerStyle={styles.listContainer} showsVerticalScrollIndicator={false}>
         {filteredUsers.length === 0 ? (
           <View style={styles.emptyCard}>
@@ -238,38 +353,73 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
             </Text>
           </View>
         ) : (
-          filteredUsers.map((u) => (
-            <View key={u.id} style={styles.userCard}>
-              <View style={[styles.avatarCircle, { backgroundColor: getAvatarBg(u.role) }]}>
-                <Text style={[styles.avatarText, { color: getRoleBadgeColor(u.role) }]}>
-                  {u.fullName.substring(0, 2).toUpperCase()}
-                </Text>
-              </View>
-              <View style={styles.userDetails}>
-                <Text style={styles.userName}>{u.fullName}</Text>
-                <Text style={styles.userEmail}>{u.email}</Text>
-                <View style={styles.badgeRow}>
-                  <Text style={[styles.roleBadge, { backgroundColor: getAvatarBg(u.role), color: getRoleBadgeColor(u.role) }]}>
-                    {u.role.charAt(0).toUpperCase() + u.role.slice(1)}
+          filteredUsers.map((u) => {
+            const userRoles = (u.roles && u.roles.length > 0) ? u.roles : [u.role];
+            return (
+              <View key={u.id} style={styles.userCard}>
+                <View style={[styles.avatarCircle, { backgroundColor: getAvatarBg(u.role) }]}>
+                  <Text style={[styles.avatarText, { color: getRoleBadgeColor(u.role) }]}>
+                    {u.fullName.substring(0, 2).toUpperCase()}
                   </Text>
-                  {u.rollNoOrUSN ? (
-                    <Text style={styles.codeBadge}>{u.rollNoOrUSN}</Text>
-                  ) : null}
-                  {u.department ? (
-                    <Text style={styles.deptBadge}>{u.department}</Text>
-                  ) : null}
+                </View>
+
+                <View style={styles.userDetails}>
+                  <View style={styles.userTopRow}>
+                    <Text style={styles.userName}>{u.fullName}</Text>
+                    {onUpdateUser ? (
+                      <TouchableOpacity
+                        style={styles.editActionBtn}
+                        onPress={() => openEditModal(u)}
+                        activeOpacity={0.7}
+                      >
+                        <MaterialCommunityIcons name="shield-edit-outline" size={15} color="#0284C7" />
+                        <Text style={styles.editActionText}>Edit / Promote</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+
+                  <Text style={styles.userEmail}>{u.email}</Text>
+
+                  {/* Multi-role badges */}
+                  <View style={styles.badgeRow}>
+                    {userRoles.map((r) => (
+                      <View
+                        key={r}
+                        style={[
+                          styles.roleBadgeContainer,
+                          { backgroundColor: getAvatarBg(r) },
+                          r === u.role && styles.primaryRoleBadgeBorder,
+                        ]}
+                      >
+                        <Text style={[styles.roleBadge, { color: getRoleBadgeColor(r) }]}>
+                          {r.replace('_', ' ').toUpperCase()}
+                          {userRoles.length > 1 && r === u.role ? ' (PRIMARY)' : ''}
+                        </Text>
+                      </View>
+                    ))}
+                    {u.rollNoOrUSN ? (
+                      <Text style={styles.codeBadge}>{u.rollNoOrUSN}</Text>
+                    ) : null}
+                    {u.department ? (
+                      <Text style={styles.deptBadge}>{u.department}</Text>
+                    ) : null}
+                  </View>
                 </View>
               </View>
-            </View>
-          ))
+            );
+          })
         )}
       </ScrollView>
 
+      {/* CREATE USER MODAL WITH MULTI-ROLE SELECTION */}
       <Modal visible={modalOpen} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Create User</Text>
+              <View>
+                <Text style={styles.modalTitle}>Create New User</Text>
+                <Text style={styles.modalSubtitle}>Assign one or multiple roles to this account</Text>
+              </View>
               <TouchableOpacity onPress={() => setModalOpen(false)}>
                 <MaterialCommunityIcons name="close" size={22} color="#6B6B6B" />
               </TouchableOpacity>
@@ -277,25 +427,37 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
 
             <ScrollView style={{ maxHeight: 460 }} showsVerticalScrollIndicator={false}>
               <View style={styles.formGroup}>
-                <Text style={styles.label}>Role *</Text>
-                <View style={styles.roleGrid}>
-                  {roleOptions.map((r) => (
-                    <TouchableOpacity
-                      key={r.key}
-                      style={[styles.roleCard, role === r.key && styles.roleCardActive]}
-                      onPress={() => setRole(r.key)}
-                    >
-                      <MaterialCommunityIcons
-                        name={r.icon as any}
-                        size={20}
-                        color={role === r.key ? '#F4C430' : '#6B6B6B'}
-                      />
-                      <Text style={[styles.roleCardLabel, role === r.key && styles.roleCardLabelActive]}>
-                        {r.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                <View style={styles.roleHeaderRow}>
+                  <Text style={styles.label}>Select Roles * (Can select multiple)</Text>
+                  <Text style={styles.selectedCountBadge}>{selectedRoles.length} selected</Text>
                 </View>
+                <View style={styles.roleGrid}>
+                  {roleOptions.map((r) => {
+                    const isSelected = selectedRoles.includes(r.key);
+                    return (
+                      <TouchableOpacity
+                        key={r.key}
+                        style={[styles.roleCard, isSelected && styles.roleCardActive]}
+                        onPress={() => toggleCreateRole(r.key)}
+                      >
+                        <MaterialCommunityIcons
+                          name={r.icon as any}
+                          size={18}
+                          color={isSelected ? '#0284C7' : '#6B6B6B'}
+                        />
+                        <Text style={[styles.roleCardLabel, isSelected && styles.roleCardLabelActive]}>
+                          {r.label}
+                        </Text>
+                        {isSelected ? (
+                          <MaterialCommunityIcons name="check-circle" size={14} color="#0284C7" />
+                        ) : null}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                <Text style={styles.helperTip}>
+                  Tip: A staff member can be both Accountant and Admission Officer under the same login!
+                </Text>
               </View>
 
               <View style={styles.formRow}>
@@ -312,7 +474,7 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
                 </View>
               </View>
 
-              {role === 'student' && (
+              {selectedRoles.includes('student') && (
                 <>
                   <View style={styles.formGroup}>
                     <Text style={styles.label}>USN / Roll Number</Text>
@@ -325,14 +487,14 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
                 </>
               )}
 
-              {role === 'teacher' && (
+              {selectedRoles.includes('teacher') && (
                 <View style={styles.formGroup}>
                   <Text style={styles.label}>Employee ID</Text>
                   <TextInput style={styles.input} placeholder="EMP101" value={employeeId} onChangeText={setEmployeeId} />
                 </View>
               )}
 
-              {role === 'driver' && (
+              {selectedRoles.includes('driver') && (
                 <>
                   <View style={styles.formGroup}>
                     <Text style={styles.label}>Vehicle Number</Text>
@@ -345,17 +507,17 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
                 </>
               )}
 
-              {role !== 'student' && (
+              {!selectedRoles.includes('student') && (
                 <View style={styles.formGroup}>
-                  <Text style={styles.label}>Phone</Text>
-                  <TextInput style={styles.input} placeholder="+1 555-0199" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
+                  <Text style={styles.label}>Phone Number</Text>
+                  <TextInput style={styles.input} placeholder="+91 9876543210" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
                 </View>
               )}
 
-              {(role === 'principal' || role === 'hod' || role === 'admin') && (
+              {(selectedRoles.includes('principal') || selectedRoles.includes('hod') || selectedRoles.includes('admin') || selectedRoles.includes('admission_officer')) && (
                 <View style={styles.formGroup}>
-                  <Text style={styles.label}>Title</Text>
-                  <TextInput style={styles.input} placeholder="e.g. School Principal" value={title} onChangeText={setTitle} />
+                  <Text style={styles.label}>Title / Designation</Text>
+                  <TextInput style={styles.input} placeholder="e.g. Head of Admissions & Finance" value={title} onChangeText={setTitle} />
                 </View>
               )}
 
@@ -378,7 +540,7 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
                 </View>
               )}
 
-              {role === 'student' && academicYears.length > 0 && (
+              {selectedRoles.includes('student') && academicYears.length > 0 && (
                 <View style={styles.formGroup}>
                   <Text style={styles.label}>Academic Year</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -397,7 +559,7 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
                 </View>
               )}
 
-              {role === 'student' && sections.length > 0 && (
+              {selectedRoles.includes('student') && sections.length > 0 && (
                 <View style={styles.formGroup}>
                   <Text style={styles.label}>Section</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -434,6 +596,146 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
           </View>
         </View>
       </Modal>
+
+      {/* EDIT ROLES & PROMOTION MODAL */}
+      <Modal visible={editModalOpen} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Edit Roles & Promote User</Text>
+                <Text style={styles.modalSubtitle}>{editingUser?.email}</Text>
+              </View>
+              <TouchableOpacity onPress={() => setEditModalOpen(false)}>
+                <MaterialCommunityIcons name="close" size={22} color="#6B6B6B" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: 460 }} showsVerticalScrollIndicator={false}>
+              {/* Role toggles */}
+              <View style={styles.formGroup}>
+                <View style={styles.roleHeaderRow}>
+                  <Text style={styles.label}>Assigned Roles (Toggle to Add/Remove)</Text>
+                  <Text style={styles.selectedCountBadge}>{editingRoles.length} Active</Text>
+                </View>
+                <View style={styles.roleGrid}>
+                  {roleOptions.map((r) => {
+                    const isAssigned = editingRoles.includes(r.key);
+                    const isPrimary = editPrimaryRole === r.key;
+                    return (
+                      <TouchableOpacity
+                        key={r.key}
+                        style={[
+                          styles.roleCard,
+                          isAssigned && styles.roleCardActive,
+                          isPrimary && styles.roleCardPrimaryActive,
+                        ]}
+                        onPress={() => toggleEditRole(r.key)}
+                        activeOpacity={0.7}
+                      >
+                        <MaterialCommunityIcons
+                          name={r.icon as any}
+                          size={18}
+                          color={isAssigned ? '#0284C7' : '#6B6B6B'}
+                        />
+                        <Text style={[styles.roleCardLabel, isAssigned && styles.roleCardLabelActive]}>
+                          {r.label}
+                        </Text>
+                        {isAssigned ? (
+                          <MaterialCommunityIcons name="check-circle" size={14} color="#0284C7" />
+                        ) : null}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* Primary Role Selector */}
+              {editingRoles.length > 1 && (
+                <View style={styles.formGroup}>
+                  <Text style={styles.label}>Primary Role (Default Workspace)</Text>
+                  <View style={styles.chipRow}>
+                    {editingRoles.map((rk) => {
+                      const opt = roleOptions.find((o) => o.key === rk);
+                      const isPrimary = editPrimaryRole === rk;
+                      return (
+                        <TouchableOpacity
+                          key={rk}
+                          style={[styles.primaryChip, isPrimary && styles.primaryChipActive]}
+                          onPress={() => setEditPrimaryRole(rk)}
+                        >
+                          <Text style={[styles.primaryChipText, isPrimary && styles.primaryChipTextActive]}>
+                            {opt?.label || rk} {isPrimary ? '★' : ''}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              )}
+
+              <View style={styles.formGroup}>
+                <Text style={styles.label}>Full Name</Text>
+                <TextInput
+                  style={styles.input}
+                  value={editFullName}
+                  onChangeText={setEditFullName}
+                  placeholder="Full Name"
+                />
+              </View>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.label}>Phone Number</Text>
+                <TextInput
+                  style={styles.input}
+                  value={editPhone}
+                  onChangeText={setEditPhone}
+                  placeholder="Phone"
+                  keyboardType="phone-pad"
+                />
+              </View>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.label}>Title / Designation</Text>
+                <TextInput
+                  style={styles.input}
+                  value={editTitle}
+                  onChangeText={setEditTitle}
+                  placeholder="e.g. Admission & Accounts Lead"
+                />
+              </View>
+
+              {departments.length > 0 && (
+                <View style={styles.formGroup}>
+                  <Text style={styles.label}>Department</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    <View style={styles.chipRow}>
+                      {departments.map((d) => (
+                        <TouchableOpacity
+                          key={d}
+                          style={[styles.chip, editDept === d && styles.chipActive]}
+                          onPress={() => setEditDept(d)}
+                        >
+                          <Text style={[styles.chipText, editDept === d && styles.chipTextActive]}>{d}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </ScrollView>
+                </View>
+              )}
+            </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setEditModalOpen(false)}>
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.submitBtn} onPress={handleSaveEdit} disabled={editSubmitting}>
+                <Text style={styles.submitText}>{editSubmitting ? 'Saving...' : 'Save & Promote'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -455,9 +757,11 @@ const styles = StyleSheet.create({
   },
   searchInput: { flex: 1, fontSize: 13, color: '#171717' },
   addBtn: {
-    backgroundColor: '#F4C430',
+    flexDirection: 'row',
+    gap: 6,
+    backgroundColor: '#0284C7',
     borderRadius: BorderRadius.button,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     height: 44,
     alignItems: 'center',
     justifyContent: 'center',
@@ -473,7 +777,7 @@ const styles = StyleSheet.create({
     borderColor: '#E8E5DC',
     marginRight: 8,
   },
-  filterChipActive: { backgroundColor: '#F4C430', borderColor: '#F4C430' },
+  filterChipActive: { backgroundColor: '#0284C7', borderColor: '#0284C7' },
   filterChipText: { fontSize: 12, fontWeight: '600', color: '#6B6B6B' },
   filterChipTextActive: { color: '#FFFFFF' },
   listContainer: { gap: 10, paddingBottom: 40 },
@@ -495,7 +799,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E8E5DC',
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 14,
   },
   avatarCircle: {
@@ -504,22 +808,73 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop: 2,
   },
   avatarText: { fontSize: 14, fontWeight: '800' },
   userDetails: { flex: 1 },
-  userName: { fontSize: 15, fontWeight: '700', color: '#171717' },
+  userTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  userName: { fontSize: 15, fontWeight: '700', color: '#171717', flex: 1 },
+  editActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: '#E0F2FE',
+  },
+  editActionText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#0284C7',
+  },
   userEmail: { fontSize: 12, color: '#6B6B6B', marginTop: 2 },
-  badgeRow: { flexDirection: 'row', gap: 6, marginTop: 6, flexWrap: 'wrap' },
-  roleBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, fontSize: 10, fontWeight: '700' },
+  badgeRow: { flexDirection: 'row', gap: 6, marginTop: 8, flexWrap: 'wrap' },
+  roleBadgeContainer: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+  },
+  primaryRoleBadgeBorder: {
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+  },
+  roleBadge: { fontSize: 10, fontWeight: '800' },
   codeBadge: { backgroundColor: '#FFFDF7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, fontSize: 10, fontWeight: '700', color: '#6B6B6B' },
-  deptBadge: { backgroundColor: '#FFF4C7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, fontSize: 10, fontWeight: '700', color: '#F4C430' },
+  deptBadge: { backgroundColor: '#FFF4C7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, fontSize: 10, fontWeight: '700', color: '#B45309' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 20 },
   modalContent: { backgroundColor: '#FFFFFF', borderRadius: BorderRadius.modal, padding: 20, gap: 14 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   modalTitle: { fontSize: 17, fontWeight: '800', color: '#171717' },
-  formGroup: { gap: 4, marginBottom: 10 },
+  modalSubtitle: { fontSize: 12, color: '#6B6B6B', marginTop: 2 },
+  formGroup: { gap: 4, marginBottom: 12 },
   formRow: { marginBottom: 0 },
   label: { fontSize: 12, fontWeight: '700', color: '#171717' },
+  roleHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  selectedCountBadge: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#0284C7',
+    backgroundColor: '#E0F2FE',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  helperTip: {
+    fontSize: 11,
+    color: '#0284C7',
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
   input: { height: 44, borderWidth: 1, borderColor: '#E8E5DC', borderRadius: BorderRadius.input, paddingHorizontal: 12, fontSize: 13, backgroundColor: '#FFFDF7' },
   hintText: { fontSize: 11, color: '#6B6B6B', marginTop: 2 },
   roleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -527,24 +882,46 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: BorderRadius.button,
     borderWidth: 1.5,
     borderColor: '#E8E5DC',
     backgroundColor: '#FFFFFF',
   },
-  roleCardActive: { borderColor: '#F4C430', backgroundColor: '#FFF4C7' },
+  roleCardActive: { borderColor: '#0284C7', backgroundColor: '#E0F2FE' },
+  roleCardPrimaryActive: { borderColor: '#B45309', backgroundColor: '#FEF3C7' },
   roleCardLabel: { fontSize: 12, fontWeight: '600', color: '#6B6B6B' },
-  roleCardLabelActive: { color: '#F4C430', fontWeight: '700' },
+  roleCardLabelActive: { color: '#0284C7', fontWeight: '700' },
+  primaryChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    backgroundColor: '#F8FAFC',
+    marginRight: 6,
+  },
+  primaryChipActive: {
+    borderColor: '#0284C7',
+    backgroundColor: '#0284C7',
+  },
+  primaryChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  primaryChipTextActive: {
+    color: '#FFFFFF',
+  },
   chipRow: { flexDirection: 'row', gap: 8, paddingVertical: 4 },
   chip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: BorderRadius.chip, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E8E5DC' },
-  chipActive: { backgroundColor: '#F4C430', borderColor: '#F4C430' },
+  chipActive: { backgroundColor: '#0284C7', borderColor: '#0284C7' },
   chipText: { fontSize: 12, fontWeight: '600', color: '#6B6B6B' },
   chipTextActive: { color: '#FFFFFF' },
   modalFooter: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 6 },
   cancelBtn: { height: 40, paddingHorizontal: 16, borderRadius: BorderRadius.button, justifyContent: 'center', alignItems: 'center' },
   cancelText: { color: '#6B6B6B', fontWeight: '700', fontSize: 13 },
-  submitBtn: { height: 40, paddingHorizontal: 20, backgroundColor: '#F4C430', borderRadius: BorderRadius.button, justifyContent: 'center', alignItems: 'center' },
+  submitBtn: { height: 40, paddingHorizontal: 20, backgroundColor: '#0284C7', borderRadius: BorderRadius.button, justifyContent: 'center', alignItems: 'center' },
   submitText: { color: '#FFFFFF', fontWeight: '800', fontSize: 13 },
 });
