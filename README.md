@@ -222,7 +222,8 @@ routes.ts  →  controller.ts  →  service.ts  →  repository.ts  →  DB (Dri
 | Module | Prefix | Endpoints | Description |
 |--------|--------|-----------|-------------|
 | auth | `/api/v1/auth` | 5 | Login, register, sync, password reset |
-| admin | `/api/v1/admin` | 25 | Student/teacher/fee/user CRUD, dashboard |
+| admin | `/api/v1/admin` | 26 | Student/teacher/fee/user CRUD, multi-role editing, dashboard |
+| admissions | `/api/v1/admissions` | 4 | Application submission, multi-tenant list, status updates, entrance test scheduling |
 | academics | `/api/v1/admin` | 47 | Marks, exams, timetable, attendance, homework |
 | developer | `/api/v1/developer` | 8 | Institution/admin management |
 | institutions | `/api/v1/institutions` | 4 | Institution config |
@@ -230,13 +231,33 @@ routes.ts  →  controller.ts  →  service.ts  →  repository.ts  →  DB (Dri
 
 ## Database
 
-18 tables managed by Drizzle ORM:
+19 tables managed by Drizzle ORM:
 
-`users`, `class_sections`, `subjects`, `subject_teachers`, `timetable_slots`, `attendance_sessions`, `attendance_records`, `exams`, `exam_subjects`, `marks`, `homework`, `student_classes`, `fee_structures`, `fee_payments`, `student_documents`, `notifications`, `institution_config`, `institutions`
+`users`, `admissions`, `class_sections`, `subjects`, `subject_teachers`, `timetable_slots`, `attendance_sessions`, `attendance_records`, `exams`, `exam_subjects`, `marks`, `homework`, `student_classes`, `fee_structures`, `fee_payments`, `student_documents`, `notifications`, `institution_config`, `institutions`
+
+## Admissions & Multi-Tenant Enrollment (`feature/admission`)
+
+- **Two-Phase Admission Approval & Parent Decision**:
+  - **School Review**: School admins evaluate applications, schedule entrance tests, and extend admission offers (`status: 'approved'`).
+  - **Parent Decision**: Parents receive interactive offer cards with **"Accept Offer & Enroll"** and **"Decline Offer"**.
+  - **Multi-School Competing Offers**: When a parent accepts an offer from one campus, competing offers from other institutions for that student automatically transition to `'offer_declined'`.
+  - **Automated Student & Parent Linking**: Acceptance creates the official student record with USN and links the student to the parent's profile in PostgreSQL and Firestore.
+- **Entrance Test Scheduling**:
+  - Full interactive custom calendar grid, month navigator, preset date chips, visual time slot selector, and native DateTimePicker integration.
+- **Strict Multi-Tenant Isolation**:
+  - School admins are locked exclusively to their assigned institution campus. The cross-campus switcher is reserved for platform developers (`dev`).
+- **Parent School Discovery Filtering**:
+  - Once a student is accepted/enrolled, the Discover feed displays only that affiliated institution campus with an "Enrolled" badge.
+- **Multi-Role Staff & Workspace Switcher**:
+  - Staff accounts support multiple simultaneous roles (e.g. `['accountant', 'admission_officer']`) with on-the-fly workspace switching and admin role promotion.
+
+> [!NOTE]
+> **File Audit for `feature/admission`**:
+> **Zero (0) files were deleted** for this feature. All changes are strictly additive and non-breaking across existing modules.
 
 ## Key Features
 
-- **Role-based dashboards** — Each role (admin, teacher, student, parent, etc.) has a tailored home screen with relevant widgets
+- **Role-based dashboards** — Each role (admin, teacher, student, parent, accountant, admission officer, etc.) has a tailored home screen with relevant widgets
 - **Drawer navigation** — Sidebar drawers for in-page tab switching (no page reload)
 - **Attendance** — Teacher marks attendance per timetable slot; students/parents view history
 - **Marks & Exams** — Create exams, enter marks, students view per-subject scores with grades
