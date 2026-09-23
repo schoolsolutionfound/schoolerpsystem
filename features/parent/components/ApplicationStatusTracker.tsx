@@ -142,8 +142,33 @@ export const ApplicationStatusTracker = () => {
               </Text>
             </View>
 
-            {/* ENTRANCE TEST SPECIAL HIGHLIGHT CARD */}
-            {hasEntranceTest && (
+            {/* ADMISSION ACCEPTED & ENROLLED CARD */}
+            {item.status === 'accepted' ? (
+              <View style={styles.acceptedCard}>
+                <View style={styles.acceptedHeaderRow}>
+                  <View style={styles.acceptedIconBadge}>
+                    <MaterialCommunityIcons name="school" size={20} color="#059669" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.acceptedTitle}>Admission Approved & Enrolled</Text>
+                    <Text style={styles.acceptedSub}>Officially accepted into {item.gradeApplyingFor}</Text>
+                  </View>
+                </View>
+
+                <Text style={styles.acceptedDesc}>
+                  Congratulations! <Text style={{ fontWeight: '700' }}>{item.childFullName}</Text> has been officially accepted at <Text style={{ fontWeight: '700' }}>{item.schoolName}</Text>. The student is now enrolled as your linked child!
+                </Text>
+
+                {item.entranceTestDate ? (
+                  <View style={styles.completedTestRow}>
+                    <MaterialCommunityIcons name="check-decagram" size={15} color="#10B981" />
+                    <Text style={styles.completedTestText}>
+                      Entrance Assessment evaluated & approved.
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            ) : item.status === 'test_scheduled' || Boolean(item.entranceTestDate) ? (
               <View style={styles.testCard}>
                 <View style={styles.testHeaderRow}>
                   <View style={styles.testIconBadge}>
@@ -194,7 +219,7 @@ export const ApplicationStatusTracker = () => {
                   </Text>
                 </View>
               </View>
-            )}
+            ) : null}
           </View>
         );
       }}
@@ -351,5 +376,59 @@ const styles = StyleSheet.create({
     color: '#6366F1',
     fontStyle: 'italic',
     flex: 1,
+  },
+
+  // Accepted Card Styles
+  acceptedCard: {
+    marginTop: 12,
+    backgroundColor: '#ECFDF5',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  acceptedHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 8,
+  },
+  acceptedIconBadge: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    backgroundColor: '#D1FAE5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#6EE7B7',
+  },
+  acceptedTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#065F46',
+  },
+  acceptedSub: {
+    fontSize: 11,
+    color: '#047857',
+  },
+  acceptedDesc: {
+    fontSize: 12,
+    color: '#1F2937',
+    lineHeight: 18,
+  },
+  completedTestRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#D1FAE5',
+  },
+  completedTestText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#047857',
   },
 });

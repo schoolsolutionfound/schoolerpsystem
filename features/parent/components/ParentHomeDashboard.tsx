@@ -3,6 +3,7 @@ import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
 import { FontFamily } from '../../../constants/fonts';
+import { useUserStore } from '../../../store/useUserStore';
 
 interface ParentHomeDashboardProps {
   childName: string;
@@ -17,6 +18,10 @@ export const ParentHomeDashboard: React.FC<ParentHomeDashboardProps> = ({
   onTabSwitch,
   onViewProfile,
 }) => {
+  const storeChildName = useUserStore((state) => state.childName);
+  const schoolName = useUserStore((state) => state.schoolName || state.institutionName);
+  const activeChildName = childName || storeChildName || '';
+
   const pct = overallAttendance?.percentage ?? 0;
   const present = overallAttendance?.present ?? 0;
   const total = overallAttendance?.total ?? 0;
@@ -37,8 +42,19 @@ export const ParentHomeDashboard: React.FC<ParentHomeDashboardProps> = ({
         </View>
 
         <View style={[styles.gridCard, styles.childCard]}>
-          <Text style={styles.cardLabelDark}>Linked Child</Text>
-          <Text style={styles.childName}>{childName || '—'}</Text>
+          <View style={styles.childCardHeader}>
+            <Text style={styles.cardLabelDark}>Linked Child</Text>
+            {activeChildName ? (
+              <View style={styles.childEnrolledBadge}>
+                <MaterialCommunityIcons name="check-decagram" size={10} color="#065F46" />
+                <Text style={styles.childEnrolledBadgeText}>Enrolled</Text>
+              </View>
+            ) : null}
+          </View>
+          <Text style={styles.childName} numberOfLines={1}>{activeChildName || '—'}</Text>
+          {activeChildName && schoolName ? (
+            <Text style={styles.childSchoolName} numberOfLines={1}>{schoolName}</Text>
+          ) : null}
           <TouchableOpacity style={styles.childTag} onPress={onViewProfile} activeOpacity={0.7}>
             <Text style={styles.childTagText}>View Profile</Text>
           </TouchableOpacity>
@@ -187,7 +203,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cardSub: { fontSize: 11, fontFamily: FontFamily.regular, color: '#A0A0A0' },
-  childName: { fontSize: 16, fontFamily: FontFamily.extrabold, color: '#1A1B1C', marginTop: 4 },
+  childCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  childEnrolledBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  childEnrolledBadgeText: {
+    fontSize: 9,
+    fontFamily: FontFamily.bold,
+    color: '#065F46',
+  },
+  childName: { fontSize: 15, fontFamily: FontFamily.extrabold, color: '#1A1B1C', marginTop: 4 },
+  childSchoolName: { fontSize: 11, fontFamily: FontFamily.medium, color: '#0369A1', marginTop: 1 },
   childTag: {
     backgroundColor: 'rgba(26,27,28,0.12)',
     paddingHorizontal: 8,

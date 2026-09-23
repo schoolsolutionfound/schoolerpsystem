@@ -1,6 +1,7 @@
 import { db } from '../shared/db/index.js';
 import * as schema from '../shared/db/schema.js';
 import { eq, desc, or, inArray } from 'drizzle-orm';
+import { admin } from '../shared/config/firebase.js';
 
 function newAdmId(): string {
   return `adm_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
@@ -145,7 +146,116 @@ export class AdmissionsService {
       .where(eq(schema.admissions.id, id))
       .returning();
 
+    if (status === 'accepted' && updated) {
+      await this.handleAdmissionAccepted(updated);
+    }
+
     return updated;
+  }
+
+  public async handleAdmissionAccepted(adm: typeof schema.admissions.$inferSelect) {
+    try {
+      if (!db) return;
+
+      const studentUSN = `${adm.schoolId}-${new Date().getFullYear()}-${adm.id.replace(/[^a-zA-Z0-9]/g, '').slice(-4).toUpperCase()}`;
+      const studentId = `stu_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+
+      // 1. Create or ensure student record in PostgreSQL users
+      const existingStudent = await db
+        .select()
+        .from(schema.users)
+        .where(
+          or(
+            eq(schema.users.rollNoOrUSN, studentUSN),
+            eq(schema.users.fullName, adm.childFullName)
+          )
+        );
+
+      let actualStudentId = studentId;
+      if (existingStudent.length === 0) {
+        const studentEmail = `${adm.childFullName.toLowerCase().replace(/[^a-z0-9]/g, '')}.${adm.schoolId.toLowerCase()}@student.schoolerp.test`;
+        await db.insert(schema.users).values({
+          id: studentId,
+          firebaseUid: studentId,
+          email: studentEmail,
+          fullName: adm.childFullName,
+          role: 'student',
+          roles: ['student'],
+          institutionCode: adm.schoolId,
+          institutionName: adm.schoolName || '',
+          rollNoOrUSN: studentUSN,
+          scope: {
+            classSectionName: adm.gradeApplyingFor,
+            department: adm.gradeApplyingFor,
+            academicYear: `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
+          },
+        });
+      } else {
+        actualStudentId = existingStudent[0].id;
+      }
+
+      // 2. Find parent user by parentId or parentEmail
+      const parentMatches = await db
+        .select()
+        .from(schema.users)
+        .where(
+          or(
+            eq(schema.users.id, adm.parentId),
+            eq(schema.users.firebaseUid, adm.parentId),
+            adm.parentEmail ? eq(schema.users.email, adm.parentEmail) : eq(schema.users.id, adm.parentId)
+          )
+        );
+
+      if (parentMatches.length > 0) {
+        const parentUser = parentMatches[0];
+        const currentScope = (parentUser.scope as any) || {};
+        const updatedScope = {
+          ...currentScope,
+          childId: actualStudentId,
+          childName: adm.childFullName,
+          linkedStudentUSN: studentUSN,
+          relation: currentScope.relation || 'Parent',
+          institutionCode: adm.schoolId,
+          schoolName: adm.schoolName,
+          grade: adm.gradeApplyingFor,
+        };
+
+        await db
+          .update(schema.users)
+          .set({
+            institutionCode: adm.schoolId,
+            institutionName: adm.schoolName || parentUser.institutionName,
+            scope: updatedScope,
+            updatedAt: new Date(),
+          })
+          .where(eq(schema.users.id, parentUser.id));
+
+        // 3. Sync to Firestore for instant mobile reflection
+        try {
+          const docId = parentUser.firebaseUid || parentUser.id;
+          await admin.firestore().collection('users').doc(docId).set(
+            {
+              institutionCode: adm.schoolId,
+              institutionId: adm.schoolId,
+              schoolId: adm.schoolId,
+              institutionName: adm.schoolName,
+              schoolName: adm.schoolName,
+              childName: adm.childFullName,
+              childId: actualStudentId,
+              linkedStudentUSN: studentUSN,
+              relation: currentScope.relation || 'Parent',
+              scope: updatedScope,
+              updatedAt: new Date().toISOString(),
+            },
+            { merge: true }
+          );
+        } catch (fErr) {
+          console.warn('[AdmissionsService] Firestore sync error:', fErr);
+        }
+      }
+    } catch (err) {
+      console.error('[AdmissionsService] Error in handleAdmissionAccepted:', err);
+    }
   }
 }
 
