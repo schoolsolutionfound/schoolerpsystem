@@ -5,6 +5,8 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useUserStore } from '../../store/useUserStore';
 import { fetchParentAttendanceApi } from '../../api/academics';
+import { fetchAdmissionsApi } from '../../api/admissions';
+import { auth } from '../../firebaseConfig';
 import { ParentHomeHeader } from '../../features/parent/components/ParentHomeHeader';
 import { ParentHomeDashboard } from '../../features/parent/components/ParentHomeDashboard';
 import { ParentAttendanceView } from '../../features/parent/components/ParentAttendanceView';
@@ -12,12 +14,15 @@ import { ParentMarksView } from '../../features/parent/components/ParentMarksVie
 import { ParentHomeworkView } from '../../features/parent/components/ParentHomeworkView';
 import { ParentTrackView } from '../../features/parent/components/ParentTrackView';
 import { ParentDrawer } from '../../features/parent/components/ParentDrawer';
+import { SchoolDiscoveryFeed } from '../../features/parent/components/SchoolDiscoveryFeed';
+import { ApplicationStatusTracker } from '../../features/parent/components/ApplicationStatusTracker';
 import { FontFamily } from '../../constants/fonts';
 
-type Tab = 'home' | 'fees' | 'track' | 'attendance' | 'marks' | 'homework';
+type Tab = 'home' | 'fees' | 'track' | 'attendance' | 'marks' | 'homework' | 'discover' | 'applications';
 
 const TABS: { key: Tab; label: string; icon: string; iconFilled: string }[] = [
   { key: 'home', label: 'Home', icon: 'home-outline', iconFilled: 'home' },
+  { key: 'discover', label: 'Discover', icon: 'compass-outline', iconFilled: 'compass' },
   { key: 'fees', label: 'Fees', icon: 'cash', iconFilled: 'cash' },
   { key: 'track', label: 'Track', icon: 'bus', iconFilled: 'bus' },
   { key: 'attendance', label: 'Attendance', icon: 'book-outline', iconFilled: 'book' },
@@ -37,23 +42,31 @@ export default function ParentHomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const [overall, setOverall] = useState<{ present: number; total: number; percentage: number } | null>(null);
-  const [childName, setChildName] = useState('');
+  const storeChildName = useUserStore((state) => state.childName) || '';
+  const [childName, setChildName] = useState(storeChildName);
   const [childProfile, setChildProfile] = useState<any>(null);
   const [showChildProfile, setShowChildProfile] = useState(false);
   const [profileLoading, setProfileLoading] = useState(false);
-  const storeChildName = useUserStore((state) => state.childName) || '';
   const storeLinkedStudentUSN = useUserStore((state) => state.linkedStudentUSN) || '';
   const storeRelation = useUserStore((state) => state.relation) || '';
   const storeChildId = useUserStore((state) => state.childId) || '';
   const storeEmail = useUserStore((state) => state.email) || '';
 
+  useEffect(() => {
+    if (storeChildName && !childName) {
+      setChildName(storeChildName);
+    }
+  }, [storeChildName]);
+
   const fetchAttendance = useCallback(async () => {
+    let foundChildName = '';
     try {
       const res = await fetchParentAttendanceApi();
       setOverall(res?.overall || null);
       if (res) {
         setChildProfile(res);
         if (res.childName) {
+          foundChildName = res.childName;
           setChildName(res.childName);
           useUserStore.getState().setUserProfile({
             childName: res.childName,
@@ -63,10 +76,50 @@ export default function ParentHomeScreen() {
           });
         }
       }
-    } catch (err) {
-      console.warn('[ParentHome] fetchAttendance error:', err);
+    } catch (err: any) {
+      if (!err?.message?.includes('No linked student found')) {
+        console.warn('[ParentHome] fetchAttendance error:', err);
+      }
     }
-  }, []);
+
+    // If attendance didn't resolve a linked child, check store or accepted admissions
+    if (!foundChildName) {
+      if (storeChildName) {
+        setChildName(storeChildName);
+        foundChildName = storeChildName;
+      }
+
+      // Check if parent has any officially accepted admission application
+      try {
+        const currentUid = auth.currentUser?.uid;
+        if (currentUid) {
+          const admissions = await fetchAdmissionsApi({ parentId: currentUid });
+          const acceptedApp = (admissions || []).find((a) => a.status === 'accepted');
+          if (acceptedApp) {
+            setChildName(acceptedApp.childFullName);
+            setChildProfile({
+              childName: acceptedApp.childFullName,
+              childClassSectionName: acceptedApp.gradeApplyingFor,
+              schoolName: acceptedApp.schoolName,
+              childUSN: acceptedApp.schoolId,
+              relation: 'Parent',
+              overall: { present: 0, total: 0, percentage: 100 },
+            });
+            useUserStore.getState().setUserProfile({
+              childName: acceptedApp.childFullName,
+              schoolName: acceptedApp.schoolName,
+              institutionName: acceptedApp.schoolName,
+              institutionCode: acceptedApp.schoolId,
+              schoolId: acceptedApp.schoolId,
+              relation: 'Parent',
+            });
+          }
+        }
+      } catch (admErr) {
+        console.warn('[ParentHome] admissions fetch error:', admErr);
+      }
+    }
+  }, [storeChildName]);
 
   const openChildProfile = useCallback(async () => {
     setShowChildProfile(true);
@@ -86,8 +139,10 @@ export default function ParentHomeScreen() {
           });
         }
       }
-    } catch (err) {
-      console.warn('[ParentHome] openChildProfile fetch error:', err);
+    } catch (err: any) {
+      if (!err?.message?.includes('No linked student found')) {
+        console.warn('[ParentHome] openChildProfile fetch error:', err);
+      }
     } finally {
       setProfileLoading(false);
     }
@@ -151,6 +206,10 @@ export default function ParentHomeScreen() {
         return <ParentMarksView />;
       case 'homework':
         return <ParentHomeworkView />;
+      case 'discover':
+        return <SchoolDiscoveryFeed />;
+      case 'applications':
+        return <ApplicationStatusTracker />;
       default:
         return null;
     }

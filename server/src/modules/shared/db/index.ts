@@ -24,6 +24,7 @@ export interface InMemoryUser {
   twelfthPercentage?: string;
   title?: string;
   department?: string;
+  roles?: string[];
   scope?: string;
   permissions?: string;
   graduatedAt?: Date | string;
@@ -139,6 +140,7 @@ function mapUserRow(row: schema.UserRecord): InMemoryUser {
     twelfthPercentage: row.twelfthPercentage || '',
     title: row.title || '',
     department: (row as any).department || '',
+    roles: Array.isArray(row.roles) && row.roles.length > 0 ? row.roles : (row.role ? [row.role] : []),
     scope: safeJsonStringify(row.scope, '{}'),
     permissions: safeJsonStringify(row.permissions, '[]'),
     graduatedAt: (row as any).graduatedAt || undefined,
@@ -560,6 +562,7 @@ export async function dbUpsertUser(user: Partial<InMemoryUser> & { firebaseUid: 
       tenthPercentage: user.tenthPercentage ?? base?.tenthPercentage ?? '',
       twelfthPercentage: user.twelfthPercentage ?? base?.twelfthPercentage ?? '',
       title: user.title ?? base?.title ?? '',
+      roles: user.roles ?? base?.roles ?? (user.role ? [user.role] : ['student']),
       scope: user.scope ?? base?.scope ?? '{}',
       permissions: user.permissions ?? base?.permissions ?? '[]',
       createdAt: base?.createdAt || new Date(),
@@ -586,6 +589,7 @@ export async function dbUpsertUser(user: Partial<InMemoryUser> & { firebaseUid: 
         tenthPercentage: merged.tenthPercentage,
         twelfthPercentage: merged.twelfthPercentage,
         title: merged.title,
+        roles: merged.roles,
         scope: safeJsonParse(merged.scope, {}),
         permissions: safeJsonParse(merged.permissions, []),
         createdAt: merged.createdAt,
@@ -609,6 +613,7 @@ export async function dbUpsertUser(user: Partial<InMemoryUser> & { firebaseUid: 
           tenthPercentage: merged.tenthPercentage,
           twelfthPercentage: merged.twelfthPercentage,
           title: merged.title,
+          roles: merged.roles,
           scope: safeJsonParse(merged.scope, {}),
           permissions: safeJsonParse(merged.permissions, []),
           updatedAt: new Date(),
@@ -633,6 +638,7 @@ export async function dbUpdateUser(id: string, fields: Partial<InMemoryUser>): P
       if (fields.email !== undefined) updateData.email = fields.email;
       if (fields.fullName !== undefined) updateData.fullName = fields.fullName;
       if (fields.role !== undefined) updateData.role = fields.role;
+      if (fields.roles !== undefined) updateData.roles = fields.roles;
       if (fields.title !== undefined) updateData.title = fields.title;
       if (fields.phone !== undefined) updateData.phone = fields.phone;
       if (fields.parentPhone !== undefined) updateData.parentPhone = fields.parentPhone;

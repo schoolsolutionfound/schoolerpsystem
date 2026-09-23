@@ -3,7 +3,7 @@ import { useFonts } from 'expo-font';
 import { Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold, Poppins_800ExtraBold } from '@expo-google-fonts/poppins';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, Platform, TextProps } from 'react-native';
+import { View, Text, StyleSheet, Platform, TextProps, LogBox } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 
@@ -50,6 +50,12 @@ if (hasSentryDsn) {
 
 const queryClient = new QueryClient();
 SplashScreen.preventAutoHideAsync();
+
+LogBox.ignoreLogs([
+  '@firebase/firestore: Firestore',
+  "WebChannelConnection RPC 'Listen' stream",
+  'transport errored',
+]);
 
 // Force Poppins font on all Text elements globally
 // @ts-ignore – defaultProps exists at runtime on RN Text
