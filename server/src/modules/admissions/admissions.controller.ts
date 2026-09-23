@@ -9,9 +9,17 @@ export class AdmissionsController {
 
       const isStaffRole = ['admin', 'institution admin', 'admission_officer'].includes(user?.role) ||
         (Array.isArray(user?.roles) && user.roles.some((r: string) => ['admin', 'institution admin', 'admission_officer'].includes(r)));
+      const isDev = user?.role === 'dev' || (Array.isArray(user?.roles) && user.roles.includes('dev'));
 
       const parentId = query?.parentId || (user?.role === 'parent' ? user?.uid : undefined);
-      const schoolId = query?.schoolId || (isStaffRole ? user?.institutionCode : undefined);
+
+      // Multi-tenant isolation: School admin / admission officer only ever sees admissions for their school!
+      let schoolId = query?.schoolId;
+      if (isStaffRole && !isDev && user?.institutionCode && user.institutionCode !== 'DEFAULT') {
+        schoolId = user.institutionCode;
+      } else if (!schoolId && isStaffRole && user?.institutionCode) {
+        schoolId = user.institutionCode;
+      }
 
       const items = await admissionsService.getAdmissions({ parentId, schoolId });
       return reply.send({ success: true, data: items });

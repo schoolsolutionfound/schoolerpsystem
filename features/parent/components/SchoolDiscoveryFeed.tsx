@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, 
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { fetchInstitutionsApi } from '../../../api/institutions';
+import { fetchAdmissionsApi } from '../../../api/admissions';
+import { auth } from '../../../firebaseConfig';
 import { Institution } from '../../developer/types/developer.types';
 import { useUserStore } from '../../../store/useUserStore';
 
@@ -10,39 +12,70 @@ export const SchoolDiscoveryFeed = () => {
   const router = useRouter();
   const [schools, setSchools] = useState<Institution[]>([]);
   const [loading, setLoading] = useState(true);
+  const [acceptedSchoolInfo, setAcceptedSchoolInfo] = useState<{ code: string; name: string; childName: string } | null>(null);
 
   // User & Student Affiliation details from store
   const linkedStudentUSN = useUserStore((state) => state.linkedStudentUSN);
-  const childName = useUserStore((state) => state.childName);
+  const storeChildName = useUserStore((state) => state.childName);
   const userInstCode = useUserStore((state) => state.institutionCode || state.institutionId || state.schoolId);
   const userInstName = useUserStore((state) => state.institutionName || state.schoolName);
 
-  // Check if student is affiliated with parent
+  // Check if student is affiliated with parent (either from store or from accepted admission)
+  const effectiveCode = (userInstCode && userInstCode !== 'DEFAULT') ? userInstCode : (acceptedSchoolInfo?.code || '');
+  const effectiveName = userInstName || acceptedSchoolInfo?.name || '';
+  const effectiveChild = storeChildName || acceptedSchoolInfo?.childName || '';
+
   const isAffiliated = Boolean(
     (linkedStudentUSN && linkedStudentUSN.trim().length > 0) ||
-    (childName && childName.trim().length > 0) ||
-    (userInstCode && userInstCode.trim().length > 0 && userInstCode !== 'DEFAULT')
+    (effectiveChild && effectiveChild.trim().length > 0) ||
+    (effectiveCode && effectiveCode.trim().length > 0 && effectiveCode !== 'DEFAULT')
   );
 
   useEffect(() => {
-    const fetchSchools = async () => {
+    const fetchData = async () => {
       try {
-        const data = await fetchInstitutionsApi();
+        const [instData, admData] = await Promise.all([
+          fetchInstitutionsApi(),
+          auth.currentUser?.uid ? fetchAdmissionsApi({ parentId: auth.currentUser.uid }).catch(() => []) : Promise.resolve([]),
+        ]);
+
         // Filter schools and sort by rating desc
-        const list = (data || []).filter(
+        const list = (instData || []).filter(
           (inst) => !inst.institutionType || inst.institutionType === 'school'
         );
         list.sort((a, b) => (b.averageRating || 0) - (a.averageRating || 0));
         setSchools(list);
+
+        // Check if parent has any officially accepted admission application
+        const acceptedApp = (admData || []).find((a) => a.status === 'accepted');
+        if (acceptedApp) {
+          setAcceptedSchoolInfo({
+            code: acceptedApp.schoolId,
+            name: acceptedApp.schoolName || '',
+            childName: acceptedApp.childFullName,
+          });
+
+          // Sync to store if not already set
+          if (!storeChildName || !userInstCode || userInstCode === 'DEFAULT') {
+            useUserStore.getState().setUserProfile({
+              childName: acceptedApp.childFullName,
+              institutionCode: acceptedApp.schoolId,
+              schoolId: acceptedApp.schoolId,
+              institutionName: acceptedApp.schoolName,
+              schoolName: acceptedApp.schoolName,
+              relation: 'Parent',
+            });
+          }
+        }
       } catch (error) {
-        console.error("Error fetching schools from backend:", error);
+        console.error("Error fetching data for school discovery:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchSchools();
-  }, []);
+    fetchData();
+  }, [storeChildName, userInstCode]);
 
   // Filter schools: If affiliated, ONLY show the school that the student is affiliated with!
   const displayedSchools = useMemo(() => {
@@ -52,12 +85,12 @@ export const SchoolDiscoveryFeed = () => {
 
     const matched = schools.filter((s) => {
       const codeMatch =
-        userInstCode &&
-        (s.institutionCode?.toUpperCase() === userInstCode.toUpperCase() ||
-          s.id?.toUpperCase() === userInstCode.toUpperCase());
+        effectiveCode &&
+        (s.institutionCode?.toUpperCase() === effectiveCode.toUpperCase() ||
+          s.id?.toUpperCase() === effectiveCode.toUpperCase());
       const nameMatch =
-        userInstName &&
-        s.institutionName?.toLowerCase().trim() === userInstName.toLowerCase().trim();
+        effectiveName &&
+        s.institutionName?.toLowerCase().trim() === effectiveName.toLowerCase().trim();
       return Boolean(codeMatch || nameMatch);
     });
 
@@ -66,11 +99,11 @@ export const SchoolDiscoveryFeed = () => {
     }
 
     // Fallback if the affiliated school was not in the default list
-    if (userInstName || userInstCode) {
+    if (effectiveName || effectiveCode) {
       const fallbackSchool: Institution = {
-        id: userInstCode || 'AFFILIATED_SCHOOL',
-        institutionCode: userInstCode || 'AFFILIATED',
-        institutionName: userInstName || 'Affiliated Campus',
+        id: effectiveCode || 'AFFILIATED_SCHOOL',
+        institutionCode: effectiveCode || 'AFFILIATED',
+        institutionName: effectiveName || 'Affiliated Campus',
         institutionType: 'school',
         subscriptionStatus: 'active',
         description: 'Your currently affiliated institution campus.',
@@ -81,7 +114,7 @@ export const SchoolDiscoveryFeed = () => {
     }
 
     return schools;
-  }, [schools, isAffiliated, userInstCode, userInstName]);
+  }, [schools, isAffiliated, effectiveCode, effectiveName]);
 
   if (loading) {
     return (
@@ -103,7 +136,7 @@ export const SchoolDiscoveryFeed = () => {
             <Text style={styles.affiliationTitle}>Student Affiliated Campus</Text>
             <Text style={styles.affiliationSub}>
               Showing only your student&apos;s affiliated school (
-              {childName ? `${childName}` : linkedStudentUSN || userInstName || 'Enrolled'}
+              {effectiveChild ? `${effectiveChild}` : linkedStudentUSN || effectiveName || 'Enrolled'}
               ).
             </Text>
           </View>

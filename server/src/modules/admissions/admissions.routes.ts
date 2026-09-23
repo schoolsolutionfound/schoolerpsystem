@@ -2,13 +2,43 @@ import { FastifyInstance } from 'fastify';
 import { admissionsController } from './admissions.controller.js';
 import { admin, isFirebaseAdminInitialized } from '../shared/config/firebase.js';
 
+import { db } from '../shared/db/index.js';
+import * as schema from '../shared/db/schema.js';
+import { eq, or } from 'drizzle-orm';
+
 async function optionalAuth(req: any, _reply: any) {
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ') && isFirebaseAdminInitialized) {
     try {
       const token = authHeader.split('Bearer ')[1]?.trim();
       const decoded = await admin.auth().verifyIdToken(token);
-      req.user = { uid: decoded.uid, email: decoded.email, role: decoded.role || '' };
+      let institutionCode = decoded.institutionCode || '';
+      let roles = decoded.roles || [decoded.role || ''];
+
+      if ((!institutionCode || institutionCode === 'DEFAULT') && db) {
+        const dbUsers = await db
+          .select()
+          .from(schema.users)
+          .where(
+            or(
+              eq(schema.users.firebaseUid, decoded.uid),
+              eq(schema.users.id, decoded.uid),
+              decoded.email ? eq(schema.users.email, decoded.email) : eq(schema.users.id, decoded.uid)
+            )
+          );
+        if (dbUsers.length > 0) {
+          institutionCode = dbUsers[0].institutionCode || '';
+          roles = dbUsers[0].roles || [dbUsers[0].role];
+        }
+      }
+
+      req.user = {
+        uid: decoded.uid,
+        email: decoded.email,
+        role: decoded.role || '',
+        roles,
+        institutionCode,
+      };
     } catch {}
   }
 }

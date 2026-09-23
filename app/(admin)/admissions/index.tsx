@@ -43,11 +43,18 @@ const TIME_SLOTS = [
 
 export default function AdminAdmissionsScreen() {
   const router = useRouter();
-  const adminInstCode = useUserStore((state) => state.institutionCode || state.institutionId || state.schoolId);
-  const adminInstName = useUserStore((state) => state.institutionName || state.schoolName);
+  const userRole = useUserStore((state) => state.userRole);
+  const isSuperDev = userRole === 'dev';
+
+  const rawInstCode = useUserStore((state) => state.institutionCode || state.institutionId || state.schoolId);
+  const rawInstName = useUserStore((state) => state.institutionName || state.schoolName);
+
+  // For school admins / admission officers, strictly lock to their own assigned institution (default OAK002)
+  const lockedSchoolCode = (rawInstCode && rawInstCode !== 'DEFAULT') ? rawInstCode : 'OAK002';
+  const lockedSchoolName = (rawInstName && rawInstName !== 'DEFAULT') ? rawInstName : 'Oakridge World Academy';
 
   const [institutions, setInstitutions] = useState<Institution[]>([]);
-  const [selectedSchoolCode, setSelectedSchoolCode] = useState<string>(adminInstCode || 'ALL');
+  const [selectedSchoolCode, setSelectedSchoolCode] = useState<string>(isSuperDev ? 'ALL' : lockedSchoolCode);
   const [statusFilter, setStatusFilter] = useState<'pending' | 'test_scheduled' | 'accepted' | 'rejected' | 'all'>('pending');
   const [applications, setApplications] = useState<ExtendedAdmissionApplication[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,21 +87,17 @@ export default function AdminAdmissionsScreen() {
           (i) => !i.institutionType || i.institutionType === 'school'
         );
         setInstitutions(schools);
-        // If current admin has an assigned school, default to it
-        if (adminInstCode && adminInstCode !== 'DEFAULT') {
-          setSelectedSchoolCode(adminInstCode);
-        } else if (schools.length > 0 && selectedSchoolCode === 'ALL') {
-          const oak = schools.find((s) => s.institutionCode === 'OAK002');
-          if (oak) setSelectedSchoolCode(oak.institutionCode);
+        if (!isSuperDev) {
+          setSelectedSchoolCode(lockedSchoolCode);
         }
       })
       .catch(() => {});
-  }, [adminInstCode]);
+  }, [lockedSchoolCode, isSuperDev]);
 
   const fetchApplications = async () => {
     try {
-      const schoolParam = selectedSchoolCode === 'ALL' ? undefined : selectedSchoolCode;
-      const data = await fetchAdmissionsApi({ schoolId: schoolParam });
+      const targetParam = isSuperDev && selectedSchoolCode === 'ALL' ? undefined : (isSuperDev ? selectedSchoolCode : lockedSchoolCode);
+      const data = await fetchAdmissionsApi({ schoolId: targetParam });
       setApplications(data || []);
     } catch (error) {
       console.error('Error fetching admissions from backend:', error);
@@ -107,7 +110,7 @@ export default function AdminAdmissionsScreen() {
   useEffect(() => {
     setLoading(true);
     fetchApplications();
-  }, [selectedSchoolCode]);
+  }, [selectedSchoolCode, lockedSchoolCode]);
 
   const handleStatusUpdate = async (id: string, newStatus: 'accepted' | 'rejected') => {
     try {
@@ -253,20 +256,38 @@ export default function AdminAdmissionsScreen() {
     });
   };
 
+  // School-scoped applications for non-superDev
+  const visibleApplications = useMemo(() => {
+    if (!isSuperDev) {
+      return applications.filter(
+        (app) => !app.schoolId || app.schoolId === lockedSchoolCode
+      );
+    }
+    return applications;
+  }, [applications, isSuperDev, lockedSchoolCode]);
+
   // Counts
-  const pendingCount = applications.filter((a) => a.status === 'pending').length;
-  const testScheduledCount = applications.filter((a) => a.status === 'test_scheduled').length;
-  const acceptedCount = applications.filter((a) => a.status === 'accepted').length;
+  const pendingCount = visibleApplications.filter((a) => a.status === 'pending').length;
+  const testScheduledCount = visibleApplications.filter((a) => a.status === 'test_scheduled').length;
+  const acceptedCount = visibleApplications.filter((a) => a.status === 'accepted').length;
 
   // Filtered applications by status
   const filteredApplications = useMemo(() => {
-    if (statusFilter === 'all') return applications;
-    return applications.filter((app) => app.status === statusFilter);
-  }, [applications, statusFilter]);
+    if (statusFilter === 'all') return visibleApplications;
+    return visibleApplications.filter((app) => app.status === statusFilter);
+  }, [visibleApplications, statusFilter]);
 
   const selectedSchoolObj = institutions.find(
     (i) => i.institutionCode === selectedSchoolCode || i.id === selectedSchoolCode
   );
+
+  const displaySchoolName = isSuperDev
+    ? (selectedSchoolObj?.institutionName || (selectedSchoolCode === 'ALL' ? 'All Campuses Overview' : selectedSchoolCode))
+    : (lockedSchoolName || selectedSchoolObj?.institutionName || 'Oakridge World Academy');
+
+  const displaySchoolCode = isSuperDev
+    ? (selectedSchoolCode === 'ALL' ? 'GLOBAL' : selectedSchoolCode)
+    : lockedSchoolCode;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -278,7 +299,7 @@ export default function AdminAdmissionsScreen() {
         <View style={styles.headerTitleWrap}>
           <Text style={styles.headerTitle}>School Admissions</Text>
           <Text style={styles.headerSubtitle}>
-            {selectedSchoolObj?.institutionName || adminInstName || 'All Institutions'}
+            {displaySchoolName}
           </Text>
         </View>
         <TouchableOpacity
@@ -292,67 +313,69 @@ export default function AdminAdmissionsScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* School Switcher Chips */}
-      <View style={styles.schoolSelectorSection}>
-        <Text style={styles.selectorLabel}>SELECT SCHOOL / CAMPUS:</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.schoolChipsScroll}
-        >
-          <TouchableOpacity
-            style={[
-              styles.schoolChip,
-              selectedSchoolCode === 'ALL' && styles.schoolChipActive,
-            ]}
-            onPress={() => setSelectedSchoolCode('ALL')}
-            activeOpacity={0.8}
+      {/* School Switcher Chips - ONLY for platform Super Dev */}
+      {isSuperDev && (
+        <View style={styles.schoolSelectorSection}>
+          <Text style={styles.selectorLabel}>SELECT SCHOOL / CAMPUS:</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.schoolChipsScroll}
           >
-            <MaterialCommunityIcons
-              name="domain"
-              size={14}
-              color={selectedSchoolCode === 'ALL' ? '#FFFFFF' : '#64748B'}
-            />
-            <Text
+            <TouchableOpacity
               style={[
-                styles.schoolChipText,
-                selectedSchoolCode === 'ALL' && styles.schoolChipTextActive,
+                styles.schoolChip,
+                selectedSchoolCode === 'ALL' && styles.schoolChipActive,
               ]}
+              onPress={() => setSelectedSchoolCode('ALL')}
+              activeOpacity={0.8}
             >
-              All Schools
-            </Text>
-          </TouchableOpacity>
-
-          {institutions.map((inst) => {
-            const isSelected =
-              selectedSchoolCode === inst.institutionCode ||
-              selectedSchoolCode === inst.id;
-            return (
-              <TouchableOpacity
-                key={inst.id}
-                style={[styles.schoolChip, isSelected && styles.schoolChipActive]}
-                onPress={() => setSelectedSchoolCode(inst.institutionCode)}
-                activeOpacity={0.8}
+              <MaterialCommunityIcons
+                name="domain"
+                size={14}
+                color={selectedSchoolCode === 'ALL' ? '#FFFFFF' : '#64748B'}
+              />
+              <Text
+                style={[
+                  styles.schoolChipText,
+                  selectedSchoolCode === 'ALL' && styles.schoolChipTextActive,
+                ]}
               >
-                <MaterialCommunityIcons
-                  name="school"
-                  size={14}
-                  color={isSelected ? '#FFFFFF' : '#64748B'}
-                />
-                <Text
-                  style={[
-                    styles.schoolChipText,
-                    isSelected && styles.schoolChipTextActive,
-                  ]}
-                  numberOfLines={1}
+                All Schools
+              </Text>
+            </TouchableOpacity>
+
+            {institutions.map((inst) => {
+              const isSelected =
+                selectedSchoolCode === inst.institutionCode ||
+                selectedSchoolCode === inst.id;
+              return (
+                <TouchableOpacity
+                  key={inst.id}
+                  style={[styles.schoolChip, isSelected && styles.schoolChipActive]}
+                  onPress={() => setSelectedSchoolCode(inst.institutionCode)}
+                  activeOpacity={0.8}
                 >
-                  {inst.institutionName}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </View>
+                  <MaterialCommunityIcons
+                    name="school"
+                    size={14}
+                    color={isSelected ? '#FFFFFF' : '#64748B'}
+                  />
+                  <Text
+                    style={[
+                      styles.schoolChipText,
+                      isSelected && styles.schoolChipTextActive,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {inst.institutionName}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
 
       {/* Active School Banner with Statistics */}
       <View style={styles.schoolBanner}>
@@ -362,10 +385,10 @@ export default function AdminAdmissionsScreen() {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.bannerSchoolName}>
-              {selectedSchoolObj?.institutionName || 'All Campuses Overview'}
+              {displaySchoolName}
             </Text>
             <Text style={styles.bannerSchoolCode}>
-              Code: {selectedSchoolCode === 'ALL' ? 'GLOBAL' : selectedSchoolCode}
+              {isSuperDev ? `Code: ${displaySchoolCode}` : `Campus Code: ${displaySchoolCode}`}
             </Text>
           </View>
           <View style={styles.statsCol}>
@@ -388,7 +411,7 @@ export default function AdminAdmissionsScreen() {
             { key: 'pending', label: `Pending (${pendingCount})` },
             { key: 'test_scheduled', label: `Test Scheduled (${testScheduledCount})` },
             { key: 'accepted', label: `Accepted (${acceptedCount})` },
-            { key: 'all', label: `All (${applications.length})` },
+            { key: 'all', label: `All (${visibleApplications.length})` },
           ] as const
         ).map((tab) => (
           <TouchableOpacity
