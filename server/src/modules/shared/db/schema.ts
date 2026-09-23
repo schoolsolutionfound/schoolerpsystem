@@ -407,7 +407,7 @@ export const admissions = pgTable('admissions', {
   childGender: varchar('child_gender', { length: 20 }).notNull().default('male'),
   previousSchool: text('previous_school').default(''),
   gradeApplyingFor: varchar('grade_applying_for', { length: 50 }).notNull(),
-  status: varchar('status', { length: 50 }).notNull().default('pending'), // pending | test_scheduled | accepted | rejected
+  status: varchar('status', { length: 50 }).notNull().default('pending'), // pending | test_scheduled | approved | accepted | rejected | offer_declined
   entranceTestDate: timestamp('entrance_test_date'),
   entranceTestVenue: text('entrance_test_venue').default(''),
   entranceTestInstructions: text('entrance_test_instructions').default(''),

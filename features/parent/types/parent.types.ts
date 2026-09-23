@@ -11,7 +11,7 @@ export interface AdmissionApplication {
   childGender: 'male' | 'female' | 'other';
   previousSchool?: string;
   gradeApplyingFor: string;
-  status: 'pending' | 'test_scheduled' | 'accepted' | 'rejected';
+  status: 'pending' | 'test_scheduled' | 'approved' | 'accepted' | 'rejected' | 'offer_declined';
   entranceTestDate?: string | null;
   entranceTestVenue?: string | null;
   entranceTestInstructions?: string | null;

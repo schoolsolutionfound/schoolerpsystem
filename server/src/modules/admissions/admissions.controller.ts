@@ -61,10 +61,11 @@ export class AdmissionsController {
       const { id } = request.params as any;
       const { status, entranceTestDate, entranceTestVenue, entranceTestInstructions } = request.body as any;
 
-      if (!status || !['pending', 'test_scheduled', 'accepted', 'rejected'].includes(status)) {
+      const allowedStatuses = ['pending', 'test_scheduled', 'approved', 'accepted', 'rejected', 'offer_declined'];
+      if (!status || !allowedStatuses.includes(status)) {
         return reply.status(400).send({
           success: false,
-          error: { message: 'Invalid status. Must be pending, test_scheduled, accepted, or rejected.', code: 'INVALID_STATUS' },
+          error: { message: `Invalid status. Must be one of: ${allowedStatuses.join(', ')}`, code: 'INVALID_STATUS' },
         });
       }
 

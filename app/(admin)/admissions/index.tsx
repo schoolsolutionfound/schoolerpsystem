@@ -55,7 +55,7 @@ export default function AdminAdmissionsScreen() {
 
   const [institutions, setInstitutions] = useState<Institution[]>([]);
   const [selectedSchoolCode, setSelectedSchoolCode] = useState<string>(isSuperDev ? 'ALL' : lockedSchoolCode);
-  const [statusFilter, setStatusFilter] = useState<'pending' | 'test_scheduled' | 'accepted' | 'rejected' | 'all'>('pending');
+  const [statusFilter, setStatusFilter] = useState<'pending' | 'test_scheduled' | 'approved' | 'accepted' | 'rejected' | 'offer_declined' | 'all'>('pending');
   const [applications, setApplications] = useState<ExtendedAdmissionApplication[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -112,15 +112,21 @@ export default function AdminAdmissionsScreen() {
     fetchApplications();
   }, [selectedSchoolCode, lockedSchoolCode]);
 
-  const handleStatusUpdate = async (id: string, newStatus: 'accepted' | 'rejected') => {
+  const handleStatusUpdate = async (id: string, newStatus: 'approved' | 'accepted' | 'rejected') => {
     try {
       await updateAdmissionStatusApi(id, newStatus);
       setApplications((prev) =>
         prev.map((app) => (app.id === id ? { ...app, status: newStatus } : app))
       );
       Alert.alert(
-        newStatus === 'accepted' ? 'Application Accepted' : 'Application Rejected',
-        `The application has been successfully marked as ${newStatus}.`
+        newStatus === 'approved'
+          ? '🎉 Admission Offer Extended'
+          : newStatus === 'accepted'
+          ? 'Application Accepted & Enrolled'
+          : 'Application Rejected',
+        newStatus === 'approved'
+          ? 'Admission offer has been sent to the parent. The parent can now review and accept this offer in their portal.'
+          : `The application has been successfully marked as ${newStatus}.`
       );
     } catch (error: any) {
       console.error(`Error updating application to ${newStatus}:`, error);
@@ -269,6 +275,7 @@ export default function AdminAdmissionsScreen() {
   // Counts
   const pendingCount = visibleApplications.filter((a) => a.status === 'pending').length;
   const testScheduledCount = visibleApplications.filter((a) => a.status === 'test_scheduled').length;
+  const approvedCount = visibleApplications.filter((a) => a.status === 'approved').length;
   const acceptedCount = visibleApplications.filter((a) => a.status === 'accepted').length;
 
   // Filtered applications by status
@@ -409,8 +416,9 @@ export default function AdminAdmissionsScreen() {
         {(
           [
             { key: 'pending', label: `Pending (${pendingCount})` },
-            { key: 'test_scheduled', label: `Test Scheduled (${testScheduledCount})` },
-            { key: 'accepted', label: `Accepted (${acceptedCount})` },
+            { key: 'test_scheduled', label: `Testing (${testScheduledCount})` },
+            { key: 'approved', label: `Offers (${approvedCount})` },
+            { key: 'accepted', label: `Enrolled (${acceptedCount})` },
             { key: 'all', label: `All (${visibleApplications.length})` },
           ] as const
         ).map((tab) => (
@@ -465,7 +473,9 @@ export default function AdminAdmissionsScreen() {
           renderItem={({ item }) => {
             const isPending = item.status === 'pending';
             const isTestScheduled = item.status === 'test_scheduled';
+            const isApproved = item.status === 'approved';
             const isAccepted = item.status === 'accepted';
+            const isOfferDeclined = item.status === 'offer_declined';
 
             return (
               <View style={styles.card}>
@@ -482,8 +492,12 @@ export default function AdminAdmissionsScreen() {
                       styles.statusPill,
                       isAccepted
                         ? styles.statusAccepted
+                        : isApproved
+                        ? styles.statusApproved
                         : isTestScheduled
                         ? styles.statusTestScheduled
+                        : isOfferDeclined
+                        ? styles.statusOfferDeclined
                         : isPending
                         ? styles.statusPending
                         : styles.statusRejected,
@@ -494,14 +508,18 @@ export default function AdminAdmissionsScreen() {
                         styles.statusPillText,
                         isAccepted
                           ? styles.statusAcceptedText
+                          : isApproved
+                          ? styles.statusApprovedText
                           : isTestScheduled
                           ? styles.statusTestScheduledText
+                          : isOfferDeclined
+                          ? styles.statusOfferDeclinedText
                           : isPending
                           ? styles.statusPendingText
                           : styles.statusRejectedText,
                       ]}
                     >
-                      {item.status.replace('_', ' ').toUpperCase()}
+                      {item.status === 'approved' ? 'OFFER EXTENDED' : item.status.replace('_', ' ').toUpperCase()}
                     </Text>
                   </View>
                 </View>
@@ -709,40 +727,88 @@ export default function AdminAdmissionsScreen() {
                         style={[styles.actionBtn, styles.acceptBtn]}
                         onPress={() => {
                           Alert.alert(
-                            'Accept Admission',
-                            `Accept ${item.childFullName} for ${item.gradeApplyingFor}?`,
+                            'Approve & Extend Offer',
+                            `Approve admission for ${item.childFullName} for ${item.gradeApplyingFor}?\n\nThis will send an Admission Offer to the parent. The parent can then review and accept this offer.`,
                             [
                               { text: 'Cancel', style: 'cancel' },
                               {
-                                text: 'Accept',
-                                onPress: () => handleStatusUpdate(item.id, 'accepted'),
+                                text: 'Approve & Send Offer',
+                                onPress: () => handleStatusUpdate(item.id, 'approved'),
                               },
                             ]
                           );
                         }}
                         activeOpacity={0.8}
                       >
-                        <MaterialCommunityIcons name="check" size={18} color="#10B981" />
+                        <MaterialCommunityIcons name="star-shooting-outline" size={17} color="#10B981" />
                         <Text style={[styles.actionBtnText, { color: '#10B981' }]}>
-                          Accept Admission
+                          Approve Admission
                         </Text>
                       </TouchableOpacity>
                     </View>
                   </View>
-                ) : (
-                  <View style={styles.decisionBadge}>
+                ) : isApproved ? (
+                  <View style={[styles.decisionBadge, { backgroundColor: '#F0F9FF', borderColor: '#BAE6FD' }]}>
                     <MaterialCommunityIcons
-                      name={isAccepted ? 'check-circle' : 'close-circle'}
+                      name="star-shooting-outline"
                       size={16}
-                      color={isAccepted ? '#10B981' : '#EF4444'}
+                      color="#0284C7"
                     />
                     <Text
                       style={[
                         styles.decisionText,
-                        { color: isAccepted ? '#10B981' : '#EF4444' },
+                        { color: '#0369A1' },
                       ]}
                     >
-                      Application {isAccepted ? 'Accepted & Approved' : 'Rejected'}
+                      Offer Extended (Awaiting Parent Acceptance)
+                    </Text>
+                  </View>
+                ) : isAccepted ? (
+                  <View style={[styles.decisionBadge, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
+                    <MaterialCommunityIcons
+                      name="check-decagram"
+                      size={16}
+                      color="#10B981"
+                    />
+                    <Text
+                      style={[
+                        styles.decisionText,
+                        { color: '#065F46' },
+                      ]}
+                    >
+                      Parent Accepted & Enrolled
+                    </Text>
+                  </View>
+                ) : isOfferDeclined ? (
+                  <View style={[styles.decisionBadge, { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' }]}>
+                    <MaterialCommunityIcons
+                      name="cancel"
+                      size={16}
+                      color="#64748B"
+                    />
+                    <Text
+                      style={[
+                        styles.decisionText,
+                        { color: '#64748B' },
+                      ]}
+                    >
+                      Offer Declined by Parent
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.decisionBadge}>
+                    <MaterialCommunityIcons
+                      name="close-circle"
+                      size={16}
+                      color="#EF4444"
+                    />
+                    <Text
+                      style={[
+                        styles.decisionText,
+                        { color: '#EF4444' },
+                      ]}
+                    >
+                      Application Rejected
                     </Text>
                   </View>
                 )}
@@ -1248,10 +1314,14 @@ const styles = StyleSheet.create({
   statusPendingText: { color: '#B45309', fontSize: 11, fontWeight: '800' },
   statusTestScheduled: { backgroundColor: '#EEF2FF' },
   statusTestScheduledText: { color: '#4F46E5', fontSize: 11, fontWeight: '800' },
+  statusApproved: { backgroundColor: '#E0F2FE' },
+  statusApprovedText: { color: '#0369A1', fontSize: 11, fontWeight: '800' },
   statusAccepted: { backgroundColor: '#ECFDF5' },
   statusAcceptedText: { color: '#065F46', fontSize: 11, fontWeight: '800' },
   statusRejected: { backgroundColor: '#FEF2F2' },
   statusRejectedText: { color: '#B91C1C', fontSize: 11, fontWeight: '800' },
+  statusOfferDeclined: { backgroundColor: '#F1F5F9' },
+  statusOfferDeclinedText: { color: '#64748B', fontSize: 11, fontWeight: '800' },
 
   schoolTagRow: {
     flexDirection: 'row',

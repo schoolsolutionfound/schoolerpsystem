@@ -1,6 +1,6 @@
 import { db } from '../shared/db/index.js';
 import * as schema from '../shared/db/schema.js';
-import { eq, desc, or, inArray } from 'drizzle-orm';
+import { eq, desc, or, inArray, and, ne } from 'drizzle-orm';
 import { admin } from '../shared/config/firebase.js';
 
 function newAdmId(): string {
@@ -252,6 +252,37 @@ export class AdmissionsService {
         } catch (fErr) {
           console.warn('[AdmissionsService] Firestore sync error:', fErr);
         }
+      }
+
+      // 4. Auto-decline competing offers from other schools for this student
+      try {
+        const otherAdmissions = await db
+          .select()
+          .from(schema.admissions)
+          .where(
+            and(
+              or(
+                eq(schema.admissions.parentId, adm.parentId),
+                adm.parentEmail ? eq(schema.admissions.parentEmail, adm.parentEmail) : eq(schema.admissions.parentId, adm.parentId)
+              ),
+              eq(schema.admissions.childFullName, adm.childFullName),
+              ne(schema.admissions.id, adm.id)
+            )
+          );
+
+        for (const other of otherAdmissions) {
+          if (other.status === 'approved' || other.status === 'pending' || other.status === 'test_scheduled') {
+            await db
+              .update(schema.admissions)
+              .set({
+                status: 'offer_declined',
+                updatedAt: new Date(),
+              })
+              .where(eq(schema.admissions.id, other.id));
+          }
+        }
+      } catch (autoDeclineErr) {
+        console.warn('[AdmissionsService] Error auto-declining competing admissions:', autoDeclineErr);
       }
     } catch (err) {
       console.error('[AdmissionsService] Error in handleAdmissionAccepted:', err);

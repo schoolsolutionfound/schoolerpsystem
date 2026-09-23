@@ -47,7 +47,7 @@ export async function createAdmissionApi(
 }
 
 export interface UpdateAdmissionStatusOptions {
-  status: 'accepted' | 'rejected' | 'pending' | 'test_scheduled';
+  status: 'accepted' | 'rejected' | 'pending' | 'test_scheduled' | 'approved' | 'offer_declined';
   entranceTestDate?: string | null;
   entranceTestVenue?: string;
   entranceTestInstructions?: string;
@@ -55,7 +55,7 @@ export interface UpdateAdmissionStatusOptions {
 
 export async function updateAdmissionStatusApi(
   id: string,
-  statusOrOptions: 'accepted' | 'rejected' | 'pending' | 'test_scheduled' | UpdateAdmissionStatusOptions
+  statusOrOptions: 'accepted' | 'rejected' | 'pending' | 'test_scheduled' | 'approved' | 'offer_declined' | UpdateAdmissionStatusOptions
 ): Promise<ExtendedAdmissionApplication> {
   const payload = typeof statusOrOptions === 'string' ? { status: statusOrOptions } : statusOrOptions;
   const data = await apiClient<ExtendedAdmissionApplication>(
