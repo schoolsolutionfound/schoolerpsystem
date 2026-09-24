@@ -1,4 +1,5 @@
 import { pgTable, text, timestamp, boolean, varchar, jsonb, integer, numeric, date, index, uniqueIndex } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 export const institutions = pgTable('institutions', {
   id: text('id')
@@ -392,3 +393,239 @@ export const feePayments = pgTable('fee_payments', {
 
 export type FeePaymentRecord = typeof feePayments.$inferSelect;
 export type NewFeePaymentRecord = typeof feePayments.$inferInsert;
+
+// ============================================================================
+// LIBRARY MODULE SCHEMAS
+// ============================================================================
+
+export const libraryCategories = pgTable('library_categories', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('lib_cat')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  name: varchar('name', { length: 200 }).notNull(),
+  description: text('description').default(''),
+  parentId: text('parent_id'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  instCodeIdx: index('idx_lib_categories_inst').on(table.institutionCode),
+  nameUnique: uniqueIndex('uq_lib_categories_inst_name').on(table.institutionCode, table.name),
+}));
+
+export type LibraryCategoryRecord = typeof libraryCategories.$inferSelect;
+export type NewLibraryCategoryRecord = typeof libraryCategories.$inferInsert;
+
+export const libraryAuthors = pgTable('library_authors', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('lib_auth')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  name: varchar('name', { length: 200 }).notNull(),
+  bio: text('bio').default(''),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  instCodeIdx: index('idx_lib_authors_inst').on(table.institutionCode),
+  nameIdx: index('idx_lib_authors_name').on(table.name),
+}));
+
+export type LibraryAuthorRecord = typeof libraryAuthors.$inferSelect;
+export type NewLibraryAuthorRecord = typeof libraryAuthors.$inferInsert;
+
+export const libraryBooks = pgTable('library_books', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('lib_bk')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  title: text('title').notNull(),
+  isbn: varchar('isbn', { length: 100 }).notNull(),
+  publisher: varchar('publisher', { length: 200 }).default(''),
+  edition: varchar('edition', { length: 100 }).default(''),
+  publicationYear: integer('publication_year'),
+  language: varchar('language', { length: 50 }).notNull().default('English'),
+  categoryId: text('category_id').notNull(),
+  subject: varchar('subject', { length: 200 }).default(''),
+  description: text('description').default(''),
+  bookType: varchar('book_type', { length: 50 }).notNull().default('TEXTBOOK'),
+  coverImage: text('cover_image').default(''),
+  keywords: jsonb('keywords').$type<string[]>().default([]),
+  authorIds: jsonb('author_ids').$type<string[]>().default([]),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  instCodeIdx: index('idx_lib_books_inst').on(table.institutionCode),
+  categoryIdx: index('idx_lib_books_category').on(table.categoryId),
+  isbnIdx: index('idx_lib_books_isbn').on(table.isbn),
+  isbnUnique: uniqueIndex('uq_lib_books_inst_isbn').on(table.institutionCode, table.isbn),
+}));
+
+export type LibraryBookRecord = typeof libraryBooks.$inferSelect;
+export type NewLibraryBookRecord = typeof libraryBooks.$inferInsert;
+
+export const libraryBookCopies = pgTable('library_book_copies', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('lib_cpy')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  bookId: text('book_id').notNull(),
+  accessionNumber: varchar('accession_number', { length: 100 }).notNull(),
+  barcode: varchar('barcode', { length: 100 }).notNull(),
+  rack: varchar('rack', { length: 100 }).default('Rack A'),
+  shelf: varchar('shelf', { length: 100 }).default('Shelf 1'),
+  status: varchar('status', { length: 50 }).notNull().default('AVAILABLE'),
+  condition: varchar('condition', { length: 50 }).notNull().default('GOOD'),
+  addedAt: date('added_at').defaultNow(),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  instCodeIdx: index('idx_lib_copies_inst').on(table.institutionCode),
+  bookIdx: index('idx_lib_copies_book').on(table.bookId),
+  statusIdx: index('idx_lib_copies_status').on(table.status),
+  accessionUnique: uniqueIndex('uq_lib_copies_inst_accession').on(table.institutionCode, table.accessionNumber),
+  barcodeUnique: uniqueIndex('uq_lib_copies_inst_barcode').on(table.institutionCode, table.barcode),
+}));
+
+export type LibraryBookCopyRecord = typeof libraryBookCopies.$inferSelect;
+export type NewLibraryBookCopyRecord = typeof libraryBookCopies.$inferInsert;
+
+export const libraryLoans = pgTable('library_loans', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('lib_ln')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  copyId: text('copy_id').notNull(),
+  bookId: text('book_id').notNull(),
+  studentId: text('student_id').notNull(),
+  issuedBy: text('issued_by').notNull(),
+  issueDate: date('issue_date').notNull(),
+  dueDate: date('due_date').notNull(),
+  returnDate: date('return_date'),
+  status: varchar('status', { length: 50 }).notNull().default('ACTIVE'),
+  renewalCount: integer('renewal_count').notNull().default(0),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  instCodeIdx: index('idx_lib_loans_inst').on(table.institutionCode),
+  copyIdx: index('idx_lib_loans_copy').on(table.copyId),
+  bookIdx: index('idx_lib_loans_book').on(table.bookId),
+  studentIdx: index('idx_lib_loans_student').on(table.studentId),
+  statusIdx: index('idx_lib_loans_status').on(table.status),
+  activeCopyLoanUnique: uniqueIndex('uq_lib_loans_active_copy')
+    .on(table.copyId)
+    .where(sql`status IN ('ACTIVE', 'OVERDUE')`),
+}));
+
+export type LibraryLoanRecord = typeof libraryLoans.$inferSelect;
+export type NewLibraryLoanRecord = typeof libraryLoans.$inferInsert;
+
+export const libraryReservations = pgTable('library_reservations', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('lib_res')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  bookId: text('book_id').notNull(),
+  studentId: text('student_id').notNull(),
+  status: varchar('status', { length: 50 }).notNull().default('WAITING'),
+  reservedAt: timestamp('reserved_at').defaultNow(),
+  expiresAt: timestamp('expires_at'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  instCodeIdx: index('idx_lib_res_inst').on(table.institutionCode),
+  bookIdx: index('idx_lib_res_book').on(table.bookId),
+  studentIdx: index('idx_lib_res_student').on(table.studentId),
+  statusIdx: index('idx_lib_res_status').on(table.status),
+}));
+
+export type LibraryReservationRecord = typeof libraryReservations.$inferSelect;
+export type NewLibraryReservationRecord = typeof libraryReservations.$inferInsert;
+
+export const libraryFines = pgTable('library_fines', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('lib_fn')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  loanId: text('loan_id'),
+  bookCopyId: text('book_copy_id'),
+  studentId: text('student_id').notNull(),
+  fineType: varchar('fine_type', { length: 50 }).notNull(),
+  damageType: varchar('damage_type', { length: 50 }),
+  damageNotes: text('damage_notes').default(''),
+  amount: numeric('amount', { precision: 10, scale: 2 }).notNull(),
+  paidAmount: numeric('paid_amount', { precision: 10, scale: 2 }).notNull().default('0.00'),
+  status: varchar('status', { length: 50 }).notNull().default('UNPAID'),
+  waivedBy: text('waived_by'),
+  waivedReason: text('waived_reason').default(''),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  instCodeIdx: index('idx_lib_fines_inst').on(table.institutionCode),
+  studentIdx: index('idx_lib_fines_student').on(table.studentId),
+  loanIdx: index('idx_lib_fines_loan').on(table.loanId),
+  statusIdx: index('idx_lib_fines_status').on(table.status),
+}));
+
+export type LibraryFineRecord = typeof libraryFines.$inferSelect;
+export type NewLibraryFineRecord = typeof libraryFines.$inferInsert;
+
+export const libraryPaymentTransactions = pgTable('library_payment_transactions', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('lib_txn')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  fineId: text('fine_id').notNull(),
+  receiptNo: varchar('receipt_no', { length: 100 }).notNull(),
+  amount: numeric('amount', { precision: 10, scale: 2 }).notNull(),
+  paymentMethod: varchar('payment_method', { length: 50 }).notNull(),
+  cashTendered: numeric('cash_tendered', { precision: 10, scale: 2 }),
+  changeReturned: numeric('change_returned', { precision: 10, scale: 2 }),
+  transactionRef: text('transaction_ref').default(''),
+  scannedQrPayload: text('scanned_qr_payload').default(''),
+  paidAt: timestamp('paid_at').defaultNow(),
+  cashier: text('cashier').default(''),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  instCodeIdx: index('idx_lib_txns_inst').on(table.institutionCode),
+  fineIdx: index('idx_lib_txns_fine').on(table.fineId),
+  receiptUnique: uniqueIndex('uq_lib_txns_receipt').on(table.institutionCode, table.receiptNo),
+}));
+
+export type LibraryPaymentTransactionRecord = typeof libraryPaymentTransactions.$inferSelect;
+export type NewLibraryPaymentTransactionRecord = typeof libraryPaymentTransactions.$inferInsert;
+
+export const libraryQuestionPapers = pgTable('library_question_papers', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('lib_pyq')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  title: text('title').notNull(),
+  subject: varchar('subject', { length: 200 }).notNull(),
+  academicYear: varchar('academic_year', { length: 50 }).notNull(),
+  examType: varchar('exam_type', { length: 50 }).notNull(),
+  classGrade: varchar('class_grade', { length: 50 }).notNull(),
+  totalMarks: integer('total_marks').notNull().default(100),
+  durationMinutes: integer('duration_minutes').notNull().default(180),
+  fileUrl: text('file_url').default(''),
+  downloadsCount: integer('downloads_count').notNull().default(0),
+  uploadedBy: text('uploaded_by').notNull(),
+  uploadedAt: timestamp('uploaded_at').defaultNow(),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  instCodeIdx: index('idx_lib_pyq_inst').on(table.institutionCode),
+  subjectIdx: index('idx_lib_pyq_subject').on(table.subject),
+  academicYearIdx: index('idx_lib_pyq_year').on(table.academicYear),
+  classGradeIdx: index('idx_lib_pyq_class').on(table.classGrade),
+}));
+
+export type LibraryQuestionPaperRecord = typeof libraryQuestionPapers.$inferSelect;
+export type NewLibraryQuestionPaperRecord = typeof libraryQuestionPapers.$inferInsert;
+
+export const librarySettings = pgTable('library_settings', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('lib_set')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  borrowingLimit: integer('borrowing_limit').notNull().default(3),
+  loanPeriodDays: integer('loan_period_days').notNull().default(14),
+  gracePeriodDays: integer('grace_period_days').notNull().default(2),
+  finePerDay: numeric('fine_per_day', { precision: 8, scale: 2 }).notNull().default('1.00'),
+  maxFine: numeric('max_fine', { precision: 8, scale: 2 }).notNull().default('100.00'),
+  renewalLimit: integer('renewal_limit').notNull().default(2),
+  allowReservation: boolean('allow_reservation').notNull().default(true),
+  lostBookPenalty: numeric('lost_book_penalty', { precision: 8, scale: 2 }).notNull().default('50.00'),
+  damagedBookPenalty: numeric('damaged_book_penalty', { precision: 8, scale: 2 }).notNull().default('25.00'),
+  reservationExpiryDays: integer('reservation_expiry_days').notNull().default(7),
+  unpaidFineLockThreshold: numeric('unpaid_fine_lock_threshold', { precision: 8, scale: 2 }).notNull().default('20.00'),
+  openingHours: varchar('opening_hours', { length: 50 }).default('08:00 AM'),
+  closingHours: varchar('closing_hours', { length: 50 }).default('06:00 PM'),
+  openOnWeekends: boolean('open_on_weekends').notNull().default(true),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  instUnique: uniqueIndex('uq_lib_settings_inst').on(table.institutionCode),
+}));
+
+export type LibrarySettingsRecord = typeof librarySettings.$inferSelect;
+export type NewLibrarySettingsRecord = typeof librarySettings.$inferInsert;

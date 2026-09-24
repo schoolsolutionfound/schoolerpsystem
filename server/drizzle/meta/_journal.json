@@ -8,6 +8,13 @@
       "when": 1784787489689,
       "tag": "0000_same_warhawk",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1784788000000,
+      "tag": "0002_add_library_tables",
+      "breakpoints": true
     }
   ]
-}
+}
