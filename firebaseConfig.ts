@@ -4,16 +4,22 @@ import { getFirestore, initializeFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getAnalytics, isSupported, logEvent } from "firebase/analytics";
 
-const VALID_API_KEY = "AIzaSyAcEE-UveuoG4Fgy48AE20q1a38aQmkqDY";
+const apiKey = process.env.EXPO_PUBLIC_FIREBASE_API_KEY;
+
+if (!apiKey && __DEV__) {
+  console.warn(
+    "[FirebaseConfig] EXPO_PUBLIC_FIREBASE_API_KEY is not defined. Please check your .env configuration."
+  );
+}
 
 const firebaseConfig = {
-  apiKey: VALID_API_KEY,
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || "school-erp-app-dec82.firebaseapp.com",
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || "school-erp-app-dec82",
-  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || "school-erp-app-dec82.firebasestorage.app",
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "321397563029",
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || "1:321397563029:web:314a5bba3887c5c266459c",
-  measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID || "G-Q250F7HT2P",
+  apiKey: apiKey,
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
 let app: any;
@@ -21,7 +27,7 @@ try {
   const { getApps, getApp } = require("firebase/app");
   if (getApps().length > 0) {
     app = getApp();
-    if (app.options) app.options.apiKey = VALID_API_KEY;
+    if (app.options && apiKey) app.options.apiKey = apiKey;
   } else {
     app = initializeApp(firebaseConfig);
   }
@@ -53,8 +59,8 @@ try {
   auth = getAuth(app);
 }
 
-if (auth && auth.config) {
-  auth.config.apiKey = VALID_API_KEY;
+if (auth && auth.config && apiKey) {
+  auth.config.apiKey = apiKey;
 }
 
 let db: any;
