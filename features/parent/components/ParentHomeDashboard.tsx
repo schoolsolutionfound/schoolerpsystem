@@ -46,16 +46,16 @@ export const ParentHomeDashboard: React.FC<ParentHomeDashboardProps> = ({
       </View>
 
       {/* Announcements — same style as student */}
-      <View style={styles.announcementCard}>
+      <TouchableOpacity style={styles.announcementCard} activeOpacity={0.8} onPress={() => onTabSwitch('announcements')}>
         <View style={styles.announcementIconWrap}>
           <MaterialCommunityIcons name="bullhorn-outline" size={24} color="#1A1B1C" />
         </View>
         <View style={styles.announcementContent}>
           <Text style={styles.announcementTitle}>Announcements</Text>
-          <Text style={styles.announcementBody}>No announcements yet.</Text>
+          <Text style={styles.announcementBody}>Tap to view school announcements</Text>
           <Text style={styles.announcementSub}>School announcements will appear here.</Text>
         </View>
-      </View>
+      </TouchableOpacity>
 
       {/* What You Can Do — stacked list */}
       <Text style={styles.sectionTitle}>What You Can Do</Text>

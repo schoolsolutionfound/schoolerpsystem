@@ -8,11 +8,13 @@ import { DriverHomeHeader } from '../../features/driver/components/DriverHomeHea
 import { DriverDrawer } from '../../features/driver/components/DriverDrawer';
 import { DriverTripsView } from '../../features/driver/components/DriverTripsView';
 import { FontFamily } from '../../constants/fonts';
+import { UserAnnouncementFeedView } from '../../features/announcements';
 
-type Tab = 'trips' | 'profile';
+type Tab = 'trips' | 'announcements' | 'profile';
 
 const TABS: { key: Tab; label: string; icon: string; iconFilled: string }[] = [
   { key: 'trips', label: 'My Trips', icon: 'bus-clock-outline', iconFilled: 'bus-clock' },
+  { key: 'announcements', label: 'Announcements', icon: 'bullhorn-outline', iconFilled: 'bullhorn' },
   { key: 'profile', label: 'Profile', icon: 'account-outline', iconFilled: 'account' },
 ];
 
@@ -54,6 +56,8 @@ export default function DriverHomeScreen() {
             <DriverTripsView />
           </ScrollView>
         );
+      case 'announcements':
+        return <UserAnnouncementFeedView />;
       case 'profile':
         return (
           <ScrollView

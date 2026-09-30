@@ -4,9 +4,23 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
 import { FontFamily } from '../../../constants/fonts';
 
-export const TeacherHomeAnnouncements: React.FC = () => {
+import { TouchableOpacity } from 'react-native';
+
+interface TeacherHomeAnnouncementsProps {
+  onPressFeed?: () => void;
+  onPressManage?: () => void;
+}
+
+export const TeacherHomeAnnouncements: React.FC<TeacherHomeAnnouncementsProps> = ({
+  onPressFeed,
+  onPressManage,
+}) => {
   return (
-    <View style={styles.card}>
+    <TouchableOpacity
+      style={styles.card}
+      activeOpacity={0.8}
+      onPress={onPressFeed || onPressManage}
+    >
       <View style={styles.iconWrap}>
         <MaterialCommunityIcons name="bullhorn-outline" size={22} color="#1A1B1C" />
       </View>
@@ -14,14 +28,24 @@ export const TeacherHomeAnnouncements: React.FC = () => {
       <View style={styles.content}>
         <View style={styles.topRow}>
           <Text style={styles.title}>Announcements</Text>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>0</Text>
-          </View>
+          {onPressManage ? (
+            <TouchableOpacity
+              style={styles.manageBadge}
+              onPress={onPressManage}
+              hitSlop={6}
+            >
+              <Text style={styles.manageBadgeText}>Manage</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>View</Text>
+            </View>
+          )}
         </View>
-        <Text style={styles.body}>No announcements yet.</Text>
-        <Text style={styles.sub}>School updates will appear here.</Text>
+        <Text style={styles.body}>View announcements or post updates</Text>
+        <Text style={styles.sub}>School & class updates appear here</Text>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 };
 
@@ -54,6 +78,13 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   badgeText: { fontSize: 10, fontWeight: '700', color: '#D4A418' },
+  manageBadge: {
+    backgroundColor: '#171717',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  manageBadgeText: { fontSize: 10, fontWeight: '700', color: '#F4C430' },
   body: { fontSize: 12, color: '#6B6B6B', fontWeight: '600' },
   sub: { fontSize: 11, color: '#6B6B6B' },
 });

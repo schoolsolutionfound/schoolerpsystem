@@ -629,3 +629,68 @@ export const librarySettings = pgTable('library_settings', {
 
 export type LibrarySettingsRecord = typeof librarySettings.$inferSelect;
 export type NewLibrarySettingsRecord = typeof librarySettings.$inferInsert;
+
+// ============================================================================
+// ANNOUNCEMENT MODULE SCHEMAS
+// ============================================================================
+
+export const announcements = pgTable('announcements', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('ann')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  title: varchar('title', { length: 300 }).notNull(),
+  content: text('content').notNull(),
+  type: varchar('type', { length: 50 }).notNull().default('GENERAL'), // GENERAL | ACADEMIC | EVENT | URGENT | NOTICE
+  priority: varchar('priority', { length: 20 }).notNull().default('NORMAL'), // LOW | NORMAL | HIGH | URGENT
+  status: varchar('status', { length: 20 }).notNull().default('DRAFT'), // DRAFT | SCHEDULED | PUBLISHED | EXPIRED | CANCELLED
+  createdBy: text('created_by').notNull(),
+  publishAt: timestamp('publish_at').defaultNow(),
+  expiresAt: timestamp('expires_at'),
+  imageUrl: text('image_url').default(''),
+  attachmentUrl: text('attachment_url').default(''),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  instCodeIdx: index('idx_announcements_institution_code').on(table.institutionCode),
+  statusIdx: index('idx_announcements_status').on(table.status),
+  typeIdx: index('idx_announcements_type').on(table.type),
+  priorityIdx: index('idx_announcements_priority').on(table.priority),
+  createdByIdx: index('idx_announcements_created_by').on(table.createdBy),
+  publishAtIdx: index('idx_announcements_publish_at').on(table.publishAt),
+  expiresAtIdx: index('idx_announcements_expires_at').on(table.expiresAt),
+}));
+
+export type AnnouncementRecord = typeof announcements.$inferSelect;
+export type NewAnnouncementRecord = typeof announcements.$inferInsert;
+
+export const announcementTargets = pgTable('announcement_targets', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('at')),
+  announcementId: text('announcement_id').notNull(),
+  targetType: varchar('target_type', { length: 50 }).notNull().default('all'), // all | role | class | section
+  targetRole: varchar('target_role', { length: 50 }).default(''), // all | student | teacher | parent | staff
+  classId: text('class_id').default(''),
+  sectionId: text('section_id').default(''),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  announcementIdx: index('idx_announcement_targets_announcement_id').on(table.announcementId),
+  targetRoleIdx: index('idx_announcement_targets_target_role').on(table.targetRole),
+  classIdx: index('idx_announcement_targets_class_id').on(table.classId),
+  sectionIdx: index('idx_announcement_targets_section_id').on(table.sectionId),
+}));
+
+export type AnnouncementTargetRecord = typeof announcementTargets.$inferSelect;
+export type NewAnnouncementTargetRecord = typeof announcementTargets.$inferInsert;
+
+export const announcementReads = pgTable('announcement_reads', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('ar')),
+  announcementId: text('announcement_id').notNull(),
+  userId: text('user_id').notNull(),
+  readAt: timestamp('read_at').defaultNow(),
+}, (table) => ({
+  announcementIdx: index('idx_announcement_reads_announcement_id').on(table.announcementId),
+  userIdx: index('idx_announcement_reads_user_id').on(table.userId),
+  annUserUnique: uniqueIndex('uq_announcement_reads_ann_user').on(table.announcementId, table.userId),
+}));
+
+export type AnnouncementReadRecord = typeof announcementReads.$inferSelect;
+export type NewAnnouncementReadRecord = typeof announcementReads.$inferInsert;
+

@@ -13,8 +13,9 @@ import { ParentHomeworkView } from '../../features/parent/components/ParentHomew
 import { ParentTrackView } from '../../features/parent/components/ParentTrackView';
 import { ParentDrawer } from '../../features/parent/components/ParentDrawer';
 import { FontFamily } from '../../constants/fonts';
+import { UserAnnouncementFeedView } from '../../features/announcements';
 
-type Tab = 'home' | 'fees' | 'track' | 'attendance' | 'marks' | 'homework';
+type Tab = 'home' | 'fees' | 'track' | 'attendance' | 'marks' | 'homework' | 'announcements';
 
 const TABS: { key: Tab; label: string; icon: string; iconFilled: string }[] = [
   { key: 'home', label: 'Home', icon: 'home-outline', iconFilled: 'home' },
@@ -133,6 +134,8 @@ export default function ParentHomeScreen() {
             />
           </ScrollView>
         );
+      case 'announcements':
+        return <UserAnnouncementFeedView />;
       case 'attendance':
         return <ParentAttendanceView />;
       case 'fees':

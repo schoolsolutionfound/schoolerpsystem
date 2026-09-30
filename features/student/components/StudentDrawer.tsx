@@ -33,6 +33,7 @@ interface StudentDrawerProps {
 
 const PRIMARY = [
   { key: 'home', label: 'Home', icon: 'home-outline', iconFilled: 'home', route: '/(student)/home' },
+  { key: 'announcements', label: 'Announcements', icon: 'bullhorn-outline', iconFilled: 'bullhorn', tab: 'announcements' as const },
   { key: 'attendance', label: 'Attendance', icon: 'book-outline', iconFilled: 'book', tab: 'attendance' as const },
   { key: 'homework', label: 'Homework', icon: 'book-plus-outline', iconFilled: 'book-plus', tab: 'homework' as const },
   { key: 'bus', label: 'Bus Tracking', icon: 'bus', iconFilled: 'bus', tab: 'bus' as const },

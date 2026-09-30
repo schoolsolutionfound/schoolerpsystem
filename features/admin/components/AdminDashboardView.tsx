@@ -17,7 +17,7 @@ export interface AdminDashboardStats {
   attendanceSessions: number;
 }
 
-type AdminTab = 'dashboard' | 'institution' | 'students' | 'teachers' | 'users' | 'academics' | 'timetable' | 'attendance' | 'profile';
+type AdminTab = 'dashboard' | 'institution' | 'students' | 'teachers' | 'users' | 'academics' | 'timetable' | 'attendance' | 'announcements' | 'profile';
 
 interface AdminDashboardViewProps {
   fullName: string;
@@ -41,6 +41,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ fullName
   const modules: { key: AdminTab; icon: keyof typeof MaterialCommunityIcons.glyphMap; name: string; count: string; accent: string; bg: string }[] = [
     { key: 'students', icon: 'account-school', name: 'Students', count: `${stats?.students ?? 0} enrolled`, accent: '#F4C430', bg: '#FFF8E1' },
     { key: 'teachers', icon: 'human-male-board', name: 'Teachers', count: `${stats?.teachers ?? 0} faculty`, accent: '#16A34A', bg: '#ECFDF5' },
+    { key: 'announcements', icon: 'bullhorn-outline', name: 'Announcements', count: 'Post & manage', accent: '#F4C430', bg: '#FFF8E1' },
     { key: 'users', icon: 'account-group', name: 'Users', count: `${stats?.totalUsers ?? 0} accounts`, accent: '#DB2777', bg: '#FDF2F8' },
     { key: 'academics', icon: 'school', name: 'Academics', count: `${stats?.classSections ?? 0} classes`, accent: '#6366F1', bg: '#EEF2FF' },
     { key: 'timetable', icon: 'timetable', name: 'Timetable', count: 'Weekly schedule', accent: '#D97706', bg: '#FFFBEB' },

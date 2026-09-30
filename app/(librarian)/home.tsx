@@ -66,6 +66,7 @@ import { PYQsView, UploadPYQModal, PDFPreviewModal } from '../../features/librar
 import { ReportsView } from '../../features/librarian/components/reports/ReportsView';
 import { SettingsView } from '../../features/librarian/components/settings/SettingsView';
 import { LibrarianProfileView as ProfileView } from '../../features/librarian/components/profile/LibrarianProfileView';
+import { UserAnnouncementFeedView } from '../../features/announcements';
 
 export default function LibrarianHomeScreen() {
   const router = useRouter();
@@ -241,6 +242,10 @@ export default function LibrarianHomeScreen() {
             />
 
             <View style={styles.tabContentArea}>
+              {activeTab === 'announcements' && (
+                <UserAnnouncementFeedView />
+              )}
+
               {activeTab === 'dashboard' && (
                 <LibrarianDashboardView
                   books={books}

@@ -4,6 +4,7 @@ import { MaterialCommunityIcons } from '../common/Icons';
 
 export const NAV_ITEMS = [
   { key: 'dashboard', label: 'Dashboard', icon: 'view-dashboard-outline' },
+  { key: 'announcements', label: 'Announcements', icon: 'bullhorn-outline' },
   { key: 'books', label: 'Book Entry', icon: 'book-open-outline' },
   { key: 'issue', label: 'Issue / Return', icon: 'swap-horizontal' },
   { key: 'categories', label: 'Book Categories', icon: 'tag-outline' },

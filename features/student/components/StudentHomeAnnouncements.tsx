@@ -3,9 +3,15 @@ import { View, StyleSheet, Text } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
 
-export const StudentHomeAnnouncements: React.FC = () => {
+import { TouchableOpacity } from 'react-native';
+
+interface StudentHomeAnnouncementsProps {
+  onPress?: () => void;
+}
+
+export const StudentHomeAnnouncements: React.FC<StudentHomeAnnouncementsProps> = ({ onPress }) => {
   return (
-    <View style={styles.announcementCard}>
+    <TouchableOpacity style={styles.announcementCard} activeOpacity={0.8} onPress={onPress}>
       <View style={styles.announcementIconWrap}>
         <MaterialCommunityIcons name="bullhorn-outline" size={24} color="#1A1B1C" />
       </View>
@@ -14,10 +20,10 @@ export const StudentHomeAnnouncements: React.FC = () => {
         <View style={styles.announcementTop}>
           <Text style={styles.announcementTitle}>Announcements</Text>
         </View>
-        <Text style={styles.announcementBody}>No announcements yet.</Text>
-        <Text style={styles.announcementSub}>School announcements will appear here.</Text>
+        <Text style={styles.announcementBody}>Tap to view school announcements</Text>
+        <Text style={styles.announcementSub}>School & class updates appear here</Text>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 };
 

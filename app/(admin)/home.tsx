@@ -42,6 +42,7 @@ import { AdminProfileView } from '../../features/admin/components/AdminProfileVi
 import { AdminAcademicsView } from '../../features/admin/components/AdminAcademicsView';
 import { AdminHeader } from '../../features/admin/components/AdminHeader';
 import { AdminDrawer } from '../../features/admin/components/AdminDrawer';
+import { AdminAnnouncementsView } from '../../features/announcements';
 
 const TABS: { key: 'dashboard' | 'institution' | 'students' | 'teachers' | 'profile'; label: string; icon: string; iconFilled: string }[] = [
   { key: 'dashboard', label: 'Dashboard', icon: 'view-dashboard-outline', iconFilled: 'view-dashboard' },
@@ -74,7 +75,7 @@ export default function AdminHomeScreen() {
     };
   };
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'institution' | 'students' | 'teachers' | 'users' | 'academics' | 'timetable' | 'attendance' | 'profile'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'institution' | 'students' | 'teachers' | 'users' | 'academics' | 'timetable' | 'attendance' | 'announcements' | 'profile'>('dashboard');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -342,6 +343,10 @@ export default function AdminHomeScreen() {
                 blockedDates={config.blockedDates || []}
                 onDataChange={loadAllData}
               />
+            )}
+
+            {activeTab === 'announcements' && (
+              <AdminAnnouncementsView />
             )}
 
             {activeTab === 'profile' && (

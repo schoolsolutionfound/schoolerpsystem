@@ -28,11 +28,13 @@ interface TeacherDrawerProps {
   profilePic?: string;
   institutionName?: string;
   activeTab?: string;
-  onTabSwitch?: (tab: 'home' | 'schedule' | 'attendance' | 'marks' | 'reports' | 'homework' | 'chat' | 'locate' | 'profile') => void;
+  onTabSwitch?: (tab: 'home' | 'schedule' | 'attendance' | 'marks' | 'reports' | 'homework' | 'chat' | 'locate' | 'announcements' | 'announcements-manage' | 'profile') => void;
 }
 
 const PRIMARY = [
   { key: 'home', label: 'Home', icon: 'home-outline', iconFilled: 'home' },
+  { key: 'announcements', label: 'Announcements Feed', icon: 'bullhorn-outline', iconFilled: 'bullhorn', tab: 'announcements' as const },
+  { key: 'announcements-manage', label: 'Manage Announcements', icon: 'bullhorn-edit-outline', iconFilled: 'bullhorn-edit', tab: 'announcements-manage' as const },
   { key: 'schedule', label: 'My Schedule', icon: 'calendar-outline', iconFilled: 'calendar', tab: 'schedule' as const },
   { key: 'attendance', label: 'Mark Attendance', icon: 'clipboard-check-outline', iconFilled: 'clipboard-check', tab: 'attendance' as const },
   { key: 'marks', label: 'Marks & Grades', icon: 'certificate-outline', iconFilled: 'certificate', tab: 'marks' as const },
@@ -108,7 +110,7 @@ export const TeacherDrawer: React.FC<TeacherDrawerProps> = ({
     setTimeout(() => router.push(route as any), 120);
   };
 
-  const switchTabAndClose = (tab: 'home' | 'schedule' | 'attendance' | 'marks' | 'reports' | 'homework' | 'chat' | 'locate' | 'profile') => {
+  const switchTabAndClose = (tab: 'home' | 'schedule' | 'attendance' | 'marks' | 'reports' | 'homework' | 'chat' | 'locate' | 'announcements' | 'announcements-manage' | 'profile') => {
     if (onTabSwitch) {
       onTabSwitch(tab);
     } else {

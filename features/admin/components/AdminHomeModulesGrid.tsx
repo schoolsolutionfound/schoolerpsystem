@@ -3,12 +3,16 @@ import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
 
-export const AdminHomeModulesGrid: React.FC = () => {
+interface AdminHomeModulesGridProps {
+  onSelectModule?: (module: string) => void;
+}
+
+export const AdminHomeModulesGrid: React.FC<AdminHomeModulesGridProps> = ({ onSelectModule }) => {
   return (
     <View style={styles.container}>
       <Text style={styles.sectionTitle}>Management Modules</Text>
       <View style={styles.modulesGrid}>
-        <TouchableOpacity style={styles.moduleItem} activeOpacity={0.8}>
+        <TouchableOpacity style={styles.moduleItem} activeOpacity={0.8} onPress={() => onSelectModule?.('students')}>
           <View style={[styles.moduleIconBox, { backgroundColor: '#FFF4C7' }]}>
             <MaterialCommunityIcons name="account-group" size={26} color="#F4C430" />
           </View>
@@ -16,7 +20,7 @@ export const AdminHomeModulesGrid: React.FC = () => {
           <Text style={styles.moduleCount}>1,240 Total</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.moduleItem} activeOpacity={0.8}>
+        <TouchableOpacity style={styles.moduleItem} activeOpacity={0.8} onPress={() => onSelectModule?.('teachers')}>
           <View style={[styles.moduleIconBox, { backgroundColor: '#DCFCE7' }]}>
             <MaterialCommunityIcons name="account-tie" size={26} color="#16A34A" />
           </View>
@@ -32,7 +36,7 @@ export const AdminHomeModulesGrid: React.FC = () => {
           <Text style={styles.moduleCount}>Structure & Receipts</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.moduleItem} activeOpacity={0.8}>
+        <TouchableOpacity style={styles.moduleItem} activeOpacity={0.8} onPress={() => onSelectModule?.('academics')}>
           <View style={[styles.moduleIconBox, { backgroundColor: '#FFFDF7' }]}>
             <MaterialCommunityIcons name="calendar-check" size={26} color="#171717" />
           </View>
@@ -48,7 +52,7 @@ export const AdminHomeModulesGrid: React.FC = () => {
           <Text style={styles.moduleCount}>Term Exams</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.moduleItem} activeOpacity={0.8}>
+        <TouchableOpacity style={styles.moduleItem} activeOpacity={0.8} onPress={() => onSelectModule?.('announcements')}>
           <View style={[styles.moduleIconBox, { backgroundColor: '#FFF4C7' }]}>
             <MaterialCommunityIcons name="bullhorn-outline" size={26} color="#F4C430" />
           </View>

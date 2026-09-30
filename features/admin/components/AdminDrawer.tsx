@@ -20,12 +20,13 @@ import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 interface AdminDrawerProps {
   visible: boolean;
   onClose: () => void;
-  onNavigate: (tab: 'dashboard' | 'institution' | 'students' | 'teachers' | 'users' | 'academics' | 'profile') => void;
+  onNavigate: (tab: 'dashboard' | 'institution' | 'students' | 'teachers' | 'users' | 'academics' | 'announcements' | 'profile') => void;
   onLogout: () => void;
 }
 
-const PRIMARY: { key: 'dashboard' | 'institution' | 'students' | 'teachers' | 'users' | 'academics' | 'profile'; label: string; icon: string }[] = [
+const PRIMARY: { key: 'dashboard' | 'institution' | 'students' | 'teachers' | 'users' | 'academics' | 'announcements' | 'profile'; label: string; icon: string }[] = [
   { key: 'dashboard', label: 'Dashboard', icon: 'view-dashboard-outline' },
+  { key: 'announcements', label: 'Announcements', icon: 'bullhorn-outline' },
   { key: 'institution', label: 'Institution', icon: 'office-building' },
   { key: 'students', label: 'Students', icon: 'account-school-outline' },
   { key: 'teachers', label: 'Teachers', icon: 'human-male-board' },
