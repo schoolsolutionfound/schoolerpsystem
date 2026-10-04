@@ -144,24 +144,47 @@ export default function PrincipalHomeScreen() {
     setHomerooms((prev) =>
       prev.map((h) =>
         h.id === sectionId
-          ? { ...h, homeroomTeacherId: teacherId, homeroomTeacherName: teacherName }
+          ? {
+              ...h,
+              homeroomTeacherId: teacherId || undefined,
+              homeroomTeacherName: teacherName || undefined,
+            }
           : h
       )
     );
     // Also update staff directory assignedClass
     setStaffList((prev) =>
       prev.map((s) => {
-        if (s.id === teacherId) {
+        if (teacherId && s.id === teacherId) {
           return {
             ...s,
             designation: 'homeroom_teacher',
             assignedClass: selectedSection?.name,
           };
         }
+        if (!teacherId && s.assignedClass === selectedSection?.name) {
+          return {
+            ...s,
+            assignedClass: undefined,
+          };
+        }
         return s;
       })
     );
-    Alert.alert('Homeroom Assigned', `${teacherName} is now the assigned Class Teacher.`);
+
+    // Update unassigned count in KPIs
+    setKpis((prev) => ({
+      ...prev,
+      unassignedHomerooms: teacherId
+        ? Math.max(0, prev.unassignedHomerooms - 1)
+        : prev.unassignedHomerooms + 1,
+    }));
+
+    if (teacherId) {
+      Alert.alert('Homeroom Assigned', `${teacherName} is now the assigned Class Teacher.`);
+    } else {
+      Alert.alert('Homeroom Unassigned', `Class teacher assignment cleared for ${selectedSection?.name || 'this class'}.`);
+    }
   };
 
   const handleCreateCounselingCase = async (record: Omit<CounselingRecord, 'id'>) => {
@@ -218,9 +241,12 @@ export default function PrincipalHomeScreen() {
           institutionName={institutionName}
           institutionType={institutionType}
           profilePic={profilePic}
+          activeTab={activeTab}
+          noticeBadgeCount={notices.length}
           onMenuPress={() => setDrawerOpen(true)}
           onNotificationsPress={() => setActiveTab('notices')}
           onProfilePress={() => router.push('/(principal)/profile')}
+          onBackToDashboard={() => setActiveTab('dashboard')}
         />
 
         {/* Active View Container */}

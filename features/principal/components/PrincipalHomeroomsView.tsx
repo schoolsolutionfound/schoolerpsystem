@@ -27,7 +27,9 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
   onAssignTeacher,
 }) => {
   const [search, setSearch] = useState('');
-  const [wingFilter, setWingFilter] = useState<'all' | 'primary' | 'middle' | 'secondary'>('all');
+  const [wingFilter, setWingFilter] = useState<'all' | 'primary' | 'middle' | 'secondary' | 'unassigned'>('all');
+
+  const unassignedCount = homerooms.filter((h) => !h.homeroomTeacherId).length;
 
   const filteredHomerooms = homerooms.filter((sec) => {
     const q = search.toLowerCase();
@@ -38,7 +40,10 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
 
     if (!matchesSearch) return false;
 
-    const gradeNum = parseInt(sec.grade, 10);
+    if (wingFilter === 'unassigned') return !sec.homeroomTeacherId;
+
+    const gradeDigits = (sec.grade || sec.name || '').replace(/[^0-9]/g, '');
+    const gradeNum = parseInt(gradeDigits, 10);
     if (isNaN(gradeNum)) return true;
 
     if (wingFilter === 'primary') return gradeNum >= 1 && gradeNum <= 5;
@@ -46,8 +51,6 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
     if (wingFilter === 'secondary') return gradeNum >= 9;
     return true;
   });
-
-  const unassignedCount = homerooms.filter((h) => !h.homeroomTeacherId).length;
 
   return (
     <View style={styles.container}>
@@ -73,21 +76,36 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
           {(
             [
-              { key: 'all', label: `All Sections (${homerooms.length})` },
-              { key: 'primary', label: 'Primary (Gr 1-5)' },
-              { key: 'middle', label: 'Middle (Gr 6-8)' },
-              { key: 'secondary', label: 'Secondary (Gr 9-12)' },
-            ] as const
+              { key: 'all' as const, label: `All Sections (${homerooms.length})` },
+              ...(unassignedCount > 0
+                ? [{ key: 'unassigned' as const, label: `⚠️ Unassigned (${unassignedCount})` }]
+                : []),
+              { key: 'primary' as const, label: 'Primary (Gr 1-5)' },
+              { key: 'middle' as const, label: 'Middle (Gr 6-8)' },
+              { key: 'secondary' as const, label: 'Secondary (Gr 9-12)' },
+            ]
           ).map((item) => {
             const active = wingFilter === item.key;
+            const isUnassignedChip = item.key === 'unassigned';
             return (
               <TouchableOpacity
                 key={item.key}
-                style={[styles.filterChip, active && styles.filterChipActive]}
+                style={[
+                  styles.filterChip,
+                  active && styles.filterChipActive,
+                  isUnassignedChip && !active && styles.filterChipWarn,
+                  isUnassignedChip && active && styles.filterChipWarnActive,
+                ]}
                 onPress={() => setWingFilter(item.key)}
                 activeOpacity={0.7}
               >
-                <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    active && styles.filterChipTextActive,
+                    isUnassignedChip && !active && styles.filterChipWarnText,
+                  ]}
+                >
                   {item.label}
                 </Text>
               </TouchableOpacity>
@@ -252,6 +270,18 @@ const styles = StyleSheet.create({
   filterChipActive: {
     backgroundColor: '#0284C7',
     borderColor: '#0284C7',
+  },
+  filterChipWarn: {
+    backgroundColor: '#FEF3C7',
+    borderColor: '#FDE68A',
+  },
+  filterChipWarnActive: {
+    backgroundColor: '#D97706',
+    borderColor: '#D97706',
+  },
+  filterChipWarnText: {
+    color: '#92400E',
+    fontWeight: '700',
   },
   filterChipText: {
     fontSize: 12,

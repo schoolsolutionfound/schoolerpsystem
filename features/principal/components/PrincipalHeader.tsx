@@ -3,14 +3,19 @@ import { View, StyleSheet, Text, TouchableOpacity, Image } from 'react-native';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { FontFamily } from '../../../constants/fonts';
 
+import { PrincipalTab } from '../types/principal.types';
+
 interface PrincipalHeaderProps {
   fullName: string;
   institutionName: string;
   institutionType?: string;
   profilePic?: string;
+  activeTab?: PrincipalTab;
+  noticeBadgeCount?: number;
   onMenuPress: () => void;
   onNotificationsPress: () => void;
   onProfilePress: () => void;
+  onBackToDashboard?: () => void;
 }
 
 const getGreeting = (): string => {
@@ -25,21 +30,32 @@ export const PrincipalHeader: React.FC<PrincipalHeaderProps> = ({
   institutionName,
   institutionType = 'school',
   profilePic,
+  activeTab = 'dashboard',
+  noticeBadgeCount = 0,
   onMenuPress,
   onNotificationsPress,
   onProfilePress,
+  onBackToDashboard,
 }) => {
   const firstName = fullName.split(' ')[0] || 'Principal';
   const greeting = getGreeting();
   const roleLabel = institutionType === 'college' ? 'Dean / Principal Office' : 'Headmaster / Principal Office';
+  const isSubTab = activeTab === 'attendance';
 
   return (
     <View style={styles.container}>
       {/* Top Bar */}
       <View style={styles.topHeader}>
-        <TouchableOpacity style={styles.iconBtn} onPress={onMenuPress} activeOpacity={0.7}>
-          <Feather name="menu" size={22} color="#171717" />
-        </TouchableOpacity>
+        {isSubTab && onBackToDashboard ? (
+          <TouchableOpacity style={styles.subBackBtn} onPress={onBackToDashboard} activeOpacity={0.7}>
+            <MaterialCommunityIcons name="arrow-left" size={20} color="#171717" />
+            <Text style={styles.subBackText}>Back</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={styles.iconBtn} onPress={onMenuPress} activeOpacity={0.7}>
+            <Feather name="menu" size={22} color="#171717" />
+          </TouchableOpacity>
+        )}
 
         <Image
           source={require('../../../assets/text-logo.png')}
@@ -49,7 +65,11 @@ export const PrincipalHeader: React.FC<PrincipalHeaderProps> = ({
 
         <TouchableOpacity style={styles.iconBtn} onPress={onNotificationsPress} activeOpacity={0.7}>
           <Feather name="bell" size={22} color="#171717" />
-          <View style={styles.dotBadge} />
+          {noticeBadgeCount > 0 && (
+            <View style={styles.dotBadge}>
+              <Text style={styles.dotBadgeText}>{noticeBadgeCount > 9 ? '9+' : noticeBadgeCount}</Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -113,12 +133,38 @@ const styles = StyleSheet.create({
   },
   dotBadge: {
     position: 'absolute',
-    top: 8,
-    right: 9,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    top: 4,
+    right: 5,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
     backgroundColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  dotBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    fontFamily: FontFamily.bold,
+  },
+  subBackBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    height: 40,
+    paddingHorizontal: 10,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  subBackText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#171717',
+    fontFamily: FontFamily.bold,
   },
   userGreetingRow: {
     flexDirection: 'row',

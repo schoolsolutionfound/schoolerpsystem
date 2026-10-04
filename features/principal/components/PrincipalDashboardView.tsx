@@ -41,8 +41,13 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
   onOpenAssignModal,
   onOpenNoticeModal,
 }) => {
-  const unassignedSection = homerooms.find((h) => !h.homeroomTeacherId);
+  const unassignedSections = homerooms.filter((h) => !h.homeroomTeacherId);
+  const firstUnassigned = unassignedSections[0];
   const urgentCases = counseling.filter((c) => c.severity === 'high' && c.status !== 'resolved');
+
+  const safeStudentPct = Math.min(100, Math.max(0, kpis.studentAttendancePct || 0));
+  const safeFacultyPct = Math.min(100, Math.max(0, kpis.facultyAttendancePct || 0));
+  const safePeriodPct = Math.min(100, Math.max(0, kpis.periodCoveragePct || 0));
 
   return (
     <ScrollView
@@ -52,19 +57,25 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
       showsVerticalScrollIndicator={false}
     >
       {/* Alert Banners (Actionable) */}
-      {unassignedSection && (
+      {firstUnassigned && (
         <TouchableOpacity
           style={styles.alertCard}
-          onPress={() => onOpenAssignModal(unassignedSection)}
+          onPress={() => onOpenAssignModal(firstUnassigned)}
           activeOpacity={0.8}
         >
           <View style={styles.alertIconBox}>
             <MaterialCommunityIcons name="alert-decagram" size={24} color="#D97706" />
           </View>
           <View style={styles.alertTextWrap}>
-            <Text style={styles.alertTitle}>Homeroom Attention Required</Text>
+            <Text style={styles.alertTitle}>
+              {unassignedSections.length > 1
+                ? `${unassignedSections.length} Classes Need Homeroom Mentors`
+                : 'Homeroom Attention Required'}
+            </Text>
             <Text style={styles.alertBody}>
-              {unassignedSection.name} currently has no assigned Class Teacher.
+              {unassignedSections.length > 1
+                ? `${firstUnassigned.name} and ${unassignedSections.length - 1} other section(s) have no assigned Class Teacher.`
+                : `${firstUnassigned.name} currently has no assigned Class Teacher.`}
             </Text>
           </View>
           <View style={styles.alertActionBtn}>
@@ -95,10 +106,10 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
                 <MaterialCommunityIcons name="account-school" size={16} color="#0284C7" />
                 <Text style={styles.barLabel}>Student Attendance</Text>
               </View>
-              <Text style={styles.barPercent}>{kpis.studentAttendancePct}%</Text>
+              <Text style={styles.barPercent}>{safeStudentPct}%</Text>
             </View>
             <View style={styles.track}>
-              <View style={[styles.fill, { width: `${kpis.studentAttendancePct}%`, backgroundColor: '#0284C7' }]} />
+              <View style={[styles.fill, { width: `${safeStudentPct}%`, backgroundColor: '#0284C7' }]} />
             </View>
             <Text style={styles.barCount}>
               {kpis.presentStudents} present of {kpis.totalStudents} enrolled
@@ -112,10 +123,10 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
                 <MaterialCommunityIcons name="human-male-board" size={16} color="#16A34A" />
                 <Text style={styles.barLabel}>Faculty Attendance</Text>
               </View>
-              <Text style={styles.barPercent}>{kpis.facultyAttendancePct}%</Text>
+              <Text style={styles.barPercent}>{safeFacultyPct}%</Text>
             </View>
             <View style={styles.track}>
-              <View style={[styles.fill, { width: `${kpis.facultyAttendancePct}%`, backgroundColor: '#16A34A' }]} />
+              <View style={[styles.fill, { width: `${safeFacultyPct}%`, backgroundColor: '#16A34A' }]} />
             </View>
             <Text style={styles.barCount}>
               {kpis.presentFaculty} present of {kpis.totalFaculty} staff members
@@ -129,10 +140,10 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
                 <MaterialCommunityIcons name="clock-check-outline" size={16} color="#D97706" />
                 <Text style={styles.barLabel}>Class Period Coverage</Text>
               </View>
-              <Text style={styles.barPercent}>{kpis.periodCoveragePct}%</Text>
+              <Text style={styles.barPercent}>{safePeriodPct}%</Text>
             </View>
             <View style={styles.track}>
-              <View style={[styles.fill, { width: `${kpis.periodCoveragePct}%`, backgroundColor: '#D97706' }]} />
+              <View style={[styles.fill, { width: `${safePeriodPct}%`, backgroundColor: '#D97706' }]} />
             </View>
             <Text style={styles.barCount}>
               All scheduled instructional blocks covered with substitutes deployed
@@ -261,25 +272,35 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
           </TouchableOpacity>
         </View>
 
-        {notices.slice(0, 2).map((notice) => (
-          <View key={notice.id} style={styles.noticeSnippetCard}>
-            <View style={styles.noticeSnippetHeader}>
-              <View style={styles.noticeAudiencePill}>
-                <Text style={styles.noticeAudienceText}>{notice.targetAudience.toUpperCase()}</Text>
-              </View>
-              {notice.priority === 'urgent' && (
-                <View style={styles.urgentPill}>
-                  <Text style={styles.urgentText}>URGENT</Text>
-                </View>
-              )}
-              <Text style={styles.noticeDate}>{notice.publishedDate}</Text>
-            </View>
-            <Text style={styles.noticeSnippetTitle}>{notice.title}</Text>
-            <Text style={styles.noticeSnippetBody} numberOfLines={2}>
-              {notice.content}
-            </Text>
+        {notices.length === 0 ? (
+          <View style={styles.emptyNoticeSnippet}>
+            <MaterialCommunityIcons name="bullhorn-outline" size={24} color="#9CA3AF" />
+            <Text style={styles.emptyNoticeText}>No circulars published yet</Text>
+            <TouchableOpacity onPress={onOpenNoticeModal} activeOpacity={0.7}>
+              <Text style={styles.createNoticeLink}>+ Draft School Circular</Text>
+            </TouchableOpacity>
           </View>
-        ))}
+        ) : (
+          notices.slice(0, 2).map((notice) => (
+            <View key={notice.id} style={styles.noticeSnippetCard}>
+              <View style={styles.noticeSnippetHeader}>
+                <View style={styles.noticeAudiencePill}>
+                  <Text style={styles.noticeAudienceText}>{notice.targetAudience.toUpperCase()}</Text>
+                </View>
+                {notice.priority === 'urgent' && (
+                  <View style={styles.urgentPill}>
+                    <Text style={styles.urgentText}>URGENT</Text>
+                  </View>
+                )}
+                <Text style={styles.noticeDate}>{notice.publishedDate}</Text>
+              </View>
+              <Text style={styles.noticeSnippetTitle}>{notice.title}</Text>
+              <Text style={styles.noticeSnippetBody} numberOfLines={2}>
+                {notice.content}
+              </Text>
+            </View>
+          ))
+        )}
       </View>
     </ScrollView>
   );
@@ -590,5 +611,26 @@ const styles = StyleSheet.create({
     color: '#4B5563',
     lineHeight: 18,
     fontFamily: FontFamily.regular,
+  },
+  emptyNoticeSnippet: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.card,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  emptyNoticeText: {
+    fontSize: 13,
+    color: '#6B6B6B',
+    fontFamily: FontFamily.medium,
+  },
+  createNoticeLink: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#D97706',
+    fontFamily: FontFamily.bold,
   },
 });

@@ -9,6 +9,8 @@ import {
   TextInput,
   Switch,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../../constants/theme';
@@ -83,7 +85,10 @@ export const AddCounselingNoteModal: React.FC<AddCounselingNoteModalProps> = ({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.overlay}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.overlay}
+      >
         <View style={styles.dialog}>
           {/* Header */}
           <View style={styles.header}>
@@ -240,7 +245,7 @@ export const AddCounselingNoteModal: React.FC<AddCounselingNoteModalProps> = ({
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };

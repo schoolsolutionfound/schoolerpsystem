@@ -8,6 +8,7 @@ import {
   TextInput,
   RefreshControl,
   Linking,
+  Alert,
 } from 'react-native';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
@@ -53,12 +54,35 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
   const presentCount = staffList.filter((s) => s.attendanceToday === 'present').length;
   const absentCount = staffList.filter((s) => s.attendanceToday !== 'present').length;
 
-  const handleCall = (phone?: string) => {
-    if (phone) Linking.openURL(`tel:${phone.replace(/\s+/g, '')}`);
+  const handleCall = async (phone?: string) => {
+    if (!phone) return;
+    const cleanPhone = phone.replace(/[^0-9+]/g, '');
+    const url = `tel:${cleanPhone}`;
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert('Unable to Dial', `Phone calling is not available on this device.\nNumber: ${phone}`);
+      }
+    } catch {
+      Alert.alert('Phone Call', `Contact number: ${phone}`);
+    }
   };
 
-  const handleEmail = (email: string) => {
-    Linking.openURL(`mailto:${email}`);
+  const handleEmail = async (email: string) => {
+    if (!email) return;
+    const url = `mailto:${email}`;
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert('Unable to Compose', `Email client is not available on this device.\nEmail: ${email}`);
+      }
+    } catch {
+      Alert.alert('Email Contact', `Contact email: ${email}`);
+    }
   };
 
   return (

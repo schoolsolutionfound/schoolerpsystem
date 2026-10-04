@@ -64,6 +64,16 @@ export const AssignHomeroomModal: React.FC<AssignHomeroomModalProps> = ({
     }
   };
 
+  const handleUnassign = async () => {
+    setSaving(true);
+    try {
+      await onAssign(section.id, '', '');
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
@@ -88,10 +98,23 @@ export const AssignHomeroomModal: React.FC<AssignHomeroomModalProps> = ({
 
           {/* Current Homeroom Status */}
           <View style={styles.currentInfoCard}>
-            <Text style={styles.infoLabel}>Currently Assigned To:</Text>
-            <Text style={styles.currentTeacherName}>
-              {section.homeroomTeacherName ? section.homeroomTeacherName : '⚠️ None (Unassigned Class)'}
-            </Text>
+            <View style={styles.currentInfoLeft}>
+              <Text style={styles.infoLabel}>Currently Assigned To:</Text>
+              <Text style={styles.currentTeacherName}>
+                {section.homeroomTeacherName ? section.homeroomTeacherName : '⚠️ None (Unassigned Class)'}
+              </Text>
+            </View>
+            {!!section.homeroomTeacherId && (
+              <TouchableOpacity
+                style={styles.unassignBtn}
+                onPress={handleUnassign}
+                disabled={saving}
+                activeOpacity={0.7}
+              >
+                <MaterialCommunityIcons name="close-circle-outline" size={14} color="#DC2626" />
+                <Text style={styles.unassignBtnText}>Unassign</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Search Faculty */}
@@ -235,6 +258,29 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.card,
     padding: 12,
     marginBottom: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  currentInfoLeft: {
+    flex: 1,
+  },
+  unassignBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 6,
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+  },
+  unassignBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#DC2626',
+    fontFamily: FontFamily.bold,
   },
   infoLabel: {
     fontSize: 11,
