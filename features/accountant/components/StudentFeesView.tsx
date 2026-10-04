@@ -12,6 +12,8 @@ import {
   ScrollView,
   TextInput,
   Modal,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
@@ -22,6 +24,7 @@ import { formatINR } from '../utils/financeUtils';
 import { showAlert } from '../../shared/utils/showAlert';
 import { sharedFinanceStyles } from './financeStyles';
 import { fetchClassSectionsApi } from '../../../api/academics';
+import { generateStudentFeeReceiptPdf } from '../utils/financePdfGenerator';
 
 export const StudentFeesView: React.FC = () => {
   const incomeRecords = useFinanceStore((s) => s.incomeRecords);
@@ -33,6 +36,7 @@ export const StudentFeesView: React.FC = () => {
   const [classFilter, setClassFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [classes, setClasses] = useState<string[]>(['all']);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   useEffect(() => {
     fetchClassSectionsApi().then((sections) => {
@@ -47,6 +51,18 @@ export const StudentFeesView: React.FC = () => {
 
   // Receipt Modal
   const [selectedReceipt, setSelectedReceipt] = useState<IncomeRecord | null>(null);
+
+  const handleDownloadReceiptPdf = async () => {
+    if (!selectedReceipt || isGeneratingPdf) return;
+    setIsGeneratingPdf(true);
+    try {
+      await generateStudentFeeReceiptPdf(selectedReceipt);
+    } catch (err: any) {
+      Alert.alert('Download Failed', err?.message || 'Could not generate fee receipt PDF.');
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
 
   // Edit Statement Modal
   const [editingItem, setEditingItem] = useState<IncomeRecord | null>(null);
@@ -415,9 +431,26 @@ export const StudentFeesView: React.FC = () => {
                 </View>
               </View>
 
-              <TouchableOpacity style={[sharedFinanceStyles.closeDocumentBtn, { backgroundColor: '#F4C430' }]} onPress={() => setSelectedReceipt(null)}>
-                <Text style={sharedFinanceStyles.closeDocumentBtnText}>Close Receipt</Text>
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+                <TouchableOpacity
+                  style={[sharedFinanceStyles.closeDocumentBtn, { flex: 1, backgroundColor: '#10B981', opacity: isGeneratingPdf ? 0.7 : 1 }]}
+                  onPress={handleDownloadReceiptPdf}
+                  disabled={isGeneratingPdf}
+                >
+                  {isGeneratingPdf ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <MaterialCommunityIcons name="download" size={16} color="#FFFFFF" />
+                  )}
+                  <Text style={sharedFinanceStyles.closeDocumentBtnText}>
+                    {isGeneratingPdf ? 'Generating...' : 'Download PDF'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={[sharedFinanceStyles.closeDocumentBtn, { flex: 1, backgroundColor: '#F4C430' }]} onPress={() => setSelectedReceipt(null)}>
+                  <Text style={sharedFinanceStyles.closeDocumentBtnText}>Close</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </Modal>

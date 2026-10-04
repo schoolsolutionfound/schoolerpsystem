@@ -13,6 +13,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
 import { FontFamily } from '../../../constants/fonts';
 import { useFinanceStore } from '../../accountant/store/useFinanceStore';
+import { generateParentFeeReceiptPdf } from '../utils/receiptPdfGenerator';
 
 export const ParentFeesView: React.FC = () => {
   const incomeRecords = useFinanceStore((s) => s.incomeRecords);
@@ -22,6 +23,7 @@ export const ParentFeesView: React.FC = () => {
   const [viewingReceipt, setViewingReceipt] = useState<any | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const addIncome = useFinanceStore((s) => s.addIncome);
 
@@ -71,6 +73,19 @@ export const ParentFeesView: React.FC = () => {
   const handleOpenReceipt = (fee: any) => {
     setViewingReceipt(fee);
     setShowReceiptModal(true);
+  };
+
+  const handleDownloadReceiptPdf = async () => {
+    if (!viewingReceipt || isGeneratingPdf) return;
+    setIsGeneratingPdf(true);
+    try {
+      await generateParentFeeReceiptPdf(viewingReceipt);
+      setShowReceiptModal(false);
+    } catch (err: any) {
+      Alert.alert('Download Failed', err?.message || 'Could not generate receipt PDF.');
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   return (
@@ -288,14 +303,18 @@ export const ParentFeesView: React.FC = () => {
             </View>
 
             <TouchableOpacity
-              style={styles.downloadPdfBtn}
-              onPress={() => {
-                Alert.alert('Receipt Downloaded', 'Official receipt PDF saved to device storage.');
-                setShowReceiptModal(false);
-              }}
+              style={[styles.downloadPdfBtn, { opacity: isGeneratingPdf ? 0.7 : 1 }]}
+              onPress={handleDownloadReceiptPdf}
+              disabled={isGeneratingPdf}
             >
-              <MaterialCommunityIcons name="download" size={18} color="#FFFFFF" />
-              <Text style={styles.downloadPdfBtnText}>Save / Download PDF</Text>
+              {isGeneratingPdf ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <MaterialCommunityIcons name="download" size={18} color="#FFFFFF" />
+              )}
+              <Text style={styles.downloadPdfBtnText}>
+                {isGeneratingPdf ? 'Generating PDF...' : 'Save / Download PDF'}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>

@@ -1,17 +1,19 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, Text, ScrollView, TouchableOpacity, RefreshControl, Alert, Platform } from 'react-native';
+import { View, StyleSheet, Text, ScrollView, TouchableOpacity, RefreshControl, Alert, Platform, ActivityIndicator } from 'react-native';
 import Svg, { Rect, Line, Circle, G, Path, Text as SvgText } from 'react-native-svg';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
 import { FontFamily } from '../../../constants/fonts';
 import { fetchClassAttendanceReportApi, fetchClassAttendanceExportApi } from '../../../api/academics';
 import { ShimmerSkeleton } from '../../student/components/ShimmerSkeleton';
+import { generateClassAttendancePdfReport } from '../utils/attendancePdfGenerator';
 
 export const ClassAttendanceReport: React.FC = () => {
   const [report, setReport] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   const loadReport = useCallback(async () => {
     setLoading(true);
@@ -43,6 +45,18 @@ export const ClassAttendanceReport: React.FC = () => {
       Alert.alert('Export Failed', err.message || 'Could not export data');
     } finally {
       setExporting(false);
+    }
+  };
+
+  const handleExportPdf = async () => {
+    if (exportingPdf || !report) return;
+    setExportingPdf(true);
+    try {
+      await generateClassAttendancePdfReport(report);
+    } catch (err: any) {
+      Alert.alert('PDF Export Failed', err?.message || 'Could not generate attendance PDF report.');
+    } finally {
+      setExportingPdf(false);
     }
   };
 
@@ -193,11 +207,28 @@ export const ClassAttendanceReport: React.FC = () => {
               </View>
             )}
 
-            {/* Export Button */}
-            <TouchableOpacity style={styles.exportBtn} onPress={handleExport} disabled={exporting}>
-              <MaterialCommunityIcons name="download" size={18} color="#1A1B1C" />
-              <Text style={styles.exportBtnText}>{exporting ? 'Exporting...' : 'Export CSV Report'}</Text>
-            </TouchableOpacity>
+            {/* Export Buttons */}
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+              <TouchableOpacity
+                style={[styles.exportBtn, { flex: 1, backgroundColor: '#10B981', opacity: exportingPdf ? 0.7 : 1 }]}
+                onPress={handleExportPdf}
+                disabled={exportingPdf}
+              >
+                {exportingPdf ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <MaterialCommunityIcons name="file-pdf-box" size={18} color="#FFFFFF" />
+                )}
+                <Text style={[styles.exportBtnText, { color: '#FFFFFF' }]}>
+                  {exportingPdf ? 'Generating...' : 'Export PDF'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={[styles.exportBtn, { flex: 1 }]} onPress={handleExport} disabled={exporting}>
+                <MaterialCommunityIcons name="download" size={18} color="#1A1B1C" />
+                <Text style={styles.exportBtnText}>{exporting ? 'Exporting...' : 'Export CSV'}</Text>
+              </TouchableOpacity>
+            </View>
           </>
         ) : (
           <View style={styles.emptyCard}>

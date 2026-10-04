@@ -5,9 +5,11 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '../common/Icons';
 import { Book, BookCopy, Loan, Fine, StudentProfile } from '../../types';
+import { generateLibraryPdfReport } from '../../utils/pdfGenerator';
 
 interface ReportsViewProps {
   books: Book[];
@@ -22,6 +24,7 @@ interface ReportsViewProps {
 export function ReportsView({ books, copies, loans, fines, students, commonStyles, fineStyles }: ReportsViewProps) {
   const [reportTab, setReportTab] = useState<'OVERVIEW' | 'CIRCULATION' | 'INVENTORY' | 'FINANCIAL' | 'MEMBERS'>('OVERVIEW');
   const [timeRange, setTimeRange] = useState<'MONTH' | 'QUARTER' | 'YEAR' | 'ALL'>('MONTH');
+  const [isExporting, setIsExporting] = useState(false);
 
   // Calculated Metrics
   const totalBooksCount = books.length;
@@ -65,12 +68,24 @@ export function ReportsView({ books, copies, loans, fines, students, commonStyle
   }, [loans, books]);
 
   // Export handlers
-  const handleExportReport = (reportType: string) => {
-    Alert.alert(
-      'Exporting Analytics Report',
-      `Generating ${reportType} report in CSV & PDF format. Download will start automatically.`,
-      [{ text: 'OK' }]
-    );
+  const handleExportReport = async (reportType: string) => {
+    if (isExporting) return;
+    setIsExporting(true);
+    try {
+      await generateLibraryPdfReport({
+        reportType,
+        timeRange,
+        books,
+        copies,
+        loans,
+        fines,
+        students,
+      });
+    } catch (err: any) {
+      Alert.alert('PDF Export Failed', err?.message || 'Could not generate PDF report. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const styles = commonStyles;
@@ -88,11 +103,18 @@ export function ReportsView({ books, copies, loans, fines, students, commonStyle
 
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <TouchableOpacity
-            style={[styles.primaryBtn, { backgroundColor: '#10B981', flexDirection: 'row', gap: 6, paddingHorizontal: 12, paddingVertical: 8 }]}
+            style={[styles.primaryBtn, { backgroundColor: '#10B981', flexDirection: 'row', gap: 6, paddingHorizontal: 12, paddingVertical: 8, opacity: isExporting ? 0.7 : 1 }]}
             onPress={() => handleExportReport('Library Executive Performance')}
+            disabled={isExporting}
           >
-            <Feather name="download" size={14} color="#FFFFFF" />
-            <Text style={[styles.primaryBtnText, { color: '#FFFFFF', fontSize: 12 }]}>Export Full Report (CSV)</Text>
+            {isExporting ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Feather name="download" size={14} color="#FFFFFF" />
+            )}
+            <Text style={[styles.primaryBtnText, { color: '#FFFFFF', fontSize: 12 }]}>
+              {isExporting ? 'Generating PDF...' : 'Export Full Report (PDF)'}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
