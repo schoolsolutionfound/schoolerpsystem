@@ -4,4 +4,5 @@ export const FontFamily = {
   semibold: 'Poppins_600SemiBold',
   bold: 'Poppins_700Bold',
   extrabold: 'Poppins_800ExtraBold',
+  poppins: 'Poppins_400Regular',
 };
