@@ -86,6 +86,35 @@ async function seedTestingEnvironment() {
       institutionName: 'Oakridge World Academy',
       scope: {},
     },
+    // 7. Principal / Headmaster Account
+    {
+      email: 'principal.oakridge@school.com',
+      password: 'Principal@123',
+      name: 'Dr. Evelyn Montgomery (Principal)',
+      role: 'principal',
+      roles: ['principal'],
+      institutionCode: 'OAK002',
+      institutionName: 'Oakridge World Academy',
+      scope: {
+        designation: 'Principal & Head of School',
+        employeeId: 'EMP-PRIN-001',
+      },
+    },
+    // 8. Head of Department (HOD) Account
+    {
+      email: 'hod.cs@school.com',
+      password: 'Hod@123',
+      name: 'Dr. Rajeshwar Rao (HOD Computer Science)',
+      role: 'hod',
+      roles: ['hod', 'teacher'],
+      institutionCode: 'OAK002',
+      institutionName: 'Oakridge World Academy',
+      scope: {
+        department: 'Computer Science & Engineering',
+        designation: 'Head of Department',
+        employeeId: 'EMP-HOD-102',
+      },
+    },
   ];
 
   const authUids: Record<string, string> = {};
@@ -164,6 +193,10 @@ async function seedTestingEnvironment() {
           schoolId: acc.institutionCode,
           institutionName: acc.institutionName,
           schoolName: acc.institutionName,
+          department: (acc.scope as any).department || '',
+          employeeId: (acc.scope as any).employeeId || '',
+          designation: (acc.scope as any).designation || '',
+          profileCompleted: true,
           scope: acc.scope,
           linkedStudentUSN: (acc.scope as any).linkedStudentUSN || '',
           childName: (acc.scope as any).childName || '',
