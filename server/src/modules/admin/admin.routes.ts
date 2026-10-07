@@ -22,6 +22,7 @@ import {
   deleteTeacherHandler,
   getUsersHandler,
   createUserHandler,
+  updateUserHandler,
   singleFeedHandler,
   bulkFeedHandler,
   getFeesHandler,
@@ -72,6 +73,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
   // Unified User Management (all roles)
   fastify.get('/users', { preHandler: [requireAdmin] }, getUsersHandler);
   fastify.post('/users', { preHandler: [requireAdmin], config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, createUserHandler);
+  fastify.patch('/users/:id', { preHandler: [requireAdmin], config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, updateUserHandler);
 
   // Fee Management
   fastify.get('/fees', { preHandler: [requireAdmin] }, getFeesHandler);

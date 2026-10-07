@@ -7,6 +7,11 @@ export interface Institution {
   departments?: string[];
   academicYears?: string[];
   courses?: string[];
+  averageRating?: number;
+  totalReviews?: number;
+  logoUrl?: string;
+  description?: string;
+  facilities?: string[];
   createdAt?: string;
   updatedAt?: string;
 }

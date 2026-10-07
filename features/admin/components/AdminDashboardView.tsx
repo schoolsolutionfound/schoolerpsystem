@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
 import { FontFamily } from '../../../constants/fonts';
@@ -17,7 +18,7 @@ export interface AdminDashboardStats {
   attendanceSessions: number;
 }
 
-type AdminTab = 'dashboard' | 'institution' | 'students' | 'teachers' | 'users' | 'academics' | 'timetable' | 'attendance' | 'profile';
+type AdminTab = 'dashboard' | 'admissions' | 'institution' | 'students' | 'teachers' | 'users' | 'academics' | 'timetable' | 'attendance' | 'profile';
 
 interface AdminDashboardViewProps {
   fullName: string;
@@ -26,6 +27,7 @@ interface AdminDashboardViewProps {
 }
 
 export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ fullName, stats, onNavigateTab }) => {
+  const router = useRouter();
   const institutionCode = stats?.institutionCode || 'INST';
   const institutionName = stats?.institutionName || 'My Institution';
 
@@ -39,6 +41,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ fullName
   ];
 
   const modules: { key: AdminTab; icon: keyof typeof MaterialCommunityIcons.glyphMap; name: string; count: string; accent: string; bg: string }[] = [
+    { key: 'admissions', icon: 'clipboard-text-clock-outline', name: 'Admissions', count: 'Applications & calls', accent: '#0284C7', bg: '#F0F9FF' },
     { key: 'students', icon: 'account-school', name: 'Students', count: `${stats?.students ?? 0} enrolled`, accent: '#F4C430', bg: '#FFF8E1' },
     { key: 'teachers', icon: 'human-male-board', name: 'Teachers', count: `${stats?.teachers ?? 0} faculty`, accent: '#16A34A', bg: '#ECFDF5' },
     { key: 'users', icon: 'account-group', name: 'Users', count: `${stats?.totalUsers ?? 0} accounts`, accent: '#DB2777', bg: '#FDF2F8' },
@@ -50,6 +53,10 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ fullName
   ];
 
   const openModule = (key: AdminTab) => {
+    if (key === 'admissions') {
+      router.push('/(admin)/admissions');
+      return;
+    }
     if (key === 'timetable' || key === 'attendance') {
       onNavigateTab('academics');
       return;
@@ -80,6 +87,12 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ fullName
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>QUICK ACTIONS</Text>
         <View style={styles.actionsRow}>
+          <TouchableOpacity style={styles.actionBtn} activeOpacity={0.7} onPress={() => router.push('/(admin)/admissions')}>
+            <View style={[styles.actionIcon, { backgroundColor: '#F0F9FF' }]}>
+              <MaterialCommunityIcons name="clipboard-text-clock-outline" size={20} color="#0284C7" />
+            </View>
+            <Text style={styles.actionText}>Admissions</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.actionBtn} activeOpacity={0.7} onPress={() => onNavigateTab('students')}>
             <View style={[styles.actionIcon, { backgroundColor: '#FFF8E1' }]}>
               <MaterialCommunityIcons name="account-plus" size={20} color="#F4C430" />
@@ -97,12 +110,6 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ fullName
               <MaterialCommunityIcons name="calendar-plus" size={20} color="#6366F1" />
             </View>
             <Text style={styles.actionText}>Timetable</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn} activeOpacity={0.7} onPress={() => onNavigateTab('institution')}>
-            <View style={[styles.actionIcon, { backgroundColor: '#F5F3FF' }]}>
-              <MaterialCommunityIcons name="cog" size={20} color="#8B5CF6" />
-            </View>
-            <Text style={styles.actionText}>Setup</Text>
           </TouchableOpacity>
         </View>
       </View>

@@ -3,6 +3,7 @@ import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
 import { FontFamily } from '../../../constants/fonts';
+import { useUserStore } from '../../../store/useUserStore';
 
 interface ParentHomeDashboardProps {
   childName: string;
@@ -17,6 +18,10 @@ export const ParentHomeDashboard: React.FC<ParentHomeDashboardProps> = ({
   onTabSwitch,
   onViewProfile,
 }) => {
+  const storeChildName = useUserStore((state) => state.childName);
+  const schoolName = useUserStore((state) => state.schoolName || state.institutionName);
+  const activeChildName = childName || storeChildName || '';
+
   const pct = overallAttendance?.percentage ?? 0;
   const present = overallAttendance?.present ?? 0;
   const total = overallAttendance?.total ?? 0;
@@ -37,8 +42,19 @@ export const ParentHomeDashboard: React.FC<ParentHomeDashboardProps> = ({
         </View>
 
         <View style={[styles.gridCard, styles.childCard]}>
-          <Text style={styles.cardLabelDark}>Linked Child</Text>
-          <Text style={styles.childName}>{childName || '—'}</Text>
+          <View style={styles.childCardHeader}>
+            <Text style={styles.cardLabelDark}>Linked Child</Text>
+            {activeChildName ? (
+              <View style={styles.childEnrolledBadge}>
+                <MaterialCommunityIcons name="check-decagram" size={10} color="#065F46" />
+                <Text style={styles.childEnrolledBadgeText}>Enrolled</Text>
+              </View>
+            ) : null}
+          </View>
+          <Text style={styles.childName} numberOfLines={1}>{activeChildName || '—'}</Text>
+          {activeChildName && schoolName ? (
+            <Text style={styles.childSchoolName} numberOfLines={1}>{schoolName}</Text>
+          ) : null}
           <TouchableOpacity style={styles.childTag} onPress={onViewProfile} activeOpacity={0.7}>
             <Text style={styles.childTagText}>View Profile</Text>
           </TouchableOpacity>
@@ -57,8 +73,63 @@ export const ParentHomeDashboard: React.FC<ParentHomeDashboardProps> = ({
         </View>
       </View>
 
+      {/* Admissions Hero Banner */}
+      <View style={styles.admissionBanner}>
+        <View style={styles.admissionBadge}>
+          <MaterialCommunityIcons name="creation" size={13} color="#D97706" />
+          <Text style={styles.admissionBadgeText}>ADMISSIONS OPEN 2026</Text>
+        </View>
+        <Text style={styles.admissionTitle}>Find & Apply to Top Schools</Text>
+        <Text style={styles.admissionSubtitle}>
+          {childName
+            ? 'Exploring new schools or sibling admissions? Discover top institutions and apply online.'
+            : 'Welcome! Discover verified schools, explore facilities, compare fee structures & submit applications.'}
+        </Text>
+        <View style={styles.admissionBtnRow}>
+          <TouchableOpacity
+            style={styles.admissionPrimaryBtn}
+            onPress={() => onTabSwitch('discover')}
+            activeOpacity={0.8}
+          >
+            <MaterialCommunityIcons name="compass" size={17} color="#1A1B1C" />
+            <Text style={styles.admissionPrimaryBtnText}>Explore Schools</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.admissionSecondaryBtn}
+            onPress={() => onTabSwitch('applications')}
+            activeOpacity={0.8}
+          >
+            <MaterialCommunityIcons name="file-document-edit-outline" size={17} color="#FFFFFF" />
+            <Text style={styles.admissionSecondaryBtnText}>Track Applications</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
       {/* What You Can Do — stacked list */}
       <Text style={styles.sectionTitle}>What You Can Do</Text>
+
+      <TouchableOpacity style={styles.listCard} onPress={() => onTabSwitch('discover')} activeOpacity={0.7}>
+        <View style={[styles.listIcon, { backgroundColor: '#FEF3C7' }]}>
+          <MaterialCommunityIcons name="compass-outline" size={24} color="#D97706" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.listTitle}>School Discovery & Admissions</Text>
+          <Text style={styles.listDesc}>Browse top institutions, compare fees & apply</Text>
+        </View>
+        <MaterialCommunityIcons name="chevron-right" size={18} color="#C0C0C0" />
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.listCard} onPress={() => onTabSwitch('applications')} activeOpacity={0.7}>
+        <View style={[styles.listIcon, { backgroundColor: '#EDE9FE' }]}>
+          <MaterialCommunityIcons name="file-document-edit-outline" size={24} color="#7C3AED" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.listTitle}>My Admission Applications</Text>
+          <Text style={styles.listDesc}>Track real-time status of submitted applications</Text>
+        </View>
+        <MaterialCommunityIcons name="chevron-right" size={18} color="#C0C0C0" />
+      </TouchableOpacity>
 
       <TouchableOpacity style={styles.listCard} onPress={() => onTabSwitch('attendance')} activeOpacity={0.7}>
         <View style={styles.listIcon}>
@@ -78,17 +149,6 @@ export const ParentHomeDashboard: React.FC<ParentHomeDashboardProps> = ({
         <View style={{ flex: 1 }}>
           <Text style={styles.listTitle}>Exam Results</Text>
           <Text style={styles.listDesc}>View marks and grades for each subject</Text>
-        </View>
-        <MaterialCommunityIcons name="chevron-right" size={18} color="#C0C0C0" />
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.listCard} onPress={() => onTabSwitch('timetable')} activeOpacity={0.7}>
-        <View style={styles.listIcon}>
-          <MaterialCommunityIcons name="calendar-clock" size={24} color="#1A1B1C" />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.listTitle}>Class Schedule</Text>
-          <Text style={styles.listDesc}>See your child&apos;s weekly timetable</Text>
         </View>
         <MaterialCommunityIcons name="chevron-right" size={18} color="#C0C0C0" />
       </TouchableOpacity>
@@ -143,7 +203,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cardSub: { fontSize: 11, fontFamily: FontFamily.regular, color: '#A0A0A0' },
-  childName: { fontSize: 16, fontFamily: FontFamily.extrabold, color: '#1A1B1C', marginTop: 4 },
+  childCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  childEnrolledBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  childEnrolledBadgeText: {
+    fontSize: 9,
+    fontFamily: FontFamily.bold,
+    color: '#065F46',
+  },
+  childName: { fontSize: 15, fontFamily: FontFamily.extrabold, color: '#1A1B1C', marginTop: 4 },
+  childSchoolName: { fontSize: 11, fontFamily: FontFamily.medium, color: '#0369A1', marginTop: 1 },
   childTag: {
     backgroundColor: 'rgba(26,27,28,0.12)',
     paddingHorizontal: 8,
@@ -196,4 +278,79 @@ const styles = StyleSheet.create({
   announcementTitle: { fontSize: 14, fontFamily: FontFamily.bold, color: '#171717' },
   announcementBody: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B6B6B', lineHeight: 17 },
   announcementSub: { fontSize: 11, fontFamily: FontFamily.regular, color: '#6B6B6B', lineHeight: 15 },
+
+  // Admissions Hero Banner
+  admissionBanner: {
+    backgroundColor: '#1E293B',
+    borderRadius: BorderRadius.card,
+    padding: 18,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  admissionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BorderRadius.chip,
+    alignSelf: 'flex-start',
+  },
+  admissionBadgeText: {
+    fontSize: 10,
+    fontFamily: FontFamily.extrabold,
+    color: '#F59E0B',
+    letterSpacing: 0.8,
+  },
+  admissionTitle: {
+    fontSize: 17,
+    fontFamily: FontFamily.bold,
+    color: '#FFFFFF',
+    marginTop: 2,
+  },
+  admissionSubtitle: {
+    fontSize: 12,
+    fontFamily: FontFamily.regular,
+    color: '#94A3B8',
+    lineHeight: 18,
+  },
+  admissionBtnRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 8,
+  },
+  admissionPrimaryBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#F4C430',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+  },
+  admissionPrimaryBtnText: {
+    fontSize: 13,
+    fontFamily: FontFamily.bold,
+    color: '#1A1B1C',
+  },
+  admissionSecondaryBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#334155',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+  },
+  admissionSecondaryBtnText: {
+    fontSize: 13,
+    fontFamily: FontFamily.bold,
+    color: '#FFFFFF',
+  },
 });

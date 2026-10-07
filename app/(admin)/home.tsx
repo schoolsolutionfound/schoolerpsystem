@@ -25,6 +25,7 @@ import {
   deleteTeacherApi,
   fetchUsersApi,
   createUserApi,
+  updateUserApi,
 } from '../../api/admin';
 import {
   fetchClassSectionsApi,
@@ -243,6 +244,14 @@ export default function AdminHomeScreen() {
     }
   };
 
+  const handleUpdateUser = async (id: string, updates: any) => {
+    const res = await updateUserApi(id, updates);
+    const updated = (res as any)?.data || res;
+    if (updated) {
+      setAllUsers((prev) => prev.map((u) => (u.id === id ? { ...u, ...updated } : u)));
+    }
+  };
+
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to log out?', [
       { text: 'Cancel', style: 'cancel' },
@@ -275,13 +284,17 @@ export default function AdminHomeScreen() {
           </View>
         ) : (
           <View style={styles.content}>
-            {activeTab === 'dashboard' && (
               <AdminDashboardView
                 fullName={fullName}
                 stats={stats}
-                onNavigateTab={(tab) => setActiveTab(tab)}
+                onNavigateTab={(tab) => {
+                  if (tab === 'admissions') {
+                    router.push('/(admin)/admissions');
+                    return;
+                  }
+                  setActiveTab(tab as any);
+                }}
               />
-            )}
 
             {activeTab === 'institution' && (
               <AdminInstitutionView config={config} onSaveConfig={handleSaveConfig} />
@@ -324,6 +337,7 @@ export default function AdminHomeScreen() {
                 academicYears={config.academicYears || []}
                 sections={config.sections || []}
                 onCreateUser={handleCreateUser}
+                onUpdateUser={handleUpdateUser}
               />
             )}
 

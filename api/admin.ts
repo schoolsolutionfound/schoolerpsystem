@@ -184,6 +184,7 @@ export async function createUserApi(payload: {
   fullName: string;
   email: string;
   role: string;
+  roles?: string[];
   phone?: string;
   parentPhone?: string;
   employeeId?: string;
@@ -196,6 +197,26 @@ export async function createUserApi(payload: {
 }) {
   return apiClient('/admin/users', {
     method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateUserApi(
+  id: string,
+  payload: {
+    fullName?: string;
+    role?: string;
+    roles?: string[];
+    phone?: string;
+    parentPhone?: string;
+    employeeId?: string;
+    rollNoOrUSN?: string;
+    department?: string;
+    title?: string;
+  }
+) {
+  return apiClient(`/admin/users/${id}`, {
+    method: 'PATCH',
     body: JSON.stringify(payload),
   });
 }

@@ -332,6 +332,21 @@ export async function createUserHandler(request: FastifyRequest, reply: FastifyR
   }
 }
 
+export async function updateUserHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const instCode = extractInstCode(request);
+    const { id } = request.params as { id: string };
+    const body = request.body as any;
+    const data = await adminService.updateUser(id, instCode, body);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return reply.status(err.statusCode || 400).send({
+      success: false,
+      error: { message: err.message || 'Failed to update user', code: err.code || 'UPDATE_USER_ERROR' },
+    });
+  }
+}
+
 export async function singleFeedHandler(request: FastifyRequest, reply: FastifyReply) {
   const body = request.body as SingleFeedPayload;
 

@@ -32,8 +32,8 @@ export function useAuthGuard({
 
       // Email verification check disabled — can be re-enabled later
 
+      const state = useUserStore.getState();
       if (isPublicAuthRoute) {
-        const state = useUserStore.getState();
         if (state.mustChangePassword) {
           router.replace('/change-password');
         } else if (!state.profileCompleted) {
@@ -44,7 +44,7 @@ export function useAuthGuard({
         return;
       }
 
-      if (!isRouteAllowedForRole(pathname, userRole)) {
+      if (!isRouteAllowedForRole(pathname, userRole, state.roles)) {
         router.replace(getHomeRouteForRole(userRole) as any);
       }
     } else {

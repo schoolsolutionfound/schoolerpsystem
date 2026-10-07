@@ -1,11 +1,19 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, initializeAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore, initializeFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getAnalytics, isSupported, logEvent } from "firebase/analytics";
 
+const apiKey = process.env.EXPO_PUBLIC_FIREBASE_API_KEY;
+
+if (!apiKey && __DEV__) {
+  console.warn(
+    "[FirebaseConfig] EXPO_PUBLIC_FIREBASE_API_KEY is not defined. Please check your .env configuration."
+  );
+}
+
 const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+  apiKey: apiKey,
   authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
   projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
   storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
@@ -14,7 +22,18 @@ const firebaseConfig = {
   measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-const app = initializeApp(firebaseConfig);
+let app: any;
+try {
+  const { getApps, getApp } = require("firebase/app");
+  if (getApps().length > 0) {
+    app = getApp();
+    if (app.options && apiKey) app.options.apiKey = apiKey;
+  } else {
+    app = initializeApp(firebaseConfig);
+  }
+} catch {
+  app = initializeApp(firebaseConfig);
+}
 
 let analytics: any;
 isSupported().then((yes: boolean) => {
@@ -40,7 +59,18 @@ try {
   auth = getAuth(app);
 }
 
-const db = getFirestore(app);
+if (auth && auth.config && apiKey) {
+  auth.config.apiKey = apiKey;
+}
+
+let db: any;
+try {
+  db = initializeFirestore(app, {
+    experimentalForceLongPolling: true,
+  });
+} catch {
+  db = getFirestore(app);
+}
 
 const storage = getStorage(app);
 

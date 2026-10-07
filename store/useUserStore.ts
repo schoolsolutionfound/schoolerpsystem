@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { secureStorage } from './secureStorage';
 
-export type UserRole = 'student' | 'teacher' | 'admin' | 'parent' | 'dev' | 'principal' | 'accountant' | 'hod' | 'librarian' | 'driver' | 'institution admin' | 'loading';
+export type UserRole = 'student' | 'teacher' | 'admin' | 'parent' | 'dev' | 'principal' | 'accountant' | 'hod' | 'librarian' | 'driver' | 'admission_officer' | 'institution admin' | 'loading';
 export type InstitutionType = 'school' | 'college';
 
 interface UserState {
@@ -17,6 +17,7 @@ interface UserState {
   profilePic: string;
   language: 'en' | 'hi' | 'kn';
   userRole: UserRole;
+  roles: string[];
   isEmailVerified: boolean;
   _hasHydrated: boolean;
   isProfileSynced: boolean;
@@ -41,6 +42,7 @@ interface UserState {
   designation: string;
 
   setUserProfile: (data: Partial<UserState>) => void;
+  switchRole: (newRole: UserRole) => void;
   setIsProfileSynced: (state: boolean) => void;
   setProfileExists: (state: boolean) => void;
   resetUser: () => void;
@@ -62,6 +64,7 @@ export const useUserStore = create<UserState>()(
       profilePic: '',
       language: 'en',
       userRole: 'loading',
+      roles: [],
       isEmailVerified: false,
       _hasHydrated: false,
       isProfileSynced: false,
@@ -89,10 +92,16 @@ export const useUserStore = create<UserState>()(
         set((state) => ({
           ...state,
           ...data,
+          roles: data.roles ?? (data.userRole ? [data.userRole] : state.roles),
           schoolId: data.institutionId ?? data.schoolId ?? state.schoolId,
           schoolName: data.institutionName ?? data.schoolName ?? state.schoolName,
           institutionId: data.institutionId ?? data.schoolId ?? state.institutionId,
           institutionName: data.institutionName ?? data.schoolName ?? state.institutionName,
+        })),
+      switchRole: (newRole) =>
+        set((state) => ({
+          ...state,
+          userRole: newRole,
         })),
       setIsProfileSynced: (state) => set({ isProfileSynced: state }),
       setProfileExists: (state) => set({ profileExists: state }),

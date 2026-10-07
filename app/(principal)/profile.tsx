@@ -35,7 +35,10 @@ export default function PrincipalProfileScreen() {
     <View style={styles.container}>
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Profile</Text>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.7}>
+            <MaterialCommunityIcons name="arrow-left" size={24} color="#171717" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Principal Profile & Settings</Text>
         </View>
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           <View style={styles.card}>
@@ -113,7 +116,8 @@ export default function PrincipalProfileScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFFDF7' },
   safe: { flex: 1 },
-  header: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E8E5DC', backgroundColor: '#FFFFFF' },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E8E5DC', backgroundColor: '#FFFFFF' },
+  backBtn: { padding: 4, borderRadius: 8 },
   headerTitle: { fontSize: 17, fontWeight: '700', color: '#171717' },
   scroll: { padding: 16, gap: 14, paddingBottom: 40 },
   card: { backgroundColor: '#FFFFFF', borderRadius: BorderRadius.card, padding: 18, borderWidth: 1, borderColor: '#E8E5DC', gap: 14 },
