@@ -1,6 +1,14 @@
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
+import { useUserStore } from '../../../store/useUserStore';
+
+export interface ClassAttendanceStudentInput {
+  name?: string;
+  fullName?: string;
+  rollNoOrUSN?: string;
+  percentage: number;
+}
 
 export interface ClassAttendancePdfInput {
   classSection?: string | { id?: string; name?: string };
@@ -10,12 +18,14 @@ export interface ClassAttendancePdfInput {
     studentsCount?: number;
     averageAttendance?: number;
     averagePercentage?: number;
+    present?: number;
+    absent?: number;
     presentToday?: number;
     absentToday?: number;
     lowAttendanceCount?: number;
   };
-  topPerformers?: { name: string; percentage: number }[];
-  lowAttendance?: { name: string; percentage: number }[];
+  topPerformers?: ClassAttendanceStudentInput[];
+  lowAttendance?: ClassAttendanceStudentInput[];
   dailyTrend?: { date: string; percentage: number }[];
 }
 
@@ -29,6 +39,9 @@ function escapeHtml(value: unknown): string {
 }
 
 export async function generateClassAttendancePdfReport(data: ClassAttendancePdfInput): Promise<void> {
+  const userStore = useUserStore.getState();
+  const institutionName = userStore.institutionName || userStore.schoolName || '—';
+
   const classSection =
     typeof data.classSection === 'object'
       ? data.classSection?.name || 'Class Section'
@@ -45,11 +58,17 @@ export async function generateClassAttendancePdfReport(data: ClassAttendancePdfI
   const totalStudents = summary.studentsCount ?? summary.totalStudents ?? 0;
   const rawAvg = summary.averagePercentage ?? summary.averageAttendance ?? 0;
   const avgPct = Math.round(rawAvg);
-  const presentCount = summary.presentToday ?? 0;
-  const absentCount = summary.absentToday ?? 0;
+
+  const rawPresent = summary.present ?? summary.presentToday;
+  const rawAbsent = summary.absent ?? summary.absentToday;
+  const hasPresentAbsentData = rawPresent !== undefined && rawAbsent !== undefined;
+  const presentCount = rawPresent ?? 0;
+  const absentCount = rawAbsent ?? 0;
+
   const lowCount = summary.lowAttendanceCount ?? (data.lowAttendance ? data.lowAttendance.length : 0);
 
-  const topList = data.topPerformers || [];
+  // B7: Enforce >= 90% filter for top performers section
+  const topList = (data.topPerformers || []).filter((st) => st.percentage >= 90);
   const lowList = data.lowAttendance || [];
 
   const html = `
@@ -126,7 +145,7 @@ export async function generateClassAttendancePdfReport(data: ClassAttendancePdfI
 <body>
   <div class="header">
     <div>
-      <div class="brand">School ERP — Teacher Module</div>
+      <div class="brand">${escapeHtml(institutionName)}</div>
       <div class="title">Class Attendance Report • ${escapeHtml(classSection)}</div>
     </div>
     <div class="meta">
@@ -144,10 +163,15 @@ export async function generateClassAttendancePdfReport(data: ClassAttendancePdfI
       <div class="kpi-label" style="color: #166534;">Average Attendance</div>
       <div class="kpi-val" style="color: #14532D;">${avgPct}%</div>
     </div>
+    ${
+      hasPresentAbsentData
+        ? `
     <div class="kpi-card" style="background: #FEF3C7; border-color: #FDE68A;">
-      <div class="kpi-label" style="color: #B45309;">Present vs Absent Today</div>
+      <div class="kpi-label" style="color: #B45309;">Present vs Absent</div>
       <div class="kpi-val" style="color: #78350F;">${presentCount} P / ${absentCount} A</div>
-    </div>
+    </div>`
+        : ''
+    }
     <div class="kpi-card" style="background: #FEF2F2; border-color: #FECACA;">
       <div class="kpi-label" style="color: #991B1B;">Low Attendance (&lt;75%)</div>
       <div class="kpi-val" style="color: #7F1D1D;">${lowCount} Students</div>
@@ -167,17 +191,20 @@ export async function generateClassAttendancePdfReport(data: ClassAttendancePdfI
     <tbody>
       ${
         topList.length === 0
-          ? `<tr><td colspan="4" style="text-align: center; color: #6B7280; padding: 12px;">No top performer records listed.</td></tr>`
+          ? `<tr><td colspan="4" style="text-align: center; color: #6B7280; padding: 12px;">No top performer records (&ge;90%) found.</td></tr>`
           : topList
               .map(
-                (st, idx) => `
+                (st, idx) => {
+                  const studentName = st.fullName || st.name || '—';
+                  return `
           <tr>
             <td>${idx + 1}</td>
-            <td><strong>${escapeHtml(st.name)}</strong></td>
+            <td><strong>${escapeHtml(studentName)}</strong></td>
             <td style="font-weight: 700; color: #059669;">${Math.round(st.percentage)}%</td>
             <td><span class="badge-green">EXCELLENT</span></td>
           </tr>
-        `
+        `;
+                }
               )
               .join('')
       }
@@ -200,14 +227,17 @@ export async function generateClassAttendancePdfReport(data: ClassAttendancePdfI
           ? `<tr><td colspan="4" style="text-align: center; color: #6B7280; padding: 12px;">No students below 75% threshold.</td></tr>`
           : lowList
               .map(
-                (st, idx) => `
+                (st, idx) => {
+                  const studentName = st.fullName || st.name || '—';
+                  return `
           <tr>
             <td>${idx + 1}</td>
-            <td><strong>${escapeHtml(st.name)}</strong></td>
+            <td><strong>${escapeHtml(studentName)}</strong></td>
             <td style="font-weight: 700; color: #DC2626;">${Math.round(st.percentage)}%</td>
             <td><span class="badge-red">CRITICAL WARNING</span></td>
           </tr>
-        `
+        `;
+                }
               )
               .join('')
       }
@@ -215,7 +245,7 @@ export async function generateClassAttendancePdfReport(data: ClassAttendancePdfI
   </table>
 
   <div class="footer">
-    <div>School ERP System • Teacher Class Attendance Module</div>
+    <div>${escapeHtml(institutionName)} • Teacher Class Attendance Module</div>
     <div>Confidential — Official Academic Record</div>
   </div>
 </body>

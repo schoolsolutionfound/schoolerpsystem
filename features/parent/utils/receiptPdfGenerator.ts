@@ -1,8 +1,10 @@
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
+import { useUserStore } from '../../../store/useUserStore';
 
 export interface FeeReceiptData {
+  id?: string;
   title?: string;
   amount: number;
   receiptNo?: string;
@@ -25,16 +27,30 @@ function escapeHtml(value: unknown): string {
 }
 
 function formatINR(amount: number): string {
-  return '₹' + Math.abs(amount).toLocaleString('en-IN');
+  const isNegative = amount < 0;
+  const formatted = Math.abs(amount).toLocaleString('en-IN');
+  return isNegative ? `-₹${formatted}` : `₹${formatted}`;
 }
 
 export async function generateParentFeeReceiptPdf(receipt: FeeReceiptData): Promise<void> {
-  const receiptNo = receipt.receiptNo || 'REC-' + Math.floor(100000 + Math.random() * 900000);
-  const paidDate = receipt.paidDate || receipt.paymentDate || new Date().toISOString().slice(0, 10);
+  const userStore = useUserStore.getState();
+  const institutionName = userStore.institutionName || userStore.schoolName || '—';
+
+  // B4: Stable receipt number determination
+  let receiptNo = receipt.receiptNo;
+  if (!receiptNo && receipt.id) {
+    receiptNo = `REC-${receipt.id.slice(-6).toUpperCase()}`;
+  } else if (!receiptNo) {
+    receiptNo = '—';
+  }
+
+  const paidDate = receipt.paidDate || receipt.paymentDate || '—';
   const title = receipt.title || 'Tuition & Academic Fees';
-  const payerName = receipt.payerName || 'Rohan Verma';
-  const classSection = receipt.classSection || 'Class 10-A';
-  const rollNo = receipt.rollNo || '14';
+
+  // B3: Real information or fallback to '—' (no fake names/classes)
+  const payerName = receipt.payerName || '—';
+  const classSection = receipt.classSection || '—';
+  const rollNo = receipt.rollNo || '—';
   const paymentMethod = (receipt.paymentMethod || 'UPI').toUpperCase();
   const generatedDate = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
 
@@ -173,7 +189,7 @@ export async function generateParentFeeReceiptPdf(receipt: FeeReceiptData): Prom
 <body>
   <div class="receipt-box">
     <div class="header">
-      <div class="institution-name">SchoolHub Academy</div>
+      <div class="institution-name">${escapeHtml(institutionName)}</div>
       <div class="receipt-title">Official Fee Payment Receipt</div>
     </div>
 
@@ -215,8 +231,8 @@ export async function generateParentFeeReceiptPdf(receipt: FeeReceiptData): Prom
     </table>
 
     <div class="footer">
-      <div class="verified-badge">✓ Digitally Verified by School Accounts Dept.</div>
-      <div>School ERP System • Official Electronic Receipt</div>
+      <div class="verified-badge">✓ Digitally Verified by Accounts Dept.</div>
+      <div>${escapeHtml(institutionName)} • Official Electronic Receipt</div>
       <div>Confidential — For Authorized Parent / Student Record Only • ${escapeHtml(generatedDate)}</div>
     </div>
   </div>
