@@ -25,7 +25,9 @@ export function useAuthGuard({
   useEffect(() => {
     if (!_hasHydrated || authLoading) return;
 
-    const isPublicAuthRoute = ['/', '/auth', '/index', '/welcome', '/change-password', '/complete-profile', '/verify-email', '/notifications', '/select-school'].includes(pathname);
+    const isPublicAuthRoute = ['/', '/auth', '/index', '/welcome', '/change-password', '/complete-profile', '/verify-email', '/select-school'].includes(pathname);
+    // Shared screens that any role may open — but only while signed in.
+    const isSessionRequiredSharedRoute = pathname === '/notifications';
 
     if (userSession) {
       if (!isProfileSynced && userRole === 'loading') return;
@@ -48,7 +50,9 @@ export function useAuthGuard({
         router.replace(getHomeRouteForRole(userRole) as any);
       }
     } else {
-      if (!isPublicAuthRoute && !isRouteAllowedForRole(pathname, userRole)) {
+      if (isSessionRequiredSharedRoute) {
+        router.replace('/auth');
+      } else if (!isPublicAuthRoute && !isRouteAllowedForRole(pathname, userRole)) {
         router.replace('/auth');
       }
     }

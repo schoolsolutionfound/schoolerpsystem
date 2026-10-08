@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, StyleSheet, Text, ScrollView, TextInput, TouchableOpacity, Modal, Alert } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
+import { resetUserPasswordApi } from '../../../api/admin';
 
 const SCHOOL_ROLES = [
   { key: 'admin', label: 'Admin', icon: 'shield-account-outline' },
@@ -85,8 +86,9 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
   const [title, setTitle] = useState('');
   const [vehicleNumber, setVehicleNumber] = useState('');
   const [licenseNumber, setLicenseNumber] = useState('');
-  const [password, setPassword] = useState('TempPass123!');
+  const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [resettingId, setResettingId] = useState<string | null>(null);
 
   const roleOptions = institutionType === 'college' ? COLLEGE_ROLES : SCHOOL_ROLES;
 
@@ -120,7 +122,7 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
     setTitle('');
     setVehicleNumber('');
     setLicenseNumber('');
-    setPassword('TempPass123!');
+    setPassword('');
   };
 
   const handleCreate = async () => {
@@ -131,7 +133,7 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
 
     setSubmitting(true);
     try {
-      await onCreateUser({
+      const res: any = await onCreateUser({
         fullName: fullName.trim(),
         email: email.trim().toLowerCase(),
         role,
@@ -149,12 +151,48 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
       });
       setModalOpen(false);
       resetForm();
-      Alert.alert('Success', `${role.charAt(0).toUpperCase() + role.slice(1)} account created! They can log in using their email and temporary password.`);
+      const roleLabel = role.charAt(0).toUpperCase() + role.slice(1);
+      const message = res?.tempPassword
+        ? `${roleLabel} account created! Temporary password (shown once): ${res.tempPassword}\n\nShare it securely — the user must change it at first login.`
+        : password
+          ? `${roleLabel} account created! They can log in with the password you set.`
+          : `${roleLabel} account created! They can log in with the institution default password.`;
+      Alert.alert('Success', message);
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Failed to create user');
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleResetPassword = (u: UserItem) => {
+    Alert.alert(
+      'Reset Password',
+      `Generate a new temporary password for ${u.fullName}? Their current password stops working immediately, all sessions are signed out, and they must change the password at next login.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: async () => {
+            setResettingId(u.id);
+            try {
+              const res: any = await resetUserPasswordApi(u.id);
+              const message = res?.tempPassword
+                ? `New temporary password (shown once): ${res.tempPassword}\n\nShare it securely — the user must change it at next login.`
+                : res?.usingInstitutionDefaultPassword
+                  ? 'Password reset to the institution default. The user must change it at next login.'
+                  : 'Password has been reset. The user must change it at next login.';
+              Alert.alert('Password Reset', message);
+            } catch (err: any) {
+              Alert.alert('Error', err.message || 'Failed to reset password');
+            } finally {
+              setResettingId(null);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const getAvatarBg = (role: string) => {
@@ -260,6 +298,18 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
                   ) : null}
                 </View>
               </View>
+              <TouchableOpacity
+                style={styles.resetPwdBtn}
+                onPress={() => handleResetPassword(u)}
+                disabled={resettingId === u.id}
+                accessibilityLabel={`Reset password for ${u.fullName}`}
+              >
+                <MaterialCommunityIcons
+                  name={resettingId === u.id ? 'loading' : 'key-variant'}
+                  size={18}
+                  color="#6B6B6B"
+                />
+              </TouchableOpacity>
             </View>
           ))
         )}
@@ -417,8 +467,16 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
               )}
 
               <View style={styles.formGroup}>
-                <Text style={styles.label}>Temporary Password</Text>
-                <TextInput style={styles.input} value={password} onChangeText={setPassword} />
+                <Text style={styles.label}>Temporary Password (optional)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  placeholder="Leave empty for institution default"
+                />
                 <Text style={styles.hintText}>User will be prompted to change password on first login.</Text>
               </View>
             </ScrollView>
@@ -511,6 +569,16 @@ const styles = StyleSheet.create({
   userEmail: { fontSize: 12, color: '#6B6B6B', marginTop: 2 },
   badgeRow: { flexDirection: 'row', gap: 6, marginTop: 6, flexWrap: 'wrap' },
   roleBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, fontSize: 10, fontWeight: '700' },
+  resetPwdBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFDF7',
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+  },
   codeBadge: { backgroundColor: '#FFFDF7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, fontSize: 10, fontWeight: '700', color: '#6B6B6B' },
   deptBadge: { backgroundColor: '#FFF4C7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, fontSize: 10, fontWeight: '700', color: '#F4C430' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 20 },

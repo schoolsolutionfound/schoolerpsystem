@@ -3,7 +3,11 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const connectionString = process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/schoolerp';
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  console.error('[Migration Script] DATABASE_URL is not set. Set it in server/.env (see server/.env.example).');
+  process.exit(1);
+}
 
 async function migrate() {
   const client = new pg.Client({ connectionString });

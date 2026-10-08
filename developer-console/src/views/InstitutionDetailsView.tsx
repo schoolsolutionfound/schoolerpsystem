@@ -6,24 +6,30 @@ interface InstitutionDetailsViewProps {
   onClose: () => void;
 }
 
-type TabType = 'overview' | 'subscription' | 'departments' | 'courses';
+type TabType = 'overview' | 'subscription' | 'departments' | 'courses' | 'people';
 
 export const InstitutionDetailsView: React.FC<InstitutionDetailsViewProps> = ({
   institutionId,
   onClose,
 }) => {
   const [institution, setInstitution] = useState<any>(null);
+  const [peopleStats, setPeopleStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
 
   useEffect(() => {
     if (!institutionId) return;
     setLoading(true);
+    setPeopleStats(null);
     developerApi
       .getInstitutionById(institutionId)
       .then((data) => setInstitution(data))
       .catch((err) => console.warn('[Details Fetch Error]', err.message))
       .finally(() => setLoading(false));
+    developerApi
+      .getInstitutionStats(institutionId)
+      .then((stats) => setPeopleStats(stats))
+      .catch((err) => console.warn('[People Stats Fetch Error]', err.message));
   }, [institutionId]);
 
   if (!institutionId) return null;
@@ -33,6 +39,7 @@ export const InstitutionDetailsView: React.FC<InstitutionDetailsViewProps> = ({
     { key: 'subscription', label: 'Subscription' },
     { key: 'departments', label: 'Departments' },
     { key: 'courses', label: 'Courses' },
+    { key: 'people', label: 'People' },
   ];
 
   const departmentsList = Array.isArray(institution?.departments)
@@ -224,6 +231,54 @@ export const InstitutionDetailsView: React.FC<InstitutionDetailsViewProps> = ({
                   <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                     {coursesList.map((c: string, i: number) => (
                       <span key={i} className="badge badge-college">{c}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'people' && (
+              <div className="card" style={{ padding: '16px' }}>
+                <h4 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px', color: 'var(--color-text-primary)' }}>
+                  People &amp; Structure
+                </h4>
+                {!peopleStats ? (
+                  <p style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>
+                    Loading headcount for this institution...
+                  </p>
+                ) : (
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+                      gap: '10px',
+                    }}
+                  >
+                    {[
+                      ['Students', peopleStats.students],
+                      ['Teachers', peopleStats.teachers],
+                      ['Administrators', peopleStats.admins],
+                      ['Principals', peopleStats.principals],
+                      ['Class Sections', peopleStats.classSections],
+                      ['Subjects', peopleStats.subjects],
+                    ].map(([label, value]) => (
+                      <div
+                        key={label as string}
+                        style={{
+                          backgroundColor: 'var(--color-background)',
+                          border: '1px solid var(--color-border)',
+                          borderRadius: '6px',
+                          padding: '12px',
+                          textAlign: 'center',
+                        }}
+                      >
+                        <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                          {value as number}
+                        </div>
+                        <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
+                          {label as string}
+                        </div>
+                      </div>
                     ))}
                   </div>
                 )}

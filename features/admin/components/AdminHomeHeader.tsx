@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
-import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { BellIcon } from '../../notifications/components/BellIcon';
 
 interface AdminHomeHeaderProps {
   fullName: string;
@@ -26,8 +27,7 @@ export const AdminHomeHeader: React.FC<AdminHomeHeaderProps> = ({
       </View>
 
       <TouchableOpacity style={styles.iconBtn} onPress={onNotificationsPress}>
-        <Feather name="bell" size={20} color="#171717" />
-        <View style={styles.dotBadge} />
+        <BellIcon size={20} color="#171717" />
       </TouchableOpacity>
     </View>
   );

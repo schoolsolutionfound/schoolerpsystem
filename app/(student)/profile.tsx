@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Text, ScrollView, TouchableOpacity, Alert, RefreshControl, Modal, TextInput, Image } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { signOut } from 'firebase/auth';
+import { performLogout } from '../../utils/logout';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { auth } from '../../firebaseConfig';
+
 import { useUserStore } from '../../store/useUserStore';
 import { BorderRadius } from '../../constants/theme';
 import { fetchMyDocumentsApi, uploadMyDocumentApi, deleteMyDocumentApi } from '../../api/admin';
@@ -45,7 +45,7 @@ export default function StudentProfileScreen() {
         text: 'Logout',
         style: 'destructive',
         onPress: async () => {
-          try { await signOut(auth); } catch {}
+          await performLogout();
           resetUser();
           router.replace('/auth');
         },
@@ -74,6 +74,8 @@ export default function StudentProfileScreen() {
   };
 
   useEffect(() => {
+    // Standard data-fetching pattern; loadDocuments updates state asynchronously.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadDocuments();
   }, []);
 

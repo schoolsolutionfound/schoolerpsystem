@@ -23,28 +23,6 @@ import { FontFamily } from '../../constants/fonts';
 
 type Tab = 'home' | 'schedule' | 'attendance' | 'marks' | 'reports' | 'homework' | 'chat' | 'locate' | 'profile';
 
-function toMinutes(timeStr?: string): number | null {
-  if (!timeStr) return null;
-  const m = timeStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)?$/);
-  if (!m) return null;
-  let h = parseInt(m[1], 10);
-  const min = parseInt(m[2], 10);
-  const suffix = (m[3] || '').toUpperCase();
-  if (suffix === 'PM' && h < 12) h += 12;
-  if (suffix === 'AM' && h === 12) h = 0;
-  return h * 60 + min;
-}
-
-function findCurrentSlot(slots: any[]): any | undefined {
-  const now = new Date();
-  const nowMin = now.getHours() * 60 + now.getMinutes();
-  return slots.find((s) => {
-    const start = toMinutes(s?.period?.startTime);
-    const end = toMinutes(s?.period?.endTime);
-    return start !== null && end !== null && nowMin >= start && nowMin < end;
-  });
-}
-
 function getWeekDates(): string[] {
   const now = new Date();
   const utcDay = now.getUTCDay();
@@ -122,16 +100,12 @@ export default function TeacherHomeScreen() {
   }, [fetchAll]);
 
   useEffect(() => {
+    // Standard data-fetching pattern; fetchAll updates state asynchronously after Promise.allSettled.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchAll();
   }, [fetchAll]);
 
-  useEffect(() => {
-    if (activeTab === 'home') {
-      setCompletedCount(0);
-    }
-  }, [activeTab]);
-
-  const currentSlot = findCurrentSlot(todaySlots);
+  const effectiveCompletedCount = activeTab === 'home' ? 0 : completedCount;
 
   const openSlot = (slotId: string, subjectName: string) => {
     setActiveSlot({ slotId, subjectName });
@@ -159,7 +133,7 @@ export default function TeacherHomeScreen() {
               refreshControl={refreshControl}
             >
               <TeacherDonutCard
-                completed={completedCount}
+                completed={effectiveCompletedCount}
                 total={todayCount}
                 loading={loading}
               />

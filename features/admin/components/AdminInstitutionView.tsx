@@ -13,12 +13,14 @@ interface AdminInstitutionViewProps {
     academicYears: string[];
     courses: string[];
     sections: string[];
+    hasDefaultPassword?: boolean;
   };
   onSaveConfig: (updated: {
     departments: string[];
     academicYears: string[];
     courses: string[];
     sections: string[];
+    defaultTempPassword?: string;
   }) => Promise<void>;
 }
 
@@ -33,6 +35,10 @@ export const AdminInstitutionView: React.FC<AdminInstitutionViewProps> = ({ conf
   const [newYear, setNewYear] = useState('');
   const [newCourse, setNewCourse] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Empty = untouched (existing value kept). "Clear" button sends an explicit ''.
+  const [defaultTempPassword, setDefaultTempPassword] = useState('');
+  const [clearDefaultPassword, setClearDefaultPassword] = useState(false);
 
   const addItem = (item: string, setItem: (v: string) => void, list: string[], setList: (l: string[]) => void) => {
     const trimmed = item.trim();
@@ -52,9 +58,40 @@ export const AdminInstitutionView: React.FC<AdminInstitutionViewProps> = ({ conf
   };
 
   const handleSave = async () => {
+    const trimmedPw = defaultTempPassword.trim();
+    if (trimmedPw) {
+      if (
+        trimmedPw.length < 8 ||
+        !/[A-Z]/.test(trimmedPw) ||
+        !/[a-z]/.test(trimmedPw) ||
+        !/[0-9]/.test(trimmedPw)
+      ) {
+        Alert.alert(
+          'Weak Default Password',
+          'The default password must be at least 8 characters and include an uppercase letter, a lowercase letter, and a digit.'
+        );
+        return;
+      }
+    }
     setSaving(true);
     try {
-      await onSaveConfig({ departments, academicYears, courses, sections });
+      const payload: {
+        departments: string[];
+        academicYears: string[];
+        courses: string[];
+        sections: string[];
+        defaultTempPassword?: string;
+      } = { departments, academicYears, courses, sections };
+      if (trimmedPw) {
+        payload.defaultTempPassword = trimmedPw;
+      } else if (clearDefaultPassword) {
+        payload.defaultTempPassword = '';
+      }
+      await onSaveConfig(payload);
+      if (trimmedPw || clearDefaultPassword) {
+        setDefaultTempPassword('');
+        setClearDefaultPassword(false);
+      }
       Alert.alert('Success', 'Academic structure configuration updated successfully!');
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Failed to save configuration');
@@ -82,6 +119,46 @@ export const AdminInstitutionView: React.FC<AdminInstitutionViewProps> = ({ conf
             <Text style={styles.statusBadgeText}>{config.subscriptionStatus || 'Active'}</Text>
           </View>
         </View>
+      </View>
+
+      {/* Default password for newly created users */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Default Password for New Users</Text>
+        <Text style={styles.pwHint}>
+          Used when a CSV row has no password and for users created without entering one. Never shown again after
+          saving. Users are asked to change it at first login. Leave empty to keep the current setting.
+        </Text>
+        {config.hasDefaultPassword && !clearDefaultPassword && (
+          <View style={styles.pwStatusRow}>
+            <MaterialCommunityIcons name="shield-check" size={16} color="#16A34A" />
+            <Text style={styles.pwStatusText}>A default password is currently set.</Text>
+            <TouchableOpacity onPress={() => setClearDefaultPassword(true)}>
+              <Text style={styles.pwClearText}>Clear</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        {clearDefaultPassword && (
+          <View style={styles.pwStatusRow}>
+            <MaterialCommunityIcons name="shield-off" size={16} color="#D97706" />
+            <Text style={styles.pwStatusText}>Will be cleared on save. New users get individual passwords.</Text>
+            <TouchableOpacity onPress={() => setClearDefaultPassword(false)}>
+              <Text style={styles.pwClearText}>Undo</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        <TextInput
+          style={styles.input}
+          placeholder={config.hasDefaultPassword && !clearDefaultPassword ? 'Enter a new default password to replace' : 'e.g. School#1234'}
+          value={defaultTempPassword}
+          onChangeText={(v) => {
+            setDefaultTempPassword(v);
+            if (v) setClearDefaultPassword(false);
+          }}
+          secureTextEntry
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+        <Text style={styles.pwRules}>Min 8 characters with uppercase, lowercase and a digit.</Text>
       </View>
 
       {/* Departments Section */}
@@ -183,6 +260,11 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   cardTitle: { fontSize: 15, fontWeight: '800', color: '#171717' },
+  pwHint: { fontSize: 12, color: '#6B6B6B', lineHeight: 17 },
+  pwStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  pwStatusText: { fontSize: 12, fontWeight: '600', color: '#374151', flex: 1 },
+  pwClearText: { fontSize: 12, fontWeight: '800', color: '#F4C430' },
+  pwRules: { fontSize: 11, color: '#9CA3AF' },
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 28 },
   infoLabel: { fontSize: 13, color: '#6B6B6B', fontWeight: '500', flexShrink: 1 },
   infoValue: { fontSize: 13, fontWeight: '700', color: '#171717', flexShrink: 1, textAlign: 'right' },

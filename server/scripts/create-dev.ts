@@ -4,7 +4,11 @@ import { dbUpsertUser } from '../src/modules/shared/db/index.js';
 
 async function main() {
   const email = 'dev@schoolerp.com';
-  const password = 'DevPass123!';
+  const password = process.env.DEV_SEED_PASSWORD;
+  if (!password) {
+    console.error('DEV_SEED_PASSWORD is not set — add it to server/.env, then re-run.');
+    process.exit(1);
+  }
   const fullName = 'Developer Admin';
 
   let firebaseUid = `dev_${Date.now()}`;
@@ -35,7 +39,7 @@ async function main() {
     profileCompleted: true,
   });
 
-  console.log(`Dev account ready — ${email} / ${password}`);
+  console.log(`Dev account ready — ${email}`);
 }
 
 main().catch(console.error);

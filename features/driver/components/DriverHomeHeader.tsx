@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, Image } from 'react-native';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
+import { BellIcon } from '../../notifications/components/BellIcon';
 
 interface DriverHomeHeaderProps {
   fullName: string;
@@ -37,7 +38,7 @@ export const DriverHomeHeader: React.FC<DriverHomeHeaderProps> = ({
         <Image source={require('../../../assets/text-logo.png')} style={styles.logoImage} resizeMode="contain" />
 
         <TouchableOpacity style={styles.iconBtn} onPress={onNotificationsPress}>
-          <Feather name="bell" size={22} color="#171717" />
+          <BellIcon size={22} color="#171717" />
         </TouchableOpacity>
       </View>
 

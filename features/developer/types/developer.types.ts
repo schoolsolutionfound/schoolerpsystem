@@ -80,5 +80,6 @@ export interface DeveloperStats {
   activeInstitutions: number;
   institutionAdmins: number;
   activeSubscriptions: number;
-  monthlyRevenue: number;
+  /** Deprecated — no longer returned by the API. Kept optional for back-compat. */
+  monthlyRevenue?: number;
 }

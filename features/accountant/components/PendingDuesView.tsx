@@ -14,7 +14,6 @@ import {
   ScrollView,
   TextInput,
   Modal,
-  Platform,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFinanceStore } from '../store/useFinanceStore';
@@ -65,10 +64,14 @@ export const PendingDuesView: React.FC = () => {
   const totalPendingSalaries = pendingSalaries.reduce((sum, r) => sum + r.amount, 0);
 
   // Handlers
-  const handleConfirmCollectFee = () => {
+  const handleConfirmCollectFee = async () => {
     if (!selectedFee) return;
-    collectStudentFee(selectedFee.id, payMethod);
-    showAlert('Fee Collected', `Successfully collected ${formatINR(selectedFee.amount)} from ${selectedFee.payerName}.`);
+    try {
+      await collectStudentFee(selectedFee.id, payMethod);
+      showAlert('Fee Collected', `Successfully collected ${formatINR(selectedFee.amount)} from ${selectedFee.payerName}.`);
+    } catch {
+      showAlert('Collection Failed', 'Could not record payment. Please try again.');
+    }
     setSelectedFee(null);
   };
 

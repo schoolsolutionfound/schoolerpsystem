@@ -8,13 +8,18 @@ import {
   dbCountSubjectsByInstitution,
   dbCountAttendanceSessionsByInstitution,
   dbFindUserById,
+  dbFindUserByIdOrUid,
+  dbFindStudentByUsnInInstitution,
+  dbFindStudentClassSectionId,
   dbUpdateUser,
   dbDeleteUserById,
   db,
+  withTransaction,
 } from '../shared/db/index.js';
-import { studentClasses, users, studentDocuments, feeStructures, feePayments } from '../shared/db/schema.js';
-import { and as andSql, eq as eqSql } from 'drizzle-orm';
+import { studentClasses, users, studentDocuments, feeStructures, feePayments, expenseRecords } from '../shared/db/schema.js';
+import { and as andSql, eq as eqSql, desc as descSql } from 'drizzle-orm';
 import { admin, isFirebaseAdminInitialized } from '../shared/config/firebase.js';
+import { resolveProvisionPassword, validatePasswordStrength } from '../shared/utils/password.js';
 
 /**
  * Resolve a class_sections row from a (institutionCode, department, academicYear, section) triple
@@ -98,8 +103,8 @@ export interface CreateTeacherPayload {
   institutionCode: string;
 }
 
-const SCHOOL_ROLES = ['admin', 'principal', 'teacher', 'student', 'parent', 'accountant', 'librarian'] as const;
-const COLLEGE_ROLES = ['admin', 'hod', 'teacher', 'student', 'parent', 'accountant', 'librarian'] as const;
+const SCHOOL_ROLES = ['admin', 'principal', 'teacher', 'student', 'parent', 'accountant', 'librarian', 'driver'] as const;
+const COLLEGE_ROLES = ['admin', 'hod', 'teacher', 'student', 'parent', 'accountant', 'librarian', 'driver'] as const;
 
 export interface CreateUserPayload {
   fullName: string;
@@ -122,16 +127,22 @@ export interface CreateUserPayload {
 export class AdminService {
   constructor(private repo: IAdminRepository = adminRepository) {}
 
-  private async createFirebaseUser(email: string, password?: string, displayName?: string): Promise<string> {
+  private async createFirebaseUser(email: string, password: string, displayName?: string): Promise<string> {
     if (!isFirebaseAdminInitialized) {
       throw { statusCode: 500, code: 'FIREBASE_UNAVAILABLE', message: 'Firebase Admin is not initialized. Cannot create users.' };
+    }
+
+    if (!password) {
+      // Never fall back to a hardcoded constant — callers must resolve via
+      // resolveProvisionPassword() (row password > institution default > random).
+      throw { statusCode: 400, code: 'PASSWORD_REQUIRED', message: 'A password is required to create a user.' };
     }
 
     let firebaseUid: string;
     try {
       const userRecord = await admin.auth().createUser({
         email,
-        password: password || 'Pass@123',
+        password,
         displayName: displayName || email,
       });
       firebaseUid = userRecord.uid;
@@ -193,12 +204,16 @@ export class AdminService {
       sections: (inst as any).sections || this.getDefaultAcademicConfig(inst.institutionType).sections,
       terms: inst.terms || this.getDefaultAcademicConfig(inst.institutionType).terms,
       blockedDates: inst.blockedDates || [],
+      // Boolean only — the default password value itself never leaves the server.
+      hasDefaultPassword: Boolean(inst.defaultTempPassword),
+      maintenanceEnabled: (inst as any).maintenanceEnabled ?? false,
+      maintenanceMinVersion: (inst as any).maintenanceMinVersion || '0.0.0',
     };
   }
 
   public async updateInstitutionConfig(
     institutionCode: string,
-    payload: { departments?: string[]; academicYears?: string[]; courses?: string[]; sections?: string[]; terms?: any[]; blockedDates?: any[] }
+    payload: { departments?: string[]; academicYears?: string[]; courses?: string[]; sections?: string[]; terms?: any[]; blockedDates?: any[]; defaultTempPassword?: string; maintenanceEnabled?: boolean; maintenanceMinVersion?: string }
   ) {
     const inst = await institutionService.getInstitutions().then((list) =>
       list.find((i) => i.institutionCode.toLowerCase() === (institutionCode || '').toLowerCase())
@@ -212,6 +227,18 @@ export class AdminService {
       if (payload.terms !== undefined) update.terms = payload.terms;
       if (payload.blockedDates !== undefined) update.blockedDates = payload.blockedDates;
       if (payload.sections !== undefined) update.sections = payload.sections;
+      if (payload.defaultTempPassword !== undefined) {
+        const next = payload.defaultTempPassword;
+        if (next !== '') {
+          const check = validatePasswordStrength(next);
+          if (!check.ok) {
+            throw { statusCode: 400, code: 'WEAK_DEFAULT_PASSWORD', message: check.message };
+          }
+        }
+        update.defaultTempPassword = next;
+      }
+      if (payload.maintenanceEnabled !== undefined) update.maintenanceEnabled = payload.maintenanceEnabled;
+      if (payload.maintenanceMinVersion !== undefined) update.maintenanceMinVersion = payload.maintenanceMinVersion;
       await institutionService.updateInstitution(inst.id, update as any);
     }
 
@@ -268,7 +295,8 @@ export class AdminService {
     const institutionType = inst?.institutionType || 'college';
 
     const displayName = `${payload.firstName} ${payload.lastName}`.trim();
-    const firebaseUid = await this.createFirebaseUser(payload.email, payload.password || 'TempPass123!', displayName);
+    const resolved = resolveProvisionPassword(payload.password, inst?.defaultTempPassword);
+    const firebaseUid = await this.createFirebaseUser(payload.email, resolved.password, displayName);
 
     const scopeObj = JSON.stringify(
       await buildClassScope(
@@ -279,56 +307,57 @@ export class AdminService {
       )
     );
 
-    const createdUser = await this.repo.upsertUser({
-      firebaseUid,
-      email: payload.email,
-      fullName: displayName,
-      role: 'student',
-      institutionCode: payload.institutionCode,
-      institutionName,
-      institutionType,
-      rollNoOrUSN: payload.rollNoOrUSN,
-      parentPhone: payload.parentPhone || '',
-      mustChangePassword: true,
-      profileCompleted: false,
-      scope: scopeObj,
-    });
+    const writeStudent = async (tx: any) => {
+      const createdUser = await this.repo.upsertUser(
+        {
+          firebaseUid,
+          email: payload.email,
+          fullName: displayName,
+          role: 'student',
+          institutionCode: payload.institutionCode,
+          institutionName,
+          institutionType,
+          rollNoOrUSN: payload.rollNoOrUSN,
+          parentPhone: payload.parentPhone || '',
+          mustChangePassword: true,
+          profileCompleted: false,
+          scope: scopeObj,
+        },
+        tx
+      );
 
-    // Canonical enrollment: also insert into student_classes (additive, ignores failures).
-    try {
       const scope = scopeObj ? JSON.parse(scopeObj) : {};
-      if (scope?.classSectionId) {
-        if (db) {
-          const existing = await db
-            .select({ id: studentClasses.id })
-            .from(studentClasses)
-            .where(
-              andSql(
-                eqSql(studentClasses.classSectionId, scope.classSectionId),
-                eqSql(studentClasses.studentId, createdUser.id),
-                eqSql(studentClasses.academicYear, scope.academicYear || '')
-              )
+      const q = tx ?? db;
+      if (scope?.classSectionId && q) {
+        const existing = await q
+          .select({ id: studentClasses.id })
+          .from(studentClasses)
+          .where(
+            andSql(
+              eqSql(studentClasses.classSectionId, scope.classSectionId),
+              eqSql(studentClasses.studentId, createdUser.id),
+              eqSql(studentClasses.academicYear, scope.academicYear || '')
             )
-            .limit(1);
-          if (existing.length === 0) {
-            const id = `sc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-            await db.insert(studentClasses).values({
-              id,
-              institutionCode: payload.institutionCode,
-              studentId: createdUser.id,
-              classSectionId: scope.classSectionId,
-              rollNo: payload.rollNoOrUSN,
-              academicYear: scope.academicYear || '',
-              isActive: true,
-            });
-          }
+          )
+          .limit(1);
+        if (existing.length === 0) {
+          const id = `sc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+          await q.insert(studentClasses).values({
+            id,
+            institutionCode: payload.institutionCode,
+            studentId: createdUser.id,
+            classSectionId: scope.classSectionId,
+            rollNo: payload.rollNoOrUSN,
+            academicYear: scope.academicYear || '',
+            isActive: true,
+          });
         }
       }
-    } catch (err: any) {
-      console.warn('[createStudent warning] student_classes insert failed:', err?.message);
-    }
+      return createdUser;
+    };
 
-    return createdUser;
+    const createdUser = db ? await withTransaction(writeStudent) : await writeStudent(null);
+    return resolved.tempPassword ? { ...createdUser, tempPassword: resolved.tempPassword } : createdUser;
   }
 
   public async getStudentById(id: string, institutionCode: string) {
@@ -407,51 +436,57 @@ export class AdminService {
       throw { statusCode: 400, code: 'INVALID_INPUT', message: 'studentIds and targetClassSectionId are required.' };
     }
 
-    let promoted = 0;
-    for (const sid of studentIds) {
+    const promoteOne = async (tx: any, sid: string): Promise<boolean> => {
       const user = await dbFindUserById(sid);
-      if (!user || user.role !== 'student' || user.institutionCode !== institutionCode) continue;
+      if (!user || user.role !== 'student' || user.institutionCode !== institutionCode) return false;
 
       const existingScope = typeof user.scope === 'string' ? JSON.parse(user.scope) : (user.scope || {});
       const newScope = { ...existingScope, classSectionId: targetClassSectionId, academicYear };
 
-      await dbUpdateUser(sid, { scope: JSON.stringify(newScope) });
+      await dbUpdateUser(sid, { scope: JSON.stringify(newScope) }, tx);
 
-      try {
-        if (db) {
-          const now = new Date().toISOString().split('T')[0];
-          const activeEnrollments = await db
-            .select({ id: studentClasses.id })
-            .from(studentClasses)
-            .where(
-              andSql(
-                eqSql(studentClasses.studentId, sid),
-                eqSql(studentClasses.isActive, true)
-              )
-            );
-          for (const enr of activeEnrollments) {
-            await db.update(studentClasses).set({ effectiveTo: now, isActive: false, updatedAt: new Date() }).where(eqSql(studentClasses.id, enr.id));
-          }
-
-          const classSection = await academicsRepository.listClassSections(institutionCode);
-          const cs = Array.isArray(classSection) ? classSection.find((c: any) => c.id === targetClassSectionId) : null;
-
-          const id = `sc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-          await db.insert(studentClasses).values({
-            id,
-            institutionCode,
-            studentId: sid,
-            classSectionId: targetClassSectionId,
-            rollNo: user.rollNoOrUSN || '',
-            academicYear,
-            effectiveFrom: now,
-            isActive: true,
-          });
+      const q = tx ?? db;
+      if (q) {
+        const now = new Date().toISOString().split('T')[0];
+        const activeEnrollments = await q
+          .select({ id: studentClasses.id })
+          .from(studentClasses)
+          .where(
+            andSql(
+              eqSql(studentClasses.studentId, sid),
+              eqSql(studentClasses.isActive, true)
+            )
+          );
+        for (const enr of activeEnrollments) {
+          await q.update(studentClasses).set({ effectiveTo: now, isActive: false, updatedAt: new Date() }).where(eqSql(studentClasses.id, enr.id));
         }
-      } catch (err: any) {
-        console.warn('[promoteStudents] student_classes update failed for', sid, err.message);
+
+        const id = `sc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        await q.insert(studentClasses).values({
+          id,
+          institutionCode,
+          studentId: sid,
+          classSectionId: targetClassSectionId,
+          rollNo: user.rollNoOrUSN || '',
+          academicYear,
+          effectiveFrom: now,
+          isActive: true,
+        });
       }
-      promoted++;
+      return true;
+    };
+
+    let promoted = 0;
+    if (db) {
+      await withTransaction(async (tx) => {
+        for (const sid of studentIds) {
+          if (await promoteOne(tx, sid)) promoted++;
+        }
+      });
+    } else {
+      for (const sid of studentIds) {
+        if (await promoteOne(null, sid)) promoted++;
+      }
     }
     return { promoted, total: studentIds.length };
   }
@@ -461,32 +496,41 @@ export class AdminService {
       throw { statusCode: 400, code: 'INVALID_INPUT', message: 'studentIds are required.' };
     }
 
-    let graduated = 0;
-    for (const sid of studentIds) {
+    const graduateOne = async (tx: any, sid: string): Promise<boolean> => {
       const user = await dbFindUserById(sid);
-      if (!user || user.role !== 'student' || user.institutionCode !== institutionCode) continue;
+      if (!user || user.role !== 'student' || user.institutionCode !== institutionCode) return false;
 
-      await dbUpdateUser(sid, { graduatedAt: new Date() });
+      await dbUpdateUser(sid, { graduatedAt: new Date() }, tx);
 
-      try {
-        if (db) {
-          const activeEnrollments = await db
-            .select({ id: studentClasses.id })
-            .from(studentClasses)
-            .where(
-              andSql(
-                eqSql(studentClasses.studentId, sid),
-                eqSql(studentClasses.isActive, true)
-              )
-            );
-          for (const enr of activeEnrollments) {
-            await db.update(studentClasses).set({ effectiveTo: new Date().toISOString().split('T')[0], isActive: false, updatedAt: new Date() }).where(eqSql(studentClasses.id, enr.id));
-          }
+      const q = tx ?? db;
+      if (q) {
+        const activeEnrollments = await q
+          .select({ id: studentClasses.id })
+          .from(studentClasses)
+          .where(
+            andSql(
+              eqSql(studentClasses.studentId, sid),
+              eqSql(studentClasses.isActive, true)
+            )
+          );
+        for (const enr of activeEnrollments) {
+          await q.update(studentClasses).set({ effectiveTo: new Date().toISOString().split('T')[0], isActive: false, updatedAt: new Date() }).where(eqSql(studentClasses.id, enr.id));
         }
-      } catch (err: any) {
-        console.warn('[graduateStudents] student_classes update failed for', sid, err.message);
       }
-      graduated++;
+      return true;
+    };
+
+    let graduated = 0;
+    if (db) {
+      await withTransaction(async (tx) => {
+        for (const sid of studentIds) {
+          if (await graduateOne(tx, sid)) graduated++;
+        }
+      });
+    } else {
+      for (const sid of studentIds) {
+        if (await graduateOne(null, sid)) graduated++;
+      }
     }
     return { graduated, total: studentIds.length };
   }
@@ -581,7 +625,8 @@ export class AdminService {
     const institutionName = inst?.institutionName || payload.institutionCode;
 
     const displayName = `${payload.firstName} ${payload.lastName}`.trim();
-    const firebaseUid = await this.createFirebaseUser(payload.email, payload.password || 'TempPass123!', displayName);
+    const resolved = resolveProvisionPassword(payload.password, inst?.defaultTempPassword);
+    const firebaseUid = await this.createFirebaseUser(payload.email, resolved.password, displayName);
 
     const scopeObj = JSON.stringify({
       employeeId: payload.employeeId || '',
@@ -600,7 +645,7 @@ export class AdminService {
       scope: scopeObj,
     });
 
-    return createdUser;
+    return resolved.tempPassword ? { ...createdUser, tempPassword: resolved.tempPassword } : createdUser;
   }
 
   public async updateTeacher(id: string, payload: {
@@ -682,7 +727,8 @@ export class AdminService {
       };
     }
 
-    const firebaseUid = await this.createFirebaseUser(payload.email, payload.password || 'TempPass123!', payload.fullName);
+    const resolved = resolveProvisionPassword(payload.password, inst?.defaultTempPassword);
+    const firebaseUid = await this.createFirebaseUser(payload.email, resolved.password, payload.fullName);
 
     const hasClassTriple = Boolean(
       (payload.department || '').toString().trim() ||
@@ -717,7 +763,60 @@ export class AdminService {
       scope: JSON.stringify(scopeObj),
     });
 
-    return createdUser;
+    return resolved.tempPassword ? { ...createdUser, tempPassword: resolved.tempPassword } : createdUser;
+  }
+
+  /**
+   * Admin-initiated password reset for an existing account.
+   * Resets the Firebase password, revokes all refresh tokens (forces
+   * re-login everywhere), and re-arms mustChangePassword so the user
+   * picks their own password at next login. Shows the temp password ONCE.
+   */
+  public async resetUserPassword(id: string, institutionCode: string, explicitPassword?: string) {
+    const existing = await dbFindUserById(id);
+    if (!existing || existing.institutionCode !== institutionCode) {
+      throw { statusCode: 404, code: 'USER_NOT_FOUND', message: 'User not found.' };
+    }
+    if (!existing.firebaseUid) {
+      throw { statusCode: 400, code: 'NO_FIREBASE_UID', message: 'User has no linked login account.' };
+    }
+
+    const inst = await institutionService.getInstitutions().then((list) =>
+      list.find((i) => i.institutionCode.toLowerCase() === institutionCode.toLowerCase())
+    );
+    const resolved = resolveProvisionPassword(explicitPassword, inst?.defaultTempPassword);
+
+    if (!isFirebaseAdminInitialized) {
+      throw { statusCode: 500, code: 'FIREBASE_UNAVAILABLE', message: 'Firebase Admin is not initialized. Cannot reset passwords.' };
+    }
+
+    try {
+      await admin.auth().updateUser(existing.firebaseUid, { password: resolved.password });
+    } catch (err: any) {
+      if (err.code === 'auth/user-not-found') {
+        throw { statusCode: 404, code: 'FIREBASE_USER_NOT_FOUND', message: 'Login account no longer exists in Firebase Auth.' };
+      }
+      throw { statusCode: 500, code: 'FIREBASE_PASSWORD_RESET_FAILED', message: `Failed to reset password: ${err.message}` };
+    }
+
+    // Kill sessions on every device — a reset must also end stolen sessions.
+    try {
+      await admin.auth().revokeRefreshTokens(existing.firebaseUid);
+    } catch (err: any) {
+      console.warn('[resetUserPassword] Token revocation failed:', err.message);
+    }
+
+    // dbUpdateUser invalidates the auth cache, so the gate re-arms immediately.
+    await dbUpdateUser(id, { mustChangePassword: true });
+
+    return {
+      message: 'Password reset successfully',
+      userId: id,
+      email: existing.email,
+      ...(resolved.tempPassword ? { tempPassword: resolved.tempPassword } : {}),
+      ...(resolved.source === 'institution_default' ? { usingInstitutionDefaultPassword: true } : {}),
+      mustChangePassword: true,
+    };
   }
 
   // --- Legacy Single Feed & Bulk Feed ---
@@ -726,8 +825,12 @@ export class AdminService {
       throw { statusCode: 400, code: 'INVALID_INPUT', message: 'Missing required single-feed fields (email, firstName, lastName)' };
     }
 
+    const inst = await institutionService.getInstitutions().then((list) =>
+      list.find((i) => i.institutionCode.toLowerCase() === (payload.institutionCode || '').toLowerCase())
+    );
     const displayName = `${payload.firstName} ${payload.lastName}`.trim();
-    const firebaseUid = await this.createFirebaseUser(payload.email, payload.dummyPassword, displayName);
+    const resolved = resolveProvisionPassword(payload.dummyPassword, inst?.defaultTempPassword);
+    const firebaseUid = await this.createFirebaseUser(payload.email, resolved.password, displayName);
 
     const createdUser = await this.repo.upsertUser({
       firebaseUid,
@@ -745,6 +848,8 @@ export class AdminService {
     return {
       message: 'User created successfully',
       user: createdUser,
+      ...(resolved.tempPassword ? { tempPassword: resolved.tempPassword } : {}),
+      ...(resolved.source === 'institution_default' ? { usingInstitutionDefaultPassword: true } : {}),
     };
   }
 
@@ -756,6 +861,18 @@ export class AdminService {
     let successCount = 0;
     let failureCount = 0;
     const errors: string[] = [];
+    // One-time lookup: institutionCode -> admin-set default temp password.
+    const institutionDefaults = new Map<string, string>();
+    const tempPasswords: { email: string; tempPassword: string }[] = [];
+    let defaultPasswordsUsed = 0;
+    try {
+      const list = await institutionService.getInstitutions();
+      for (const i of list) {
+        institutionDefaults.set(i.institutionCode.toLowerCase(), i.defaultTempPassword || '');
+      }
+    } catch {
+      // No institution data available — rows will fall back to random per-user temps.
+    }
 
     for (const record of records) {
       try {
@@ -766,7 +883,9 @@ export class AdminService {
         }
 
         const displayName = `${record.firstName} ${record.lastName}`.trim();
-        const firebaseUid = await this.createFirebaseUser(record.email, record.dummyPassword, displayName);
+        const instDefault = institutionDefaults.get((record.institutionCode || '').toLowerCase()) || '';
+        const resolved = resolveProvisionPassword(record.dummyPassword, instDefault);
+        const firebaseUid = await this.createFirebaseUser(record.email, resolved.password, displayName);
 
         const scopeObj = JSON.stringify(
           await buildClassScope(
@@ -777,25 +896,29 @@ export class AdminService {
           )
         );
 
-        const createdUser = await this.repo.upsertUser({
-          firebaseUid,
-          email: record.email,
-          fullName: displayName,
-          role: record.role || 'student',
-          institutionCode: record.institutionCode,
-          institutionName: record.institutionName,
-          institutionType: record.institutionType || 'school',
-          rollNoOrUSN: record.rollNoOrUSN,
-          mustChangePassword: true,
-          profileCompleted: false,
-          scope: scopeObj,
-        });
+        // Firebase user already exists; DB writes for this record are atomic.
+        const writeRecord = async (tx: any) => {
+          const createdUser = await this.repo.upsertUser(
+            {
+              firebaseUid,
+              email: record.email,
+              fullName: displayName,
+              role: record.role || 'student',
+              institutionCode: record.institutionCode,
+              institutionName: record.institutionName,
+              institutionType: record.institutionType || 'school',
+              rollNoOrUSN: record.rollNoOrUSN,
+              mustChangePassword: true,
+              profileCompleted: false,
+              scope: scopeObj,
+            },
+            tx
+          );
 
-        // Canonical enrollment: insert into student_classes
-        try {
           const scope = scopeObj ? JSON.parse(scopeObj) : {};
-          if (scope?.classSectionId && db) {
-            const existing = await db
+          const q = tx ?? db;
+          if (scope?.classSectionId && q) {
+            const existing = await q
               .select({ id: studentClasses.id })
               .from(studentClasses)
               .where(
@@ -808,7 +931,7 @@ export class AdminService {
               .limit(1);
             if (existing.length === 0) {
               const id = `sc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-              await db.insert(studentClasses).values({
+              await q.insert(studentClasses).values({
                 id,
                 institutionCode: record.institutionCode,
                 studentId: createdUser.id,
@@ -819,11 +942,13 @@ export class AdminService {
               });
             }
           }
-        } catch (err: any) {
-          console.warn('[bulkFeed warning] student_classes insert failed:', err?.message);
-        }
+          return createdUser;
+        };
 
+        await (db ? withTransaction(writeRecord) : writeRecord(null));
         successCount++;
+        if (resolved.source === 'institution_default') defaultPasswordsUsed++;
+        if (resolved.tempPassword) tempPasswords.push({ email: record.email, tempPassword: resolved.tempPassword });
       } catch (error: any) {
         failureCount++;
         errors.push(`Row for ${record.email}: ${error.message}`);
@@ -836,6 +961,10 @@ export class AdminService {
       failureCount,
       emailsSent: options?.sendEmails ? successCount : 0,
       errors,
+      defaultPasswordsUsed,
+      // One-time reveal: passwords generated for rows that had neither a CSV
+      // password nor an institution default. Never persisted anywhere else.
+      tempPasswords,
     };
   }
 
@@ -865,16 +994,22 @@ export class AdminService {
     return result;
   }
 
-  async updateFee(id: string, data: any) {
+  async updateFee(id: string, institutionCode: string, data: any) {
     if (!db) throw Object.assign(new Error('Database not available'), { statusCode: 500 });
-    const [result] = await db.update(feeStructures).set(data).where(eqSql(feeStructures.id, id)).returning();
+    const [result] = await db
+      .update(feeStructures)
+      .set(data)
+      .where(andSql(eqSql(feeStructures.id, id), eqSql(feeStructures.institutionCode, institutionCode)))
+      .returning();
     if (!result) throw Object.assign(new Error('Fee not found'), { statusCode: 404 });
     return result;
   }
 
-  async deleteFee(id: string) {
+  async deleteFee(id: string, institutionCode: string) {
     if (!db) throw Object.assign(new Error('Database not available'), { statusCode: 500 });
-    await db.delete(feeStructures).where(eqSql(feeStructures.id, id));
+    await db
+      .delete(feeStructures)
+      .where(andSql(eqSql(feeStructures.id, id), eqSql(feeStructures.institutionCode, institutionCode)));
   }
 
   async getFeePayments(institutionCode: string) {
@@ -903,16 +1038,160 @@ export class AdminService {
     return result;
   }
 
-  async updateFeePayment(id: string, data: any) {
+  async updateFeePayment(id: string, institutionCode: string, data: any) {
     if (!db) throw Object.assign(new Error('Database not available'), { statusCode: 500 });
-    const [result] = await db.update(feePayments).set(data).where(eqSql(feePayments.id, id)).returning();
+    const [result] = await db
+      .update(feePayments)
+      .set(data)
+      .where(andSql(eqSql(feePayments.id, id), eqSql(feePayments.institutionCode, institutionCode)))
+      .returning();
     if (!result) throw Object.assign(new Error('Fee payment not found'), { statusCode: 404 });
     return result;
   }
 
-  async deleteFeePayment(id: string) {
+  async deleteFeePayment(id: string, institutionCode: string) {
     if (!db) throw Object.assign(new Error('Database not available'), { statusCode: 500 });
-    await db.delete(feePayments).where(eqSql(feePayments.id, id));
+    await db
+      .delete(feePayments)
+      .where(andSql(eqSql(feePayments.id, id), eqSql(feePayments.institutionCode, institutionCode)));
+  }
+
+  // Expense Management Methods
+  async getExpenses(institutionCode: string) {
+    if (!db) return [];
+    const result = await db
+      .select()
+      .from(expenseRecords)
+      .where(eqSql(expenseRecords.institutionCode, institutionCode))
+      .orderBy(descSql(expenseRecords.createdAt));
+    return result;
+  }
+
+  async createExpense(institutionCode: string, data: any) {
+    if (!db) throw Object.assign(new Error('Database not available'), { statusCode: 500 });
+    const id = `exp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const invoiceNo = `EXP-${Date.now().toString().slice(-6)}`;
+    const [result] = await db.insert(expenseRecords).values({
+      id,
+      institutionCode,
+      title: data.title,
+      category: data.category || 'other',
+      payeeName: data.payeeName,
+      employeeId: data.employeeId,
+      designation: data.designation,
+      department: data.department,
+      vehicleNo: data.vehicleNo,
+      amount: String(data.amount),
+      paymentMethod: data.paymentMethod || 'bank_transfer',
+      paymentDate: data.paymentDate,
+      status: data.status || 'paid',
+      invoiceNo,
+      notes: data.notes,
+      createdBy: data.createdBy,
+    }).returning();
+    return result;
+  }
+
+  async updateExpense(id: string, institutionCode: string, data: any) {
+    if (!db) throw Object.assign(new Error('Database not available'), { statusCode: 500 });
+    const [result] = await db
+      .update(expenseRecords)
+      .set(data)
+      .where(andSql(eqSql(expenseRecords.id, id), eqSql(expenseRecords.institutionCode, institutionCode)))
+      .returning();
+    if (!result) throw Object.assign(new Error('Expense not found'), { statusCode: 404 });
+    return result;
+  }
+
+  async deleteExpense(id: string, institutionCode: string) {
+    if (!db) throw Object.assign(new Error('Database not available'), { statusCode: 500 });
+    await db
+      .delete(expenseRecords)
+      .where(andSql(eqSql(expenseRecords.id, id), eqSql(expenseRecords.institutionCode, institutionCode)));
+  }
+
+  /**
+   * Student-scoped fee statement. Student is resolved only from the session
+   * uid — never from client input. Returns [] when not found.
+   */
+  async getStudentFees(institutionCode: string, studentUid: string) {
+    const student = await dbFindUserByIdOrUid(studentUid);
+    if (!student || student.role.toLowerCase() !== 'student' || student.institutionCode.toLowerCase() !== institutionCode.toLowerCase()) {
+      throw { statusCode: 403, code: 'FORBIDDEN', message: 'Only students can view their fee statement' };
+    }
+    if (!db) return [];
+    return this.buildFeeStatement(institutionCode, student.id, student);
+  }
+
+  /**
+   * Parent-scoped fee statement. Child is resolved only from the parent's
+   * own record (uid → scope.linkedStudentUSN) — never from client input.
+   * Returns [] when no child is linked (soft), 403 only if not a parent.
+   */
+  async getParentFees(institutionCode: string, parentUid: string) {
+    const parent = await dbFindUserByIdOrUid(parentUid);
+    if (!parent || parent.role.toLowerCase() !== 'parent' || parent.institutionCode.toLowerCase() !== institutionCode.toLowerCase()) {
+      throw { statusCode: 403, code: 'FORBIDDEN', message: 'Only parents can view fee statements' };
+    }
+
+    let scope: any = {};
+    try {
+      scope = typeof parent.scope === 'string' ? JSON.parse(parent.scope || '{}') : (parent.scope || {});
+    } catch {
+      scope = {};
+    }
+    const linkedUsn = scope?.linkedStudentUSN || '';
+    if (!linkedUsn) return [];
+
+    const student = await dbFindStudentByUsnInInstitution(institutionCode, linkedUsn);
+    if (!student) return [];
+
+    return this.buildFeeStatement(institutionCode, student.id, student);
+  }
+
+  private async buildFeeStatement(institutionCode: string, studentId: string, student: {
+    id: string;
+    fullName?: string;
+    rollNoOrUSN?: string;
+  }) {
+    if (!db) return [];
+
+    const structures = await db
+      .select()
+      .from(feeStructures)
+      .where(andSql(eqSql(feeStructures.institutionCode, institutionCode), eqSql(feeStructures.status, 'active')));
+    const payments = await db
+      .select()
+      .from(feePayments)
+      .where(andSql(eqSql(feePayments.institutionCode, institutionCode), eqSql(feePayments.studentId, studentId)));
+
+    const childClassId = await dbFindStudentClassSectionId(studentId).catch(() => undefined);
+
+    return structures
+      .filter((s) => !s.classSectionId || s.classSectionId === childClassId)
+      .map((s) => {
+        const related = payments.filter((p) => p.feeStructureId === s.id);
+        const paid = related.find((p) => p.status === 'paid');
+        const pending = related.find((p) => p.status === 'pending');
+        return {
+          id: s.id,
+          title: s.title,
+          category: s.category,
+          amount: Number(s.amount),
+          term: s.term || '',
+          academicYear: s.academicYear || '',
+          dueDate: s.dueDate || '',
+          status: paid ? 'paid' : 'pending',
+          studentId,
+          studentName: student.fullName || '',
+          rollNo: student.rollNoOrUSN || '',
+          paymentId: (paid || pending)?.id || null,
+          paymentDate: paid?.paymentDate || '',
+          receiptNo: paid?.receiptNo || '',
+          paymentMethod: paid?.paymentMethod || '',
+          notes: paid?.notes || pending?.notes || '',
+        };
+      });
   }
 }
 

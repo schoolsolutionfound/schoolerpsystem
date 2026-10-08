@@ -1,7 +1,13 @@
 import { db } from '../shared/db/index.js';
 import { classSections } from '../shared/db/schema.js';
 import { eq } from 'drizzle-orm';
-import { institutionRepository, IInstitutionRepository } from './institution.repository.js';
+import {
+  institutionRepository,
+  IInstitutionRepository,
+  InstitutionListOptions,
+  InstitutionPage,
+  InstitutionStatusBreakdown,
+} from './institution.repository.js';
 import { CreateInstitutionInput, UpdateInstitutionInput } from './institution.schema.js';
 
 function newCsId(): string {
@@ -106,6 +112,19 @@ async function seedClassSectionsForInstitution(
   }
 }
 
+type StripPasswordField<T> = T extends null | undefined ? T : Omit<T, 'defaultTempPassword'>;
+
+/**
+ * API-response sanitizer: strips the institution's default temp password so it
+ * can never leave the server through list/detail/create/update responses.
+ * Internal service callers keep using the raw repo rows.
+ */
+export function toPublicInstitution<T extends object | null | undefined>(row: T): StripPasswordField<T> {
+  if (!row) return row as StripPasswordField<T>;
+  const { defaultTempPassword, ...rest } = row as Record<string, unknown>;
+  return rest as StripPasswordField<T>;
+}
+
 export class InstitutionService {
   constructor(private repo: IInstitutionRepository = institutionRepository) {}
 
@@ -145,8 +164,42 @@ export class InstitutionService {
     return this.repo.findAll();
   }
 
+  /**
+   * Paginated, filterable institution listing. `total` always reflects the full
+   * matching set, not just the returned page.
+   */
+  public async listInstitutions(
+    opts: {
+      search?: string;
+      type?: string;
+      status?: string;
+      sort?: InstitutionListOptions['sort'];
+      limit?: number;
+      offset?: number;
+    } = {}
+  ): Promise<InstitutionPage> {
+    const limit = Math.min(Math.max(opts.limit ?? 100, 1), 500);
+    const offset = Math.max(opts.offset ?? 0, 0);
+    return this.repo.findPage({
+      search: opts.search,
+      type: opts.type,
+      status: opts.status,
+      sort: opts.sort,
+      limit,
+      offset,
+    });
+  }
+
   public async getInstitutionByCode(code: string) {
     return this.repo.findByCode(code);
+  }
+
+  public async getInstitutionsByCodes(codes: string[]) {
+    return this.repo.findByCodes(codes);
+  }
+
+  public async getStatusBreakdown(): Promise<InstitutionStatusBreakdown> {
+    return this.repo.statusBreakdown();
   }
 
   public async getInstitutionById(id: string) {

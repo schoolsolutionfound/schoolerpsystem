@@ -30,10 +30,6 @@ export const AccountsTallyView: React.FC = () => {
     .filter((r) => r.status !== 'paid')
     .reduce((sum, r) => sum + r.amount, 0);
 
-  const pendingPayables = expenseRecords
-    .filter((r) => r.status !== 'paid')
-    .reduce((sum, r) => sum + r.amount, 0);
-
   const netBalance = totalIncome - totalExpenses;
   const isSurplus = netBalance >= 0;
 

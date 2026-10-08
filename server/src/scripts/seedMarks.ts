@@ -3,7 +3,11 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import { eq, and } from 'drizzle-orm';
 import * as schema from '../modules/shared/db/schema.js';
 
-const DATABASE_URL = process.env.DATABASE_URL || 'postgres://postgres@localhost:5432/schoolerp';
+const DATABASE_URL = process.env.DATABASE_URL;
+if (!DATABASE_URL) {
+  console.error('[Seed Marks] DATABASE_URL is not set. Set it in server/.env (see server/.env.example).');
+  process.exit(1);
+}
 const client = postgres(DATABASE_URL);
 const db = drizzle(client, { schema });
 

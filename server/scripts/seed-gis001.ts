@@ -1,6 +1,7 @@
 ﻿import 'dotenv/config';
 import { adminService } from '../src/modules/admin/admin.service.js';
 import { institutionService } from '../src/modules/institutions/institution.service.js';
+import { generateTempPassword } from '../src/modules/shared/utils/password.js';
 
 const CONCURRENCY = 5;
 
@@ -20,7 +21,6 @@ async function runBatch<T>(items: T[], fn: (item: T) => Promise<any>, label: str
 async function main() {
   const instCode = 'GIS001';
   const instName = 'Greenfield International School';
-  const password = 'TempPass123!';
   const start = Date.now();
 
   console.log(`Seeding ${instName} (${instCode}) as a school...\n`);
@@ -55,17 +55,17 @@ async function main() {
     { firstName: 'Anita', lastName: 'Desai', email: 'anita.d@gis.edu', employeeId: 'TCH-GIS-001', department: 'Science' },
   ];
 
-  await runBatch(students, (s) =>
-    adminService.createStudent({ ...s, institutionCode: instCode, password })
-      .then((r) => console.log(`  ✓ Student ${s.email} -> fb:${r.firebaseUid}`)),
-    'Students'
-  );
+  await runBatch(students, (s) => {
+    const password = generateTempPassword();
+    return adminService.createStudent({ ...s, institutionCode: instCode, password })
+      .then(() => console.log(`  ✓ Student ${s.email} -> temp pw: ${password}`));
+  }, 'Students');
 
-  await runBatch(teachers, (t) =>
-    adminService.createTeacher({ ...t, institutionCode: instCode, password })
-      .then((r) => console.log(`  ✓ Teacher ${t.email} -> fb:${r.firebaseUid}`)),
-    'Teachers'
-  );
+  await runBatch(teachers, (t) => {
+    const password = generateTempPassword();
+    return adminService.createTeacher({ ...t, institutionCode: instCode, password })
+      .then(() => console.log(`  ✓ Teacher ${t.email} -> temp pw: ${password}`));
+  }, 'Teachers');
 
   const elapsed = ((Date.now() - start) / 1000).toFixed(1);
   console.log(`\nDone in ${elapsed}s.`);

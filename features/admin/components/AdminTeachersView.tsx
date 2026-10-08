@@ -52,7 +52,7 @@ export const AdminTeachersView: React.FC<AdminTeachersViewProps> = ({
   const [email, setEmail] = useState('');
   const [employeeId, setEmployeeId] = useState('');
   const [dept, setDept] = useState(departments[0] || 'Computer Science');
-  const [password, setPassword] = useState('TempPass123!');
+  const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   // Edit form
@@ -86,10 +86,16 @@ export const AdminTeachersView: React.FC<AdminTeachersViewProps> = ({
     }
     setSubmitting(true);
     try {
-      await onCreateTeacher({ firstName, lastName, email, employeeId, department: dept, password });
+      const res: any = await onCreateTeacher({ firstName, lastName, email, employeeId, department: dept, password: password || undefined });
       setCreateOpen(false);
       setFirstName(''); setLastName(''); setEmail(''); setEmployeeId('');
-      Alert.alert('Success', 'Teacher account created!');
+      setPassword('');
+      const message = res?.tempPassword
+        ? `Teacher account created! Temporary password (shown once): ${res.tempPassword}\n\nShare it securely — the teacher must change it at first login.`
+        : password
+          ? 'Teacher account created! They can log in with the password you set.'
+          : 'Teacher account created! They can log in with the institution default password.';
+      Alert.alert('Success', message);
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Failed to create teacher');
     } finally {
@@ -177,8 +183,17 @@ export const AdminTeachersView: React.FC<AdminTeachersViewProps> = ({
         </View>
         {!isEdit && (
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Temporary Password *</Text>
-            <TextInput style={styles.input} value={password} onChangeText={setPassword} />
+            <Text style={styles.label}>Temporary Password (optional)</Text>
+            <TextInput
+              style={styles.input}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+              placeholder="Leave empty for institution default"
+            />
+            <Text style={styles.hintText}>Teacher will change it on first login.</Text>
           </View>
         )}
       </>
@@ -356,6 +371,7 @@ const styles = StyleSheet.create({
   formGroup: { gap: 4, marginBottom: 10 },
   label: { fontSize: 12, fontWeight: '700', color: '#171717', fontFamily: FontFamily.bold },
   input: { height: 44, borderWidth: 1, borderColor: '#E8E5DC', borderRadius: BorderRadius.input, paddingHorizontal: 12, fontSize: 13, backgroundColor: '#FFFDF7', fontFamily: FontFamily.regular },
+  hintText: { fontSize: 11, color: '#6B6B6B', marginTop: 2 },
   chipRow: { flexDirection: 'row', gap: 8, paddingVertical: 4 },
   chip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: BorderRadius.chip, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E8E5DC' },
   chipActive: { backgroundColor: '#F4C430', borderColor: '#F4C430' },

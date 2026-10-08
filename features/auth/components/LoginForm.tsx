@@ -12,6 +12,7 @@ interface LoginFormProps {
   setShowPassword: (val: boolean) => void;
   onSubmit: () => void;
   loading: boolean;
+  onForgotPassword: () => void;
 }
 
 export const LoginForm: React.FC<LoginFormProps> = ({
@@ -23,6 +24,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   setShowPassword,
   onSubmit,
   loading,
+  onForgotPassword,
 }) => {
   return (
     <View style={styles.form}>
@@ -68,7 +70,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
       </View>
 
       {/* Forgot password link */}
-      <TouchableOpacity style={styles.forgotBtn}>
+      <TouchableOpacity style={styles.forgotBtn} onPress={onForgotPassword} disabled={loading}>
         <Text style={styles.forgotText}>Forgot password?</Text>
       </TouchableOpacity>
 

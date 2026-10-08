@@ -22,6 +22,7 @@ import {
   deleteTeacherHandler,
   getUsersHandler,
   createUserHandler,
+  resetUserPasswordHandler,
   singleFeedHandler,
   bulkFeedHandler,
   getFeesHandler,
@@ -32,8 +33,16 @@ import {
   createFeePaymentHandler,
   updateFeePaymentHandler,
   deleteFeePaymentHandler,
+  getExpensesHandler,
+  createExpenseHandler,
+  updateExpenseHandler,
+  deleteExpenseHandler,
+  getParentFeesHandler,
+  getStudentFeesHandler,
 } from './admin.controller.js';
 import { authenticate, requireAdmin, requireRole } from '../shared/middleware/auth.js';
+
+const requireFinance = requireRole('admin', 'accountant');
 
 export async function adminRoutes(fastify: FastifyInstance) {
   // Academic Config (read is safe for any authenticated user; writes are admin-only)
@@ -72,16 +81,27 @@ export async function adminRoutes(fastify: FastifyInstance) {
   // Unified User Management (all roles)
   fastify.get('/users', { preHandler: [requireAdmin] }, getUsersHandler);
   fastify.post('/users', { preHandler: [requireAdmin], config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, createUserHandler);
+  fastify.post('/users/:id/reset-password', { preHandler: [requireAdmin], config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, resetUserPasswordHandler);
 
-  // Fee Management
-  fastify.get('/fees', { preHandler: [requireAdmin] }, getFeesHandler);
-  fastify.post('/fees', { preHandler: [requireAdmin], config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, createFeeHandler);
-  fastify.put('/fees/:id', { preHandler: [requireAdmin], config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, updateFeeHandler);
-  fastify.delete('/fees/:id', { preHandler: [requireAdmin], config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, deleteFeeHandler);
-  fastify.get('/fee-payments', { preHandler: [requireAdmin] }, getFeePaymentsHandler);
-  fastify.post('/fee-payments', { preHandler: [requireAdmin], config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, createFeePaymentHandler);
-  fastify.put('/fee-payments/:id', { preHandler: [requireAdmin], config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, updateFeePaymentHandler);
-  fastify.delete('/fee-payments/:id', { preHandler: [requireAdmin], config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, deleteFeePaymentHandler);
+  // Fee Management (admin + accountant)
+  fastify.get('/fees', { preHandler: [requireFinance] }, getFeesHandler);
+  fastify.post('/fees', { preHandler: [requireFinance], config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, createFeeHandler);
+  fastify.put('/fees/:id', { preHandler: [requireFinance], config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, updateFeeHandler);
+  fastify.delete('/fees/:id', { preHandler: [requireFinance], config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, deleteFeeHandler);
+  fastify.get('/fee-payments', { preHandler: [requireFinance] }, getFeePaymentsHandler);
+  fastify.post('/fee-payments', { preHandler: [requireFinance], config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, createFeePaymentHandler);
+  fastify.put('/fee-payments/:id', { preHandler: [requireFinance], config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, updateFeePaymentHandler);
+  fastify.delete('/fee-payments/:id', { preHandler: [requireFinance], config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, deleteFeePaymentHandler);
+
+  // Expense Management (accountant disbursements: salaries, fuel, utilities, ...)
+  fastify.get('/expenses', { preHandler: [requireFinance] }, getExpensesHandler);
+  fastify.post('/expenses', { preHandler: [requireFinance], config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, createExpenseHandler);
+  fastify.put('/expenses/:id', { preHandler: [requireFinance], config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, updateExpenseHandler);
+  fastify.delete('/expenses/:id', { preHandler: [requireFinance], config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, deleteExpenseHandler);
+  // Parent-scoped fee statement (child resolved server-side from parent.scope)
+  fastify.get('/fees/parent', { preHandler: [requireRole('parent')] }, getParentFeesHandler);
+  // Student-scoped fee statement (self resolved from session uid)
+  fastify.get('/fees/student', { preHandler: [requireRole('student')] }, getStudentFeesHandler);
 
   // Legacy Feeds
   fastify.post('/single-feed', { preHandler: [requireAdmin], config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, singleFeedHandler);

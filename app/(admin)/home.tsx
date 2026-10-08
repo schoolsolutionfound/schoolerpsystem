@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, ActivityIndicator, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { signOut } from 'firebase/auth';
-import { auth } from '../../firebaseConfig';
+import { performLogout } from '../../utils/logout';
 import { useUserStore } from '../../store/useUserStore';
 import {
   fetchInstitutionConfigApi,
@@ -97,7 +96,7 @@ export default function AdminHomeScreen() {
   const [subjectTeachers, setSubjectTeachers] = useState<any[]>([]);
   const [periods, setPeriods] = useState<any[]>([]);
 
-  const loadAllData = async () => {
+  const loadAllData = useCallback(async () => {
     setLoading(true);
     try {
       const [configRes, statsRes, studentsRes, teachersRes, usersRes, classesRes, subjectsRes, assignmentsRes, periodsRes] = await Promise.all([
@@ -144,17 +143,20 @@ export default function AdminHomeScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
+    // Standard data-fetching pattern; loadAllData updates state asynchronously.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadAllData();
-  }, []);
+  }, [loadAllData]);
 
   const handleSaveConfig = async (updated: {
     departments: string[];
     academicYears: string[];
     courses: string[];
     sections: string[];
+    defaultTempPassword?: string;
   }) => {
     const res = await updateInstitutionConfigApi(updated);
     if (res) {
@@ -165,8 +167,10 @@ export default function AdminHomeScreen() {
   const handleCreateStudent = async (studentPayload: any) => {
     const res = await createStudentApi(studentPayload);
     if (res) {
-      setStudents((prev) => [res, ...prev]);
+      const { tempPassword, ...user } = res as any;
+      setStudents((prev) => [user, ...prev]);
     }
+    return res;
   };
 
   const handleUpdateStudent = async (id: string, payload: any) => {
@@ -214,8 +218,10 @@ export default function AdminHomeScreen() {
   const handleCreateTeacher = async (teacherPayload: any) => {
     const res = await createTeacherApi(teacherPayload);
     if (res) {
-      setTeachers((prev) => [res, ...prev]);
+      const { tempPassword, ...teacher } = res as any;
+      setTeachers((prev) => [teacher, ...prev]);
     }
+    return res;
   };
 
   const handleUpdateTeacher = async (id: string, payload: any) => {
@@ -233,14 +239,16 @@ export default function AdminHomeScreen() {
   const handleCreateUser = async (userPayload: any) => {
     const res = await createUserApi(userPayload);
     if (res) {
-      setAllUsers((prev) => [res, ...prev]);
-      if (userPayload.role === 'student' && res.role === 'student') {
-        setStudents((prev) => [res, ...prev]);
+      const { tempPassword, ...user } = res as any;
+      setAllUsers((prev) => [user, ...prev]);
+      if (userPayload.role === 'student' && user.role === 'student') {
+        setStudents((prev) => [user, ...prev]);
       }
-      if (userPayload.role === 'teacher' && res.role === 'teacher') {
-        setTeachers((prev) => [res, ...prev]);
+      if (userPayload.role === 'teacher' && user.role === 'teacher') {
+        setTeachers((prev) => [user, ...prev]);
       }
     }
+    return res;
   };
 
   const handleLogout = () => {
@@ -250,7 +258,7 @@ export default function AdminHomeScreen() {
         text: 'Logout',
         style: 'destructive',
         onPress: async () => {
-          try { await signOut(auth); } catch {}
+          await performLogout();
           resetUser();
           router.replace('/auth');
         },

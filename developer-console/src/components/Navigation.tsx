@@ -17,6 +17,7 @@ export const Navigation: React.FC<NavigationProps> = ({
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'institutions', label: 'Institutions' },
     { id: 'admins', label: 'Institution Admins' },
+    { id: 'audit', label: 'Activity' },
     { id: 'plans', label: 'Subscription Plans' },
     { id: 'settings', label: 'Settings' },
   ];

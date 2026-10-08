@@ -16,8 +16,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
-import { signOut } from 'firebase/auth';
-import { auth } from '../../../firebaseConfig';
+import { performLogout } from '../../../utils/logout';
 import { useUserStore } from '../../../store/useUserStore';
 
 interface StudentDrawerProps {
@@ -117,7 +116,7 @@ export const StudentDrawer: React.FC<StudentDrawerProps> = ({
     onClose();
     setTimeout(async () => {
       try {
-        await signOut(auth);
+        await performLogout();
       } catch {}
       resetUser();
       router.replace('/auth');

@@ -2,7 +2,11 @@ import 'dotenv/config';
 import pg from 'pg';
 
 async function seedDeveloper() {
-  const connectionString = process.env.DATABASE_URL || 'postgres://postgres:raees1122@localhost:5432/school_erp';
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    console.error('[Seed Script] DATABASE_URL is not set. Set it in server/.env (see server/.env.example).');
+    process.exit(1);
+  }
   const client = new pg.Client({ connectionString });
 
   const email = process.env.DEV_EMAIL || 'developer@schoolerp.com';

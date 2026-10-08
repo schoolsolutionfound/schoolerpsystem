@@ -1,7 +1,15 @@
 import postgres from 'postgres';
+import 'dotenv/config';
+
+const rawDbUrl = process.env.DATABASE_URL;
+if (!rawDbUrl) {
+  console.error('[Check Marks] DATABASE_URL is not set. Set it in server/.env (see server/.env.example).');
+  process.exit(1);
+}
+const DATABASE_URL: string = rawDbUrl;
 
 async function main() {
-  const c = postgres('postgres://postgres@localhost:5432/schoolerp');
+  const c = postgres(DATABASE_URL);
 
   const exams = await c`SELECT id, name, status, institution_code FROM exams`;
   console.log('Exams:', JSON.stringify(exams, null, 2));

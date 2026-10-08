@@ -1,7 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Animated, Dimensions, StatusBar, Image } from 'react-native';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
+import { View, Text, StyleSheet, Animated, StatusBar, Image, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { onAuthStateChanged } from 'firebase/auth';
 import LottieView from 'lottie-react-native';
 import { auth } from '../firebaseConfig';
@@ -13,13 +12,17 @@ const { width } = Dimensions.get('window');
 
 export default function AppSplashScreen() {
   const router = useRouter();
-  const startTimeRef = useRef(Date.now());
 
-  const progressAnim = useRef(new Animated.Value(0)).current;
-  const logoScale = useRef(new Animated.Value(0.6)).current;
-  const logoOpacity = useRef(new Animated.Value(0)).current;
-  const textOpacity = useRef(new Animated.Value(0)).current;
-  const glowAnim = useRef(new Animated.Value(0.3)).current;
+  const startTimeRef = useRef(0);
+  useEffect(() => {
+    startTimeRef.current = Date.now();
+  }, []);
+
+  const progressAnim = useMemo(() => new Animated.Value(0), []);
+  const logoScale = useMemo(() => new Animated.Value(0.6), []);
+  const logoOpacity = useMemo(() => new Animated.Value(0), []);
+  const textOpacity = useMemo(() => new Animated.Value(0), []);
+  const glowAnim = useMemo(() => new Animated.Value(0.3), []);
 
   const _hasHydrated = useUserStore((state) => state._hasHydrated);
   const isProfileSynced = useUserStore((state) => state.isProfileSynced);
@@ -84,7 +87,7 @@ export default function AppSplashScreen() {
     });
 
     return () => unsubscribeAuth();
-  }, [_hasHydrated]);
+  }, [_hasHydrated, progressAnim, logoScale, logoOpacity, textOpacity, glowAnim]);
 
   useEffect(() => {
     const user = auth.currentUser;

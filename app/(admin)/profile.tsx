@@ -2,8 +2,7 @@ import React from 'react';
 import { View, StyleSheet, Text, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { signOut } from 'firebase/auth';
-import { auth } from '../../firebaseConfig';
+import { performLogout } from '../../utils/logout';
 import { useUserStore } from '../../store/useUserStore';
 import { AdminProfileView } from '../../features/admin/components/AdminProfileView';
 
@@ -20,7 +19,7 @@ export default function AdminProfileScreen() {
     Alert.alert('Logout', 'Are you sure you want to log out?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Logout', style: 'destructive', onPress: async () => {
-          try { await signOut(auth); } catch {}
+          await performLogout();
           resetUser();
           router.replace('/auth');
         },

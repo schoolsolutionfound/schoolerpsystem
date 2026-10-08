@@ -41,6 +41,8 @@ export default function CompleteProfileScreen() {
       syncResolved.current = true;
       return;
     }
+    // Standard store-subscription pattern; setSyncing is paired with an unsubscribe cleanup.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSyncing(true);
     const unsub = useUserStore.subscribe((state) => {
       if (state.isProfileSynced && state.userRole !== 'loading') {

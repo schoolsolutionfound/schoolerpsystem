@@ -3,8 +3,7 @@ import { View, StyleSheet, TouchableOpacity, Text, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { signOut } from 'firebase/auth';
-import { auth } from '../../firebaseConfig';
+import { performLogout } from '../../utils/logout';
 import { useUserStore } from '../../store/useUserStore';
 import { DeveloperDashboardContent } from '../../features/developer/components/DeveloperDashboardContent';
 import { InstitutionListScreen } from '../../features/developer/screens/InstitutionListScreen';
@@ -36,7 +35,7 @@ export default function DeveloperHomeScreen() {
         text: 'Logout',
         style: 'destructive',
         onPress: async () => {
-          try { await signOut(auth); } catch {}
+          await performLogout();
           resetUser();
           router.replace('/auth');
         },

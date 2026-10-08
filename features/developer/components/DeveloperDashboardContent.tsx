@@ -27,7 +27,8 @@ export function DeveloperDashboardContent() {
   const [createModalVisible, setCreateModalVisible] = useState(false);
 
   const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useDeveloperStatsQuery();
-  const { data: institutions = [], isLoading: instLoading, refetch: refetchInst } = useInstitutionsQuery();
+  // Only the 3 "recent institutions" rows are rendered — never fetch the full list.
+  const { data: institutions = [], isLoading: instLoading, refetch: refetchInst } = useInstitutionsQuery({ limit: 3 });
   const { data: admins = [], isLoading: adminsLoading, refetch: refetchAdmins } = useAdminsQuery();
   const createMutation = useCreateInstitutionMutation();
 

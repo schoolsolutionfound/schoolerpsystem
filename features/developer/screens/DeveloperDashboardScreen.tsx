@@ -1,22 +1,23 @@
 import React, { useState, useMemo } from 'react';
-import { View, StyleSheet, FlatList } from 'react-native';
+import { View, StyleSheet, FlatList, ActivityIndicator, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useUserStore } from '../../../store/useUserStore';
 import { AppLayout } from '../../shared/components/AppLayout';
 import { LoadingView } from '../../shared/components/LoadingView';
 import { EmptyState } from '../../shared/components/EmptyState';
 import { ErrorState } from '../../shared/components/ErrorState';
+import { useDebouncedValue } from '../../shared/hooks/useDebouncedValue';
+import { Colors } from '../../../constants/theme';
 import { DeveloperHeader } from '../components/DeveloperHeader';
 import { InstitutionCard } from '../components/InstitutionCard';
 import { CreateInstitutionModal } from '../components/CreateInstitutionModal';
 import { EditInstitutionModal } from '../components/EditInstitutionModal';
 import { DeleteInstitutionModal } from '../components/DeleteInstitutionModal';
 import {
-  useInstitutionsQuery,
+  useInstitutionPagesQuery,
   useCreateInstitutionMutation,
   useUpdateInstitutionMutation,
   useDeleteInstitutionMutation,
-  searchInstitutions,
 } from '../hooks/useDeveloperQueries';
 import { Institution, FilterType } from '../types/developer.types';
 import {
@@ -29,40 +30,39 @@ export function DeveloperDashboardScreen() {
   const fullName = useUserStore((state) => state.fullName) || 'Super Admin';
 
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearch = useDebouncedValue(searchTerm, 300);
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Institution | null>(null);
   const [deletingItem, setDeletingItem] = useState<Institution | null>(null);
 
-  // TanStack React Query Hooks
   const {
-    data: institutions = [],
+    data,
     isLoading,
     isFetching,
     isError,
     error,
     refetch,
-  } = useInstitutionsQuery();
+    fetchNextPage,
+    isFetchingNextPage,
+    hasNextPage,
+  } = useInstitutionPagesQuery({
+    search: debouncedSearch,
+    type: activeFilter === 'college' ? 'college' : activeFilter === 'school' ? 'school' : undefined,
+    status:
+      activeFilter === 'active' ? 'active' : activeFilter === 'inactive' ? 'non_active' : undefined,
+  });
+
+  const institutions = useMemo(
+    () => data?.pages.flatMap((p) => p.data) ?? [],
+    [data]
+  );
+  const total = data?.pages[data.pages.length - 1]?.total ?? 0;
 
   const createMutation = useCreateInstitutionMutation();
   const updateMutation = useUpdateInstitutionMutation();
   const deleteMutation = useDeleteInstitutionMutation();
-
-  // Search & Filter Memoization
-  const filteredInstitutions = useMemo(() => {
-    let list = searchInstitutions(institutions, searchTerm);
-    if (activeFilter === 'college') {
-      list = list.filter((i) => i.institutionType === 'college');
-    } else if (activeFilter === 'school') {
-      list = list.filter((i) => i.institutionType === 'school');
-    } else if (activeFilter === 'active') {
-      list = list.filter((i) => i.subscriptionStatus === 'active');
-    } else if (activeFilter === 'inactive') {
-      list = list.filter((i) => i.subscriptionStatus === 'inactive' || i.subscriptionStatus === 'suspended');
-    }
-    return list;
-  }, [institutions, searchTerm, activeFilter]);
 
   const handleCreateSubmit = async (values: CreateInstitutionFormValues) => {
     try {
@@ -95,7 +95,7 @@ export function DeveloperDashboardScreen() {
     <AppLayout scrollable={false}>
       <DeveloperHeader
         fullName={fullName}
-        institutionCount={institutions.length}
+        institutionCount={total}
         isFetching={isFetching && !isLoading}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
@@ -113,7 +113,7 @@ export function DeveloperDashboardScreen() {
             message={(error as any)?.message || 'Could not connect to backend server.'}
             onRetry={refetch}
           />
-        ) : filteredInstitutions.length === 0 ? (
+        ) : institutions.length === 0 ? (
           <EmptyState
             title={searchTerm ? 'No Matching Institutions' : 'No Institutions Registered'}
             description={
@@ -126,7 +126,7 @@ export function DeveloperDashboardScreen() {
           />
         ) : (
           <FlatList
-            data={filteredInstitutions}
+            data={institutions}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
               <InstitutionCard
@@ -136,6 +136,19 @@ export function DeveloperDashboardScreen() {
                 onDelete={(inst) => setDeletingItem(inst)}
               />
             )}
+            onEndReached={() => {
+              if (hasNextPage && !isFetchingNextPage) fetchNextPage();
+            }}
+            onEndReachedThreshold={0.4}
+            ListFooterComponent={
+              isFetchingNextPage ? (
+                <View style={styles.footerRow}>
+                  <ActivityIndicator size="small" color={Colors.light.primary} />
+                </View>
+              ) : !hasNextPage ? (
+                <Text style={styles.footerText}>All {total} institutions loaded</Text>
+              ) : null
+            }
             contentContainerStyle={styles.listContainer}
             showsVerticalScrollIndicator={false}
           />
@@ -177,5 +190,15 @@ const styles = StyleSheet.create({
   listContainer: {
     gap: 12,
     paddingBottom: 24,
+  },
+  footerRow: {
+    padding: 16,
+    alignItems: 'center',
+  },
+  footerText: {
+    padding: 16,
+    textAlign: 'center',
+    fontSize: 12,
+    color: Colors.light.muted,
   },
 });

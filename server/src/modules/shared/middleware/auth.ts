@@ -16,6 +16,23 @@ declare module 'fastify' {
   }
 }
 
+/**
+ * Routes a user with mustChangePassword=true is still allowed to hit.
+ * Everything else returns 403 PASSWORD_CHANGE_REQUIRED until the password
+ * is rotated. Kept minimal on purpose: logout (cleanup), change-password
+ * (the fix), login-sync (post-login bootstrap), and the own-profile
+ * endpoints the client needs to run its first-login redirect flow
+ * (useAuthGuard reads /users/me, then redirects to /change-password →
+ * /complete-profile).
+ */
+const PASSWORD_GATE_EXEMPT_ROUTES = new Set([
+  '/api/v1/auth/login-sync',
+  '/api/v1/auth/logout',
+  '/api/v1/auth/change-password',
+  '/api/v1/users/me',
+  '/api/v1/users/complete-profile',
+]);
+
 export async function authenticate(request: FastifyRequest, reply: FastifyReply) {
   const authHeader = request.headers.authorization;
 
@@ -70,21 +87,32 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
   // Robust Flow: Fetch User from PostgreSQL to retrieve authoritative Role & Institution mapping
   let dbUserRole = tokenRole;
   let institutionCode = '';
+  let mustChangePassword = false;
 
   const cached = getCachedAuth(firebaseUid);
   if (cached) {
     dbUserRole = cached.role || tokenRole;
     institutionCode = cached.institutionCode;
+    mustChangePassword = cached.mustChangePassword;
   } else {
     try {
       const dbUser = await dbFindByUid(firebaseUid);
       if (dbUser) {
         dbUserRole = dbUser.role || tokenRole || '';
         institutionCode = dbUser.institutionCode || '';
-        setCachedAuth(firebaseUid, dbUserRole, institutionCode);
+        mustChangePassword = Boolean(dbUser.mustChangePassword);
+        setCachedAuth(firebaseUid, dbUserRole, institutionCode, mustChangePassword);
       }
     } catch (err: any) {
-      console.warn('[Auth Middleware Warning] PostgreSQL user lookup failed:', err.message);
+      // Fail closed: a DB outage must not silently produce an empty-tenant principal.
+      console.error('[Auth Middleware] PostgreSQL user lookup failed:', err.message);
+      return reply.status(503).send({
+        success: false,
+        error: {
+          message: 'Service temporarily unavailable. Please try again.',
+          code: 'SERVICE_UNAVAILABLE',
+        },
+      });
     }
   }
 
@@ -96,6 +124,19 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
         code: 'NO_ROLE_ASSIGNED',
       },
     });
+  }
+
+  if (mustChangePassword) {
+    const routeUrl = (request.routeOptions?.url || request.url || '').split('?')[0];
+    if (!PASSWORD_GATE_EXEMPT_ROUTES.has(routeUrl)) {
+      return reply.status(403).send({
+        success: false,
+        error: {
+          message: 'Password change required. Please set a new password before continuing.',
+          code: 'PASSWORD_CHANGE_REQUIRED',
+        },
+      });
+    }
   }
 
   request.user = {
@@ -120,10 +161,10 @@ export async function requireDeveloper(request: FastifyRequest, reply: FastifyRe
     });
   }
 
-  const role = (request.user.role || '').toLowerCase().trim();
-  const normalizedRole = (role === 'institution admin') ? 'admin' : role;
+  const role = normalizeRole(request.user.role);
 
-  if (normalizedRole !== 'dev') {
+  // Accept both spellings: 'dev' (short form) and 'developer' (docs/roles.md form).
+  if (role !== 'dev' && role !== 'developer') {
     return reply.status(403).send({
       success: false,
       error: {

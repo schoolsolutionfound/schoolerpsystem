@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
-import { signInWithEmailAndPassword, auth } from '../services/firebase';
+import {
+  signInWithEmailAndPassword,
+  getMultiFactorResolver,
+  TotpMultiFactorGenerator,
+  auth,
+  type MultiFactorResolver,
+  type MultiFactorError,
+} from '../services/firebase';
 
 interface LoginViewProps {
   onLoginSuccess: (email: string) => void;
@@ -8,10 +15,12 @@ interface LoginViewProps {
 export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [mfaResolver, setMfaResolver] = useState<MultiFactorResolver | null>(null);
+  const [mfaCode, setMfaCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
@@ -24,8 +33,37 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
         setError('Please enter email and password.');
       }
     } catch (err: any) {
-      console.warn('[Developer Auth Warning]', err.message);
-      setError(err.message || 'Authentication failed. Please check credentials.');
+      if (err?.code === 'auth/multi-factor-auth-required') {
+        const resolver = getMultiFactorResolver(auth, err as MultiFactorError);
+        setMfaResolver(resolver);
+        setMfaCode('');
+        setError('');
+      } else {
+        setError(err.message || 'Authentication failed. Please check credentials.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMfaSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mfaResolver) return;
+    setError('');
+    setLoading(true);
+
+    try {
+      const enrollmentId = mfaResolver.hints[0]?.uid || '';
+      const assertion = TotpMultiFactorGenerator.assertionForSignIn(enrollmentId, mfaCode);
+      await mfaResolver.resolveSignIn(assertion);
+      onLoginSuccess(email);
+    } catch (err: any) {
+      if (err?.code === 'auth/invalid-multi-factor-session' || err?.code === 'auth/missing-multi-factor-session') {
+        setMfaResolver(null);
+        setError('Two-factor session expired. Please sign in again.');
+      } else {
+        setError(err.message || 'Invalid code. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -68,36 +106,77 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
             </div>
           )}
 
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label className="form-label">Email address</label>
-              <input
-                type="email"
-                className="input"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoFocus
-              />
-            </div>
+          {mfaResolver ? (
+            <form onSubmit={handleMfaSubmit}>
+              <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: '4px' }}>
+                Two-factor authentication
+              </div>
+              <p style={{ fontSize: '12.5px', color: 'var(--color-text-muted)', marginBottom: '16px' }}>
+                Signing in as <strong>{email}</strong>. Enter the 6-digit code from your authenticator app.
+              </p>
 
-            <div className="form-group">
-              <label className="form-label">Password</label>
-              <input
-                type="password"
-                className="input"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
+              <div className="form-group">
+                <label className="form-label">Authenticator code</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  className="input"
+                  placeholder="123456"
+                  value={mfaCode}
+                  maxLength={6}
+                  autoFocus
+                  required
+                  onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ''))}
+                />
+              </div>
 
-            <button type="submit" className="btn btn-primary" style={{ width: '100%', height: '42px', marginTop: '8px', fontSize: '14px' }} disabled={loading}>
-              {loading ? 'Authenticating...' : 'Sign in'}
-            </button>
-          </form>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <button type="submit" className="btn btn-primary" style={{ width: '100%', height: '42px', fontSize: '14px' }} disabled={loading || mfaCode.length !== 6}>
+                  {loading ? 'Verifying...' : 'Verify and sign in'}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{ width: '100%', height: '36px', fontSize: '13px' }}
+                  disabled={loading}
+                  onClick={() => { setMfaResolver(null); setMfaCode(''); setError(''); }}
+                >
+                  Use a different account
+                </button>
+              </div>
+            </form>
+          ) : (
+            <form onSubmit={handlePasswordSubmit}>
+              <div className="form-group">
+                <label className="form-label">Email address</label>
+                <input
+                  type="email"
+                  className="input"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoFocus
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Password</label>
+                <input
+                  type="password"
+                  className="input"
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+
+              <button type="submit" className="btn btn-primary" style={{ width: '100%', height: '42px', marginTop: '8px', fontSize: '14px' }} disabled={loading}>
+                {loading ? 'Authenticating...' : 'Sign in'}
+              </button>
+            </form>
+          )}
         </div>
       </div>
     </div>

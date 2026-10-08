@@ -5,7 +5,9 @@ export const SingleFeedSchema = z.object({
   lastName: z.string().min(1, 'Last name is required'),
   rollNoOrUSN: z.string().min(1, 'Roll No / USN is required'),
   email: z.string().email('Invalid email address'),
-  dummyPassword: z.string().min(6, 'Password must be at least 6 characters'),
+  // Optional: when absent/empty the server falls back to the institution
+  // default password, then to a generated per-user temporary password.
+  dummyPassword: z.string().min(6, 'Password must be at least 6 characters').optional(),
   institutionCode: z.string().min(1, 'School/College code is required'),
   institutionName: z.string().min(1, 'School/College name is required'),
   institutionType: z.enum(['school', 'college']).default('school'),

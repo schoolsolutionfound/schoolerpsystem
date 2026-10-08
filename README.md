@@ -51,12 +51,16 @@ FIREBASE_PROJECT_ID=your-project-id
 
 ## Test Credentials
 
-| Role | Email | Password | Institution |
-|------|-------|----------|-------------|
-| Developer | dev@schoolerp.dev | Dev@1234 | — |
-| Admin | safwancoding1919@gmail.com | Safwan@123 | TST001 |
-| Teacher (Kadar) | kadar@gmail.com | Kadar@123 | TST001 |
-| Student (Safwan) | safwanhaneef786@gmail.com | (ask Safwan) | TST001 |
+> **No passwords are stored in this repository.** Ask a teammate for demo
+> credentials, or provision your own account against the shared Firebase
+> project (see `server/scripts/`).
+
+| Role | Email | How to get access | Institution |
+|------|-------|-------------------|-------------|
+| Developer | dev@schoolerp.com | Set `DEV_SEED_PASSWORD` in `server/.env`, then `npx tsx scripts/create-dev.ts` | — |
+| Admin | safwancoding1919@gmail.com | Ask a teammate, or reset with `RESET_PASSWORD` + `npx tsx scripts/reset-admin-pw.ts` | TST001 |
+| Teacher (Kadar) | kadar@gmail.com | Ask a teammate | TST001 |
+| Student (Safwan) | safwanhaneef786@gmail.com | Ask a teammate | TST001 |
 | Test Students | `<name>.student@schoolerp.test` | (fake Firebase — cannot login) | TST001 |
 
 > Test students (`*.student@schoolerp.test`) have synthetic Firebase UIDs and **cannot authenticate**. Use real accounts only.

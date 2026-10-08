@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, Image } from 'react-native';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
+import { BellIcon } from '../../notifications/components/BellIcon';
 
 interface AdminHeaderProps {
   fullName: string;
@@ -36,10 +37,9 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
 
         <Image source={require('../../../assets/text-logo.png')} style={styles.logoImage} resizeMode="contain" />
 
-        <View style={styles.iconBtn}>
-          <Feather name="bell" size={22} color="#171717" />
-          <View style={styles.dotBadge} />
-        </View>
+        <TouchableOpacity style={styles.iconBtn} onPress={onNotificationsPress}>
+          <BellIcon size={22} color="#171717" />
+        </TouchableOpacity>
       </View>
 
       <TouchableOpacity style={styles.userGreetingRow} onPress={onProfilePress} activeOpacity={0.7}>

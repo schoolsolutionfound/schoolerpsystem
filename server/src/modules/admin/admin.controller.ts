@@ -1,11 +1,34 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { adminService, SingleFeedPayload, CreateStudentPayload, CreateTeacherPayload } from './admin.service.js';
+import {
+  CreateFeeSchema,
+  CreateFeePaymentSchema,
+  UpdateFeeSchema,
+  UpdateFeePaymentSchema,
+  CreateExpenseSchema,
+  UpdateExpenseSchema,
+} from './admin.schema.js';
+import { notifyFeePaid } from '../notifications/notification.triggers.js';
 
 export { SingleFeedPayload, CreateStudentPayload, CreateTeacherPayload };
 
-function extractInstCode(req: FastifyRequest): string {
-  const user = (req as any).user;
-  return user?.institutionCode || (req.query as any)?.institutionCode || 'DEFAULT';
+function parseZod(err: any) {
+  if (err?.name === 'ZodError') {
+    return {
+      statusCode: 400,
+      code: 'VALIDATION_ERROR',
+      message: err.errors?.[0]?.message || 'Invalid input data',
+    };
+  }
+  return err;
+}
+
+export function extractInstCode(req: FastifyRequest): string {
+  const instCode = req.user?.institutionCode?.trim();
+  if (!instCode) {
+    throw { statusCode: 403, code: 'NO_INSTITUTION', message: 'No institution assigned to this user.' };
+  }
+  return instCode;
 }
 
 export async function getInstitutionConfigHandler(request: FastifyRequest, reply: FastifyReply) {
@@ -332,11 +355,26 @@ export async function createUserHandler(request: FastifyRequest, reply: FastifyR
   }
 }
 
-export async function singleFeedHandler(request: FastifyRequest, reply: FastifyReply) {
-  const body = request.body as SingleFeedPayload;
-
+export async function resetUserPasswordHandler(request: FastifyRequest, reply: FastifyReply) {
   try {
-    const data = await adminService.singleFeed(body);
+    const instCode = extractInstCode(request);
+    const { id } = request.params as { id: string };
+    const body = (request.body || {}) as { password?: string };
+    const data = await adminService.resetUserPassword(id, instCode, body?.password);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return reply.status(err.statusCode || 400).send({
+      success: false,
+      error: { message: err.message || 'Failed to reset password', code: err.code || 'RESET_PASSWORD_ERROR' },
+    });
+  }
+}
+
+export async function singleFeedHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const instCode = extractInstCode(request);
+    const body = request.body as SingleFeedPayload;
+    const data = await adminService.singleFeed({ ...body, institutionCode: instCode });
     return reply.send({
       success: true,
       data,
@@ -360,10 +398,14 @@ export async function bulkFeedHandler(request: FastifyRequest, reply: FastifyRep
   }
 
   try {
-    const data = await adminService.bulkFeed(body.records, {
-      sendEmails: body.sendEmails,
-      overwriteUsers: body.overwriteUsers,
-    });
+    const instCode = extractInstCode(request);
+    const data = await adminService.bulkFeed(
+      body.records.map((record) => ({ ...record, institutionCode: instCode })),
+      {
+        sendEmails: body.sendEmails,
+        overwriteUsers: body.overwriteUsers,
+      }
+    );
     return reply.send({
       success: true,
       data,
@@ -390,29 +432,36 @@ export async function getFeesHandler(request: FastifyRequest, reply: FastifyRepl
 export async function createFeeHandler(request: FastifyRequest, reply: FastifyReply) {
   try {
     const instCode = extractInstCode(request);
-    const body = request.body as any;
-    const data = await adminService.createFee(instCode, body);
+    const body = CreateFeeSchema.parse(request.body);
+    const data = await adminService.createFee(instCode, {
+      ...body,
+      createdBy: request.user?.uid,
+    });
     return reply.send({ success: true, data });
   } catch (err: any) {
-    return reply.status(err.statusCode || 400).send({ success: false, error: { message: err.message } });
+    const parsed = parseZod(err);
+    return reply.status(parsed.statusCode || 400).send({ success: false, error: { message: parsed.message, code: parsed.code } });
   }
 }
 
 export async function updateFeeHandler(request: FastifyRequest, reply: FastifyReply) {
   try {
+    const instCode = extractInstCode(request);
     const { id } = request.params as { id: string };
-    const body = request.body as any;
-    const data = await adminService.updateFee(id, body);
+    const body = UpdateFeeSchema.parse(request.body);
+    const data = await adminService.updateFee(id, instCode, body);
     return reply.send({ success: true, data });
   } catch (err: any) {
-    return reply.status(err.statusCode || 400).send({ success: false, error: { message: err.message } });
+    const parsed = parseZod(err);
+    return reply.status(parsed.statusCode || 400).send({ success: false, error: { message: parsed.message, code: parsed.code } });
   }
 }
 
 export async function deleteFeeHandler(request: FastifyRequest, reply: FastifyReply) {
   try {
+    const instCode = extractInstCode(request);
     const { id } = request.params as { id: string };
-    await adminService.deleteFee(id);
+    await adminService.deleteFee(id, instCode);
     return reply.send({ success: true });
   } catch (err: any) {
     return reply.status(err.statusCode || 400).send({ success: false, error: { message: err.message } });
@@ -432,29 +481,115 @@ export async function getFeePaymentsHandler(request: FastifyRequest, reply: Fast
 export async function createFeePaymentHandler(request: FastifyRequest, reply: FastifyReply) {
   try {
     const instCode = extractInstCode(request);
-    const body = request.body as any;
-    const data = await adminService.createFeePayment(instCode, body);
+    const body = CreateFeePaymentSchema.parse(request.body);
+    const data = await adminService.createFeePayment(instCode, {
+      ...body,
+      createdBy: request.user?.uid,
+    });
+    notifyFeePaid({
+      institutionCode: instCode,
+      studentId: data.studentId,
+      amount: data.amount,
+      receiptNo: data.receiptNo || undefined,
+      paymentId: data.id,
+    });
     return reply.send({ success: true, data });
   } catch (err: any) {
-    return reply.status(err.statusCode || 400).send({ success: false, error: { message: err.message } });
+    const parsed = parseZod(err);
+    return reply.status(parsed.statusCode || 400).send({ success: false, error: { message: parsed.message, code: parsed.code } });
   }
 }
 
 export async function updateFeePaymentHandler(request: FastifyRequest, reply: FastifyReply) {
   try {
+    const instCode = extractInstCode(request);
     const { id } = request.params as { id: string };
-    const body = request.body as any;
-    const data = await adminService.updateFeePayment(id, body);
+    const body = UpdateFeePaymentSchema.parse(request.body);
+    const data = await adminService.updateFeePayment(id, instCode, body);
     return reply.send({ success: true, data });
   } catch (err: any) {
-    return reply.status(err.statusCode || 400).send({ success: false, error: { message: err.message } });
+    const parsed = parseZod(err);
+    return reply.status(parsed.statusCode || 400).send({ success: false, error: { message: parsed.message, code: parsed.code } });
   }
 }
 
 export async function deleteFeePaymentHandler(request: FastifyRequest, reply: FastifyReply) {
   try {
+    const instCode = extractInstCode(request);
     const { id } = request.params as { id: string };
-    await adminService.deleteFeePayment(id);
+    await adminService.deleteFeePayment(id, instCode);
+    return reply.send({ success: true });
+  } catch (err: any) {
+    return reply.status(err.statusCode || 400).send({ success: false, error: { message: err.message } });
+  }
+}
+
+export async function getParentFeesHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const instCode = extractInstCode(request);
+    const uid = request.user?.uid || '';
+    const data = await adminService.getParentFees(instCode, uid);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return reply.status(err.statusCode || 500).send({ success: false, error: { message: err.message, code: err.code } });
+  }
+}
+
+export async function getStudentFeesHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const instCode = extractInstCode(request);
+    const uid = request.user?.uid || '';
+    const data = await adminService.getStudentFees(instCode, uid);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return reply.status(err.statusCode || 500).send({ success: false, error: { message: err.message, code: err.code } });
+  }
+}
+
+// Expense Management Handlers
+export async function getExpensesHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const instCode = extractInstCode(request);
+    const data = await adminService.getExpenses(instCode);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return reply.status(err.statusCode || 500).send({ success: false, error: { message: err.message } });
+  }
+}
+
+export async function createExpenseHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const instCode = extractInstCode(request);
+    const body = CreateExpenseSchema.parse(request.body);
+    const data = await adminService.createExpense(instCode, {
+      ...body,
+      createdBy: request.user?.uid,
+    });
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    const parsed = parseZod(err);
+    return reply.status(parsed.statusCode || 400).send({ success: false, error: { message: parsed.message, code: parsed.code } });
+  }
+}
+
+export async function updateExpenseHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const instCode = extractInstCode(request);
+    const { id } = request.params as { id: string };
+    const body = UpdateExpenseSchema.parse(request.body);
+    const data = await adminService.updateExpense(id, instCode, body);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    const parsed = parseZod(err);
+    return reply.status(parsed.statusCode || 400).send({ success: false, error: { message: parsed.message, code: parsed.code } });
+  }
+}
+
+export async function deleteExpenseHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const instCode = extractInstCode(request);
+    const { id } = request.params as { id: string };
+    await adminService.deleteExpense(id, instCode);
     return reply.send({ success: true });
   } catch (err: any) {
     return reply.status(err.statusCode || 400).send({ success: false, error: { message: err.message } });

@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { View, StyleSheet, Text, ScrollView, TouchableOpacity, Alert, RefreshControl, Image } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { signOut } from 'firebase/auth';
+import { performLogout } from '../../utils/logout';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { auth } from '../../firebaseConfig';
+
 import { useUserStore } from '../../store/useUserStore';
 import { BorderRadius } from '../../constants/theme';
 import { FontFamily } from '../../constants/fonts';
@@ -22,7 +22,6 @@ export default function ParentProfileScreen() {
   const profilePic = useUserStore((s) => s.profilePic) || '';
   const linkedStudentUSN = useUserStore((s) => s.linkedStudentUSN) || '';
   const relation = useUserStore((s) => s.relation) || '';
-  const childId = useUserStore((s) => s.childId) || '';
   const childName = useUserStore((s) => s.childName) || '';
   const resetUser = useUserStore((s) => s.resetUser);
   const setUserProfile = useUserStore((s) => s.setUserProfile);
@@ -37,7 +36,7 @@ export default function ParentProfileScreen() {
         text: 'Logout',
         style: 'destructive',
         onPress: async () => {
-          try { await signOut(auth); } catch {}
+          await performLogout();
           resetUser();
           router.replace('/auth');
         },

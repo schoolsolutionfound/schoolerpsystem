@@ -3,7 +3,12 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const connectionString = process.env.DATABASE_URL || 'postgres://postgres:raees1122@localhost:5432/school_erp';
+const rawDbUrl = process.env.DATABASE_URL;
+if (!rawDbUrl) {
+  console.error('[Check Dev User] DATABASE_URL is not set. Set it in server/.env (see server/.env.example).');
+  process.exit(1);
+}
+const connectionString: string = rawDbUrl;
 
 async function checkUser() {
   const client = new pg.Client({ connectionString });

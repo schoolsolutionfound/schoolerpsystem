@@ -19,7 +19,7 @@ export default function VerifyEmailScreen() {
       router.replace(getHomeRouteForRole(userRole) as any);
     }, 100);
     return () => clearTimeout(timer);
-  }, []);
+  }, [router, userRole]);
 
   return (
     <SafeAreaView style={styles.container}>

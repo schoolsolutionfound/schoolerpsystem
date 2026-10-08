@@ -4,9 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useUserStore } from '../../store/useUserStore';
-import { signOut } from 'firebase/auth';
-import { auth } from '../../firebaseConfig';
-import { BorderRadius } from '../../constants/theme';
+import { performLogout } from '../../utils/logout';
 
 export default function DriverProfileScreen() {
   const router = useRouter();
@@ -29,7 +27,7 @@ export default function DriverProfileScreen() {
         text: 'Logout',
         style: 'destructive',
         onPress: async () => {
-          try { await signOut(auth); } catch {}
+          await performLogout();
           resetUser();
           router.replace('/auth');
         },

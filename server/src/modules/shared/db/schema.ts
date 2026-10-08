@@ -1,4 +1,5 @@
 import { pgTable, text, timestamp, boolean, varchar, jsonb, integer, numeric, date, index, uniqueIndex } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 export const institutions = pgTable('institutions', {
   id: text('id')
@@ -13,6 +14,11 @@ export const institutions = pgTable('institutions', {
   courses: jsonb('courses').$type<string[]>().default([]),
   terms: jsonb('terms').$type<{ academicYear: string; terms: string[] }[]>().default([]),
   blockedDates: jsonb('blocked_dates').$type<{ date: string; reason: string }[]>().default([]),
+  // Admin-set default password for newly provisioned users (row password in
+  // CSV/feed overrides it; never returned by API responses — only hasDefaultPassword).
+  defaultTempPassword: varchar('default_temp_password', { length: 64 }).default(''),
+  maintenanceEnabled: boolean('maintenance_enabled').notNull().default(false),
+  maintenanceMinVersion: varchar('maintenance_min_version', { length: 50 }).notNull().default('0.0.0'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
@@ -45,10 +51,42 @@ export const users = pgTable('users', {
   updatedAt: timestamp('updated_at').defaultNow(),
 }, (table) => ({
   institutionCodeIdx: index('idx_users_institution_code').on(table.institutionCode),
+  // Covers institution-scoped role queries (admin lists, role-filtered counts).
+  institutionRoleIdx: index('idx_users_institution_role').on(table.institutionCode, table.role),
+  // Covers non-scoped role lookups (e.g. platform-wide admin counts) without a full scan.
+  adminRoleIdx: index('idx_users_admin_role').on(table.role).where(sql`role = 'admin'`),
 }));
 
 export type UserRecord = typeof users.$inferSelect;
 export type NewUserRecord = typeof users.$inferInsert;
+
+export interface AuditEventRecord {
+  id: string;
+  actorEmail: string;
+  action: string;
+  targetType: 'institution' | 'admin' | 'platform';
+  targetId?: string;
+  targetLabel?: string;
+  details?: Record<string, any>;
+  createdAt: Date;
+}
+
+export const auditEvents = pgTable('audit_events', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => `aud_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`),
+  actorEmail: text('actor_email').notNull(),
+  action: text('action').notNull(),
+  targetType: varchar('target_type', { length: 50 }).notNull().default('platform'),
+  targetId: text('target_id'),
+  targetLabel: text('target_label'),
+  details: jsonb('details'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (table) => [
+  index('idx_audit_events_created_at').on(table.createdAt),
+]);
+
+export type AuditEventRow = typeof auditEvents.$inferSelect;
 
 const idPrefix = (prefix: string) => () => `${prefix}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
@@ -392,3 +430,160 @@ export const feePayments = pgTable('fee_payments', {
 
 export type FeePaymentRecord = typeof feePayments.$inferSelect;
 export type NewFeePaymentRecord = typeof feePayments.$inferInsert;
+
+export const expenseRecords = pgTable('expense_records', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('exp')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  title: varchar('title', { length: 255 }).notNull(),
+  category: varchar('category', { length: 50 }).notNull().default('other'),
+  payeeName: varchar('payee_name', { length: 255 }).notNull(),
+  employeeId: varchar('employee_id', { length: 100 }),
+  designation: varchar('designation', { length: 100 }),
+  department: varchar('department', { length: 100 }),
+  vehicleNo: varchar('vehicle_no', { length: 50 }),
+  amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
+  paymentMethod: varchar('payment_method', { length: 30 }).notNull().default('bank_transfer'),
+  paymentDate: date('payment_date'),
+  status: varchar('status', { length: 20 }).notNull().default('paid'),
+  invoiceNo: varchar('invoice_no', { length: 50 }),
+  notes: text('notes'),
+  createdBy: text('created_by'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  instCodeIdx: index('idx_expense_records_inst').on(table.institutionCode),
+  categoryIdx: index('idx_expense_records_category').on(table.category),
+  statusIdx: index('idx_expense_records_status').on(table.status),
+}));
+
+export type ExpenseRecordRow = typeof expenseRecords.$inferSelect;
+export type NewExpenseRecordRow = typeof expenseRecords.$inferInsert;
+
+// ============================================================================
+// NOTIFICATION MODULE SCHEMAS
+// ============================================================================
+
+export const notifications = pgTable('notifications', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('ntf')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  recipientId: text('recipient_id').notNull(),
+  title: varchar('title', { length: 300 }).notNull(),
+  body: text('body').notNull(),
+  type: varchar('type', { length: 50 }).notNull().default('general'),
+  priority: varchar('priority', { length: 20 }).notNull().default('normal'),
+  channel: varchar('channel', { length: 20 }).notNull().default('push'),
+  data: jsonb('data').$type<Record<string, any>>().default({}),
+  status: varchar('status', { length: 20 }).notNull().default('pending'),
+  readAt: timestamp('read_at'),
+  sentAt: timestamp('sent_at'),
+  failedAt: timestamp('failed_at'),
+  errorMessage: text('error_message').default(''),
+  retryCount: integer('retry_count').notNull().default(0),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  recipientIdx: index('idx_notifications_recipient').on(table.recipientId, table.readAt),
+  institutionIdx: index('idx_notifications_institution').on(table.institutionCode, table.createdAt),
+  statusIdx: index('idx_notifications_status').on(table.status, table.createdAt),
+  pendingIdx: index('idx_notifications_pending').on(table.status).where(sql`status = 'pending'`),
+  typeIdx: index('idx_notifications_type').on(table.type),
+}));
+
+export type NotificationRecord = typeof notifications.$inferSelect;
+export type NewNotificationRecord = typeof notifications.$inferInsert;
+
+export const pushTokens = pgTable('push_tokens', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('ptk')),
+  userId: text('user_id').notNull(),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  token: text('token').notNull().unique(),
+  platform: varchar('platform', { length: 20 }).notNull(),
+  deviceName: varchar('device_name', { length: 200 }).default(''),
+  isActive: boolean('is_active').notNull().default(true),
+  lastUsedAt: timestamp('last_used_at').defaultNow(),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  userIdx: index('idx_push_tokens_user').on(table.userId, table.isActive),
+  institutionIdx: index('idx_push_tokens_institution').on(table.institutionCode),
+  tokenUnique: uniqueIndex('uq_push_tokens_token').on(table.token),
+}));
+
+export type PushTokenRecord = typeof pushTokens.$inferSelect;
+export type NewPushTokenRecord = typeof pushTokens.$inferInsert;
+
+export const notificationTemplates = pgTable('notification_templates', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('ntm')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  type: varchar('type', { length: 50 }).notNull(),
+  channel: varchar('channel', { length: 20 }).notNull().default('push'),
+  titleTemplate: varchar('title_template', { length: 300 }).notNull(),
+  bodyTemplate: text('body_template').notNull(),
+  locale: varchar('locale', { length: 10 }).notNull().default('en'),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  institutionIdx: index('idx_notification_templates_inst').on(table.institutionCode),
+  typeIdx: index('idx_notification_templates_type').on(table.institutionCode, table.type),
+}));
+
+export type NotificationTemplateRecord = typeof notificationTemplates.$inferSelect;
+export type NewNotificationTemplateRecord = typeof notificationTemplates.$inferInsert;
+
+export const notificationCampaigns = pgTable('notification_campaigns', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('cmp')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  title: varchar('title', { length: 300 }).notNull(),
+  body: text('body').notNull(),
+  type: varchar('type', { length: 50 }).notNull().default('announcement'),
+  priority: varchar('priority', { length: 20 }).notNull().default('normal'),
+  channel: varchar('channel', { length: 20 }).notNull().default('push'),
+  target: jsonb('target').$type<Record<string, any>>().notNull().default({}),
+  scheduledAt: timestamp('scheduled_at'),
+  status: varchar('status', { length: 20 }).notNull().default('draft'),
+  totalCount: integer('total_count').notNull().default(0),
+  sentCount: integer('sent_count').notNull().default(0),
+  failedCount: integer('failed_count').notNull().default(0),
+  createdBy: text('created_by').notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  institutionIdx: index('idx_notification_campaigns_inst').on(table.institutionCode, table.createdAt),
+  statusIdx: index('idx_notification_campaigns_status').on(table.status),
+}));
+
+export type NotificationCampaignRecord = typeof notificationCampaigns.$inferSelect;
+export type NewNotificationCampaignRecord = typeof notificationCampaigns.$inferInsert;
+
+export const notificationAuditLog = pgTable('notification_audit_log', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('nal')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  action: varchar('action', { length: 50 }).notNull(),
+  notificationId: text('notification_id'),
+  campaignId: text('campaign_id'),
+  userId: text('user_id'),
+  details: jsonb('details').$type<Record<string, any>>().default({}),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  institutionIdx: index('idx_notification_audit_inst').on(table.institutionCode, table.createdAt),
+  actionIdx: index('idx_notification_audit_action').on(table.action),
+  notificationIdx: index('idx_notification_audit_notification').on(table.notificationId),
+}));
+
+export type NotificationAuditLogRecord = typeof notificationAuditLog.$inferSelect;
+export type NewNotificationAuditLogRecord = typeof notificationAuditLog.$inferInsert;
+
+export const notificationPreferences = pgTable('notification_preferences', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('npf')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  userId: text('user_id').notNull(),
+  pushEnabled: boolean('push_enabled').notNull().default(true),
+  disabledTypes: jsonb('disabled_types').$type<string[]>().default([]),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  userIdx: index('idx_notification_preferences_user').on(table.userId),
+  userUnique: uniqueIndex('uq_notification_preferences_user').on(table.userId),
+}));
+
+export type NotificationPreferenceRecord = typeof notificationPreferences.$inferSelect;
+export type NewNotificationPreferenceRecord = typeof notificationPreferences.$inferInsert;

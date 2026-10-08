@@ -36,6 +36,8 @@ export interface IncomeRecord {
   status: PaymentStatus;
   receiptNo: string;
   notes?: string;
+  feeStructureId?: string;
+  paymentId?: string | null;
 }
 
 export interface ExpenseRecord {

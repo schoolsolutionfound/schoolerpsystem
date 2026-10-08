@@ -6,6 +6,17 @@ export interface FetchInstitutionsParams {
   limit?: number;
   search?: string;
   filter?: string;
+  type?: string;
+  status?: string;
+  sort?: string;
+}
+
+/** Paginated response envelope returned by GET /developer/institutions when any query param is present. */
+export interface PaginatedInstitutions {
+  data: Institution[];
+  total: number;
+  limit: number;
+  offset: number;
 }
 
 export async function fetchInstitutionsApi(params?: FetchInstitutionsParams): Promise<Institution[]> {
@@ -14,10 +25,48 @@ export async function fetchInstitutionsApi(params?: FetchInstitutionsParams): Pr
   if (params?.limit) queryParts.push(`limit=${params.limit}`);
   if (params?.search) queryParts.push(`search=${encodeURIComponent(params.search)}`);
   if (params?.filter) queryParts.push(`filter=${encodeURIComponent(params.filter)}`);
+  if (params?.type) queryParts.push(`type=${encodeURIComponent(params.type)}`);
+  if (params?.status) queryParts.push(`status=${encodeURIComponent(params.status)}`);
+  if (params?.sort) queryParts.push(`sort=${encodeURIComponent(params.sort)}`);
 
   const queryString = queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
 
-  return apiClient<Institution[]>(`/developer/institutions${queryString}`, {
+  const res = await apiClient<Institution[] | PaginatedInstitutions>(`/developer/institutions${queryString}`, {
+    method: 'GET',
+  });
+  // Dual response shape: no query params -> plain array (legacy contract);
+  // any query param -> { data, total, limit, offset }.
+  return Array.isArray(res) ? res : (res?.data ?? []);
+}
+
+/**
+ * One page of the institution list with server-side search/filter.
+ * Used by the paginated list screens (infinite scroll).
+ */
+export async function fetchInstitutionsPageApi(params: {
+  page: number;
+  limit: number;
+  search?: string;
+  type?: string;
+  status?: string;
+}): Promise<PaginatedInstitutions> {
+  const queryParts = [`page=${params.page}`, `limit=${params.limit}`];
+  if (params.search) queryParts.push(`search=${encodeURIComponent(params.search)}`);
+  if (params.type) queryParts.push(`type=${encodeURIComponent(params.type)}`);
+  if (params.status) queryParts.push(`status=${encodeURIComponent(params.status)}`);
+  return apiClient<PaginatedInstitutions>(`/developer/institutions?${queryParts.join('&')}`, {
+    method: 'GET',
+  });
+}
+
+/**
+ * Server-side typeahead search for pickers that must not fetch the full
+ * institution list. Always sends `limit` so the paginated envelope comes back.
+ */
+export async function searchInstitutionsApi(search: string, limit = 50): Promise<PaginatedInstitutions> {
+  const queryParts = [`limit=${limit}`];
+  if (search) queryParts.push(`search=${encodeURIComponent(search)}`);
+  return apiClient<PaginatedInstitutions>(`/developer/institutions?${queryParts.join('&')}`, {
     method: 'GET',
   });
 }

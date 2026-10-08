@@ -6,6 +6,7 @@ import { LoginView } from './views/LoginView';
 import { DashboardView } from './views/DashboardView';
 import { InstitutionsView } from './views/InstitutionsView';
 import { AdminsView } from './views/AdminsView';
+import { AuditView } from './views/AuditView';
 import { PlansView } from './views/PlansView';
 import { SettingsView } from './views/SettingsView';
 
@@ -62,6 +63,7 @@ export function App() {
         {currentTab === 'dashboard' && <DashboardView onNavigate={(tab) => setCurrentTab(tab)} />}
         {currentTab === 'institutions' && <InstitutionsView />}
         {currentTab === 'admins' && <AdminsView />}
+        {currentTab === 'audit' && <AuditView />}
         {currentTab === 'plans' && <PlansView />}
         {currentTab === 'settings' && <SettingsView />}
       </main>

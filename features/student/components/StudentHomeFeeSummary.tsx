@@ -3,91 +3,82 @@
  * @description Student Fee Statements, Receipts, and Pending Dues Widget.
  */
 
-import React, { useState } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, Modal } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { View, StyleSheet, Text, TouchableOpacity, Modal, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
 import { FontFamily } from '../../../constants/fonts';
 import { formatINR } from '../../accountant/utils/financeUtils';
-import { showAlert } from '../../shared/utils/showAlert';
-
-interface FeeItem {
-  id: string;
-  title: string;
-  category: string;
-  amount: number;
-  status: 'paid' | 'pending';
-  dueDate: string;
-  receiptNo?: string;
-  method?: string;
-}
-
-const SAMPLE_FEES: FeeItem[] = [
-  {
-    id: 'f-1',
-    title: 'Term 1 Tuition & Laboratory Fee',
-    category: 'Tuition Fee',
-    amount: 24500,
-    status: 'paid',
-    dueDate: '2026-08-20',
-    receiptNo: 'REC-2026-0801',
-    method: 'UPI (PhonePe)',
-  },
-  {
-    id: 'f-2',
-    title: 'Term 2 Tuition & Smart Class Fee',
-    category: 'Tuition Fee',
-    amount: 22000,
-    status: 'pending',
-    dueDate: '2026-09-15',
-  },
-  {
-    id: 'f-3',
-    title: 'Annual Transport Route #4 Bus Pass',
-    category: 'Bus Fee',
-    amount: 12000,
-    status: 'paid',
-    dueDate: '2026-08-18',
-    receiptNo: 'REC-2026-0802',
-    method: 'Bank Transfer',
-  },
-];
+import { fetchMyFeesApi } from '../../../api/academics';
+import { mapParentFees } from '../../accountant/utils/feeMappers';
+import { IncomeRecord } from '../../accountant/types/finance';
+import { useUserStore } from '../../../store/useUserStore';
 
 export const StudentHomeFeeSummary: React.FC = () => {
-  const [fees, setFees] = useState<FeeItem[]>(SAMPLE_FEES);
-  const [selectedReceipt, setSelectedReceipt] = useState<FeeItem | null>(null);
+  const institutionName = useUserStore((s) => s.institutionName) || 'School';
+  const [fees, setFees] = useState<IncomeRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [selectedReceipt, setSelectedReceipt] = useState<IncomeRecord | null>(null);
+
+  const loadFees = useCallback(async () => {
+    try {
+      const res = await fetchMyFeesApi();
+      setFees(mapParentFees(Array.isArray(res) ? res : []));
+      setFetchError(null);
+    } catch (err: any) {
+      setFetchError(err?.message || 'Could not load fee statement.');
+      setFees([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetchMyFeesApi();
+        if (cancelled) return;
+        setFees(mapParentFees(Array.isArray(res) ? res : []));
+        setFetchError(null);
+      } catch (err: any) {
+        if (cancelled) return;
+        setFetchError(err?.message || 'Could not load fee statement.');
+        setFees([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const pendingAmount = fees
-    .filter((f) => f.status === 'pending')
+    .filter((f) => f.status !== 'paid')
     .reduce((sum, f) => sum + f.amount, 0);
 
-  const handlePayNow = (item: FeeItem) => {
-    showAlert(
-      'Online Payment Gateway',
-      `Proceeding to pay ₹${item.amount.toLocaleString('en-IN')} for ${item.title} via UPI / Net Banking?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Pay ₹' + item.amount.toLocaleString('en-IN'),
-          onPress: () => {
-            setFees((prev) =>
-              prev.map((f) =>
-                f.id === item.id
-                  ? {
-                      ...f,
-                      status: 'paid',
-                      receiptNo: `REC-${Date.now().toString().slice(-6)}`,
-                      method: 'UPI Online',
-                    }
-                  : f
-              )
-            );
-            showAlert('Payment Successful', `Receipt generated for ${item.title}.`);
-          },
-        },
-      ]
+  if (loading) {
+    return (
+      <View style={styles.centerBox}>
+        <ActivityIndicator size="large" color="#F4C430" />
+        <Text style={styles.centerText}>Loading fee statement…</Text>
+      </View>
     );
-  };
+  }
+
+  if (fetchError) {
+    return (
+      <View style={styles.centerBox}>
+        <MaterialCommunityIcons name="alert-circle-outline" size={40} color="#DC3545" />
+        <Text style={styles.centerText}>{fetchError}</Text>
+        <TouchableOpacity style={styles.retryBtn} onPress={() => { setLoading(true); loadFees(); }}>
+          <Text style={styles.retryBtnText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -110,47 +101,55 @@ export const StudentHomeFeeSummary: React.FC = () => {
 
       {/* Fee List */}
       <View style={styles.list}>
-        {fees.map((fee) => {
-          const isPaid = fee.status === 'paid';
+        {fees.length === 0 ? (
+          <View style={styles.emptyBox}>
+            <MaterialCommunityIcons name="receipt-text-outline" size={36} color="#E8E5DC" />
+            <Text style={styles.emptyTitle}>No fee records</Text>
+            <Text style={styles.emptySub}>No fees are assigned to you yet.</Text>
+          </View>
+        ) : (
+          fees.map((fee) => {
+            const isPaid = fee.status === 'paid';
 
-          return (
-            <View key={fee.id} style={styles.card}>
-              <View style={styles.cardTop}>
-                <View style={styles.cardLeft}>
-                  <Text style={styles.feeTitle}>{fee.title}</Text>
-                  <Text style={styles.feeSub}>
-                    {fee.category} • {isPaid ? `Paid on ${fee.dueDate}` : `Due by ${fee.dueDate}`}
-                  </Text>
-                </View>
-
-                <View style={styles.cardRight}>
-                  <Text style={[styles.amountText, isPaid ? styles.paidText : styles.dueText]}>
-                    {formatINR(fee.amount)}
-                  </Text>
-                  <View style={[styles.statusTag, isPaid ? styles.statusPaid : styles.statusPending]}>
-                    <Text style={[styles.statusTagText, isPaid ? styles.statusTextPaid : styles.statusTextPending]}>
-                      {fee.status.toUpperCase()}
+            return (
+              <View key={fee.id} style={styles.card}>
+                <View style={styles.cardTop}>
+                  <View style={styles.cardLeft}>
+                    <Text style={styles.feeTitle}>{fee.title}</Text>
+                    <Text style={styles.feeSub}>
+                      {fee.category || 'Fee'} • {isPaid ? `Paid on ${fee.paymentDate || fee.dueDate}` : `Due by ${fee.dueDate || 'N/A'}`}
                     </Text>
                   </View>
+
+                  <View style={styles.cardRight}>
+                    <Text style={[styles.amountText, isPaid ? styles.paidText : styles.dueText]}>
+                      {formatINR(fee.amount)}
+                    </Text>
+                    <View style={[styles.statusTag, isPaid ? styles.statusPaid : styles.statusPending]}>
+                      <Text style={[styles.statusTagText, isPaid ? styles.statusTextPaid : styles.statusTextPending]}>
+                        {isPaid ? 'PAID' : 'PENDING'}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                <View style={styles.actionRow}>
+                  {isPaid ? (
+                    <TouchableOpacity style={styles.receiptBtn} onPress={() => setSelectedReceipt(fee)}>
+                      <MaterialCommunityIcons name="file-document-outline" size={14} color="#F4C430" />
+                      <Text style={styles.receiptBtnText}>View Receipt{fee.receiptNo ? ` (${fee.receiptNo})` : ''}</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <View style={styles.payNote}>
+                      <MaterialCommunityIcons name="information-outline" size={14} color="#6B6B6B" />
+                      <Text style={styles.payNoteText}>Pay at the school accounts office</Text>
+                    </View>
+                  )}
                 </View>
               </View>
-
-              <View style={styles.actionRow}>
-                {isPaid ? (
-                  <TouchableOpacity style={styles.receiptBtn} onPress={() => setSelectedReceipt(fee)}>
-                    <MaterialCommunityIcons name="file-document-outline" size={14} color="#F4C430" />
-                    <Text style={styles.receiptBtnText}>View Receipt ({fee.receiptNo})</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity style={styles.payBtn} onPress={() => handlePayNow(fee)}>
-                    <MaterialCommunityIcons name="shield-check" size={14} color="#FFFFFF" />
-                    <Text style={styles.payBtnText}>Pay Online via UPI</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
-          );
-        })}
+            );
+          })
+        )}
       </View>
 
       {/* Receipt Modal */}
@@ -160,7 +159,7 @@ export const StudentHomeFeeSummary: React.FC = () => {
             <View style={styles.receiptBox}>
               <View style={styles.receiptHeader}>
                 <MaterialCommunityIcons name="school" size={28} color="#F4C430" />
-                <Text style={styles.receiptSchoolName}>SchoolHub Academy</Text>
+                <Text style={styles.receiptSchoolName}>{institutionName || 'School'}</Text>
                 <Text style={styles.receiptSubtitle}>Official Fee Payment Receipt</Text>
               </View>
 
@@ -169,7 +168,7 @@ export const StudentHomeFeeSummary: React.FC = () => {
               <View style={styles.receiptBody}>
                 <View style={styles.receiptRow}>
                   <Text style={styles.rLabel}>Receipt No:</Text>
-                  <Text style={styles.rVal}>{selectedReceipt.receiptNo}</Text>
+                  <Text style={styles.rVal}>{selectedReceipt.receiptNo || '—'}</Text>
                 </View>
                 <View style={styles.receiptRow}>
                   <Text style={styles.rLabel}>Fee Head:</Text>
@@ -177,11 +176,11 @@ export const StudentHomeFeeSummary: React.FC = () => {
                 </View>
                 <View style={styles.receiptRow}>
                   <Text style={styles.rLabel}>Payment Date:</Text>
-                  <Text style={styles.rVal}>{selectedReceipt.dueDate}</Text>
+                  <Text style={styles.rVal}>{selectedReceipt.paymentDate || selectedReceipt.dueDate || '—'}</Text>
                 </View>
                 <View style={styles.receiptRow}>
                   <Text style={styles.rLabel}>Payment Channel:</Text>
-                  <Text style={styles.rVal}>{selectedReceipt.method || 'Online UPI'}</Text>
+                  <Text style={styles.rVal}>{selectedReceipt.paymentMethod || 'School Office'}</Text>
                 </View>
                 <View style={styles.receiptRow}>
                   <Text style={styles.rLabel}>Status:</Text>
@@ -207,6 +206,18 @@ export const StudentHomeFeeSummary: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { marginTop: 4 },
+  centerBox: { alignItems: 'center', justifyContent: 'center', paddingVertical: 40, gap: 10 },
+  centerText: { fontSize: 13, color: '#6B6B6B', fontFamily: FontFamily.regular, textAlign: 'center', paddingHorizontal: 20 },
+  retryBtn: {
+    backgroundColor: '#F4C430',
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  retryBtnText: { fontSize: 13, fontWeight: '700', color: '#FFFFFF', fontFamily: FontFamily.bold },
+  emptyBox: { alignItems: 'center', paddingVertical: 30, gap: 6 },
+  emptyTitle: { fontSize: 15, fontWeight: '800', color: '#1A1B1C', fontFamily: FontFamily.extrabold },
+  emptySub: { fontSize: 12, color: '#6B6B6B', fontFamily: FontFamily.regular },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -253,17 +264,13 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   receiptBtnText: { fontSize: 11, fontWeight: '700', color: '#F4C430', fontFamily: FontFamily.bold },
-  payBtn: {
+  payNote: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#16A34A',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
+    paddingHorizontal: 4,
   },
-  payBtnText: { fontSize: 12, fontWeight: '700', color: '#FFFFFF', fontFamily: FontFamily.bold },
+  payNoteText: { fontSize: 11, color: '#6B6B6B', fontFamily: FontFamily.regular },
 
   modalOverlay: {
     flex: 1,

@@ -2,9 +2,9 @@ import React from 'react';
 import { View, StyleSheet, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { signOut } from 'firebase/auth';
+import { performLogout } from '../../utils/logout';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { auth } from '../../firebaseConfig';
+
 import { useUserStore } from '../../store/useUserStore';
 import { BorderRadius } from '../../constants/theme';
 
@@ -23,7 +23,7 @@ export default function LibrarianProfileScreen() {
     Alert.alert('Logout', 'Are you sure you want to log out?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Logout', style: 'destructive', onPress: async () => {
-          try { await signOut(auth); } catch {}
+          await performLogout();
           resetUser();
           router.replace('/auth');
         },

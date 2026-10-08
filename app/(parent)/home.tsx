@@ -11,10 +11,12 @@ import { ParentAttendanceView } from '../../features/parent/components/ParentAtt
 import { ParentMarksView } from '../../features/parent/components/ParentMarksView';
 import { ParentHomeworkView } from '../../features/parent/components/ParentHomeworkView';
 import { ParentTrackView } from '../../features/parent/components/ParentTrackView';
+import { ParentFeesView } from '../../features/parent/components/ParentFeesView';
+import { ParentScheduleView } from '../../features/parent/components/ParentScheduleView';
 import { ParentDrawer } from '../../features/parent/components/ParentDrawer';
 import { FontFamily } from '../../constants/fonts';
 
-type Tab = 'home' | 'fees' | 'track' | 'attendance' | 'marks' | 'homework';
+type Tab = 'home' | 'fees' | 'track' | 'attendance' | 'marks' | 'homework' | 'schedule';
 
 const TABS: { key: Tab; label: string; icon: string; iconFilled: string }[] = [
   { key: 'home', label: 'Home', icon: 'home-outline', iconFilled: 'home' },
@@ -44,7 +46,6 @@ export default function ParentHomeScreen() {
   const storeChildName = useUserStore((state) => state.childName) || '';
   const storeLinkedStudentUSN = useUserStore((state) => state.linkedStudentUSN) || '';
   const storeRelation = useUserStore((state) => state.relation) || '';
-  const storeChildId = useUserStore((state) => state.childId) || '';
   const storeEmail = useUserStore((state) => state.email) || '';
 
   const fetchAttendance = useCallback(async () => {
@@ -94,8 +95,32 @@ export default function ParentHomeScreen() {
   }, []);
 
   useEffect(() => {
-    fetchAttendance();
-  }, [fetchAttendance]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetchParentAttendanceApi();
+        if (cancelled) return;
+        setOverall(res?.overall || null);
+        if (res) {
+          setChildProfile(res);
+          if (res.childName) {
+            setChildName(res.childName);
+            useUserStore.getState().setUserProfile({
+              childName: res.childName,
+              childId: res.childId || '',
+              linkedStudentUSN: res.childUSN || '',
+              relation: res.relation || '',
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('[ParentHome] fetchAttendance error:', err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -136,21 +161,15 @@ export default function ParentHomeScreen() {
       case 'attendance':
         return <ParentAttendanceView />;
       case 'fees':
-        return (
-          <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-            <View style={styles.placeholderCard}>
-              <MaterialCommunityIcons name="cash" size={40} color="#E8E5DC" />
-              <Text style={styles.placeholderTitle}>Fee Module</Text>
-              <Text style={styles.placeholderSub}>Fee management coming soon.</Text>
-            </View>
-          </ScrollView>
-        );
+        return <ParentFeesView />;
       case 'track':
         return <ParentTrackView />;
       case 'marks':
         return <ParentMarksView />;
       case 'homework':
         return <ParentHomeworkView />;
+      case 'schedule':
+        return <ParentScheduleView />;
       default:
         return null;
     }

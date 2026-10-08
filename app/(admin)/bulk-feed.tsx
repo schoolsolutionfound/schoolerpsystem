@@ -28,7 +28,6 @@ export default function AdminBulkFeedScreen() {
   const [rollNoOrUSN, setRollNoOrUSN] = useState('');
   const [individualEmail, setIndividualEmail] = useState('');
   const [individualRole, setIndividualRole] = useState<'student' | 'teacher'>('student');
-  const dummyPassword = 'Pass@123';
 
   const [csvRecords, setCsvRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -37,6 +36,7 @@ export default function AdminBulkFeedScreen() {
   const [failureCount, setFailureCount] = useState(0);
   const [emailsSent, setEmailsSent] = useState(0);
   const [importErrors, setImportErrors] = useState<string[]>([]);
+  const [tempPasswords, setTempPasswords] = useState<{ email: string; tempPassword: string }[]>([]);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'bulk' | 'users' | 'reports' | 'settings'>('bulk');
 
   const parseCsvFromUri = async (uri: string): Promise<any[]> => {
@@ -55,7 +55,9 @@ export default function AdminBulkFeedScreen() {
             lastName: row[1] || 'Unknown',
             rollNoOrUSN: row[2] || '',
             email: row[3] || `user${i}@school.edu`,
-            dummyPassword: row[4] || dummyPassword,
+            // Optional 5th CSV column overrides the institution default;
+            // empty → server falls back to institution default, then random per-user temp.
+            dummyPassword: row[4] || undefined,
             institutionCode: row[5] || storeInstitutionCode,
             institutionName: row[6] || storeInstitutionName,
             institutionType: 'college',
@@ -105,22 +107,25 @@ export default function AdminBulkFeedScreen() {
           setLoading(false);
           return;
         }
-        await singleFeedApi({
+        const res = await singleFeedApi({
           firstName,
           lastName,
           rollNoOrUSN: rollNoOrUSN || '101',
           email: individualEmail,
-          dummyPassword,
           institutionCode: storeInstitutionCode,
           institutionName: storeInstitutionName,
           institutionType: 'college',
           role: individualRole,
         });
+        const created = res?.data || res;
         setImportCount(1);
         setSuccessCount(1);
         setFailureCount(0);
         setEmailsSent(0);
         setImportErrors([]);
+        setTempPasswords(
+          created?.tempPassword ? [{ email: individualEmail, tempPassword: created.tempPassword }] : []
+        );
       } else {
         const records = selectedFile?.uri ? await parseCsvFromUri(selectedFile.uri) : csvRecords;
         if (records.length === 0) {
@@ -135,6 +140,7 @@ export default function AdminBulkFeedScreen() {
         setFailureCount(data.failureCount || 0);
         setEmailsSent(data.emailsSent || 0);
         setImportErrors(data.errors || []);
+        setTempPasswords(data.tempPasswords || []);
       }
       setWizardStep(3);
     } catch (err: any) {
@@ -194,6 +200,7 @@ export default function AdminBulkFeedScreen() {
             emailsSent={emailsSent}
             errors={importErrors}
             roleName={feedType === 'teacher_bulk' || individualRole === 'teacher' ? 'teacher' : 'student'}
+            tempPasswords={tempPasswords}
             onResetStep={() => {
               setWizardStep(1);
               setImportCount(0);
@@ -201,6 +208,7 @@ export default function AdminBulkFeedScreen() {
               setFailureCount(0);
               setEmailsSent(0);
               setImportErrors([]);
+              setTempPasswords([]);
               setImportError(null);
             }}
           />

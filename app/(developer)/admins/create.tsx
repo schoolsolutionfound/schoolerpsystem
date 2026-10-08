@@ -10,8 +10,10 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useInstitutionsQuery, useCreateAdminMutation } from '../../../features/developer/hooks/useDeveloperQueries';
+import { useCreateAdminMutation } from '../../../features/developer/hooks/useDeveloperQueries';
 import { CreateAdminSchema, ROLES } from '../../../features/developer/validation/admin.schema';
+import { InstitutionSearchSelect } from '../../../features/developer/components/InstitutionSearchSelect';
+import { Institution } from '../../../features/developer/types/developer.types';
 import { AppInput } from '../../../features/shared/components/AppInput';
 import { AppButton } from '../../../features/shared/components/AppButton';
 import { Colors, BorderRadius } from '../../../constants/theme';
@@ -45,20 +47,17 @@ const PERMISSION_GROUPS = [
 
 export default function CreateInstitutionAdminScreen() {
   const router = useRouter();
-  const { data: institutions = [] } = useInstitutionsQuery();
   const createAdminMutation = useCreateAdminMutation();
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [selectedInstCode, setSelectedInstCode] = useState(institutions[0]?.institutionCode || '');
+  const [selectedInst, setSelectedInst] = useState<Institution | null>(null);
   const [selectedTitle, setSelectedTitle] = useState('HOD');
   const [customTitle, setCustomTitle] = useState('');
   const [selectedRole, setSelectedRole] = useState('admin');
 
-  const selectedInst = institutions.find(
-    (i) => i.institutionCode.toLowerCase() === selectedInstCode.toLowerCase()
-  );
+  const selectedInstCode = selectedInst?.institutionCode || '';
   const isSchool = selectedInst?.institutionType === 'school';
 
   const availableDepts = isSchool ? SCHOOL_DEPARTMENTS : COLLEGE_DEPARTMENTS;
@@ -100,7 +99,7 @@ export default function CreateInstitutionAdminScreen() {
       email: email.trim(),
       password: password || undefined,
       role: selectedRole,
-      institutionCode: selectedInstCode || institutions[0]?.institutionCode || 'INST01',
+      institutionCode: selectedInstCode,
       title: finalTitle,
       scope: {
         departments: selectedDepts,
@@ -171,28 +170,13 @@ export default function CreateInstitutionAdminScreen() {
         />
 
         {/* Section 2: Institution Selection */}
-        <Text style={styles.sectionTitle}>Institution</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
-          {institutions.map((inst) => (
-            <TouchableOpacity
-              key={inst.id}
-              style={[
-                styles.chip,
-                selectedInstCode === inst.institutionCode && styles.activeChip,
-              ]}
-              onPress={() => setSelectedInstCode(inst.institutionCode)}
-            >
-              <Text
-                style={[
-                  styles.chipText,
-                  selectedInstCode === inst.institutionCode && styles.activeChipText,
-                ]}
-              >
-                {inst.institutionName} ({inst.institutionCode})
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+        <Text style={styles.sectionTitle}>Institution *</Text>
+        <InstitutionSearchSelect
+          value={selectedInstCode}
+          valueLabel={selectedInst ? `${selectedInst.institutionName} (${selectedInst.institutionCode})` : undefined}
+          onChange={setSelectedInst}
+          placeholder="Search institutions by name or code…"
+        />
 
         {/* Section 3: Role */}
         <Text style={styles.sectionTitle}>Role</Text>
@@ -377,9 +361,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.light.primary,
     fontWeight: '600',
-  },
-  chipRow: {
-    marginBottom: 16,
   },
   chipRowWrap: {
     flexDirection: 'row',

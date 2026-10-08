@@ -13,7 +13,7 @@ export default function DeveloperGroupLayout() {
     if (!canManageInstitutions(userRole) && userRole !== 'loading') {
       router.replace('/auth');
     }
-  }, [userRole, _hasHydrated]);
+  }, [userRole, _hasHydrated, router]);
 
   return (
     <Stack screenOptions={{ headerShown: false }}>

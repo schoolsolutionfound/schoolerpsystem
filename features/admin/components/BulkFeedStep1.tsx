@@ -140,8 +140,8 @@ export const BulkFeedStep1: React.FC<BulkFeedStep1Props> = ({
                 <View style={styles.csvFormatBox}>
                   <Text style={styles.csvFormatTitle}>Expected CSV Format</Text>
                   <Text style={styles.csvFormatHeader}>firstName, lastName, rollNo, email, password, instCode, instName, dept, year, section</Text>
-                  <Text style={styles.csvFormatExample}>Rahul, Kumar, 101, rahul@school.edu, Pass@123</Text>
-                  <Text style={styles.csvFormatNote}>Row 1 is skipped (header). Password, instCode, instName, dept, year, section are optional.</Text>
+                  <Text style={styles.csvFormatExample}>Rahul, Kumar, 101, rahul@school.edu</Text>
+                  <Text style={styles.csvFormatNote}>Row 1 is skipped (header). Password, instCode, instName, dept, year, section are optional. Rows without a password use your institution default password — or get a unique generated one shown after import.</Text>
                 </View>
               </>
             ) : (

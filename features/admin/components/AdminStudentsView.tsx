@@ -113,7 +113,7 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
   const [dept, setDept] = useState(departments[0] || '');
   const [year, setYear] = useState(academicYears[0] || '');
   const [section, setSection] = useState(sections[0] || '');
-  const [password, setPassword] = useState('TempPass123!');
+  const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   // Edit form
@@ -268,10 +268,16 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
     }
     setSubmitting(true);
     try {
-      await onCreateStudent({ firstName, lastName, email, rollNoOrUSN, department: dept, academicYear: year, section, password });
+      const res: any = await onCreateStudent({ firstName, lastName, email, rollNoOrUSN, department: dept, academicYear: year, section, password: password || undefined });
       setCreateModalOpen(false);
       setFirstName(''); setLastName(''); setEmail(''); setRollNoOrUSN('');
-      Alert.alert('Success', 'Student account created!');
+      setPassword('');
+      const message = res?.tempPassword
+        ? `Student account created! Temporary password (shown once): ${res.tempPassword}\n\nShare it securely — the student must change it at first login.`
+        : password
+          ? 'Student account created! They can log in with the password you set.'
+          : 'Student account created! They can log in with the institution default password.';
+      Alert.alert('Success', message);
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Failed to create student');
     } finally {
@@ -489,8 +495,16 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
               {renderChipRow('Academic Year', year, setYear, academicYears)}
               {renderChipRow('Section', section, setSection, sections)}
               <View style={styles.formGroup}>
-                <Text style={styles.label}>Temporary Password *</Text>
-                <TextInput style={styles.input} value={password} onChangeText={setPassword} />
+                <Text style={styles.label}>Temporary Password (optional)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  placeholder="Leave empty for institution default"
+                />
                 <Text style={styles.hintText}>Student will change password on first login.</Text>
               </View>
             </ScrollView>

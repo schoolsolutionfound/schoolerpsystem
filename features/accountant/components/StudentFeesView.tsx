@@ -15,13 +15,13 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
-import { FontFamily } from '../../../constants/fonts';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { IncomeRecord, PaymentMethod, PaymentStatus } from '../types/finance';
 import { formatINR } from '../utils/financeUtils';
 import { showAlert } from '../../shared/utils/showAlert';
 import { sharedFinanceStyles } from './financeStyles';
 import { fetchClassSectionsApi } from '../../../api/academics';
+import { useUserStore } from '../../../store/useUserStore';
 
 export const StudentFeesView: React.FC = () => {
   const incomeRecords = useFinanceStore((s) => s.incomeRecords);
@@ -82,10 +82,14 @@ export const StudentFeesView: React.FC = () => {
     .filter((r) => r.status !== 'paid')
     .reduce((sum, r) => sum + r.amount, 0);
 
-  const handleConfirmCollect = () => {
+  const handleConfirmCollect = async () => {
     if (!collectItem) return;
-    collectStudentFee(collectItem.id, selectedMethod);
-    showAlert('Fee Collected', `₹${collectItem.amount.toLocaleString('en-IN')} collected from ${collectItem.payerName} via ${selectedMethod.toUpperCase()}.`);
+    try {
+      await collectStudentFee(collectItem.id, selectedMethod);
+      showAlert('Fee Collected', `₹${collectItem.amount.toLocaleString('en-IN')} collected from ${collectItem.payerName} via ${selectedMethod.toUpperCase()}.`);
+    } catch {
+      showAlert('Collection Failed', 'Could not record payment. Please try again.');
+    }
     setCollectItem(null);
   };
 
@@ -105,7 +109,7 @@ export const StudentFeesView: React.FC = () => {
     setEditNotes(item.notes || '');
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editingItem) return;
     const numAmount = parseFloat(editAmount);
     if (isNaN(numAmount) || numAmount <= 0) {
@@ -113,15 +117,18 @@ export const StudentFeesView: React.FC = () => {
       return;
     }
 
-    updateIncomeRecord(editingItem.id, {
-      amount: numAmount,
-      status: editStatus,
-      paymentMethod: editMethod,
-      paymentDate: editDate,
-      notes: editNotes,
-    });
-
-    showAlert('Fee Updated', `Payment record for ${editingItem.payerName} updated.`);
+    try {
+      await updateIncomeRecord(editingItem.id, {
+        amount: numAmount,
+        status: editStatus,
+        paymentMethod: editMethod,
+        paymentDate: editDate,
+        notes: editNotes,
+      });
+      showAlert('Fee Updated', `Payment record for ${editingItem.payerName} updated.`);
+    } catch {
+      showAlert('Update Failed', 'Could not update fee record.');
+    }
     setEditingItem(null);
   };
 
@@ -379,7 +386,7 @@ export const StudentFeesView: React.FC = () => {
             <View style={sharedFinanceStyles.documentContent}>
               <View style={sharedFinanceStyles.documentHeader}>
                 <MaterialCommunityIcons name="school" size={32} color="#F4C430" />
-                <Text style={sharedFinanceStyles.documentSchoolName}>SchoolHub Academy</Text>
+                <Text style={sharedFinanceStyles.documentSchoolName}>{useUserStore.getState().institutionName || 'School'}</Text>
                 <Text style={sharedFinanceStyles.documentSubHeader}>Official Fee Receipt</Text>
               </View>
 

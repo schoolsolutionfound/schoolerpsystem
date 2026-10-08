@@ -3,6 +3,7 @@ import { admin, isFirebaseAdminInitialized } from '../shared/config/firebase.js'
 import { AuthenticatedUser } from '../shared/middleware/auth.js';
 import { institutionService } from '../institutions/institution.service.js';
 import { dbFindStudentByUsnInInstitution } from '../shared/db/index.js';
+import { validatePasswordStrength } from '../shared/utils/password.js';
 
 function parseScope(val: any): Record<string, any> {
   if (!val) return {};
@@ -86,17 +87,9 @@ export class AuthService {
   }
 
   public async changePassword(currentUser: AuthenticatedUser, newPassword?: string) {
-    if (!newPassword || newPassword.length < 8) {
-      throw { statusCode: 400, code: 'INVALID_PASSWORD', message: 'Password must be at least 8 characters long' };
-    }
-    if (!/[A-Z]/.test(newPassword)) {
-      throw { statusCode: 400, code: 'INVALID_PASSWORD', message: 'Password must contain an uppercase letter' };
-    }
-    if (!/[a-z]/.test(newPassword)) {
-      throw { statusCode: 400, code: 'INVALID_PASSWORD', message: 'Password must contain a lowercase letter' };
-    }
-    if (!/[0-9]/.test(newPassword)) {
-      throw { statusCode: 400, code: 'INVALID_PASSWORD', message: 'Password must contain a digit' };
+    const check = validatePasswordStrength(newPassword || '');
+    if (!check.ok) {
+      throw { statusCode: 400, code: 'INVALID_PASSWORD', message: check.message };
     }
 
     if (isFirebaseAdminInitialized) {

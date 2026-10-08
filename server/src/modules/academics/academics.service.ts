@@ -1,5 +1,5 @@
 import { academicsRepository } from './academics.repository.js';
-import { db, dbFindUsersByInstitution, dbFindUserByIdOrUid, dbFindStudentByUsnInInstitution, dbFindStudentsByClassScope, dbCountStudentsByClassScope } from '../shared/db/index.js';
+import { db, withTransaction, dbFindUsersByInstitution, dbFindUserByIdOrUid, dbFindStudentByUsnInInstitution, dbFindStudentsByClassScope, dbCountStudentsByClassScope } from '../shared/db/index.js';
 import { eq as eqSql, and as andSql } from 'drizzle-orm';
 import { studentClasses, users as usersTable, subjectTeachers } from '../shared/db/schema.js';
 import {
@@ -249,24 +249,32 @@ export class AcademicsService {
       }
     }
 
-    const record = await academicsRepository.upsertAttendanceRecord({
-      institutionCode,
-      timetableSlotId: input.timetableSlotId,
-      date: input.date,
-      takenByTeacherId: teacher.id,
-      status: 'submitted',
-      submittedAt: new Date(),
-    });
-
     const entryRows = input.entries.map((e) => ({
-      attendanceRecordId: record.id,
+      attendanceRecordId: '', // filled after record id is known inside tx
       studentId: e.studentId,
       attendanceStatus: e.attendanceStatus,
       remarks: e.remarks || '',
     }));
-    await academicsRepository.replaceEntriesForRecord(record.id, entryRows);
 
-    await this.autoLockIfPastEndOfDay(record.id, input.date);
+    const writeAttendance = async (tx: any) => {
+      const record = await academicsRepository.upsertAttendanceRecord(
+        {
+          institutionCode,
+          timetableSlotId: input.timetableSlotId,
+          date: input.date,
+          takenByTeacherId: teacher.id,
+          status: 'submitted',
+          submittedAt: new Date(),
+        },
+        tx
+      );
+      const rows = entryRows.map((e) => ({ ...e, attendanceRecordId: record.id }));
+      await academicsRepository.replaceEntriesForRecord(record.id, rows, tx);
+      await this.autoLockIfPastEndOfDay(record.id, input.date, tx);
+      return record;
+    };
+
+    const record = db ? await withTransaction(writeAttendance) : await writeAttendance(null);
 
     return {
       recordId: record.id,
@@ -428,11 +436,11 @@ export class AcademicsService {
     }
   }
 
-  private async autoLockIfPastEndOfDay(recordId: string, date: string) {
+  private async autoLockIfPastEndOfDay(recordId: string, date: string, executor?: any) {
     const now = new Date();
     const dayEnd = new Date(`${date}T23:59:59`);
     if (now > dayEnd) {
-      await academicsRepository.updateAttendanceRecordLock(recordId, now);
+      await academicsRepository.updateAttendanceRecordLock(recordId, now, executor);
     }
   }
 
@@ -1093,30 +1101,44 @@ export class AcademicsService {
   }
 
   public async createExam(institutionCode: string, input: CreateExamInput, createdBy: string) {
-    const created = await academicsRepository.createExam({
-      institutionCode,
-      name: input.name,
-      term: input.term || '',
-      academicYear: input.academicYear || '',
-      startDate: input.startDate || null,
-      endDate: input.endDate || null,
-      status: 'draft',
-      createdBy,
-    });
+    // Validate subjects before opening a transaction.
     for (const s of input.subjects) {
       const subj = await academicsRepository.getSubjectById(s.subjectId);
       if (!subj || subj.institutionCode.toLowerCase() !== institutionCode.toLowerCase()) {
         throw { statusCode: 400, code: 'INVALID_SUBJECT', message: `subjectId ${s.subjectId} is not in this institution` };
       }
-      await academicsRepository.upsertExamSubject({
-        examId: created.id,
-        institutionCode,
-        subjectId: s.subjectId,
-        maxMarks: s.maxMarks ?? 100,
-        passMarks: s.passMarks ?? 35,
-      });
     }
-    return created;
+
+    const writeExam = async (tx: any) => {
+      const created = await academicsRepository.createExam(
+        {
+          institutionCode,
+          name: input.name,
+          term: input.term || '',
+          academicYear: input.academicYear || '',
+          startDate: input.startDate || null,
+          endDate: input.endDate || null,
+          status: 'draft',
+          createdBy,
+        },
+        tx
+      );
+      for (const s of input.subjects) {
+        await academicsRepository.upsertExamSubject(
+          {
+            examId: created.id,
+            institutionCode,
+            subjectId: s.subjectId,
+            maxMarks: s.maxMarks ?? 100,
+            passMarks: s.passMarks ?? 35,
+          },
+          tx
+        );
+      }
+      return created;
+    };
+
+    return db ? await withTransaction(writeExam) : await writeExam(null);
   }
 
   public async updateExam(institutionCode: string, examId: string, input: UpdateExamInput) {
@@ -1257,6 +1279,16 @@ export class AcademicsService {
 
   // ---------- Homework ----------
   public async createHomework(institutionCode: string, teacherId: string, input: CreateHomeworkInput) {
+    const classSection = await academicsRepository.getClassSectionById(input.classSectionId);
+    if (!classSection || classSection.institutionCode.toLowerCase() !== institutionCode.toLowerCase()) {
+      throw { statusCode: 400, code: 'INVALID_CLASS_SECTION', message: 'classSectionId does not reference a class/section in this institution' };
+    }
+
+    const subject = await academicsRepository.getSubjectById(input.subjectId);
+    if (!subject || subject.institutionCode.toLowerCase() !== institutionCode.toLowerCase()) {
+      throw { statusCode: 400, code: 'INVALID_SUBJECT', message: 'subjectId does not reference a subject in this institution' };
+    }
+
     return academicsRepository.createHomework({
       ...input,
       institutionCode,
@@ -1266,11 +1298,11 @@ export class AcademicsService {
   }
 
   public async listHomeworkByClass(institutionCode: string, classSectionId: string) {
-    return academicsRepository.listHomeworkByClass(classSectionId);
+    return academicsRepository.listHomeworkByClass(classSectionId, institutionCode);
   }
 
   public async listHomeworkByTeacher(institutionCode: string, teacherId: string) {
-    return academicsRepository.listHomeworkByTeacher(teacherId);
+    return academicsRepository.listHomeworkByTeacher(teacherId, institutionCode);
   }
 
   public async getHomeworkById(institutionCode: string, id: string) {
@@ -1291,11 +1323,11 @@ export class AcademicsService {
   }
 
   public async listHomeworkForStudent(institutionCode: string, classSectionId: string) {
-    return academicsRepository.listHomeworkByClass(classSectionId);
+    return academicsRepository.listHomeworkByClass(classSectionId, institutionCode);
   }
 
   public async listHomeworkForParent(institutionCode: string, classSectionId: string) {
-    return academicsRepository.listHomeworkByClass(classSectionId);
+    return academicsRepository.listHomeworkByClass(classSectionId, institutionCode);
   }
 }
 

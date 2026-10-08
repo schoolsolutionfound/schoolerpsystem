@@ -107,7 +107,7 @@ export const ExpenseManagementView: React.FC = () => {
     setEditNotes(item.notes || '');
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editingItem) return;
     const numAmount = parseFloat(editAmount);
     if (isNaN(numAmount) || numAmount <= 0) {
@@ -115,19 +115,22 @@ export const ExpenseManagementView: React.FC = () => {
       return;
     }
 
-    updateExpenseRecord(editingItem.id, {
-      amount: numAmount,
-      status: editStatus,
-      paymentMethod: editMethod,
-      paymentDate: editDate,
-      notes: editNotes,
-    });
-
-    showAlert('Expense Updated', `Payment statement for ${editingItem.payeeName} has been updated.`);
-    setEditingItem(null);
+    try {
+      await updateExpenseRecord(editingItem.id, {
+        amount: numAmount,
+        status: editStatus,
+        paymentMethod: editMethod,
+        paymentDate: editDate,
+        notes: editNotes,
+      });
+      showAlert('Expense Updated', `Payment statement for ${editingItem.payeeName} has been updated.`);
+      setEditingItem(null);
+    } catch (err: any) {
+      showAlert('Update Failed', err?.message || 'Could not save the expense updates.');
+    }
   };
 
-  const handleAddSubmit = () => {
+  const handleAddSubmit = async () => {
     if (!title.trim() || !payeeName.trim() || !amount.trim()) {
       showAlert('Missing Fields', 'Please fill in all required fields (Title, Payee/Vendor, Amount).');
       return;
@@ -139,18 +142,23 @@ export const ExpenseManagementView: React.FC = () => {
       return;
     }
 
-    addExpense({
-      title: title.trim(),
-      category,
-      payeeName: payeeName.trim(),
-      department: department.trim() || undefined,
-      vehicleNo: vehicleNo.trim() || undefined,
-      amount: numAmount,
-      paymentMethod,
-      paymentDate: new Date().toISOString().split('T')[0],
-      status,
-      notes: notes.trim() || undefined,
-    });
+    try {
+      await addExpense({
+        title: title.trim(),
+        category,
+        payeeName: payeeName.trim(),
+        department: department.trim() || undefined,
+        vehicleNo: vehicleNo.trim() || undefined,
+        amount: numAmount,
+        paymentMethod,
+        paymentDate: new Date().toISOString().split('T')[0],
+        status,
+        notes: notes.trim() || undefined,
+      });
+    } catch (err: any) {
+      showAlert('Failed to Record Expense', err?.message || 'Please try again.');
+      return;
+    }
 
     // Reset form
     setTitle('');
@@ -309,7 +317,7 @@ export const ExpenseManagementView: React.FC = () => {
 
                     <TouchableOpacity
                       style={sharedFinanceStyles.actionIconBtn}
-                      onPress={() => deleteExpense(item.id)}
+                      onPress={() => deleteExpense(item.id).catch(() => {})}
                     >
                       <MaterialCommunityIcons name="trash-can-outline" size={14} color="#DC3545" />
                     </TouchableOpacity>

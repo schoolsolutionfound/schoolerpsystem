@@ -6,8 +6,16 @@ async function main() {
     console.log('Firebase Admin not initialized');
     return;
   }
-  const uid = 'HIE3PjugTbNopiu9bVf4wel0ibx1';
-  await admin.auth().updateUser(uid, { password: 'Safwan@123' });
-  console.log('Password reset successfully for safwancoding1919@gmail.com');
+
+  const password = process.env.RESET_PASSWORD;
+  if (!password) {
+    console.error('RESET_PASSWORD is not set — add it to server/.env, then re-run.');
+    process.exit(1);
+  }
+
+  const email = process.env.RESET_EMAIL || 'safwancoding1919@gmail.com';
+  const user = await admin.auth().getUserByEmail(email);
+  await admin.auth().updateUser(user.uid, { password });
+  console.log(`Password reset successfully for ${email}`);
 }
 main().catch(console.error);

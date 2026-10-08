@@ -195,19 +195,25 @@ export class AcademicsRepository {
       createdAt: data.createdAt || new Date(),
       updatedAt: data.updatedAt || new Date(),
     };
-    classSectionMem.save(record);
     if (db) {
-      try {
-        const [inserted] = await db.insert(classSections).values(record).onConflictDoNothing().returning();
-        if (inserted) return toClassSection(inserted);
-      } catch (err: any) {
-        console.warn('[PostgreSQL Academics Warning] createClassSection failed:', err.message);
-      }
+      const [inserted] = await db.insert(classSections).values(record).onConflictDoNothing().returning();
+      if (inserted) return toClassSection(inserted);
+      return record;
     }
+    classSectionMem.save(record);
     return record;
   }
 
   public async updateClassSection(id: string, data: any): Promise<ClassSectionRecord | undefined> {
+    if (db) {
+      const [row] = await db
+        .update(classSections)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(classSections.id, id))
+        .returning();
+      if (row) return toClassSection(row);
+      return undefined;
+    }
     const existing = classSectionMem.getById(id);
     const updated: ClassSectionRecord = {
       ...existing,
@@ -216,31 +222,15 @@ export class AcademicsRepository {
       updatedAt: new Date(),
     } as ClassSectionRecord;
     classSectionMem.save(updated);
-    if (db) {
-      try {
-        const [row] = await db
-          .update(classSections)
-          .set({ ...data, updatedAt: new Date() })
-          .where(eq(classSections.id, id))
-          .returning();
-        if (row) return toClassSection(row);
-      } catch (err: any) {
-        console.warn('[PostgreSQL Academics Warning] updateClassSection failed:', err.message);
-      }
-    }
     return updated;
   }
 
   public async deleteClassSection(id: string): Promise<boolean> {
-    classSectionMem.delete(id);
     if (db) {
-      try {
-        await db.delete(classSections).where(eq(classSections.id, id));
-        return true;
-      } catch (err: any) {
-        console.warn('[PostgreSQL Academics Warning] deleteClassSection failed:', err.message);
-      }
+      await db.delete(classSections).where(eq(classSections.id, id));
+      return true;
     }
+    classSectionMem.delete(id);
     return true;
   }
 
@@ -286,12 +276,9 @@ export class AcademicsRepository {
     };
     subjectMem.save(record);
     if (db) {
-      try {
-        const [inserted] = await db.insert(subjects).values(record).onConflictDoNothing().returning();
-        if (inserted) return toSubject(inserted);
-      } catch (err: any) {
-        console.warn('[PostgreSQL Academics Warning] createSubject failed:', err.message);
-      }
+      const [inserted] = await db.insert(subjects).values(record).onConflictDoNothing().returning();
+      if (inserted) return toSubject(inserted);
+      return record;
     }
     return record;
   }
@@ -345,32 +332,34 @@ export class AcademicsRepository {
       createdAt: data.createdAt || new Date(),
       updatedAt: data.updatedAt || new Date(),
     };
-    subjectTeacherMem.save(record);
     if (db) {
-      try {
-        const [inserted] = await db.insert(subjectTeachers).values(record).onConflictDoNothing().returning();
-        if (inserted) return toSubjectTeacher(inserted);
-      } catch (err: any) {
-        console.warn('[PostgreSQL Academics Warning] createSubjectTeacher failed:', err.message);
-      }
+      const [inserted] = await db.insert(subjectTeachers).values(record).onConflictDoNothing().returning();
+      if (inserted) return toSubjectTeacher(inserted);
+      return record;
     }
+    subjectTeacherMem.save(record);
     return record;
   }
 
   public async deleteSubjectTeacher(id: string): Promise<boolean> {
-    subjectTeacherMem.delete(id);
     if (db) {
-      try {
-        await db.delete(subjectTeachers).where(eq(subjectTeachers.id, id));
-        return true;
-      } catch (err: any) {
-        console.warn('[PostgreSQL Academics Warning] deleteSubjectTeacher failed:', err.message);
-      }
+      await db.delete(subjectTeachers).where(eq(subjectTeachers.id, id));
+      return true;
     }
+    subjectTeacherMem.delete(id);
     return true;
   }
 
   public async updateSubjectTeacher(id: string, data: { teacherId: string }): Promise<SubjectTeacherRecord | undefined> {
+    if (db) {
+      const [row] = await db
+        .update(subjectTeachers)
+        .set({ teacherId: data.teacherId, updatedAt: new Date() })
+        .where(eq(subjectTeachers.id, id))
+        .returning();
+      if (row) return toSubjectTeacher(row);
+      return undefined;
+    }
     const existing = subjectTeacherMem.getById(id);
     if (!existing) return undefined;
     const updated: SubjectTeacherRecord = {
@@ -379,18 +368,6 @@ export class AcademicsRepository {
       updatedAt: new Date(),
     };
     subjectTeacherMem.save(updated);
-    if (db) {
-      try {
-        const [row] = await db
-          .update(subjectTeachers)
-          .set({ teacherId: data.teacherId, updatedAt: new Date() })
-          .where(eq(subjectTeachers.id, id))
-          .returning();
-        if (row) return toSubjectTeacher(row);
-      } catch (err: any) {
-        console.warn('[PostgreSQL Academics Warning] updateSubjectTeacher failed:', err.message);
-      }
-    }
     return updated;
   }
 
@@ -482,12 +459,9 @@ export class AcademicsRepository {
     };
     periodMem.save(record);
     if (db) {
-      try {
-        const [inserted] = await db.insert(periods).values(record).onConflictDoNothing().returning();
-        if (inserted) return toPeriod(inserted);
-      } catch (err: any) {
-        console.warn('[PostgreSQL Academics Warning] createPeriod failed:', err.message);
-      }
+      const [inserted] = await db.insert(periods).values(record).onConflictDoNothing().returning();
+      if (inserted) return toPeriod(inserted);
+      return record;
     }
     return record;
   }
@@ -621,12 +595,9 @@ export class AcademicsRepository {
     };
     timetableMem.save(record);
     if (db) {
-      try {
-        const [inserted] = await db.insert(timetables).values(record).onConflictDoNothing().returning();
-        if (inserted) return toTimetable(inserted);
-      } catch (err: any) {
-        console.warn('[PostgreSQL Academics Warning] createTimetable failed:', err.message);
-      }
+      const [inserted] = await db.insert(timetables).values(record).onConflictDoNothing().returning();
+      if (inserted) return toTimetable(inserted);
+      return record;
     }
     return record;
   }
@@ -696,18 +667,14 @@ export class AcademicsRepository {
 
   public async replaceSlotsForTimetable(timetableId: string, slots: any[]): Promise<TimetableSlotRecord[]> {
     if (db) {
-      try {
-        await db.delete(timetableSlots).where(eq(timetableSlots.timetableId, timetableId));
-        if (slots.length > 0) {
-          const rows = slots.map((s) => ({ ...s, timetableId }));
-          const inserted = await db.insert(timetableSlots).values(rows).returning();
-          inserted.forEach((r) => timetableSlotMem.save(toTimetableSlot(r)));
-          return inserted;
-        }
-        return [];
-      } catch (err: any) {
-        console.warn('[PostgreSQL Academics Warning] replaceSlotsForTimetable failed:', err.message);
+      await db.delete(timetableSlots).where(eq(timetableSlots.timetableId, timetableId));
+      if (slots.length > 0) {
+        const rows = slots.map((s) => ({ ...s, timetableId }));
+        const inserted = await db.insert(timetableSlots).values(rows).returning();
+        inserted.forEach((r) => timetableSlotMem.save(toTimetableSlot(r)));
+        return inserted;
       }
+      return [];
     }
     for (const existing of timetableSlotMem.filter((r) => r.timetableId === timetableId)) {
       timetableSlotMem.delete(existing.id);
@@ -770,7 +737,8 @@ export class AcademicsRepository {
     return attendanceRecordMem.getById(id);
   }
 
-  public async upsertAttendanceRecord(data: any): Promise<AttendanceRecordRecord> {
+  public async upsertAttendanceRecord(data: any, executor?: any): Promise<AttendanceRecordRecord> {
+    const q = executor ?? db;
     const record: AttendanceRecordRecord = {
       id: data.id || `ar_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       institutionCode: data.institutionCode,
@@ -783,47 +751,42 @@ export class AcademicsRepository {
       createdAt: data.createdAt || new Date(),
       updatedAt: data.updatedAt || new Date(),
     };
-    attendanceRecordMem.save(record);
-    if (db) {
-      try {
-        const [inserted] = await db
-          .insert(attendanceRecords)
-          .values(record)
-          .onConflictDoUpdate({
-            target: [attendanceRecords.timetableSlotId, attendanceRecords.date],
-            set: {
-              takenByTeacherId: record.takenByTeacherId,
-              status: record.status,
-              submittedAt: record.submittedAt,
-              lockedAt: record.lockedAt,
-              updatedAt: new Date(),
-            },
-          })
-          .returning();
-        if (inserted) return toAttendanceRecord(inserted);
-      } catch (err: any) {
-        console.warn('[PostgreSQL Academics Warning] upsertAttendanceRecord failed:', err.message);
-      }
+    if (q) {
+      const [inserted] = await q
+        .insert(attendanceRecords)
+        .values(record)
+        .onConflictDoUpdate({
+          target: [attendanceRecords.timetableSlotId, attendanceRecords.date],
+          set: {
+            takenByTeacherId: record.takenByTeacherId,
+            status: record.status,
+            submittedAt: record.submittedAt,
+            lockedAt: record.lockedAt,
+            updatedAt: new Date(),
+          },
+        })
+        .returning();
+      if (inserted) return toAttendanceRecord(inserted);
+      return record;
     }
+    attendanceRecordMem.save(record);
     return record;
   }
 
-  public async updateAttendanceRecordLock(id: string, lockedAt: Date): Promise<AttendanceRecordRecord | undefined> {
+  public async updateAttendanceRecordLock(id: string, lockedAt: Date, executor?: any): Promise<AttendanceRecordRecord | undefined> {
+    const q = executor ?? db;
+    if (q) {
+      const [row] = await q
+        .update(attendanceRecords)
+        .set({ status: 'locked', lockedAt, updatedAt: new Date() })
+        .where(eq(attendanceRecords.id, id))
+        .returning();
+      if (row) return toAttendanceRecord(row);
+      return undefined;
+    }
     const existing = attendanceRecordMem.getById(id);
     const updated: AttendanceRecordRecord = { ...existing, id, status: 'locked', lockedAt, updatedAt: new Date() } as AttendanceRecordRecord;
     attendanceRecordMem.save(updated);
-    if (db) {
-      try {
-        const [row] = await db
-          .update(attendanceRecords)
-          .set({ status: 'locked', lockedAt, updatedAt: new Date() })
-          .where(eq(attendanceRecords.id, id))
-          .returning();
-        if (row) return toAttendanceRecord(row);
-      } catch (err: any) {
-        console.warn('[PostgreSQL Academics Warning] updateAttendanceRecordLock failed:', err.message);
-      }
-    }
     return updated;
   }
 
@@ -841,19 +804,16 @@ export class AcademicsRepository {
     return attendanceEntryMem.filter((r) => r.attendanceRecordId === attendanceRecordId);
   }
 
-  public async replaceEntriesForRecord(attendanceRecordId: string, entries: any[]): Promise<AttendanceEntryRecord[]> {
-    if (db) {
-      try {
-        await db.delete(attendanceEntries).where(eq(attendanceEntries.attendanceRecordId, attendanceRecordId));
-        if (entries.length > 0) {
-          const inserted = await db.insert(attendanceEntries).values(entries).returning();
-          inserted.forEach((r) => attendanceEntryMem.save(toAttendanceEntry(r)));
-          return inserted;
-        }
-        return [];
-      } catch (err: any) {
-        console.warn('[PostgreSQL Academics Warning] replaceEntriesForRecord failed:', err.message);
+  public async replaceEntriesForRecord(attendanceRecordId: string, entries: any[], executor?: any): Promise<AttendanceEntryRecord[]> {
+    const q = executor ?? db;
+    if (q) {
+      await q.delete(attendanceEntries).where(eq(attendanceEntries.attendanceRecordId, attendanceRecordId));
+      if (entries.length > 0) {
+        const inserted = await q.insert(attendanceEntries).values(entries).returning();
+        inserted.forEach((r: any) => attendanceEntryMem.save(toAttendanceEntry(r)));
+        return inserted;
       }
+      return [];
     }
     for (const existing of attendanceEntryMem.filter((r) => r.attendanceRecordId === attendanceRecordId)) {
       attendanceEntryMem.delete(existing.id);
@@ -1225,7 +1185,8 @@ export class AcademicsRepository {
     return examMem.getById(id);
   }
 
-  public async createExam(data: any): Promise<ExamRecord> {
+  public async createExam(data: any, executor?: any): Promise<ExamRecord> {
+    const q = executor ?? db;
     const record: ExamRecord = {
       id: data.id || `ex_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       institutionCode: data.institutionCode,
@@ -1240,21 +1201,15 @@ export class AcademicsRepository {
       updatedAt: data.updatedAt || new Date(),
     };
     examMem.save(record);
-    if (db) {
-      try {
-        await db.insert(exams).values(record).onConflictDoNothing();
-      } catch (err: any) {
-        console.warn('[PostgreSQL Academics Warning] createExam failed:', err.message);
-      }
+    if (q) {
+      await q.insert(exams).values(record).onConflictDoNothing();
+      return record;
     }
     return record;
   }
 
   public async updateExam(id: string, data: any): Promise<ExamRecord | undefined> {
-    const existing = examMem.getById(id);
-    if (!existing) return undefined;
-    const updated: ExamRecord = {
-      ...existing,
+    const examUpdate = {
       ...(data.name !== undefined ? { name: data.name } : {}),
       ...(data.term !== undefined ? { term: data.term } : {}),
       ...(data.academicYear !== undefined ? { academicYear: data.academicYear } : {}),
@@ -1263,22 +1218,16 @@ export class AcademicsRepository {
       ...(data.status !== undefined ? { status: data.status } : {}),
       updatedAt: new Date(),
     };
-    examMem.save(updated);
     if (db) {
-      try {
-        await db.update(exams).set({
-          ...(data.name !== undefined ? { name: data.name } : {}),
-          ...(data.term !== undefined ? { term: data.term } : {}),
-          ...(data.academicYear !== undefined ? { academicYear: data.academicYear } : {}),
-          ...(data.startDate !== undefined ? { startDate: data.startDate } : {}),
-          ...(data.endDate !== undefined ? { endDate: data.endDate } : {}),
-          ...(data.status !== undefined ? { status: data.status } : {}),
-          updatedAt: new Date(),
-        }).where(eq(exams.id, id));
-      } catch (err: any) {
-        console.warn('[PostgreSQL Academics Warning] updateExam failed:', err.message);
-      }
+      await db.update(exams).set(examUpdate).where(eq(exams.id, id));
+      const rows = await db.select().from(exams).where(eq(exams.id, id)).limit(1);
+      if (rows[0]) return rows[0];
+      return undefined;
     }
+    const existing = examMem.getById(id);
+    if (!existing) return undefined;
+    const updated: ExamRecord = { ...existing, ...examUpdate } as ExamRecord;
+    examMem.save(updated);
     return updated;
   }
 
@@ -1295,7 +1244,8 @@ export class AcademicsRepository {
     return examSubjectMem.filter((r) => r.examId === examId);
   }
 
-  public async upsertExamSubject(data: any): Promise<ExamSubjectRecord> {
+  public async upsertExamSubject(data: any, executor?: any): Promise<ExamSubjectRecord> {
+    const q = executor ?? db;
     const existing = examSubjectMem.filter((r) => r.examId === data.examId && r.subjectId === data.subjectId)[0];
     const id = existing?.id || data.id || `es_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const record: ExamSubjectRecord = {
@@ -1308,12 +1258,9 @@ export class AcademicsRepository {
       createdAt: existing?.createdAt || new Date(),
     };
     examSubjectMem.save(record);
-    if (db) {
-      try {
-        await db.insert(examSubjects).values(record).onConflictDoNothing();
-      } catch (err: any) {
-        console.warn('[PostgreSQL Academics Warning] upsertExamSubject failed:', err.message);
-      }
+    if (q) {
+      await q.insert(examSubjects).values(record).onConflictDoNothing();
+      return record;
     }
     return record;
   }
@@ -1381,11 +1328,8 @@ export class AcademicsRepository {
     };
     markMem.save(record);
     if (db) {
-      try {
-        await db.insert(marks).values(record).onConflictDoNothing();
-      } catch (err: any) {
-        console.warn('[PostgreSQL Academics Warning] upsertMark failed:', err.message);
-      }
+      await db.insert(marks).values(record).onConflictDoNothing();
+      return record;
     }
     return record;
   }
@@ -1413,20 +1357,17 @@ export class AcademicsRepository {
     };
     this.hwMem.save(record);
     if (db) {
-      try {
-        await db.insert(homework).values(record);
-      } catch (err: any) {
-        console.warn('[PostgreSQL Warning] createHomework failed:', err.message);
-      }
+      await db.insert(homework).values(record);
+      return record;
     }
     return record;
   }
 
-  public async listHomeworkByClass(classSectionId: string): Promise<HomeworkRecord[]> {
+  public async listHomeworkByClass(classSectionId: string, institutionCode: string): Promise<HomeworkRecord[]> {
     if (db) {
       try {
         const rows = await db.select().from(homework)
-          .where(eq(homework.classSectionId, classSectionId))
+          .where(and(eq(homework.classSectionId, classSectionId), eq(homework.institutionCode, institutionCode)))
           .orderBy(desc(homework.createdAt));
         rows.forEach((r) => this.hwMem.save({ ...r, createdAt: r.createdAt ?? new Date(), updatedAt: r.updatedAt ?? new Date() }));
         return rows;
@@ -1434,14 +1375,16 @@ export class AcademicsRepository {
         console.warn('[PostgreSQL Warning] listHomeworkByClass failed:', err.message);
       }
     }
-    return this.hwMem.filter((r) => r.classSectionId === classSectionId).sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
+    return this.hwMem
+      .filter((r) => r.classSectionId === classSectionId && r.institutionCode === institutionCode)
+      .sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
   }
 
-  public async listHomeworkByTeacher(teacherId: string): Promise<HomeworkRecord[]> {
+  public async listHomeworkByTeacher(teacherId: string, institutionCode: string): Promise<HomeworkRecord[]> {
     if (db) {
       try {
         const rows = await db.select().from(homework)
-          .where(eq(homework.teacherId, teacherId))
+          .where(and(eq(homework.teacherId, teacherId), eq(homework.institutionCode, institutionCode)))
           .orderBy(desc(homework.createdAt));
         rows.forEach((r) => this.hwMem.save({ ...r, createdAt: r.createdAt ?? new Date(), updatedAt: r.updatedAt ?? new Date() }));
         return rows;
@@ -1449,7 +1392,9 @@ export class AcademicsRepository {
         console.warn('[PostgreSQL Warning] listHomeworkByTeacher failed:', err.message);
       }
     }
-    return this.hwMem.filter((r) => r.teacherId === teacherId).sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
+    return this.hwMem
+      .filter((r) => r.teacherId === teacherId && r.institutionCode === institutionCode)
+      .sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
   }
 
   public async getHomeworkById(id: string): Promise<HomeworkRecord | undefined> {
@@ -1468,26 +1413,20 @@ export class AcademicsRepository {
     const existing = await this.getHomeworkById(id);
     if (!existing) return undefined;
     const updated = { ...existing, ...data, updatedAt: new Date() };
-    this.hwMem.save(updated);
     if (db) {
-      try {
-        await db.update(homework).set(data).where(eq(homework.id, id));
-      } catch (err: any) {
-        console.warn('[PostgreSQL Warning] updateHomework failed:', err.message);
-      }
+      await db.update(homework).set(data).where(eq(homework.id, id));
+      return updated;
     }
+    this.hwMem.save(updated);
     return updated;
   }
 
   public async deleteHomework(id: string): Promise<boolean> {
-    this.hwMem.delete(id);
     if (db) {
-      try {
-        await db.delete(homework).where(eq(homework.id, id));
-      } catch (err: any) {
-        console.warn('[PostgreSQL Warning] deleteHomework failed:', err.message);
-      }
+      await db.delete(homework).where(eq(homework.id, id));
+      return true;
     }
+    this.hwMem.delete(id);
     return true;
   }
 }

@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { and, count, eq, sql } from 'drizzle-orm';
+import { and, count, desc, eq, sql } from 'drizzle-orm';
 import * as schema from './schema.js';
 import { invalidateCachedAuth } from '../middleware/authCache.js';
 
@@ -107,6 +107,19 @@ const connectionString = process.env.DATABASE_URL;
 export const queryClient = connectionString ? postgres(connectionString) : null;
 export const db = queryClient ? drizzle(queryClient, { schema }) : null;
 
+/**
+ * Run `fn` inside a Postgres transaction. Throws DB_UNAVAILABLE when no
+ * DATABASE_URL is configured (callers must branch for no-DB dev mode).
+ * The callback receives the transaction handle — pass it into write helpers
+ * that accept an optional executor so every write joins the same tx.
+ */
+export async function withTransaction<T>(fn: (tx: any) => Promise<T>): Promise<T> {
+  if (!db) {
+    throw Object.assign(new Error('Database not available'), { statusCode: 500, code: 'DB_UNAVAILABLE' });
+  }
+  return db.transaction(fn);
+}
+
 function safeJsonStringify(val: any, fallback: string): string {
   if (typeof val === 'string') return val;
   try { return JSON.stringify(val); } catch { return fallback; }
@@ -148,41 +161,30 @@ function mapUserRow(row: schema.UserRecord): InMemoryUser {
 }
 
 // ---------------------------------------------------------------------------
-// Reads — Postgres when available, in-memory store only as fallback.
+// Reads — Postgres when configured (single source of truth; errors propagate);
+// in-memory store only in no-DATABASE_URL dev mode.
 // ---------------------------------------------------------------------------
 
 export async function dbFindByUid(uid: string): Promise<InMemoryUser | undefined> {
   if (db) {
-    try {
-      const results = await db.select().from(schema.users).where(eq(schema.users.firebaseUid, uid)).limit(1);
-      return results.length > 0 ? mapUserRow(results[0]) : undefined;
-    } catch (error: any) {
-      console.warn('[PostgreSQL Drizzle Warning] dbFindByUid query failed:', error.message);
-    }
+    const results = await db.select().from(schema.users).where(eq(schema.users.firebaseUid, uid)).limit(1);
+    return results.length > 0 ? mapUserRow(results[0]) : undefined;
   }
   return inMemoryUserStore.findByUid(uid);
 }
 
 export async function dbFindByEmail(email: string): Promise<InMemoryUser | undefined> {
   if (db) {
-    try {
-      const results = await db.select().from(schema.users).where(eq(schema.users.email, email)).limit(1);
-      return results.length > 0 ? mapUserRow(results[0]) : undefined;
-    } catch (error: any) {
-      console.warn('[PostgreSQL Drizzle Warning] dbFindByEmail query failed:', error.message);
-    }
+    const results = await db.select().from(schema.users).where(eq(schema.users.email, email)).limit(1);
+    return results.length > 0 ? mapUserRow(results[0]) : undefined;
   }
   return inMemoryUserStore.findByEmail(email);
 }
 
 export async function dbFindUserById(id: string): Promise<InMemoryUser | undefined> {
   if (db) {
-    try {
-      const results = await db.select().from(schema.users).where(eq(schema.users.id, id)).limit(1);
-      return results.length > 0 ? mapUserRow(results[0]) : undefined;
-    } catch (error: any) {
-      console.warn('[PostgreSQL Drizzle Warning] dbFindUserById query failed:', error.message);
-    }
+    const results = await db.select().from(schema.users).where(eq(schema.users.id, id)).limit(1);
+    return results.length > 0 ? mapUserRow(results[0]) : undefined;
   }
   return inMemoryUserStore.getAll().find((u) => u.id === id);
 }
@@ -193,18 +195,14 @@ export async function dbFindUserById(id: string): Promise<InMemoryUser | undefin
  */
 export async function dbFindUserByIdOrUid(identifier: string): Promise<InMemoryUser | undefined> {
   if (db) {
-    try {
-      const results = await db
-        .select()
-        .from(schema.users)
-        .where(eq(schema.users.firebaseUid, identifier))
-        .limit(1);
-      if (results.length > 0) return mapUserRow(results[0]);
-      const byId = await db.select().from(schema.users).where(eq(schema.users.id, identifier)).limit(1);
-      return byId.length > 0 ? mapUserRow(byId[0]) : undefined;
-    } catch (error: any) {
-      console.warn('[PostgreSQL Drizzle Warning] dbFindUserByIdOrUid query failed:', error.message);
-    }
+    const results = await db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.firebaseUid, identifier))
+      .limit(1);
+    if (results.length > 0) return mapUserRow(results[0]);
+    const byId = await db.select().from(schema.users).where(eq(schema.users.id, identifier)).limit(1);
+    return byId.length > 0 ? mapUserRow(byId[0]) : undefined;
   }
   const all = inMemoryUserStore.getAll();
   return all.find((u) => u.id === identifier || u.firebaseUid === identifier);
@@ -221,15 +219,11 @@ export async function dbFindUsersByInstitution(
 ): Promise<InMemoryUser[]> {
   const { limit, offset } = normalizePagination(opts);
   if (db) {
-    try {
-      const where = role
-        ? and(eq(schema.users.institutionCode, institutionCode), eq(schema.users.role, role))
-        : eq(schema.users.institutionCode, institutionCode);
-      const results = await db.select().from(schema.users).where(where).limit(limit).offset(offset);
-      return results.map(mapUserRow);
-    } catch (error: any) {
-      console.warn('[PostgreSQL Drizzle Warning] dbFindUsersByInstitution query failed:', error.message);
-    }
+    const where = role
+      ? and(eq(schema.users.institutionCode, institutionCode), eq(schema.users.role, role))
+      : eq(schema.users.institutionCode, institutionCode);
+    const results = await db.select().from(schema.users).where(where).limit(limit).offset(offset);
+    return results.map(mapUserRow);
   }
   const all = inMemoryUserStore.getAll().filter(
     (u) => u.institutionCode.toLowerCase() === institutionCode.toLowerCase() && (!role || u.role === role)
@@ -239,18 +233,14 @@ export async function dbFindUsersByInstitution(
 
 export async function dbCountUsersByInstitution(institutionCode?: string, role?: string): Promise<number> {
   if (db) {
-    try {
-      const conditions = [];
-      if (institutionCode) conditions.push(eq(schema.users.institutionCode, institutionCode));
-      if (role) conditions.push(eq(schema.users.role, role));
-      const where = conditions.length > 0 ? and(...conditions) : undefined;
-      const rows = where
-        ? await db.select({ count: count() }).from(schema.users).where(where)
-        : await db.select({ count: count() }).from(schema.users);
-      return Number(rows[0]?.count ?? 0);
-    } catch (error: any) {
-      console.warn('[PostgreSQL Drizzle Warning] dbCountUsersByInstitution query failed:', error.message);
-    }
+    const conditions = [];
+    if (institutionCode) conditions.push(eq(schema.users.institutionCode, institutionCode));
+    if (role) conditions.push(eq(schema.users.role, role));
+    const where = conditions.length > 0 ? and(...conditions) : undefined;
+    const rows = where
+      ? await db.select({ count: count() }).from(schema.users).where(where)
+      : await db.select({ count: count() }).from(schema.users);
+    return Number(rows[0]?.count ?? 0);
   }
   return inMemoryUserStore.getAll().filter(
     (u) => (!institutionCode || u.institutionCode.toLowerCase() === institutionCode.toLowerCase()) && (!role || u.role === role)
@@ -263,22 +253,18 @@ export async function dbFindAdminsByInstitutionCode(
 ): Promise<InMemoryUser[]> {
   const { limit, offset } = normalizePagination(opts);
   if (db) {
-    try {
-      const results = await db
-        .select()
-        .from(schema.users)
-        .where(
-          and(
-            eq(schema.users.institutionCode, institutionCode),
-            eq(schema.users.role, 'admin')
-          )
+    const results = await db
+      .select()
+      .from(schema.users)
+      .where(
+        and(
+          eq(schema.users.institutionCode, institutionCode),
+          eq(schema.users.role, 'admin')
         )
-        .limit(limit)
-        .offset(offset);
-      return results.map(mapUserRow);
-    } catch (error: any) {
-      console.warn('[PostgreSQL Drizzle Warning] dbFindAdminsByInstitutionCode query failed:', error.message);
-    }
+      )
+      .limit(limit)
+      .offset(offset);
+    return results.map(mapUserRow);
   }
   return inMemoryUserStore.getAll().filter(
     (u) => u.institutionCode === institutionCode && (u.role === 'admin' || u.role === 'institution admin')
@@ -294,23 +280,20 @@ export async function dbFindAdminsByInstitutionCode(
  */
 export async function dbFindStudentClassSectionId(studentId: string): Promise<string | undefined> {
   if (db) {
-    try {
-      const rows = await db
-        .select({ classSectionId: schema.studentClasses.classSectionId })
-        .from(schema.studentClasses)
-        .where(
-          and(
-            eq(schema.studentClasses.studentId, studentId),
-            eq(schema.studentClasses.isActive, true)
-          )
+    const rows = await db
+      .select({ classSectionId: schema.studentClasses.classSectionId })
+      .from(schema.studentClasses)
+      .where(
+        and(
+          eq(schema.studentClasses.studentId, studentId),
+          eq(schema.studentClasses.isActive, true)
         )
-        .limit(1);
-      if (rows.length > 0) return rows[0].classSectionId;
-    } catch (err: any) {
-      console.warn('[PostgreSQL Drizzle Warning] dbFindStudentClassSectionId query failed:', err.message);
-    }
+      )
+      .limit(1);
+    if (rows.length > 0) return rows[0].classSectionId;
   }
-  // Fallback: legacy scope field
+  // Intentional legacy data fallback (not an error swallow): pre-migration users
+  // encode class membership in users.scope instead of student_classes.
   const user = await dbFindUserByIdOrUid(studentId);
   if (!user) return undefined;
   let scope: any = (user as any).scope || {};
@@ -330,22 +313,18 @@ export async function dbFindStudentByUsnInInstitution(
   usn: string
 ): Promise<InMemoryUser | undefined> {
   if (db) {
-    try {
-      const results = await db
-        .select()
-        .from(schema.users)
-        .where(
-          and(
-            eq(schema.users.institutionCode, institutionCode),
-            eq(schema.users.role, 'student'),
-            eq(schema.users.rollNoOrUSN, usn)
-          )
+    const results = await db
+      .select()
+      .from(schema.users)
+      .where(
+        and(
+          eq(schema.users.institutionCode, institutionCode),
+          eq(schema.users.role, 'student'),
+          eq(schema.users.rollNoOrUSN, usn)
         )
-        .limit(1);
-      return results.length > 0 ? mapUserRow(results[0]) : undefined;
-    } catch (error: any) {
-      console.warn('[PostgreSQL Drizzle Warning] dbFindStudentByUsnInInstitution query failed:', error.message);
-    }
+      )
+      .limit(1);
+    return results.length > 0 ? mapUserRow(results[0]) : undefined;
   }
   return inMemoryUserStore.getAll().find(
     (u) =>
@@ -370,24 +349,20 @@ export async function dbFindStudentsByClassScope(
   const year = scope.academicYear || '';
   const section = scope.section || '';
   if (db) {
-    try {
-      const conditions: any[] = [
-        eq(schema.users.institutionCode, institutionCode),
-        eq(schema.users.role, 'student'),
-      ];
-      if (dept) conditions.push(sql`${schema.users.scope}->>'department' = ${dept}`);
-      if (year) conditions.push(sql`${schema.users.scope}->>'academicYear' = ${year}`);
-      if (section) conditions.push(sql`${schema.users.scope}->>'section' = ${section}`);
-      const results = await db
-        .select()
-        .from(schema.users)
-        .where(and(...conditions))
-        .limit(limit)
-        .offset(offset);
-      return results.map(mapUserRow);
-    } catch (error: any) {
-      console.warn('[PostgreSQL Drizzle Warning] dbFindStudentsByClassScope query failed:', error.message);
-    }
+    const conditions: any[] = [
+      eq(schema.users.institutionCode, institutionCode),
+      eq(schema.users.role, 'student'),
+    ];
+    if (dept) conditions.push(sql`${schema.users.scope}->>'department' = ${dept}`);
+    if (year) conditions.push(sql`${schema.users.scope}->>'academicYear' = ${year}`);
+    if (section) conditions.push(sql`${schema.users.scope}->>'section' = ${section}`);
+    const results = await db
+      .select()
+      .from(schema.users)
+      .where(and(...conditions))
+      .limit(limit)
+      .offset(offset);
+    return results.map(mapUserRow);
   }
   return inMemoryUserStore
     .getAll()
@@ -410,22 +385,18 @@ export async function dbCountStudentsByClassScope(
   const year = scope.academicYear || '';
   const section = scope.section || '';
   if (db) {
-    try {
-      const conditions: any[] = [
-        eq(schema.users.institutionCode, institutionCode),
-        eq(schema.users.role, 'student'),
-      ];
-      if (dept) conditions.push(sql`${schema.users.scope}->>'department' = ${dept}`);
-      if (year) conditions.push(sql`${schema.users.scope}->>'academicYear' = ${year}`);
-      if (section) conditions.push(sql`${schema.users.scope}->>'section' = ${section}`);
-      const rows = await db
-        .select({ count: count() })
-        .from(schema.users)
-        .where(and(...conditions));
-      return Number(rows[0]?.count ?? 0);
-    } catch (error: any) {
-      console.warn('[PostgreSQL Drizzle Warning] dbCountStudentsByClassScope query failed:', error.message);
-    }
+    const conditions: any[] = [
+      eq(schema.users.institutionCode, institutionCode),
+      eq(schema.users.role, 'student'),
+    ];
+    if (dept) conditions.push(sql`${schema.users.scope}->>'department' = ${dept}`);
+    if (year) conditions.push(sql`${schema.users.scope}->>'academicYear' = ${year}`);
+    if (section) conditions.push(sql`${schema.users.scope}->>'section' = ${section}`);
+    const rows = await db
+      .select({ count: count() })
+      .from(schema.users)
+      .where(and(...conditions));
+    return Number(rows[0]?.count ?? 0);
   }
   return inMemoryUserStore
     .getAll()
@@ -447,32 +418,24 @@ export async function dbCountStudentsByClassScope(
 export async function dbFindNonDeveloperUsers(opts?: PaginationOptions): Promise<InMemoryUser[]> {
   const { limit, offset } = normalizePagination(opts);
   if (db) {
-    try {
-      const results = await db
-        .select()
-        .from(schema.users)
-        .where(eq(schema.users.role, 'admin'))
-        .limit(limit)
-        .offset(offset);
-      return results.map(mapUserRow);
-    } catch (error: any) {
-      console.warn('[PostgreSQL Drizzle Warning] dbFindNonDeveloperUsers query failed:', error.message);
-    }
+    const results = await db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.role, 'admin'))
+      .limit(limit)
+      .offset(offset);
+    return results.map(mapUserRow);
   }
   return inMemoryUserStore.getAll().filter((u) => u.role === 'admin').slice(offset, offset + limit);
 }
 
 export async function dbCountNonDeveloperUsers(): Promise<number> {
   if (db) {
-    try {
-      const rows = await db
-        .select({ count: count() })
-        .from(schema.users)
-        .where(eq(schema.users.role, 'admin'));
-      return Number(rows[0]?.count ?? 0);
-    } catch (error: any) {
-      console.warn('[PostgreSQL Drizzle Warning] dbCountNonDeveloperUsers query failed:', error.message);
-    }
+    const rows = await db
+      .select({ count: count() })
+      .from(schema.users)
+      .where(eq(schema.users.role, 'admin'));
+    return Number(rows[0]?.count ?? 0);
   }
   return inMemoryUserStore.getAll().filter((u) => u.role === 'admin').length;
 }
@@ -484,93 +447,108 @@ export async function dbCountNonDeveloperUsers(): Promise<number> {
 
 export async function dbCountClassSectionsByInstitution(institutionCode: string): Promise<number> {
   if (db) {
-    try {
-      const rows = await db
-        .select({ count: count() })
-        .from(schema.classSections)
-        .where(eq(schema.classSections.institutionCode, institutionCode));
-      return Number(rows[0]?.count ?? 0);
-    } catch (error: any) {
-      console.warn('[PostgreSQL Drizzle Warning] dbCountClassSectionsByInstitution query failed:', error.message);
-    }
+    const rows = await db
+      .select({ count: count() })
+      .from(schema.classSections)
+      .where(eq(schema.classSections.institutionCode, institutionCode));
+    return Number(rows[0]?.count ?? 0);
   }
   return 0;
 }
 
 export async function dbCountSubjectsByInstitution(institutionCode: string): Promise<number> {
   if (db) {
-    try {
-      const rows = await db
-        .select({ count: count() })
-        .from(schema.subjects)
-        .where(eq(schema.subjects.institutionCode, institutionCode));
-      return Number(rows[0]?.count ?? 0);
-    } catch (error: any) {
-      console.warn('[PostgreSQL Drizzle Warning] dbCountSubjectsByInstitution query failed:', error.message);
-    }
+    const rows = await db
+      .select({ count: count() })
+      .from(schema.subjects)
+      .where(eq(schema.subjects.institutionCode, institutionCode));
+    return Number(rows[0]?.count ?? 0);
   }
   return 0;
 }
 
 export async function dbCountAttendanceSessionsByInstitution(institutionCode: string): Promise<number> {
   if (db) {
-    try {
-      const rows = await db
-        .select({ count: count() })
-        .from(schema.attendanceRecords)
-        .where(eq(schema.attendanceRecords.institutionCode, institutionCode));
-      return Number(rows[0]?.count ?? 0);
-    } catch (error: any) {
-      console.warn('[PostgreSQL Drizzle Warning] dbCountAttendanceSessionsByInstitution query failed:', error.message);
-    }
+    const rows = await db
+      .select({ count: count() })
+      .from(schema.attendanceRecords)
+      .where(eq(schema.attendanceRecords.institutionCode, institutionCode));
+    return Number(rows[0]?.count ?? 0);
   }
   return 0;
 }
 
 // ---------------------------------------------------------------------------
-// Writes — Postgres when available, in-memory store only as fallback.
+// Writes — Postgres when configured (errors propagate; never silently
+// "succeed" into the in-memory store); memory only in no-DB dev mode.
 // ---------------------------------------------------------------------------
 
-export async function dbUpsertUser(user: Partial<InMemoryUser> & { firebaseUid: string; email: string }): Promise<InMemoryUser> {
-  if (!db) {
+export async function dbUpsertUser(
+  user: Partial<InMemoryUser> & { firebaseUid: string; email: string },
+  executor?: any
+): Promise<InMemoryUser> {
+  const q = executor ?? db;
+  if (!q) {
     const saved = inMemoryUserStore.upsertUser(user);
     invalidateCachedAuth(saved.firebaseUid);
     return saved;
   }
 
-  try {
-    const existing = await db.select().from(schema.users).where(eq(schema.users.firebaseUid, user.firebaseUid)).limit(1);
-    const base = existing.length > 0 ? mapUserRow(existing[0]) : undefined;
+  const existing = await q.select().from(schema.users).where(eq(schema.users.firebaseUid, user.firebaseUid)).limit(1);
+  const base = existing.length > 0 ? mapUserRow(existing[0]) : undefined;
 
-    const merged: InMemoryUser = {
-      id: base?.id || user.id || `usr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-      firebaseUid: user.firebaseUid,
-      email: user.email,
-      fullName: user.fullName ?? base?.fullName ?? 'User',
-      role: user.role ?? base?.role ?? 'student',
-      institutionCode: user.institutionCode ?? base?.institutionCode ?? '',
-      institutionName: user.institutionName ?? base?.institutionName ?? '',
-      institutionType: user.institutionType ?? base?.institutionType ?? 'school',
-      rollNoOrUSN: user.rollNoOrUSN ?? base?.rollNoOrUSN ?? '',
-      mustChangePassword: user.mustChangePassword ?? base?.mustChangePassword ?? false,
-      profileCompleted: user.profileCompleted ?? base?.profileCompleted ?? false,
-      parentPhone: user.parentPhone ?? base?.parentPhone ?? '',
-      phone: user.phone ?? base?.phone ?? '',
-      profilePicUrl: user.profilePicUrl ?? base?.profilePicUrl ?? '',
-      tenthPercentage: user.tenthPercentage ?? base?.tenthPercentage ?? '',
-      twelfthPercentage: user.twelfthPercentage ?? base?.twelfthPercentage ?? '',
-      title: user.title ?? base?.title ?? '',
-      scope: user.scope ?? base?.scope ?? '{}',
-      permissions: user.permissions ?? base?.permissions ?? '[]',
-      createdAt: base?.createdAt || new Date(),
-      updatedAt: new Date(),
-    };
+  const merged: InMemoryUser = {
+    id: base?.id || user.id || `usr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+    firebaseUid: user.firebaseUid,
+    email: user.email,
+    fullName: user.fullName ?? base?.fullName ?? 'User',
+    role: user.role ?? base?.role ?? 'student',
+    institutionCode: user.institutionCode ?? base?.institutionCode ?? '',
+    institutionName: user.institutionName ?? base?.institutionName ?? '',
+    institutionType: user.institutionType ?? base?.institutionType ?? 'school',
+    rollNoOrUSN: user.rollNoOrUSN ?? base?.rollNoOrUSN ?? '',
+    mustChangePassword: user.mustChangePassword ?? base?.mustChangePassword ?? false,
+    profileCompleted: user.profileCompleted ?? base?.profileCompleted ?? false,
+    parentPhone: user.parentPhone ?? base?.parentPhone ?? '',
+    phone: user.phone ?? base?.phone ?? '',
+    profilePicUrl: user.profilePicUrl ?? base?.profilePicUrl ?? '',
+    tenthPercentage: user.tenthPercentage ?? base?.tenthPercentage ?? '',
+    twelfthPercentage: user.twelfthPercentage ?? base?.twelfthPercentage ?? '',
+    title: user.title ?? base?.title ?? '',
+    scope: user.scope ?? base?.scope ?? '{}',
+    permissions: user.permissions ?? base?.permissions ?? '[]',
+    createdAt: base?.createdAt || new Date(),
+    updatedAt: new Date(),
+  };
 
-    const savedRows = await db
-      .insert(schema.users)
-      .values({
-        id: merged.id,
-        firebaseUid: merged.firebaseUid,
+  const savedRows = await q
+    .insert(schema.users)
+    .values({
+      id: merged.id,
+      firebaseUid: merged.firebaseUid,
+      email: merged.email,
+      fullName: merged.fullName,
+      role: merged.role,
+      institutionCode: merged.institutionCode,
+      institutionName: merged.institutionName,
+      institutionType: merged.institutionType,
+      rollNoOrUSN: merged.rollNoOrUSN,
+      mustChangePassword: merged.mustChangePassword,
+      profileCompleted: merged.profileCompleted,
+      parentPhone: merged.parentPhone,
+      phone: merged.phone,
+      profilePicUrl: merged.profilePicUrl,
+      tenthPercentage: merged.tenthPercentage,
+      twelfthPercentage: merged.twelfthPercentage,
+      title: merged.title,
+      scope: safeJsonParse(merged.scope, {}),
+      permissions: safeJsonParse(merged.permissions, []),
+      createdAt: merged.createdAt,
+      updatedAt: merged.updatedAt,
+    })
+    .onConflictDoUpdate({
+      target: schema.users.firebaseUid,
+      set: {
         email: merged.email,
         fullName: merged.fullName,
         role: merged.role,
@@ -588,75 +566,43 @@ export async function dbUpsertUser(user: Partial<InMemoryUser> & { firebaseUid: 
         title: merged.title,
         scope: safeJsonParse(merged.scope, {}),
         permissions: safeJsonParse(merged.permissions, []),
-        createdAt: merged.createdAt,
-        updatedAt: merged.updatedAt,
-      })
-      .onConflictDoUpdate({
-        target: schema.users.firebaseUid,
-        set: {
-          email: merged.email,
-          fullName: merged.fullName,
-          role: merged.role,
-          institutionCode: merged.institutionCode,
-          institutionName: merged.institutionName,
-          institutionType: merged.institutionType,
-          rollNoOrUSN: merged.rollNoOrUSN,
-          mustChangePassword: merged.mustChangePassword,
-          profileCompleted: merged.profileCompleted,
-          parentPhone: merged.parentPhone,
-          phone: merged.phone,
-          profilePicUrl: merged.profilePicUrl,
-          tenthPercentage: merged.tenthPercentage,
-          twelfthPercentage: merged.twelfthPercentage,
-          title: merged.title,
-          scope: safeJsonParse(merged.scope, {}),
-          permissions: safeJsonParse(merged.permissions, []),
-          updatedAt: new Date(),
-        },
-      })
-      .returning();
+        updatedAt: new Date(),
+      },
+    })
+    .returning();
 
-    invalidateCachedAuth(merged.firebaseUid);
-    return savedRows.length > 0 ? mapUserRow(savedRows[0]) : merged;
-  } catch (error: any) {
-    console.warn('[PostgreSQL Drizzle Warning] dbUpsertUser query failed:', error.message);
-    const fallback = inMemoryUserStore.upsertUser(user);
-    invalidateCachedAuth(fallback.firebaseUid);
-    return fallback;
-  }
+  invalidateCachedAuth(merged.firebaseUid);
+  return savedRows.length > 0 ? mapUserRow(savedRows[0]) : merged;
 }
 
-export async function dbUpdateUser(id: string, fields: Partial<InMemoryUser>): Promise<InMemoryUser | undefined> {
-  if (db) {
-    try {
-      const updateData: Record<string, any> = {};
-      if (fields.email !== undefined) updateData.email = fields.email;
-      if (fields.fullName !== undefined) updateData.fullName = fields.fullName;
-      if (fields.role !== undefined) updateData.role = fields.role;
-      if (fields.title !== undefined) updateData.title = fields.title;
-      if (fields.phone !== undefined) updateData.phone = fields.phone;
-      if (fields.parentPhone !== undefined) updateData.parentPhone = fields.parentPhone;
-      if (fields.rollNoOrUSN !== undefined) updateData.rollNoOrUSN = fields.rollNoOrUSN;
-      if (fields.department !== undefined) updateData.department = fields.department;
-      if (fields.scope !== undefined) updateData.scope = fields.scope;
-      if (fields.permissions !== undefined) updateData.permissions = fields.permissions;
-      if (fields.profileCompleted !== undefined) updateData.profileCompleted = fields.profileCompleted;
-      if (fields.mustChangePassword !== undefined) updateData.mustChangePassword = fields.mustChangePassword;
-      if (fields.profilePicUrl !== undefined) updateData.profilePicUrl = fields.profilePicUrl;
-      if (fields.tenthPercentage !== undefined) updateData.tenthPercentage = fields.tenthPercentage;
-      if (fields.twelfthPercentage !== undefined) updateData.twelfthPercentage = fields.twelfthPercentage;
-      if (fields.graduatedAt !== undefined) updateData.graduatedAt = fields.graduatedAt;
-      updateData.updatedAt = new Date();
+export async function dbUpdateUser(id: string, fields: Partial<InMemoryUser>, executor?: any): Promise<InMemoryUser | undefined> {
+  const q = executor ?? db;
+  if (q) {
+    const updateData: Record<string, any> = {};
+    if (fields.email !== undefined) updateData.email = fields.email;
+    if (fields.fullName !== undefined) updateData.fullName = fields.fullName;
+    if (fields.role !== undefined) updateData.role = fields.role;
+    if (fields.title !== undefined) updateData.title = fields.title;
+    if (fields.phone !== undefined) updateData.phone = fields.phone;
+    if (fields.parentPhone !== undefined) updateData.parentPhone = fields.parentPhone;
+    if (fields.rollNoOrUSN !== undefined) updateData.rollNoOrUSN = fields.rollNoOrUSN;
+    if (fields.department !== undefined) updateData.department = fields.department;
+    if (fields.scope !== undefined) updateData.scope = fields.scope;
+    if (fields.permissions !== undefined) updateData.permissions = fields.permissions;
+    if (fields.profileCompleted !== undefined) updateData.profileCompleted = fields.profileCompleted;
+    if (fields.mustChangePassword !== undefined) updateData.mustChangePassword = fields.mustChangePassword;
+    if (fields.profilePicUrl !== undefined) updateData.profilePicUrl = fields.profilePicUrl;
+    if (fields.tenthPercentage !== undefined) updateData.tenthPercentage = fields.tenthPercentage;
+    if (fields.twelfthPercentage !== undefined) updateData.twelfthPercentage = fields.twelfthPercentage;
+    if (fields.graduatedAt !== undefined) updateData.graduatedAt = fields.graduatedAt;
+    updateData.updatedAt = new Date();
 
-      const updated = await db.update(schema.users).set(updateData).where(eq(schema.users.id, id)).returning();
-      if (updated.length > 0) {
-        invalidateCachedAuth(updated[0].firebaseUid);
-        return mapUserRow(updated[0]);
-      }
-      return undefined;
-    } catch (error: any) {
-      console.warn('[PostgreSQL Drizzle Warning] dbUpdateUser query failed:', error.message);
+    const updated = await q.update(schema.users).set(updateData).where(eq(schema.users.id, id)).returning();
+    if (updated.length > 0) {
+      invalidateCachedAuth(updated[0].firebaseUid);
+      return mapUserRow(updated[0]);
     }
+    return undefined;
   }
   const fallback = inMemoryUserStore.getAll().find((u) => u.id === id);
   if (fallback) {
@@ -669,16 +615,117 @@ export async function dbUpdateUser(id: string, fields: Partial<InMemoryUser>): P
 
 export async function dbDeleteUserById(id: string): Promise<boolean> {
   if (db) {
-    try {
-      const deleted = await db.delete(schema.users).where(eq(schema.users.id, id)).returning();
-      if (deleted.length > 0) invalidateCachedAuth(deleted[0].firebaseUid);
-      return true;
-    } catch (error: any) {
-      console.warn('[PostgreSQL Drizzle Warning] dbDeleteUserById query failed:', error.message);
-    }
+    const deleted = await db.delete(schema.users).where(eq(schema.users.id, id)).returning();
+    if (deleted.length > 0) invalidateCachedAuth(deleted[0].firebaseUid);
+    return deleted.length > 0;
   }
   const all = inMemoryUserStore.getAll();
   const target = all.find((u) => u.id === id);
   if (target) invalidateCachedAuth(target.firebaseUid);
   return inMemoryUserStore.deleteUser(id);
+}
+
+// ---------------------------------------------------------------------------
+// Audit log — developer-action history (Postgres; in-memory fallback in dev).
+// ---------------------------------------------------------------------------
+
+const inMemoryAuditEvents: schema.AuditEventRecord[] = [];
+
+export interface AuditEventOptions {
+  limit?: number;
+  offset?: number;
+  action?: string;
+  targetType?: string;
+  targetId?: string;
+}
+
+function mapAuditRow(row: schema.AuditEventRow): schema.AuditEventRecord {
+  return {
+    id: row.id,
+    actorEmail: row.actorEmail,
+    action: row.action,
+    targetType: row.targetType as schema.AuditEventRecord['targetType'],
+    targetId: row.targetId || undefined,
+    targetLabel: row.targetLabel || undefined,
+    details: row.details || undefined,
+    createdAt: row.createdAt || new Date(),
+  };
+}
+
+/**
+ * Append an audit event. Never throws — audit failures must not break the
+ * operation being audited.
+ */
+export async function dbInsertAuditEvent(event: Omit<schema.AuditEventRecord, 'id' | 'createdAt'>): Promise<void> {
+  try {
+    if (db) {
+      await db.insert(schema.auditEvents).values({
+        actorEmail: event.actorEmail,
+        action: event.action,
+        targetType: event.targetType,
+        targetId: event.targetId || null,
+        targetLabel: event.targetLabel || null,
+        details: event.details || null,
+      });
+    } else {
+      inMemoryAuditEvents.push({
+        id: `aud_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        ...event,
+        createdAt: new Date(),
+      });
+      if (inMemoryAuditEvents.length > 1000) inMemoryAuditEvents.splice(0, inMemoryAuditEvents.length - 1000);
+    }
+  } catch (err) {
+    console.warn('[Audit] failed to record event:', (err as any)?.message);
+  }
+}
+
+export async function dbListAuditEvents(opts: AuditEventOptions = {}): Promise<{
+  data: schema.AuditEventRecord[];
+  total: number;
+  limit: number;
+  offset: number;
+}> {
+  const limit = Math.min(Math.max(opts.limit ?? 100, 1), 500);
+  const offset = Math.max(opts.offset ?? 0, 0);
+
+  if (db) {
+    const conditions: any[] = [];
+    if (opts.action) conditions.push(eq(schema.auditEvents.action, opts.action));
+    if (opts.targetType) conditions.push(eq(schema.auditEvents.targetType, opts.targetType));
+    if (opts.targetId) conditions.push(eq(schema.auditEvents.targetId, opts.targetId));
+    const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const [rows, countRows] = await Promise.all([
+      db
+        .select()
+        .from(schema.auditEvents)
+        .where(where)
+        .orderBy(desc(schema.auditEvents.createdAt))
+        .limit(limit)
+        .offset(offset),
+      db.select({ count: count() }).from(schema.auditEvents).where(where),
+    ]);
+
+    return {
+      data: rows.map(mapAuditRow),
+      total: Number(countRows[0]?.count ?? 0),
+      limit,
+      offset,
+    };
+  }
+
+  let list = inMemoryAuditEvents;
+  if (opts.action) list = list.filter((e) => e.action === opts.action);
+  if (opts.targetType) list = list.filter((e) => e.targetType === opts.targetType);
+  if (opts.targetId) list = list.filter((e) => e.targetId === opts.targetId);
+  const sorted = [...list].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+  return {
+    data: sorted.slice(offset, offset + limit),
+    total: sorted.length,
+    limit,
+    offset,
+  };
 }

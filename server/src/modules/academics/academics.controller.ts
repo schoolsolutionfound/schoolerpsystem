@@ -17,6 +17,7 @@ import {
   CreateHomeworkSchema,
   UpdateHomeworkSchema,
 } from './academics.schema.js';
+import { notifyAttendanceForSlot, notifyHomeworkAssigned, notifyExamPublishedForExam } from '../notifications/notification.triggers.js';
 
 function getInstCode(req: FastifyRequest): string {
   const user = (req as any).user;
@@ -286,7 +287,14 @@ export async function getRosterHandler(request: FastifyRequest, reply: FastifyRe
 export async function markAttendanceHandler(request: FastifyRequest, reply: FastifyReply) {
   try {
     const body = MarkAttendanceSchema.parse(request.body);
-    const data = await academicsService.markAttendance(getInstCode(request), getUserId(request), body);
+    const instCode = getInstCode(request);
+    const data = await academicsService.markAttendance(instCode, getUserId(request), body);
+    notifyAttendanceForSlot({
+      institutionCode: instCode,
+      timetableSlotId: body.timetableSlotId,
+      date: body.date,
+      entries: body.entries,
+    });
     return reply.send({ success: true, data });
   } catch (err: any) {
     return sendError(reply, err, 'Failed to mark attendance');
@@ -451,7 +459,16 @@ export async function updateExamHandler(
 ) {
   try {
     const body = UpdateExamSchema.parse(request.body);
-    const data = await academicsService.updateExam(getInstCode(request), request.params.id, body);
+    const instCode = getInstCode(request);
+    const data = await academicsService.updateExam(instCode, request.params.id, body);
+    if (body.status === 'published') {
+      notifyExamPublishedForExam({
+        institutionCode: instCode,
+        examId: request.params.id,
+        examName: body.name || (data as any)?.name,
+        term: body.term || (data as any)?.term,
+      });
+    }
     return reply.send({ success: true, data });
   } catch (err: any) {
     return sendError(reply, err, 'Failed to update exam');
@@ -531,7 +548,16 @@ export async function getStudentMarksByIdHandler(
 export async function createHomeworkHandler(request: FastifyRequest, reply: FastifyReply) {
   try {
     const body = CreateHomeworkSchema.parse(request.body);
-    const data = await academicsService.createHomework(getInstCode(request), getUserId(request), body);
+    const instCode = getInstCode(request);
+    const data = await academicsService.createHomework(instCode, getUserId(request), body);
+    notifyHomeworkAssigned({
+      institutionCode: instCode,
+      classSectionId: body.classSectionId,
+      subjectId: body.subjectId,
+      title: body.title,
+      dueDate: body.dueDate,
+      priority: body.priority,
+    });
     return reply.status(201).send({ success: true, data });
   } catch (err: any) {
     return sendError(reply, err, 'Failed to create homework');
@@ -590,17 +616,11 @@ export async function deleteHomeworkHandler(request: FastifyRequest, reply: Fast
 export async function listStudentHomeworkHandler(request: FastifyRequest, reply: FastifyReply) {
   try {
     const userId = getUserId(request);
-    const role = getRole(request);
     const instCode = getInstCode(request);
-    let classSectionId = '';
-    if (role === 'student') {
-      const cls = await (await import('./academics.service.js')).academicsService.getMyClassSection(instCode, userId);
-      classSectionId = cls?.id || '';
-    }
-    if (!classSectionId) {
-      const query = request.query as { classSectionId?: string };
-      classSectionId = query.classSectionId || '';
-    }
+    // Students only ever see their own class's homework — never accept a
+    // classSectionId from the query string.
+    const cls = await (await import('./academics.service.js')).academicsService.getMyClassSection(instCode, userId);
+    const classSectionId = cls?.id || '';
     if (!classSectionId) return reply.send({ success: true, data: [] });
     const data = await academicsService.listHomeworkForStudent(instCode, classSectionId);
     return reply.send({ success: true, data });

@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery, keepPreviousData } from '@tanstack/react-query';
 import {
   fetchInstitutionsApi,
   fetchInstitutionByIdApi,
@@ -10,10 +10,11 @@ import {
   createAdminApi,
   updateAdminApi,
   deleteAdminApi,
+  searchInstitutionsApi,
+  fetchInstitutionsPageApi,
   FetchInstitutionsParams,
 } from '../api/developer.api';
 import {
-  Institution,
   CreateInstitutionInput,
   UpdateInstitutionInput,
   InstitutionAdmin,
@@ -27,6 +28,10 @@ export const developerKeys = {
   institutions: () => [...developerKeys.all, 'institutions'] as const,
   institutionList: (params?: FetchInstitutionsParams) =>
     [...developerKeys.institutions(), 'list', params] as const,
+  institutionSearch: (search: string, limit: number) =>
+    [...developerKeys.institutions(), 'search', search, limit] as const,
+  institutionPages: (search: string, type: string, status: string) =>
+    [...developerKeys.institutions(), 'pages', search, type, status] as const,
   institutionDetail: (id: string) => [...developerKeys.institutions(), 'detail', id] as const,
   stats: () => [...developerKeys.all, 'stats'] as const,
   admins: () => [...developerKeys.all, 'admins'] as const,
@@ -37,6 +42,64 @@ export function useInstitutionsQuery(params?: FetchInstitutionsParams) {
     queryKey: developerKeys.institutionList(params),
     queryFn: () => fetchInstitutionsApi(params),
     staleTime: 1000 * 60 * 2, // 2 minutes
+  });
+}
+
+/**
+ * Debounced server-side search for typeahead pickers. Pass a query term and an
+ * `enabled` flag (e.g. "field focused"). Returns at most `limit` institutions
+ * plus a `total` count.
+ */
+export function useInstitutionSearchQuery(
+  search: string,
+  enabled: boolean,
+  limit = 50
+) {
+  const term = search.trim();
+  return useQuery({
+    queryKey: developerKeys.institutionSearch(term, limit),
+    queryFn: () => searchInstitutionsApi(term, limit),
+    enabled: enabled && term.length > 0,
+    staleTime: 1000 * 60,
+  });
+}
+
+/** Page size for the paginated institution list screens. */
+export const INSTITUTION_PAGE_SIZE = 25;
+
+export interface InstitutionPagesParams {
+  /** Debounced search term (empty string = no search). */
+  search?: string;
+  /** 'school' | 'college'. */
+  type?: string;
+  /** 'active' | 'trial' | 'inactive' | 'suspended' | 'non_active' (inactive+suspended). */
+  status?: string;
+}
+
+/**
+ * Infinite, server-paginated institution list. Search/filter run in SQL, so
+ * these screens never download the whole table. Use `fetchNextPage` from
+ * FlatList's `onEndReached`.
+ */
+export function useInstitutionPagesQuery(params: InstitutionPagesParams) {
+  const search = (params.search ?? '').trim();
+  return useInfiniteQuery({
+    queryKey: developerKeys.institutionPages(search, params.type ?? '', params.status ?? ''),
+    queryFn: ({ pageParam }) =>
+      fetchInstitutionsPageApi({
+        page: pageParam,
+        limit: INSTITUTION_PAGE_SIZE,
+        search: search || undefined,
+        type: params.type,
+        status: params.status,
+      }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) => {
+      const loaded = allPages.reduce((n, p) => n + p.data.length, 0);
+      return loaded < lastPage.total ? allPages.length + 1 : undefined;
+    },
+    placeholderData: keepPreviousData,
+    staleTime: 1000 * 30,
   });
 }
 
@@ -133,13 +196,3 @@ export function useDeleteAdminMutation() {
   });
 }
 
-export function searchInstitutions(list: Institution[] = [], searchTerm: string = ''): Institution[] {
-  if (!searchTerm.trim()) return list;
-  const term = searchTerm.toLowerCase().trim();
-  return list.filter(
-    (item) =>
-      item.institutionName.toLowerCase().includes(term) ||
-      item.institutionCode.toLowerCase().includes(term) ||
-      item.institutionType.toLowerCase().includes(term)
-  );
-}

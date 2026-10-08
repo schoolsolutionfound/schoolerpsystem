@@ -12,9 +12,10 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   useAdminsQuery,
-  useInstitutionsQuery,
   useUpdateAdminMutation,
 } from '../../../../features/developer/hooks/useDeveloperQueries';
+import { InstitutionSearchSelect } from '../../../../features/developer/components/InstitutionSearchSelect';
+import { Institution } from '../../../../features/developer/types/developer.types';
 import { AppInput } from '../../../../features/shared/components/AppInput';
 import { AppButton } from '../../../../features/shared/components/AppButton';
 import { LoadingView } from '../../../../features/shared/components/LoadingView';
@@ -52,7 +53,6 @@ export default function EditInstitutionAdminScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: admins = [], isLoading: adminsLoading, isError: adminsError } = useAdminsQuery();
-  const { data: institutions = [] } = useInstitutionsQuery();
   const updateAdminMutation = useUpdateAdminMutation();
 
   const admin = useMemo(() => admins.find((a) => a.id === id), [admins, id]);
@@ -60,14 +60,24 @@ export default function EditInstitutionAdminScreen() {
   const [fullName, setFullName] = useState(admin?.fullName || '');
   const [email, setEmail] = useState(admin?.email || '');
   const [selectedInstCode, setSelectedInstCode] = useState(admin?.institutionCode || '');
+  const [selectedInstLabel, setSelectedInstLabel] = useState(
+    admin ? `${admin.institutionName} (${admin.institutionCode})` : ''
+  );
+  const [selectedInstType, setSelectedInstType] = useState<'school' | 'college'>(
+    admin?.institutionType || 'college'
+  );
   const [selectedTitle, setSelectedTitle] = useState(admin?.title || 'HOD');
   const [customTitle, setCustomTitle] = useState('');
   const [selectedRole, setSelectedRole] = useState(admin?.role || 'admin');
 
-  const selectedInst = institutions.find(
-    (i) => i.institutionCode.toLowerCase() === selectedInstCode.toLowerCase()
-  );
-  const isSchool = selectedInst?.institutionType === 'school';
+  const isSchool = selectedInstType === 'school';
+
+  const handleSelectInstitution = (inst: Institution | null) => {
+    if (!inst) return;
+    setSelectedInstCode(inst.institutionCode);
+    setSelectedInstLabel(`${inst.institutionName} (${inst.institutionCode})`);
+    setSelectedInstType(inst.institutionType);
+  };
 
   const availableDepts = isSchool ? SCHOOL_DEPARTMENTS : COLLEGE_DEPARTMENTS;
   const availableYears = isSchool ? SCHOOL_YEARS : COLLEGE_YEARS;
@@ -82,9 +92,13 @@ export default function EditInstitutionAdminScreen() {
 
   React.useEffect(() => {
     if (admin) {
+      // Sync form state from fetched admin record.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFullName(admin.fullName);
       setEmail(admin.email);
       setSelectedInstCode(admin.institutionCode);
+      setSelectedInstLabel(`${admin.institutionName} (${admin.institutionCode})`);
+      setSelectedInstType(admin.institutionType || 'college');
       setSelectedTitle(admin.title || 'HOD');
       setSelectedRole(admin.role || 'admin');
       setSelectedDepts(admin.scope?.departments || []);
@@ -199,27 +213,12 @@ export default function EditInstitutionAdminScreen() {
         />
 
         <Text style={styles.sectionTitle}>Institution</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
-          {institutions.map((inst) => (
-            <TouchableOpacity
-              key={inst.id}
-              style={[
-                styles.chip,
-                selectedInstCode === inst.institutionCode && styles.activeChip,
-              ]}
-              onPress={() => setSelectedInstCode(inst.institutionCode)}
-            >
-              <Text
-                style={[
-                  styles.chipText,
-                  selectedInstCode === inst.institutionCode && styles.activeChipText,
-                ]}
-              >
-                {inst.institutionName} ({inst.institutionCode})
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+        <InstitutionSearchSelect
+          value={selectedInstCode}
+          valueLabel={selectedInstLabel}
+          onChange={handleSelectInstitution}
+          placeholder="Search institutions by name or code…"
+        />
 
         <Text style={styles.sectionTitle}>Role</Text>
         <View style={styles.chipRowWrap}>
@@ -399,9 +398,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.light.primary,
     fontWeight: '600',
-  },
-  chipRow: {
-    marginBottom: 16,
   },
   chipRowWrap: {
     flexDirection: 'row',

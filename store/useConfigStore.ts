@@ -9,6 +9,7 @@ interface ConfigState {
   };
   _hasHydrated: boolean;
   setHasHydrated: (state: boolean) => void;
+  setMaintenance: (enabled: boolean, minVersion: string) => void;
 }
 
 export const useConfigStore = create<ConfigState>()(
@@ -21,6 +22,8 @@ export const useConfigStore = create<ConfigState>()(
       _hasHydrated: false,
 
       setHasHydrated: (state) => set({ _hasHydrated: state }),
+      setMaintenance: (enabled, minVersion) =>
+        set({ maintenance: { enabled, minVersion } }),
     }),
     {
       name: 'config-storage',

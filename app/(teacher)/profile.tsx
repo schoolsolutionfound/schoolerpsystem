@@ -2,12 +2,10 @@ import React, { useState } from 'react';
 import { View, StyleSheet, Text, ScrollView, TouchableOpacity, Alert, RefreshControl, Image } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { signOut } from 'firebase/auth';
+import { performLogout } from '../../utils/logout';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { auth } from '../../firebaseConfig';
+
 import { useUserStore } from '../../store/useUserStore';
-import { BorderRadius } from '../../constants/theme';
-import { FontFamily } from '../../constants/fonts';
 
 export default function TeacherProfileScreen() {
   const router = useRouter();
@@ -40,7 +38,7 @@ export default function TeacherProfileScreen() {
         text: 'Logout',
         style: 'destructive',
         onPress: async () => {
-          try { await signOut(auth); } catch {}
+          await performLogout();
           resetUser();
           router.replace('/auth');
         },

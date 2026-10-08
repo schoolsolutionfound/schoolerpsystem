@@ -22,3 +22,9 @@ setPersistence(auth, browserLocalPersistence).catch((err) => {
 });
 
 export { signInWithEmailAndPassword, signOut };
+export {
+  getMultiFactorResolver,
+  TotpMultiFactorGenerator,
+  type MultiFactorResolver,
+  type MultiFactorError,
+} from 'firebase/auth';

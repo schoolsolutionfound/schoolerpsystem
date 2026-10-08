@@ -1,10 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { developerApi } from '../services/api';
 import type { AdminPayload } from '../services/api';
+import { InstitutionSelect } from '../components/InstitutionSelect';
+
+const PAGE_SIZE = 50;
 
 export const AdminsView: React.FC = () => {
   const [admins, setAdmins] = useState<any[]>([]);
-  const [institutions, setInstitutions] = useState<any[]>([]);
+  const [defaultInstCode, setDefaultInstCode] = useState('');
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(0);
+  const [instFilter, setInstFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingAdmin, setEditingAdmin] = useState<any>(null);
@@ -21,36 +27,63 @@ export const AdminsView: React.FC = () => {
   const [permissionsText, setPermissionsText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [authWarning, setAuthWarning] = useState('');
 
-  const loadData = async () => {
+  // Reset-password state
+  const [resetAdmin, setResetAdmin] = useState<any>(null);
+  const [resetPassword, setResetPassword] = useState('');
+  const [resetBusy, setResetBusy] = useState(false);
+  const [resetMsg, setResetMsg] = useState('');
+
+  // Prefetch a single institution to pre-select in the create modal.
+  useEffect(() => {
+    developerApi
+      .getInstitutions({ limit: 1 })
+      .then((res) => {
+        const data = Array.isArray(res?.data) ? res.data : [];
+        if (data.length > 0) {
+          setDefaultInstCode(data[0].institutionCode);
+          setSelectedInstCode(data[0].institutionCode);
+        }
+      })
+      .catch((err) => console.warn('[Institutions Fetch Error]', err.message));
+  }, []);
+
+  const loadAdmins = (pageToLoad: number, inst: string) => {
     setLoading(true);
-    try {
-      const [adminsData, instsData] = await Promise.all([
-        developerApi.getAdmins(),
-        developerApi.getInstitutions(),
-      ]);
-      setAdmins(Array.isArray(adminsData) ? adminsData : (adminsData as any)?.data || []);
-      const instList = Array.isArray(instsData) ? instsData : [];
-      setInstitutions(instList);
-      if (instList.length > 0) {
-        setSelectedInstCode(instList[0].institutionCode);
-      }
-    } catch (err: any) {
-      console.warn('[Admins Fetch Error]', err.message);
-    } finally {
-      setLoading(false);
-    }
+    developerApi
+      .getAdmins({
+        institutionCode: inst || undefined,
+        limit: PAGE_SIZE,
+        offset: pageToLoad * PAGE_SIZE,
+      })
+      .then((res) => {
+        setAdmins(Array.isArray(res?.data) ? res.data : []);
+        setTotal(typeof res?.total === 'number' ? res.total : 0);
+      })
+      .catch((err) => console.warn('[Admins Fetch Error]', err.message))
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => {
-    loadData();
-  }, []);
+    loadAdmins(page, instFilter);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, instFilter]);
+
+  const onFilterChange = (code: string) => {
+    setInstFilter(code);
+    if (page !== 0) setPage(0);
+  };
+
+  const refresh = () => loadAdmins(page, instFilter);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const filterActive = instFilter !== '';
 
   const resetForm = () => {
     setFullName('');
     setEmail('');
     setPhone('');
-    setPassword('TempPass123!');
+    setPassword('');
     setRole('admin');
     setTitle('Institution Admin');
     setScopeDepts('');
@@ -62,8 +95,8 @@ export const AdminsView: React.FC = () => {
   const openCreateModal = () => {
     setEditingAdmin(null);
     resetForm();
-    if (institutions.length > 0) {
-      setSelectedInstCode(institutions[0].institutionCode);
+    if (defaultInstCode) {
+      setSelectedInstCode(defaultInstCode);
     }
     setModalOpen(true);
   };
@@ -111,17 +144,33 @@ export const AdminsView: React.FC = () => {
     };
 
     if (!editingAdmin) {
-      payload.password = password || 'TempPass123!';
+      if (!password) {
+        setError('Password is required for new administrators.');
+        setSubmitting(false);
+        return;
+      }
+      payload.password = password;
     }
 
     try {
       if (editingAdmin) {
         await developerApi.updateAdmin(editingAdmin.id, payload);
       } else {
-        await developerApi.createAdmin(payload);
+        const created: any = await developerApi.createAdmin(payload);
+        if (created?.authStatus === 'skipped') {
+          setAuthWarning(
+            'Institution admin was saved, but the server could not create a Firebase auth account (Firebase Admin not initialized). Email/password login will NOT work until the server is restarted with Firebase credentials.'
+          );
+        }
+      }
+      if (editingAdmin) {
+        refresh();
+      } else {
+        // New admin — jump to the first page so it is visible.
+        setPage(0);
+        loadAdmins(0, instFilter);
       }
       setModalOpen(false);
-      loadData();
     } catch (err: any) {
       setError(err.message || 'Failed to save administrator.');
     } finally {
@@ -129,11 +178,43 @@ export const AdminsView: React.FC = () => {
     }
   };
 
+  const openResetModal = (admin: any) => {
+    setResetAdmin(admin);
+    setResetPassword('');
+    setResetMsg('');
+  };
+
+  const generatePassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+    const arr = new Uint32Array(12);
+    crypto.getRandomValues(arr);
+    setResetPassword(Array.from(arr, (n) => chars[n % chars.length]).join(''));
+  };
+
+  const handleResetSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetAdmin) return;
+    setResetBusy(true);
+    setResetMsg('');
+    try {
+      await developerApi.resetAdminPassword(resetAdmin.id, resetPassword);
+      setResetMsg(`Password for ${resetAdmin.email} has been reset. Share it securely — the user must change it on their next login.`);
+    } catch (err: any) {
+      setResetMsg(err.message || 'Failed to reset password.');
+    } finally {
+      setResetBusy(false);
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this administrator?')) {
       try {
         await developerApi.deleteAdmin(id);
-        loadData();
+        if (page > 0 && admins.length === 1) {
+          setPage(page - 1);
+        } else {
+          refresh();
+        }
       } catch (err: any) {
         alert(err.message || 'Failed to delete administrator');
       }
@@ -150,6 +231,38 @@ export const AdminsView: React.FC = () => {
         <button className="btn btn-primary" onClick={openCreateModal}>
           + Create admin
         </button>
+      </div>
+
+      {authWarning && (
+        <div
+          style={{
+            backgroundColor: 'var(--color-warning-bg)', border: '1px solid var(--color-warning)',
+            color: 'var(--color-warning)', padding: '10px 14px', borderRadius: 'var(--radius-input)',
+            fontSize: '13px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', gap: '12px',
+          }}
+        >
+          <span>{authWarning}</span>
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={() => setAuthWarning('')}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+        <InstitutionSelect
+          value={instFilter}
+          onChange={(code) => onFilterChange(code)}
+          allowAll
+          allLabel="All institutions"
+          placeholder="Filter by institution..."
+          style={{ flex: 1, minWidth: '240px', maxWidth: '420px' }}
+        />
+        <span style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginLeft: 'auto' }}>
+          {loading ? 'Loading...' : `${total} administrator${total === 1 ? '' : 's'}`}
+        </span>
       </div>
 
       {loading ? (
@@ -172,8 +285,14 @@ export const AdminsView: React.FC = () => {
                   <td colSpan={5}>
                     <div className="table-empty">
                       <div className="table-empty-icon" style={{ fontWeight: 700 }}>@</div>
-                      <div className="table-empty-text">No institution admins created</div>
-                      <div className="table-empty-hint">Click &quot;+ Create admin&quot; to assign an administrator</div>
+                      <div className="table-empty-text">
+                        {filterActive ? 'No administrators for this institution' : 'No institution admins created'}
+                      </div>
+                      <div className="table-empty-hint">
+                        {filterActive
+                          ? 'Choose a different institution or clear the filter'
+                          : 'Click &quot;+ Create admin&quot; to assign an administrator'}
+                      </div>
                     </div>
                   </td>
                 </tr>
@@ -193,6 +312,9 @@ export const AdminsView: React.FC = () => {
                         <button className="btn btn-secondary btn-sm" onClick={() => openEditModal(admin)}>
                           Edit
                         </button>
+                        <button className="btn btn-secondary btn-sm" onClick={() => openResetModal(admin)}>
+                          Reset password
+                        </button>
                         <button className="btn btn-danger btn-sm" onClick={() => handleDelete(admin.id)}>
                           Delete
                         </button>
@@ -203,6 +325,33 @@ export const AdminsView: React.FC = () => {
               )}
             </tbody>
           </table>
+
+          {!loading && admins.length > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '14px' }}>
+              <span style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>
+                Showing {page * PAGE_SIZE + 1}&ndash;{Math.min((page + 1) * PAGE_SIZE, total)} of {total}
+              </span>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  disabled={page === 0 || loading}
+                  onClick={() => setPage(page - 1)}
+                >
+                  &larr; Previous
+                </button>
+                <span style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>
+                  Page {page + 1} / {totalPages}
+                </span>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  disabled={page >= totalPages - 1 || loading}
+                  onClick={() => setPage(page + 1)}
+                >
+                  Next &rarr;
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -264,13 +413,12 @@ export const AdminsView: React.FC = () => {
 
               <div className="form-group">
                 <label className="form-label">Assigned institution *</label>
-                <select className="input" value={selectedInstCode} onChange={(e) => setSelectedInstCode(e.target.value)} required>
-                  {institutions.map((inst) => (
-                    <option key={inst.id} value={inst.institutionCode}>
-                      {inst.institutionName} ({inst.institutionCode})
-                    </option>
-                  ))}
-                </select>
+                <InstitutionSelect
+                  value={selectedInstCode}
+                  onChange={(code) => setSelectedInstCode(code)}
+                  placeholder="Search institution by name or code..."
+                  required
+                />
               </div>
 
               <div className="form-group">
@@ -284,6 +432,7 @@ export const AdminsView: React.FC = () => {
                   <option value="accountant">Accountant</option>
                   <option value="hod">HOD</option>
                   <option value="librarian">Librarian</option>
+                  <option value="driver">Driver</option>
                 </select>
               </div>
 
@@ -354,6 +503,66 @@ export const AdminsView: React.FC = () => {
                 </button>
                 <button type="submit" className="btn btn-primary" disabled={submitting}>
                   {submitting ? 'Saving...' : editingAdmin ? 'Save changes' : 'Create admin account'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {resetAdmin && (
+        <div className="modal-overlay" onClick={() => setResetAdmin(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '420px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">Reset password</h3>
+              <button className="close-btn" onClick={() => setResetAdmin(null)}>✕</button>
+            </div>
+
+            <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '16px' }}>
+              Setting a new temporary password for <strong>{resetAdmin.email}</strong>.
+              The user will be forced to change it on their next login.
+            </p>
+
+            {resetMsg && (
+              <div
+                style={{
+                  backgroundColor: 'var(--color-success-bg)', border: '1px solid var(--color-success-border)',
+                  color: 'var(--color-success)', padding: '10px 14px', borderRadius: 'var(--radius-input)',
+                  fontSize: '13px', marginBottom: '16px',
+                }}
+              >
+                {resetMsg}
+              </div>
+            )}
+
+            <form onSubmit={handleResetSubmit}>
+              <div className="form-group">
+                <label className="form-label">New temporary password</label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="text"
+                    className="input"
+                    style={{ flex: 1 }}
+                    value={resetPassword}
+                    required
+                    minLength={8}
+                    onChange={(e) => setResetPassword(e.target.value)}
+                  />
+                  <button type="button" className="btn btn-secondary" onClick={generatePassword} disabled={resetBusy}>
+                    Generate
+                  </button>
+                </div>
+                <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '4px' }}>
+                  Must be 8+ characters with uppercase, lowercase, and a digit.
+                </span>
+              </div>
+
+              <div className="action-bar">
+                <button type="button" className="btn btn-secondary" onClick={() => setResetAdmin(null)} disabled={resetBusy}>
+                  Close
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={resetBusy || resetPassword.length < 8}>
+                  {resetBusy ? 'Resetting...' : 'Reset password'}
                 </button>
               </div>
             </form>

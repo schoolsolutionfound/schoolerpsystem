@@ -12,6 +12,7 @@ export interface BulkFeedStep3Props {
   emailsSent?: number;
   errors?: string[];
   roleName?: string;
+  tempPasswords?: { email: string; tempPassword: string }[];
   onResetStep: () => void;
 }
 
@@ -23,6 +24,7 @@ export const BulkFeedStep3: React.FC<BulkFeedStep3Props> = ({
   emailsSent = 0,
   errors = [],
   roleName = 'users',
+  tempPasswords = [],
   onResetStep,
 }) => {
   const [showErrors, setShowErrors] = useState(false);
@@ -101,6 +103,25 @@ export const BulkFeedStep3: React.FC<BulkFeedStep3Props> = ({
           </>
         )}
       </View>
+
+      {tempPasswords.length > 0 && (
+        <View style={styles.tempPwCard}>
+          <View style={styles.tempPwHeader}>
+            <MaterialCommunityIcons name="key-variant" size={18} color="#B45309" />
+            <Text style={styles.tempPwTitle}>Temporary passwords (shown once)</Text>
+          </View>
+          <Text style={styles.tempPwNote}>
+            These users had no CSV password and no institution default password is set. Share these securely —
+            they will not be shown again. Each user must change their password at first login.
+          </Text>
+          {tempPasswords.map((t, i) => (
+            <View key={i} style={styles.tempPwRow}>
+              <Text style={styles.tempPwEmail}>{t.email}</Text>
+              <Text style={styles.tempPwValue} selectable>{t.tempPassword}</Text>
+            </View>
+          ))}
+        </View>
+      )}
 
       {failureCount > 0 && errors.length > 0 && (
         <TouchableOpacity style={styles.errorToggle} onPress={() => setShowErrors(!showErrors)}>
@@ -192,6 +213,33 @@ const styles = StyleSheet.create({
     borderColor: '#FDE68A',
   },
   errorItem: { fontSize: 12, fontFamily: FontFamily.regular, color: '#92400E', marginBottom: 4, lineHeight: 18 },
+  tempPwCard: {
+    alignSelf: 'stretch',
+    backgroundColor: '#FFFBEB',
+    borderRadius: BorderRadius.card,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  tempPwHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
+  tempPwTitle: { fontSize: 13, fontFamily: FontFamily.bold, color: '#92400E' },
+  tempPwNote: { fontSize: 11, fontFamily: FontFamily.regular, color: '#A16207', lineHeight: 16, marginBottom: 8 },
+  tempPwRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginTop: 6,
+    gap: 8,
+  },
+  tempPwEmail: { fontSize: 12, fontFamily: FontFamily.regular, color: '#374151', flexShrink: 1 },
+  tempPwValue: { fontSize: 13, fontFamily: FontFamily.bold, color: '#111827' },
   primaryActionBtn: {
     backgroundColor: '#F4C430',
     borderRadius: BorderRadius.button,

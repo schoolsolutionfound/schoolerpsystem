@@ -23,7 +23,6 @@ import {
   Modal,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { BorderRadius } from '../../../constants/theme';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { IncomeCategory, IncomeRecord, PaymentMethod, PaymentStatus } from '../types/finance';
 import {

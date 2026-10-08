@@ -23,7 +23,7 @@ export async function fetchDashboardStatsApi() {
   return apiClient('/admin/dashboard-stats');
 }
 
-export async function updateInstitutionConfigApi(payload: { departments?: string[]; academicYears?: string[]; courses?: string[]; sections?: string[] }) {
+export async function updateInstitutionConfigApi(payload: { departments?: string[]; academicYears?: string[]; courses?: string[]; sections?: string[]; defaultTempPassword?: string; maintenanceEnabled?: boolean; maintenanceMinVersion?: string }) {
   return apiClient('/admin/institution-config', {
     method: 'PUT',
     body: JSON.stringify(payload),
@@ -200,6 +200,13 @@ export async function createUserApi(payload: {
   });
 }
 
+export async function resetUserPasswordApi(id: string, password?: string) {
+  return apiClient(`/admin/users/${id}/reset-password`, {
+    method: 'POST',
+    body: JSON.stringify(password ? { password } : {}),
+  });
+}
+
 // Fee Management APIs
 export async function fetchFeesApi() {
   return apiClient('/admin/fees');
@@ -260,4 +267,42 @@ export async function updateFeePaymentApi(id: string, payload: Record<string, an
 
 export async function deleteFeePaymentApi(id: string) {
   return apiClient(`/admin/fee-payments/${id}`, { method: 'DELETE' });
+}
+
+// Expense Management (accountant disbursements)
+export interface CreateExpensePayload {
+  title: string;
+  category: string;
+  payeeName: string;
+  employeeId?: string;
+  designation?: string;
+  department?: string;
+  vehicleNo?: string;
+  amount: number;
+  paymentMethod?: string;
+  paymentDate?: string;
+  status?: string;
+  notes?: string;
+}
+
+export async function fetchExpensesApi() {
+  return apiClient('/admin/expenses');
+}
+
+export async function createExpenseApi(payload: CreateExpensePayload) {
+  return apiClient('/admin/expenses', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateExpenseApi(id: string, payload: Record<string, any>) {
+  return apiClient(`/admin/expenses/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteExpenseApi(id: string) {
+  return apiClient(`/admin/expenses/${id}`, { method: 'DELETE' });
 }

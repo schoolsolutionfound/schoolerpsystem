@@ -1,13 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { Platform } from 'react-native';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '../../../firebaseConfig';
 import { useUserStore } from '../../../store/useUserStore';
+import { registerPushTokenApi, unregisterPushTokenApi } from '../../../api/notifications';
 
 const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
 let Notifications: typeof import('expo-notifications') | null = null;
 if (!isExpoGo && Platform.OS !== 'web') {
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     Notifications = require('expo-notifications');
   } catch {
     // Ignore in Expo Go or environment without native push support
@@ -16,13 +20,34 @@ if (!isExpoGo && Platform.OS !== 'web') {
 
 export function usePushNotifications() {
   const [expoPushToken, setExpoPushToken] = useState<string>('');
-  const institutionId = useUserStore((state) => state.institutionId);
+  const institutionCode = useUserStore((state) => state.institutionCode);
+  const [userId, setUserId] = useState<string | null>(auth.currentUser?.uid ?? null);
+  const registeredTokenRef = useRef<string>('');
+
+  useEffect(() => {
+    return onAuthStateChanged(auth, (user) => setUserId(user?.uid ?? null));
+  }, []);
+
+  const registerTokenWithBackend = useCallback(
+    async (token: string) => {
+      if (!token || !userId || !institutionCode) return;
+      try {
+        await registerPushTokenApi({
+          token,
+          platform: Platform.OS === 'ios' ? 'ios' : Platform.OS === 'android' ? 'android' : 'web',
+          deviceName: `${Platform.OS} device`,
+        });
+        registeredTokenRef.current = token;
+      } catch (error: any) {
+        console.warn('[Push] Failed to register token with backend:', error.message);
+      }
+    },
+    [userId, institutionCode]
+  );
 
   useEffect(() => {
     if (isExpoGo || Platform.OS === 'web' || !Notifications) return;
-    if (!institutionId) return;
-
-    registerForPushNotificationsAsync().then((token) => setExpoPushToken(token || ''));
+    if (!institutionCode || !userId) return;
 
     Notifications.setNotificationHandler({
       handleNotification: async () => ({
@@ -33,7 +58,22 @@ export function usePushNotifications() {
         shouldShowList: true,
       }),
     });
-  }, [institutionId]);
+
+    registerForPushNotificationsAsync().then((token) => {
+      if (token) {
+        setExpoPushToken(token);
+        registerTokenWithBackend(token);
+      }
+    });
+
+    // Cleanup: unregister token when user logs out
+    return () => {
+      if (registeredTokenRef.current) {
+        unregisterPushTokenApi(registeredTokenRef.current).catch(() => {});
+        registeredTokenRef.current = '';
+      }
+    };
+  }, [institutionCode, userId, registerTokenWithBackend]);
 
   return { expoPushToken };
 }
@@ -56,7 +96,6 @@ async function registerForPushNotificationsAsync() {
 
     const projectId = Constants.expoConfig?.extra?.eas?.projectId || Constants.easConfig?.projectId;
     if (!projectId) {
-      // Skip token fetch when running in local dev / without EAS project setup
       return null;
     }
 

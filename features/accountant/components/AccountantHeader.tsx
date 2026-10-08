@@ -5,7 +5,9 @@
 
 import React from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, Image } from 'react-native';
-import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { BellIcon } from '../../notifications/components/BellIcon';
+import { useUserStore } from '../../../store/useUserStore';
 
 interface AccountantHeaderProps {
   fullName: string;
@@ -20,6 +22,7 @@ export const AccountantHeader: React.FC<AccountantHeaderProps> = ({
   onNotificationsPress,
   onProfilePress,
 }) => {
+  const institutionName = useUserStore((s) => s.institutionName) || 'School';
   const getGreeting = () => {
     const hr = new Date().getHours();
     if (hr < 12) return 'Good Morning!';
@@ -35,14 +38,13 @@ export const AccountantHeader: React.FC<AccountantHeaderProps> = ({
             <MaterialCommunityIcons name="finance" size={20} color="#FFFFFF" />
           </View>
           <View>
-            <Text style={styles.schoolName}>SchoolHub Academy</Text>
+            <Text style={styles.schoolName}>{institutionName}</Text>
             <Text style={styles.schoolSub}>Finance & Accounts Dept</Text>
           </View>
         </View>
 
         <TouchableOpacity style={styles.iconBtn} onPress={onNotificationsPress}>
-          <Feather name="bell" size={20} color="#1A202C" />
-          <View style={styles.dotBadge} />
+          <BellIcon size={20} color="#1A202C" />
         </TouchableOpacity>
       </View>
 

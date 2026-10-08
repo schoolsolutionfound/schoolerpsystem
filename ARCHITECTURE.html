@@ -25,12 +25,13 @@
 <body>
 
 <h1>KIVQUO School ERP — Complete Architecture</h1>
-<p class="subtitle">Auto-generated from the full codebase — 15 diagrams, 93 API endpoints, 16 DB tables, 10 user roles</p>
+<p class="subtitle">Auto-generated from the full codebase — 16 diagrams, 95 API endpoints, 16 DB tables, 10 user roles · updated for P0 security + finance wiring</p>
 
 <div class="stats">
-  <div class="stat"><div class="num">93</div><div class="label">API Endpoints</div></div>
+  <div class="stat"><div class="num">95</div><div class="label">API Endpoints</div></div>
   <div class="stat"><div class="num">16</div><div class="label">DB Tables</div></div>
   <div class="stat"><div class="num">10</div><div class="label">User Roles</div></div>
+  <div class="stat"><div class="num">47</div><div class="label">Server Tests</div></div>
   <div class="stat"><div class="num">76+</div><div class="label">Frontend Components</div></div>
   <div class="stat"><div class="num">30</div><div class="label">Route Files</div></div>
 </div>
@@ -48,6 +49,8 @@
   <a href="#s10">10. Frontend Components</a>
   <a href="#s11">11. Data Flow by Role</a>
   <a href="#s12">12. Tech Stack</a>
+  <a href="#s13">13. Finance Flow</a>
+  <a href="#s14">14. P0 Security & Data Integrity</a>
 </div>
 
 <!-- ═══════════════════════════════════════════════════ -->
@@ -79,16 +82,17 @@ graph TB
     subgraph Server["⚙️ Backend — Fastify + Node.js"]
         direction TB
         ENTRY["index.ts\nPort 5000\nCORS + Rate Limit"]
-        AUTH_MW["Auth Middleware\nFirebase Token Verify"]
+        AUTH_MW["Auth Middleware\nFirebase Verify\n+ 60s cache · DB fail → 503"]
         ROUTES["Route Modules\n/api/v1/*"]
         CTRL["Controllers\n6 files — 86 handlers"]
-        SVC["Services\n6 files"]
-        REPO["Repositories\n5 files"]
+        SVC["Services\n+ withTransaction()"]
+        REPO["Repositories\nNo silent memory fallback"]
+        ZOD["Zod Schemas\nadmin.schema.ts (fees/payments)"]
     end
 
     subgraph DB["🗄️ Database"]
         PG[("PostgreSQL\nschoolerp")]
-        DRIZZLE["Drizzle ORM\nschema.ts — 16 tables"]
+        DRIZZLE["Drizzle ORM\nschema.ts — 16 tables\nTx: createStudent · promote\ngraduate · bulkFeed · markAttendance · createExam"]
     end
 
     subgraph Firebase["☁️ Firebase Cloud"]
@@ -107,6 +111,7 @@ graph TB
     AUTH_MW -->|verifyIdToken| FADMIN
     ENTRY --> ROUTES
     ROUTES --> CTRL
+    CTRL --> ZOD
     CTRL --> SVC
     SVC --> REPO
     REPO --> DRIZZLE
@@ -132,6 +137,8 @@ erDiagram
     institutions ||--o{ periods : "has"
     institutions ||--o{ exams : "has"
     institutions ||--o{ homework : "has"
+    institutions ||--o{ fee_structures : "has"
+    institutions ||--o{ fee_payments : "has"
 
     users ||--o{ student_classes : "enrolled in"
     users ||--o{ subject_teachers : "teaches"
@@ -141,6 +148,7 @@ erDiagram
     users ||--o{ marks : "receives"
     users ||--o{ student_documents : "has"
     users ||--o{ homework : "creates"
+    users ||--o{ fee_payments : "pays"
 
     class_sections ||--o{ student_classes : "contains"
     class_sections ||--o{ subject_teachers : "has"
@@ -165,6 +173,8 @@ erDiagram
     exams ||--o{ exam_subjects : "contains"
     exams ||--o{ marks : "has"
     exam_subjects ||--o{ marks : "for subject"
+
+    fee_structures ||--o{ fee_payments : "collected as"
 
     institutions {
         text id PK
@@ -308,6 +318,34 @@ erDiagram
         varchar status
         varchar assigned_to
     }
+
+    fee_structures {
+        text id PK
+        varchar institution_code FK
+        text class_section_id "null = all classes"
+        varchar title
+        varchar category "student_fee|bus_fee|hostel_fee"
+        numeric amount
+        varchar term
+        varchar academic_year
+        date due_date
+        varchar status "active|inactive"
+        text created_by FK
+    }
+
+    fee_payments {
+        text id PK
+        varchar institution_code FK
+        text fee_structure_id FK
+        text student_id FK
+        numeric amount
+        varchar payment_method "upi|cash|card|bank_transfer|cheque"
+        date payment_date
+        varchar status "pending|paid|overdue"
+        varchar receipt_no UK
+        text notes
+        text created_by FK
+    }
 </pre>
 </div>
 
@@ -336,11 +374,16 @@ sequenceDiagram
         MW->>FA: admin.auth().verifyIdToken(token)
         FA-->>MW: {uid, email}
         MW->>DB: dbFindByUid(firebaseUid)
-        DB-->>MW: {id, role, institutionCode}
-        MW->>Cache: set(firebaseUid, role, institutionCode)
+        alt DB OK
+            DB-->>MW: {id, role, institutionCode}
+            MW->>Cache: set(firebaseUid, role, institutionCode)
+        else DB failure
+            MW-->>U: 503 SERVICE_UNAVAILABLE (fail closed)
+        end
     end
 
     MW-->>API: request.user = {uid, email, role, institutionCode}
+    Note over API: extractInstCode(session only)\nempty → 403 NO_INSTITUTION\nnever trust body/query tenant
     API->>DB: Enrich with institution data
     DB-->>API: Full user profile
     API-->>U: 200 OK + user profile
@@ -369,14 +412,16 @@ graph TB
         G4["requireTeacherOrAdmin\nadmin | teacher | hod"]
         G5["requireStaff\nadmin | hod | principal | teacher"]
         G6["requireRole...\nCustom list"]
+        G7["requireFinance\nadmin | accountant\nfee + payment CRUD"]
     end
 
     subgraph Access["📡 API Access"]
         A1["DEV: /developer/*\nManage institutions + admins"]
         A2["ADM: /admin/*\nFull CRUD on everything"]
         A3["TCH: /attendance/*, /marks/*, /timetable/*\nMark attendance + enter marks"]
-        A4["STD: /attendance/history/student, /marks/me, /my/documents\nView own data"]
-        A5["PAR: /attendance/history/parent, /marks/parent, /timetable/parent\nView child data"]
+        A4["STD: /attendance/history/student, /marks/me,\n/my/documents, /fees/student\nView own data + fee statement"]
+        A5["PAR: /attendance/history/parent, /marks/parent,\n/timetable/parent, /fees/parent\nView child data + child fee statement"]
+        A6["ACC: /fees, /fee-payments\nList + collect + update fees\n(tenant-scoped, createdBy=session uid)"]
     end
 
     G1 --> G2 --> A1
@@ -385,6 +430,7 @@ graph TB
     G1 --> G5 --> A3
     G1 --> G6 --> A4
     G1 --> G6 --> A5
+    G1 --> G7 --> A6
 
     style Guards fill:#1a1b26,stroke:#ff9e64,color:#c0caf5
     style Access fill:#1a1b26,stroke:#9ece6a,color:#c0caf5
@@ -392,7 +438,7 @@ graph TB
 </div>
 
 <!-- ═══════════════════════════════════════════════════ -->
-<h2 id="s5">5. API Route Map (All 93 Endpoints)</h2>
+<h2 id="s5">5. API Route Map (All 95 Endpoints)</h2>
 <div class="diagram-container">
 <pre class="mermaid">
 graph LR
@@ -421,6 +467,15 @@ graph LR
         AD8["GET/POST/DELETE /my/documents"]
         AD9["GET/POST/PUT/DELETE /teachers"]
         AD10["GET/POST /users"]
+    end
+
+    subgraph Finance["/admin — Fees (10) · requireFinance | parent | student"]
+        direction TB
+        F1["GET/POST/PUT/DELETE /fees\nrequireFinance = admin|accountant"]
+        F2["GET/POST/PUT/DELETE /fee-payments\nrequireFinance + tenant-scoped"]
+        F3["GET /fees/parent\nrequireRole(parent)\nchild from session scope"]
+        F4["GET /fees/student\nrequireRole(student)\nself from session uid"]
+        F5["Zod: CreateFee · UpdateFee\nCreateFeePayment · UpdateFeePayment"]
     end
 
     subgraph Academics["/admin — 37 endpoints"]
@@ -453,6 +508,7 @@ graph LR
     style Auth fill:#1a1b26,stroke:#7aa2f7,color:#c0caf5
     style Users fill:#1a1b26,stroke:#73daca,color:#c0caf5
     style Admin fill:#1a1b26,stroke:#ff9e64,color:#c0caf5
+    style Finance fill:#1a1b26,stroke:#F4C430,color:#c0caf5
     style Academics fill:#1a1b26,stroke:#bb9af7,color:#c0caf5
     style Institutions fill:#1a1b26,stroke:#9ece6a,color:#c0caf5
     style Developer fill:#1a1b26,stroke:#f7768e,color:#c0caf5
@@ -707,21 +763,32 @@ graph TB
         T8["TeacherLocateStudentsView"]
     end
 
-    subgraph Student["features/student/ — 18 components"]
+    subgraph Student["features/student/ — 19 components"]
         S1["StudentHomeHeader · StudentDrawer"]
         S2["StudentHomeAttendanceCard · StudentHomePeriodsList"]
         S3["StudentHomeAnnouncements"]
         S4["StudentTimetableView · StudentAttendanceView"]
         S5["StudentMarksView · StudentBusTrackingView"]
         S6["StudentHomeworkView"]
-        S7["ShimmerSkeleton · 6 skeleton variants"]
+        S7["StudentHomeFeeSummary\n→ GET /admin/fees/student"]
+        S8["ShimmerSkeleton · 6 skeleton variants"]
     end
 
-    subgraph Parent["features/parent/ — 7 components"]
+    subgraph Parent["features/parent/ — 8 components"]
         P1["ParentHomeHeader · ParentDrawer"]
         P2["ParentHomeDashboard · ParentAttendanceView"]
         P3["ParentMarksView · ParentTrackView"]
         P4["ParentHomeworkView"]
+        P5["ParentFeesView\n→ GET /admin/fees/parent\nself-fetch + mapParentFees"]
+    end
+
+    subgraph Accountant["features/accountant/ — API-backed finance"]
+        C1["AccountantHeader · FinanceSummaryCards"]
+        C2["StudentFeesView · PendingDuesView\nvia useFinanceStore"]
+        C3["IncomeManagementView · AccountsTallyView\nmounted in (accountant)/home"]
+        C4["feeMappers.ts\nmapFeeData · mapParentFees"]
+        C5["useFinanceStore\nloadFees · collectStudentFee\n→ /fees + /fee-payments"]
+        C6["Deferred (local store only):\nExpense · Tally · Fleet views"]
     end
 
     subgraph Driver["features/driver/ — 4 components"]
@@ -735,6 +802,7 @@ graph TB
     Root --> Teacher
     Root --> Student
     Root --> Parent
+    Root --> Accountant
     Root --> Driver
 
     style Root fill:#1a1b26,stroke:#7aa2f7,color:#c0caf5
@@ -744,6 +812,7 @@ graph TB
     style Teacher fill:#1a1b26,stroke:#bb9af7,color:#c0caf5
     style Student fill:#1a1b26,stroke:#9ece6a,color:#c0caf5
     style Parent fill:#1a1b26,stroke:#73daca,color:#c0caf5
+    style Accountant fill:#1a1b26,stroke:#F4C430,color:#c0caf5
     style Driver fill:#1a1b26,stroke:#e0af68,color:#c0caf5
 </pre>
 </div>
@@ -785,6 +854,19 @@ graph TB
         P1 --> P3["View Marks"]
         P1 --> P4["Track Bus"]
         P1 --> P5["View Child Homework"]
+        P1 --> P6["Fee Statement\nGET /fees/parent"]
+    end
+
+    subgraph ACCOUNTANT["💰 ACCOUNTANT"]
+        direction LR
+        CA1["Overview + Summary Cards"]
+        CA2["Student Fees (collect)"]
+        CA3["Pending Dues"]
+        CA4["Income · Accounts"]
+        CA5["loadFees → GET /fees\nPOST /fee-payments"]
+        CA1 --> CA2 --> CA3
+        CA1 --> CA4
+        CA2 --> CA5
     end
 
     style DEV fill:#1a1b26,stroke:#f7768e,color:#c0caf5
@@ -792,6 +874,7 @@ graph TB
     style TEACHER fill:#1a1b26,stroke:#bb9af7,color:#c0caf5
     style STUDENT fill:#1a1b26,stroke:#9ece6a,color:#c0caf5
     style PARENT fill:#1a1b26,stroke:#73daca,color:#c0caf5
+    style ACCOUNTANT fill:#1a1b26,stroke:#F4C430,color:#c0caf5
 </pre>
 </div>
 
@@ -805,7 +888,7 @@ graph TB
         RN["React Native 0.81.5"]
         EXPO["Expo SDK 54"]
         ROUTER["Expo Router v6"]
-        ZUSTAND["Zustand 5.x"]
+        ZUSTAND["Zustand 5.x\n+ useFinanceStore (API)"]
         RQ["TanStack React Query 5.x"]
         SVG["react-native-svg"]
         FONT["Poppins Font"]
@@ -816,10 +899,11 @@ graph TB
         direction LR
         FASTIFY["Fastify"]
         TS["TypeScript 5.9"]
-        DRIZZLE["Drizzle ORM"]
+        DRIZZLE["Drizzle ORM\nwithTransaction"]
         PG["PostgreSQL"]
-        ZOD["Zod Validation"]
+        ZOD["Zod Validation\nfees + payments"]
         FIREBAE_BE["Firebase Admin SDK"]
+        VITEST["Vitest\n47 tests / 8 files"]
     end
 
     subgraph EXT["☁️ External"]
@@ -845,6 +929,117 @@ graph TB
     style FE fill:#1a1b26,stroke:#7aa2f7,color:#c0caf5
     style BE fill:#1a1b26,stroke:#ff9e64,color:#c0caf5
     style EXT fill:#1a1b26,stroke:#bb9af7,color:#c0caf5
+</pre>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="s13">13. Finance Flow (Fee → Payment → Statement)</h2>
+<div class="diagram-container">
+<pre class="mermaid">
+sequenceDiagram
+    participant ACC as 💰 Accountant
+    participant PAR as 👨‍👩‍👦 Parent
+    participant STD as 🎓 Student
+    participant API as ⚙️ Fastify API
+    participant MW as 🛡️ requireFinance / requireRole
+    participant DB as 🗄️ PostgreSQL
+
+    rect rgb(40, 35, 15)
+    Note over ACC,DB: 📋 FEE SETUP (Accountant / Admin)
+    ACC->>API: POST /admin/fees {title, amount, dueDate, classSectionId?}
+    API->>MW: requireFinance (admin|accountant)
+    MW->>API: Zod CreateFee validate
+    API->>DB: INSERT fee_structures (institutionCode from session)
+    API-->>ACC: 201 fee created
+    end
+
+    rect rgb(30, 50, 30)
+    Note over ACC,DB: ✅ COLLECT PAYMENT (Accountant)
+    ACC->>API: GET /admin/fees + GET /admin/fee-payments
+    API->>DB: Tenant-scoped list
+    ACC->>API: POST /admin/fee-payments {feeStructureId, studentId, amount}
+    API->>MW: Zod CreateFeePayment
+    API->>DB: INSERT fee_payments (createdBy = session uid)
+    DB-->>API: receipt_no generated
+    API-->>ACC: Payment + receipt
+    end
+
+    rect rgb(30, 40, 60)
+    Note over PAR,STD: 📄 FEE STATEMENT (Parent / Student)
+    PAR->>API: GET /admin/fees/parent
+    API->>MW: requireRole(parent)
+    API->>DB: session uid → parent → scope.linkedStudentUSN → student
+    API->>DB: fee_structures ⋈ fee_payments for child
+    API-->>PAR: [{title, amount, status, dueDate, receiptNo}]
+
+    STD->>API: GET /admin/fees/student
+    API->>MW: requireRole(student)
+    API->>DB: session uid → self → fee statement
+    API-->>STD: Own fee statement
+    end
+
+    rect rgb(50, 30, 30)
+    Note over API: 🛡️ TENANT + ZOD RULES
+    Note over API: extractInstCode = session only\nbody/query tenant ignored\nupdate/delete WHERE institution_code = session
+    end
+</pre>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="s14">14. P0 Security & Data Integrity</h2>
+<div class="diagram-container">
+<pre class="mermaid">
+graph TB
+    subgraph IDOR["🚫 Tenant Isolation (IDOR fixes)"]
+        I1["extractInstCode(session only)\nempty → 403 NO_INSTITUTION"]
+        I2["Fee/Payment update + delete\nWHERE institution_code = session"]
+        I3["createdBy / stamps from request.user.uid\nnever from body"]
+        I4["Parent/Student statements\nchild resolved only from session"]
+    end
+
+    subgraph FB["🔇 Silent Fallback Removed"]
+        F1["db === null → memory mode OK (dev)"]
+        F2["db !== null + query fails → rethrow\nno silent memory swap"]
+        F3["Auth DB lookup fails → 503\nfail closed, not empty principal"]
+    end
+
+    subgraph TX["🧵 withTransaction()"]
+        T1["createStudent"]
+        T2["promoteStudents"]
+        T3["graduateStudents"]
+        T4["bulkFeed"]
+        T5["markAttendance"]
+        T6["createExam"]
+        T7["Firebase Auth calls stay OUTSIDE tx"]
+    end
+
+    subgraph VAL["📐 Zod Validation"]
+        V1["CreateFee · UpdateFee"]
+        V2["CreateFeePayment · UpdateFeePayment"]
+        V3["parseZod → 400 on invalid body"]
+    end
+
+    subgraph TEST["🧪 Vitest (server)"]
+        X1["47 tests · 8 files"]
+        X2["extractInstCode · normalizeRole"]
+        X3["auth · authGate · authCache"]
+        X4["adminSchema · mapFeeData"]
+        X5["withTransaction"]
+        X6["smokeFinance.ts → live DB SMOKE PASS"]
+    end
+
+    subgraph DEF["⏸ Explicitly Deferred (see DEFERRED.md)"]
+        Z1["Payment gateway · SMS · PDF receipts"]
+        Z2["Expense / payroll / fleet backend"]
+        Z3["npm audit · secrets left alone"]
+    end
+
+    style IDOR fill:#1a1b26,stroke:#f7768e,color:#c0caf5
+    style FB fill:#1a1b26,stroke:#ff9e64,color:#c0caf5
+    style TX fill:#1a1b26,stroke:#9ece6a,color:#c0caf5
+    style VAL fill:#1a1b26,stroke:#7aa2f7,color:#c0caf5
+    style TEST fill:#1a1b26,stroke:#73daca,color:#c0caf5
+    style DEF fill:#1a1b26,stroke:#565f89,color:#c0caf5
 </pre>
 </div>
 

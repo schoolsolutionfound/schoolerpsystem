@@ -13,3 +13,10 @@ export async function changePasswordApi(newPassword: string) {
     body: JSON.stringify({ newPassword }),
   });
 }
+
+export async function logoutApi() {
+  return apiClient('/auth/logout', {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+}

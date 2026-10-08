@@ -3,7 +3,7 @@ import { useFonts } from 'expo-font';
 import { Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold, Poppins_800ExtraBold } from '@expo-google-fonts/poppins';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, Platform, TextProps } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 
@@ -19,17 +19,24 @@ import { useAuthGuard } from '../features/shared/hooks/useAuthGuard';
 import { usePushNotifications } from '../features/shared/hooks/usePushNotifications';
 import { useAppSync } from '../features/shared/hooks/useAppSync';
 import { FontFamily } from '../constants/fonts';
+import { fetchInstitutionConfigApi } from '../api/admin';
 
 const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
 let Notifications: typeof import('expo-notifications') | null = null;
-if (!isExpoGo && Platform.OS !== 'web') {
-  try {
-    Notifications = require('expo-notifications');
-  } catch {
-    // Ignore in Expo Go or environment without native push support
+
+async function loadNotifications() {
+  if (!isExpoGo && Platform.OS !== 'web') {
+    try {
+      const mod = await import('expo-notifications');
+      Notifications = mod;
+    } catch {
+      // Ignore in Expo Go or environment without native push support
+    }
   }
 }
+
+loadNotifications();
 
 // @ts-ignore
 if (!global.appStartTime) global.appStartTime = Date.now();
@@ -80,6 +87,8 @@ const AppLayout = function Layout() {
   const minVersion = configMaintenance.minVersion;
   const [isMCheckLoading, setIsMCheckLoading] = useState(true);
   const isSplashHidden = useRef(false);
+  const institutionCode = useUserStore((state) => state.institutionCode);
+  const setMaintenance = useConfigStore((state) => state.setMaintenance);
 
   const CURRENT_APP_VERSION = Constants.expoConfig?.version || '1.0.0';
 
@@ -124,7 +133,28 @@ const AppLayout = function Layout() {
   });
 
   useEffect(() => {
-    setIsMCheckLoading(false);
+    let cancelled = false;
+
+    const applyMaintenanceConfig = async () => {
+      if (!institutionCode) {
+        if (!cancelled) setIsMCheckLoading(false);
+        return;
+      }
+      try {
+        const res = await fetchInstitutionConfigApi();
+        const data = res?.data;
+        if (!cancelled && data) {
+          setMaintenance(
+            data.maintenanceEnabled ?? false,
+            data.maintenanceMinVersion || '0.0.0'
+          );
+        }
+      } catch {
+        // Ignore maintenance config fetch failures — app continues with local defaults.
+      } finally {
+        if (!cancelled) setIsMCheckLoading(false);
+      }
+    };
 
     const splashTimeout = setTimeout(() => {
       if (!isSplashHidden.current) {
@@ -138,6 +168,10 @@ const AppLayout = function Layout() {
       if (!user) {
         setIsProfileSynced(false);
         resetUser();
+        setMaintenance(false, '0.0.0');
+        if (!cancelled) setIsMCheckLoading(false);
+      } else {
+        applyMaintenanceConfig();
       }
       setAuthLoading(false);
     });
@@ -159,10 +193,11 @@ const AppLayout = function Layout() {
     }
 
     return () => {
+      cancelled = true;
       clearTimeout(splashTimeout);
       unsubAuth();
     };
-  }, [setUserProfile, validateAndRedirect, resetUser, setIsProfileSynced]);
+  }, [setUserProfile, validateAndRedirect, resetUser, setIsProfileSynced, institutionCode, setMaintenance]);
 
   const compareVersions = (v1: string, v2: string) => {
     const parts1 = v1.split('.').map(Number), parts2 = v2.split('.').map(Number);

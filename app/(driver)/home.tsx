@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useUserStore } from '../../store/useUserStore';
+import { performLogout } from '../../utils/logout';
 import { DriverHomeHeader } from '../../features/driver/components/DriverHomeHeader';
 import { DriverDrawer } from '../../features/driver/components/DriverDrawer';
 import { DriverTripsView } from '../../features/driver/components/DriverTripsView';
@@ -23,9 +24,23 @@ export default function DriverHomeScreen() {
   const email = useUserStore((state) => state.email) || '';
   const institutionName = useUserStore((state) => state.institutionName) || '';
 
+  const resetUser = useUserStore((state) => state.resetUser);
+
   const [activeTab, setActiveTab] = useState<Tab>('trips');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Full session teardown: server-side refresh-token revocation + local
+  // Firebase signOut + persisted user-store reset, then navigate away.
+  const handleLogout = () => {
+    setTimeout(async () => {
+      try {
+        await performLogout();
+      } catch {}
+      resetUser();
+      router.replace('/auth');
+    }, 120);
+  };
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -76,7 +91,7 @@ export default function DriverHomeScreen() {
                 </View>
               ) : null}
             </View>
-            <TouchableOpacity style={styles.logoutBtn} onPress={() => router.replace('/auth')}>
+            <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
               <MaterialCommunityIcons name="logout" size={18} color="#DC3545" />
               <Text style={styles.logoutText}>Logout</Text>
             </TouchableOpacity>
@@ -136,7 +151,7 @@ export default function DriverHomeScreen() {
         email={email}
         profilePic={profilePic}
         institutionName={institutionName}
-        onLogout={() => router.replace('/auth')}
+        onLogout={handleLogout}
       />
     </View>
   );

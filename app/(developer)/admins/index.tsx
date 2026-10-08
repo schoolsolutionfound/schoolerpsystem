@@ -28,7 +28,8 @@ export default function DeveloperAdminsScreen() {
   const [selectedInstFilter, setSelectedInstFilter] = useState<string>('all');
 
   const { data: admins = [], isLoading, isError, error, refetch } = useAdminsQuery();
-  const { data: institutions = [] } = useInstitutionsQuery();
+  // Only the 4 filter chips are rendered — never fetch the full institution list.
+  const { data: institutions = [] } = useInstitutionsQuery({ limit: 4 });
   const deleteMutation = useDeleteAdminMutation();
 
   const filteredAdmins = useMemo(() => {

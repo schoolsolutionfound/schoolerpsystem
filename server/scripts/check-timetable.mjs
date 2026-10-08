@@ -3,9 +3,11 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const connectionString =
-  process.env.DATABASE_URL ||
-  'postgres://postgres:raees1122@localhost:5432/school_erp';
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  console.error('DATABASE_URL is not set. Set it in server/.env (see server/.env.example).');
+  process.exit(1);
+}
 
 async function main() {
   const client = new pg.Client({ connectionString });

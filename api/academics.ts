@@ -1,4 +1,5 @@
-import { apiClient } from './client';
+import { apiClient, getApiBaseUrl } from './client';
+import { auth } from '../firebaseConfig';
 
 // ---------- Class Sections ----------
 export async function fetchClassSectionsApi() {
@@ -203,6 +204,14 @@ export async function fetchParentTimetableApi(date?: string) {
   return apiClient(`/admin/timetable/parent${qs}`);
 }
 
+export async function fetchParentFeesApi() {
+  return apiClient('/admin/fees/parent');
+}
+
+export async function fetchMyFeesApi() {
+  return apiClient('/admin/fees/student');
+}
+
 export async function fetchDepartmentStatsApi(department?: string) {
   const qs = new URLSearchParams();
   if (department) qs.set('department', department);
@@ -291,8 +300,6 @@ export async function fetchClassAttendanceReportApi(classSectionId: string, from
 }
 
 export async function fetchClassAttendanceExportApi(classSectionId: string, fromDate?: string, toDate?: string) {
-  const { auth } = require('../firebaseConfig');
-  const { getApiBaseUrl } = require('./client');
   const params = new URLSearchParams({ classSectionId });
   if (fromDate) params.set('fromDate', fromDate);
   if (toDate) params.set('toDate', toDate);
