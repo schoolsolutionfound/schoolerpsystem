@@ -51,11 +51,10 @@ yarn-error.*
 # logs
 *.log
 
-# markdown docs (not README or project docs)
-docs/*.md
-specs/*.md
-.agents/rules/*.md
-PHASE1.md
+# markdown — ALL markdown is ignored (READMEs are the exception)
+*.md
+!README.md
+!**/README.md
 
 # database dumps — never commit real data (drizzle migrations in
 # server/drizzle/ stay tracked; this only covers root-level dumps)
@@ -64,7 +63,3 @@ PHASE1.md
 # local backups
 *.backup
 *.backup.*
-
-!README.md
-!developer-console/README.md
-!ARCHITECTURE.md
