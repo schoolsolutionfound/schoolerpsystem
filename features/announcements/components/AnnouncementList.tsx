@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, FlatList, StyleSheet, RefreshControl, Text } from 'react-native';
+import { View, FlatList, StyleSheet, RefreshControl } from 'react-native';
 import { AnnouncementCard } from './AnnouncementCard';
 import { AnnouncementDetailModal } from './AnnouncementDetailModal';
 import { CreateAnnouncementModal } from './CreateAnnouncementModal';
@@ -28,6 +28,7 @@ interface AnnouncementListProps {
   onMarkRead?: (id: string) => Promise<void>;
   isManagement?: boolean;
   unreadCount?: number;
+  allowBroadTargets?: boolean;
 }
 
 export const AnnouncementList: React.FC<AnnouncementListProps> = ({
@@ -46,6 +47,7 @@ export const AnnouncementList: React.FC<AnnouncementListProps> = ({
   onMarkRead,
   isManagement = false,
   unreadCount = 0,
+  allowBroadTargets = true,
 }) => {
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
   const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
@@ -168,6 +170,7 @@ export const AnnouncementList: React.FC<AnnouncementListProps> = ({
 
       {isManagement && (
         <CreateAnnouncementModal
+          key={createModalVisible ? `edit-${editingAnnouncement?.id || 'new'}` : 'closed'}
           visible={createModalVisible}
           onClose={() => {
             setCreateModalVisible(false);
@@ -175,6 +178,7 @@ export const AnnouncementList: React.FC<AnnouncementListProps> = ({
           }}
           onSubmit={handleCreateSubmit}
           initialData={editingAnnouncement}
+          allowBroadTargets={allowBroadTargets}
         />
       )}
     </View>

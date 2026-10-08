@@ -4,9 +4,18 @@ import { admin, isFirebaseAdminInitialized } from '../modules/shared/config/fire
 
 async function createDemoAdminUser() {
   console.log('[Demo Admin Provisioning] Starting setup...');
+  const password = process.env.DEMO_ADMIN_PASSWORD;
+  if (!password) {
+    console.error('[Demo Admin Provisioning] DEMO_ADMIN_PASSWORD is not set. Refusing to provision with a hardcoded/default password.');
+    process.exit(1);
+  }
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    console.error('[Demo Admin Provisioning] DATABASE_URL is not set. Set it in server/.env before running this script.');
+    process.exit(1);
+  }
   const oldEmail = 'announcement.admin@demo.com';
   const email = 'announcement@school.com';
-  const password = '12345678';
   const fullName = 'Demo Admin';
   const role = 'admin';
   const institutionCode = 'TST001';
@@ -53,7 +62,6 @@ async function createDemoAdminUser() {
   }
 
   // Connect to PostgreSQL
-  const connectionString = process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/schoolerp';
   const client = new pg.Client({ connectionString });
 
   try {

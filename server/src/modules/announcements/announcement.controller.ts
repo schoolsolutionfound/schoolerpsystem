@@ -21,6 +21,10 @@ function getUserRole(req: FastifyRequest): string {
   return user?.role || 'student';
 }
 
+function getActor(req: FastifyRequest) {
+  return { userId: getUserId(req), role: getUserRole(req) };
+}
+
 function parseZod(err: any) {
   if (err?.name === 'ZodError') {
     return {
@@ -52,7 +56,7 @@ export async function listAnnouncementsHandler(request: FastifyRequest, reply: F
     const query = AnnouncementQuerySchema.parse(request.query || {});
     const limit = query.limit || 100;
     const offset = query.offset || 0;
-    const data = await announcementService.listAnnouncements(getInstCode(request), query, { limit, offset });
+    const data = await announcementService.listAnnouncements(getInstCode(request), query, { limit, offset }, getActor(request));
     return reply.send({ success: true, data });
   } catch (err) {
     return sendError(reply, err, 'Failed to list announcements');
@@ -72,9 +76,7 @@ export async function listUserFeedHandler(request: FastifyRequest, reply: Fastif
     const userId = getUserId(request);
     const role = getUserRole(request);
 
-    // If user context contains enrolled class/section, extract them
-    const userObj = (request as any).user || {};
-    const classSections: string[] = userObj.classSectionIds || [];
+    const classSections = await announcementService.resolveViewerClassSections(instCode, userId, role);
 
     const data = await announcementService.listUserFeed(instCode, role, classSections, userId, { limit, offset });
     return reply.send({ success: true, data });
@@ -92,8 +94,7 @@ export async function getUnreadCountHandler(request: FastifyRequest, reply: Fast
     const instCode = getInstCode(request);
     const userId = getUserId(request);
     const role = getUserRole(request);
-    const userObj = (request as any).user || {};
-    const classSections: string[] = userObj.classSectionIds || [];
+    const classSections = await announcementService.resolveViewerClassSections(instCode, userId, role);
 
     const unreadCount = await announcementService.getUnreadCount(instCode, role, classSections, userId);
     return reply.send({ success: true, data: { unreadCount } });
@@ -111,7 +112,7 @@ export async function getAnnouncementByIdHandler(
   reply: FastifyReply
 ) {
   try {
-    const data = await announcementService.getAnnouncement(getInstCode(request), request.params.id, getUserId(request));
+    const data = await announcementService.getAnnouncement(getInstCode(request), request.params.id, getUserId(request), getUserRole(request));
     return reply.send({ success: true, data });
   } catch (err) {
     return sendError(reply, err, 'Failed to fetch announcement details');
@@ -126,9 +127,8 @@ export async function createAnnouncementHandler(request: FastifyRequest, reply: 
   try {
     const body = CreateAnnouncementSchema.parse(request.body);
     const instCode = getInstCode(request);
-    const userId = getUserId(request);
 
-    const data = await announcementService.createAnnouncement(instCode, userId, body);
+    const data = await announcementService.createAnnouncement(instCode, getActor(request), body);
     return reply.status(201).send({ success: true, data });
   } catch (err) {
     return sendError(reply, err, 'Failed to create announcement');
@@ -147,7 +147,7 @@ export async function updateAnnouncementHandler(
     const body = UpdateAnnouncementSchema.parse(request.body);
     const instCode = getInstCode(request);
 
-    const data = await announcementService.updateAnnouncement(instCode, request.params.id, body);
+    const data = await announcementService.updateAnnouncement(instCode, request.params.id, body, getActor(request));
     return reply.send({ success: true, data });
   } catch (err) {
     return sendError(reply, err, 'Failed to update announcement');
@@ -163,7 +163,7 @@ export async function deleteAnnouncementHandler(
   reply: FastifyReply
 ) {
   try {
-    await announcementService.deleteAnnouncement(getInstCode(request), request.params.id);
+    await announcementService.deleteAnnouncement(getInstCode(request), request.params.id, getActor(request));
     return reply.send({ success: true, data: { message: 'Announcement deleted successfully' } });
   } catch (err) {
     return sendError(reply, err, 'Failed to delete announcement');
@@ -179,7 +179,7 @@ export async function publishAnnouncementHandler(
   reply: FastifyReply
 ) {
   try {
-    const data = await announcementService.publishAnnouncement(getInstCode(request), request.params.id);
+    const data = await announcementService.publishAnnouncement(getInstCode(request), request.params.id, getActor(request));
     return reply.send({ success: true, data });
   } catch (err) {
     return sendError(reply, err, 'Failed to publish announcement');
@@ -195,7 +195,7 @@ export async function cancelAnnouncementHandler(
   reply: FastifyReply
 ) {
   try {
-    const data = await announcementService.cancelAnnouncement(getInstCode(request), request.params.id);
+    const data = await announcementService.cancelAnnouncement(getInstCode(request), request.params.id, getActor(request));
     return reply.send({ success: true, data });
   } catch (err) {
     return sendError(reply, err, 'Failed to cancel announcement');
@@ -211,7 +211,7 @@ export async function archiveAnnouncementHandler(
   reply: FastifyReply
 ) {
   try {
-    const data = await announcementService.archiveAnnouncement(getInstCode(request), request.params.id);
+    const data = await announcementService.archiveAnnouncement(getInstCode(request), request.params.id, getActor(request));
     return reply.send({ success: true, data });
   } catch (err) {
     return sendError(reply, err, 'Failed to archive announcement');

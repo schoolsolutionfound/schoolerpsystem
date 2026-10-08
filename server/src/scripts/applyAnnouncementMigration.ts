@@ -4,8 +4,11 @@ import fs from 'fs';
 import path from 'path';
 
 async function applyMigration() {
-  const dbUrl = process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/schoolerp';
-  console.log('[Apply Migration Script] Target Database:', dbUrl);
+  const dbUrl = process.env.DATABASE_URL;
+  if (!dbUrl) {
+    console.error('[Apply Migration Script] DATABASE_URL is not set. Set it in server/.env before running this script.');
+    process.exit(1);
+  }
 
   const client = new pg.Client({ connectionString: dbUrl });
   try {

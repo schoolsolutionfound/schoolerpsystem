@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -19,7 +19,13 @@ interface CreateAnnouncementModalProps {
   onSubmit: (payload: any) => Promise<void>;
   initialData?: Announcement | null;
   loading?: boolean;
+  allowBroadTargets?: boolean;
 }
+
+const defaultTargets = (allowBroad: boolean): AnnouncementTarget[] =>
+  allowBroad
+    ? [{ targetType: 'all', targetRole: '' }]
+    : [{ targetType: 'class', targetRole: '', classId: '', sectionId: '' }];
 
 const TYPES: AnnouncementType[] = ['GENERAL', 'ACADEMIC', 'EVENT', 'URGENT', 'NOTICE'];
 const PRIORITIES: AnnouncementPriority[] = ['LOW', 'NORMAL', 'HIGH', 'URGENT'];
@@ -30,46 +36,29 @@ export const CreateAnnouncementModal: React.FC<CreateAnnouncementModalProps> = (
   onSubmit,
   initialData,
   loading = false,
+  allowBroadTargets = true,
 }) => {
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [type, setType] = useState<AnnouncementType>('GENERAL');
-  const [priority, setPriority] = useState<AnnouncementPriority>('NORMAL');
-  const [imageUrl, setImageUrl] = useState('');
-  const [attachmentUrl, setAttachmentUrl] = useState('');
-  const [publishAt, setPublishAt] = useState('');
-  const [expiresAt, setExpiresAt] = useState('');
-  const [targets, setTargets] = useState<AnnouncementTarget[]>([{ targetType: 'all', targetRole: '' }]);
+  // State is initialized from initialData on mount; the parent remounts this
+  // modal via a `key` whenever it opens, so no sync-effect is needed.
+  const [title, setTitle] = useState(initialData?.title || '');
+  const [content, setContent] = useState(initialData?.content || '');
+  const [type, setType] = useState<AnnouncementType>(initialData?.type || 'GENERAL');
+  const [priority, setPriority] = useState<AnnouncementPriority>(initialData?.priority || 'NORMAL');
+  const [imageUrl, setImageUrl] = useState(initialData?.imageUrl || '');
+  const [attachmentUrl, setAttachmentUrl] = useState(initialData?.attachmentUrl || '');
+  const [publishAt, setPublishAt] = useState(
+    initialData?.publishAt ? new Date(initialData.publishAt).toISOString().slice(0, 16) : ''
+  );
+  const [expiresAt, setExpiresAt] = useState(
+    initialData?.expiresAt ? new Date(initialData.expiresAt).toISOString().slice(0, 16) : ''
+  );
+  const [targets, setTargets] = useState<AnnouncementTarget[]>(
+    initialData?.targets && initialData.targets.length > 0
+      ? initialData.targets
+      : defaultTargets(allowBroadTargets)
+  );
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingDoc, setUploadingDoc] = useState(false);
-
-  useEffect(() => {
-    if (initialData) {
-      setTitle(initialData.title || '');
-      setContent(initialData.content || '');
-      setType(initialData.type || 'GENERAL');
-      setPriority(initialData.priority || 'NORMAL');
-      setImageUrl(initialData.imageUrl || '');
-      setAttachmentUrl(initialData.attachmentUrl || '');
-      setPublishAt(initialData.publishAt ? new Date(initialData.publishAt).toISOString().slice(0, 16) : '');
-      setExpiresAt(initialData.expiresAt ? new Date(initialData.expiresAt).toISOString().slice(0, 16) : '');
-      setTargets(initialData.targets && initialData.targets.length > 0 ? initialData.targets : [{ targetType: 'all', targetRole: '' }]);
-    } else {
-      resetForm();
-    }
-  }, [initialData, visible]);
-
-  const resetForm = () => {
-    setTitle('');
-    setContent('');
-    setType('GENERAL');
-    setPriority('NORMAL');
-    setImageUrl('');
-    setAttachmentUrl('');
-    setPublishAt('');
-    setExpiresAt('');
-    setTargets([{ targetType: 'all', targetRole: '' }]);
-  };
 
   const handlePickImage = async () => {
     try {
@@ -88,7 +77,7 @@ export const CreateAnnouncementModal: React.FC<CreateAnnouncementModalProps> = (
         const url = await getDownloadURL(storageRef);
         setImageUrl(url);
       }
-    } catch (err: any) {
+    } catch {
       Alert.alert('Upload Error', 'Failed to upload image attachment');
     } finally {
       setUploadingImage(false);
@@ -112,7 +101,7 @@ export const CreateAnnouncementModal: React.FC<CreateAnnouncementModalProps> = (
         const url = await getDownloadURL(storageRef);
         setAttachmentUrl(url);
       }
-    } catch (err: any) {
+    } catch {
       Alert.alert('Upload Error', 'Failed to upload document attachment');
     } finally {
       setUploadingDoc(false);
@@ -127,6 +116,15 @@ export const CreateAnnouncementModal: React.FC<CreateAnnouncementModalProps> = (
     if (!content.trim()) {
       Alert.alert('Validation Error', 'Content is required');
       return;
+    }
+
+    if (!allowBroadTargets) {
+      const target = targets[0];
+      const classRef = target && (target.classId || target.sectionId);
+      if (!target || target.targetType === 'all' || target.targetType === 'role' || !classRef) {
+        Alert.alert('Validation Error', 'Select a target class for your announcement');
+        return;
+      }
     }
 
     if (action === 'schedule') {
@@ -224,7 +222,7 @@ export const CreateAnnouncementModal: React.FC<CreateAnnouncementModalProps> = (
         </View>
 
         {/* Audience Selector */}
-        <AudienceSelector targets={targets} onChange={setTargets} />
+        <AudienceSelector targets={targets} onChange={setTargets} allowBroadTargets={allowBroadTargets} />
 
         {/* Schedule & Expiry Dates */}
         <View style={styles.dateRow}>

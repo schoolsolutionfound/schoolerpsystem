@@ -4,8 +4,17 @@ import { admin, isFirebaseAdminInitialized } from '../modules/shared/config/fire
 
 async function createDemoLibrarianUser() {
   console.log('[Demo Librarian Provisioning] Starting setup...');
+  const password = process.env.DEMO_LIBRARIAN_PASSWORD;
+  if (!password) {
+    console.error('[Demo Librarian Provisioning] DEMO_LIBRARIAN_PASSWORD is not set. Refusing to provision with a hardcoded/default password.');
+    process.exit(1);
+  }
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    console.error('[Demo Librarian Provisioning] DATABASE_URL is not set. Set it in server/.env before running this script.');
+    process.exit(1);
+  }
   const email = 'librarian@school.com';
-  const password = 'Lib@1234';
   const fullName = 'Demo Librarian';
   const role = 'librarian';
   const institutionCode = 'TST001';
@@ -47,7 +56,6 @@ async function createDemoLibrarianUser() {
   }
 
   // Connect to PostgreSQL
-  const connectionString = process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/schoolerp';
   const client = new pg.Client({ connectionString });
 
   try {

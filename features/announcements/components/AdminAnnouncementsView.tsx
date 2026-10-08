@@ -12,8 +12,14 @@ import {
 import { AnnouncementList } from './AnnouncementList';
 import { AnnouncementFilterState } from '../types';
 import { Colors } from '../../../constants/theme';
+import { useUserStore } from '../../../store/useUserStore';
+
+const MANAGER_ROLES = ['admin', 'principal', 'hod', 'institution admin'];
 
 export const AdminAnnouncementsView: React.FC = () => {
+  const userRole = useUserStore((state) => state.userRole);
+  const isManager = MANAGER_ROLES.includes(String(userRole).toLowerCase().trim());
+
   const [filters, setFilters] = useState<AnnouncementFilterState>({
     search: '',
     type: 'ALL',
@@ -86,6 +92,7 @@ export const AdminAnnouncementsView: React.FC = () => {
         onCancel={handleCancel}
         onMarkRead={handleMarkRead}
         isManagement={true}
+        allowBroadTargets={isManager}
       />
     </View>
   );

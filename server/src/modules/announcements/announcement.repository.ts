@@ -117,15 +117,21 @@ export class AnnouncementRepository {
 
   /**
    * List announcements for management with filters and pagination.
+   * When `createdBy` is provided, only announcements created by that user are returned.
    */
   async list(
     institutionCode: string,
     query: AnnouncementQueryInput,
-    pagination: { limit: number; offset: number }
+    pagination: { limit: number; offset: number },
+    opts?: { createdBy?: string }
   ): Promise<{ items: AnnouncementWithTargetsAndReadStatus[]; total: number }> {
     if (!db) return { items: [], total: 0 };
 
     const conditions = [eq(schema.announcements.institutionCode, institutionCode)];
+
+    if (opts?.createdBy) {
+      conditions.push(eq(schema.announcements.createdBy, opts.createdBy));
+    }
 
     if (query.status) {
       conditions.push(eq(schema.announcements.status, query.status));
@@ -395,6 +401,51 @@ export class AnnouncementRepository {
       // Idempotent success if read record already exists
       return true;
     }
+  }
+
+  /**
+   * Promote SCHEDULED announcements whose publish time has arrived to PUBLISHED.
+   * Returns the number of promoted rows.
+   */
+  async publishDueScheduled(): Promise<number> {
+    if (!db) return 0;
+
+    const now = new Date();
+    const rows = await db
+      .update(schema.announcements)
+      .set({ status: 'PUBLISHED', updatedAt: now })
+      .where(and(eq(schema.announcements.status, 'SCHEDULED'), lte(schema.announcements.publishAt, now)))
+      .returning({ id: schema.announcements.id });
+
+    return rows.length;
+  }
+
+  /**
+   * Class section IDs a teacher owns (class-teacher assignments + subject assignments).
+   * Used to restrict non-manager announcement targeting to their own classes.
+   */
+  async findTeacherClassIds(institutionCode: string, teacherId: string): Promise<string[]> {
+    if (!db) return [];
+
+    const owned = new Set<string>();
+
+    const classTeacherRows = await db
+      .select({ id: schema.classSections.id })
+      .from(schema.classSections)
+      .where(and(eq(schema.classSections.institutionCode, institutionCode), eq(schema.classSections.classTeacherId, teacherId)));
+    for (const row of classTeacherRows) {
+      if (row.id) owned.add(row.id);
+    }
+
+    const subjectRows = await db
+      .select({ classSectionId: schema.subjectTeachers.classSectionId })
+      .from(schema.subjectTeachers)
+      .where(and(eq(schema.subjectTeachers.institutionCode, institutionCode), eq(schema.subjectTeachers.teacherId, teacherId)));
+    for (const row of subjectRows) {
+      if (row.classSectionId) owned.add(row.classSectionId);
+    }
+
+    return Array.from(owned);
   }
 
   /**

@@ -1,5 +1,15 @@
 import { announcementRepository, AnnouncementWithTargetsAndReadStatus } from './announcement.repository.js';
-import { CreateAnnouncementInput, UpdateAnnouncementInput, AnnouncementQueryInput } from './announcement.schema.js';
+import {
+  CreateAnnouncementInput,
+  UpdateAnnouncementInput,
+  AnnouncementQueryInput,
+  TargetInput,
+} from './announcement.schema.js';
+import {
+  dbFindUserByIdOrUid,
+  dbFindStudentByUsnInInstitution,
+  dbFindStudentClassSectionId,
+} from '../shared/db/index.js';
 
 export class AppError extends Error {
   statusCode: number;
@@ -11,6 +21,22 @@ export class AppError extends Error {
     this.code = code;
     this.statusCode = statusCode;
   }
+}
+
+export interface AnnouncementActor {
+  userId: string;
+  role: string;
+}
+
+export function normalizeAnnouncementRole(role: string | undefined): string {
+  const normalized = (role || '').toLowerCase().trim();
+  return normalized === 'institution admin' ? 'admin' : normalized;
+}
+
+const MANAGER_ROLES = new Set(['admin', 'hod', 'principal']);
+
+export function isAnnouncementManager(role: string | undefined): boolean {
+  return MANAGER_ROLES.has(normalizeAnnouncementRole(role));
 }
 
 export class AnnouncementService {
@@ -34,16 +60,80 @@ export class AnnouncementService {
   }
 
   /**
+   * Managers (admin/hod/principal) may manage any announcement in the institution.
+   * Everyone else may only manage announcements they created themselves.
+   */
+  private assertCanManage(actor: AnnouncementActor, existing: AnnouncementWithTargetsAndReadStatus): void {
+    if (isAnnouncementManager(actor.role)) return;
+    if (existing.createdBy && existing.createdBy === actor.userId) return;
+    throw new AppError(
+      'You can only modify announcements you created',
+      'NOT_ANNOUNCEMENT_OWNER',
+      403
+    );
+  }
+
+  /**
+   * Non-manager creators may only target specific classes/sections, and only
+   * classes they are assigned to (class-teacher or subject-teacher assignments).
+   */
+  private async assertTargetsAllowed(
+    institutionCode: string,
+    actor: AnnouncementActor,
+    targets: TargetInput[] | undefined
+  ): Promise<void> {
+    if (isAnnouncementManager(actor.role)) return;
+
+    const effective: TargetInput[] = targets && targets.length > 0 ? targets : [];
+
+    if (effective.length === 0) {
+      throw new AppError(
+        'Your role can only target specific classes or sections',
+        'TARGET_NOT_ALLOWED',
+        403
+      );
+    }
+
+    for (const t of effective) {
+      const classRef = (t.classId || t.sectionId || '').trim();
+      if ((t.targetType !== 'class' && t.targetType !== 'section') || !classRef) {
+        throw new AppError(
+          'Your role can only target specific classes or sections',
+          'TARGET_NOT_ALLOWED',
+          403
+        );
+      }
+    }
+
+    const user = await dbFindUserByIdOrUid(actor.userId);
+    if (!user || (user.institutionCode && user.institutionCode !== institutionCode)) {
+      throw new AppError('User not found in institution', 'NOT_FOUND', 404);
+    }
+
+    const ownedClassIds = await announcementRepository.findTeacherClassIds(institutionCode, user.id);
+    const requested = effective.map((t) => (t.classId || t.sectionId || '').trim());
+    if (requested.some((ref) => !ownedClassIds.includes(ref))) {
+      throw new AppError(
+        'You can only target classes you are assigned to',
+        'TARGET_NOT_OWNED',
+        403
+      );
+    }
+  }
+
+  /**
    * Create announcement with action-based status resolution.
    */
   async createAnnouncement(
     institutionCode: string,
-    createdBy: string,
+    actor: AnnouncementActor,
     input: CreateAnnouncementInput
   ): Promise<AnnouncementWithTargetsAndReadStatus> {
     if (!institutionCode) {
       throw new AppError('Institution code is required', 'MISSING_INSTITUTION_CODE', 400);
     }
+
+    await this.assertTargetsAllowed(institutionCode, actor, input.targets);
 
     this.validateDates(input.publishAt, input.expiresAt);
 
@@ -75,7 +165,7 @@ export class AnnouncementService {
         type: input.type || 'GENERAL',
         priority: input.priority || 'NORMAL',
         status,
-        createdBy,
+        createdBy: actor.userId,
         publishAt,
         expiresAt,
         imageUrl: input.imageUrl || '',
@@ -91,11 +181,18 @@ export class AnnouncementService {
   async updateAnnouncement(
     institutionCode: string,
     id: string,
-    input: UpdateAnnouncementInput
+    input: UpdateAnnouncementInput,
+    actor: AnnouncementActor
   ): Promise<AnnouncementWithTargetsAndReadStatus> {
     const existing = await announcementRepository.findById(institutionCode, id);
     if (!existing) {
       throw new AppError('Announcement not found', 'NOT_FOUND', 404);
+    }
+
+    this.assertCanManage(actor, existing);
+
+    if (input.targets !== undefined) {
+      await this.assertTargetsAllowed(institutionCode, actor, input.targets);
     }
 
     if (existing.status === 'EXPIRED' || existing.status === 'CANCELLED') {
@@ -161,11 +258,13 @@ export class AnnouncementService {
   /**
    * Delete announcement (only DRAFT allowed).
    */
-  async deleteAnnouncement(institutionCode: string, id: string): Promise<boolean> {
+  async deleteAnnouncement(institutionCode: string, id: string, actor: AnnouncementActor): Promise<boolean> {
     const existing = await announcementRepository.findById(institutionCode, id);
     if (!existing) {
       throw new AppError('Announcement not found', 'NOT_FOUND', 404);
     }
+
+    this.assertCanManage(actor, existing);
 
     if (existing.status !== 'DRAFT') {
       throw new AppError(
@@ -181,11 +280,17 @@ export class AnnouncementService {
   /**
    * Publish announcement immediately (DRAFT or SCHEDULED -> PUBLISHED).
    */
-  async publishAnnouncement(institutionCode: string, id: string): Promise<AnnouncementWithTargetsAndReadStatus> {
+  async publishAnnouncement(
+    institutionCode: string,
+    id: string,
+    actor: AnnouncementActor
+  ): Promise<AnnouncementWithTargetsAndReadStatus> {
     const existing = await announcementRepository.findById(institutionCode, id);
     if (!existing) {
       throw new AppError('Announcement not found', 'NOT_FOUND', 404);
     }
+
+    this.assertCanManage(actor, existing);
 
     if (existing.status === 'CANCELLED' || existing.status === 'EXPIRED') {
       throw new AppError(
@@ -210,11 +315,17 @@ export class AnnouncementService {
   /**
    * Cancel announcement (SCHEDULED or PUBLISHED -> CANCELLED).
    */
-  async cancelAnnouncement(institutionCode: string, id: string): Promise<AnnouncementWithTargetsAndReadStatus> {
+  async cancelAnnouncement(
+    institutionCode: string,
+    id: string,
+    actor: AnnouncementActor
+  ): Promise<AnnouncementWithTargetsAndReadStatus> {
     const existing = await announcementRepository.findById(institutionCode, id);
     if (!existing) {
       throw new AppError('Announcement not found', 'NOT_FOUND', 404);
     }
+
+    this.assertCanManage(actor, existing);
 
     if (existing.status === 'CANCELLED') {
       throw new AppError('Announcement is already cancelled', 'ALREADY_CANCELLED', 400);
@@ -238,11 +349,17 @@ export class AnnouncementService {
   /**
    * Archive announcement handler.
    */
-  async archiveAnnouncement(institutionCode: string, id: string): Promise<AnnouncementWithTargetsAndReadStatus> {
+  async archiveAnnouncement(
+    institutionCode: string,
+    id: string,
+    actor: AnnouncementActor
+  ): Promise<AnnouncementWithTargetsAndReadStatus> {
     const existing = await announcementRepository.findById(institutionCode, id);
     if (!existing) {
       throw new AppError('Announcement not found', 'NOT_FOUND', 404);
     }
+
+    this.assertCanManage(actor, existing);
 
     if (existing.status === 'CANCELLED' || existing.status === 'EXPIRED') {
       return existing;
@@ -261,28 +378,39 @@ export class AnnouncementService {
 
   /**
    * Get single announcement by ID with institution check.
+   * Non-published announcements are only visible to managers and their creator.
    */
   async getAnnouncement(
     institutionCode: string,
     id: string,
-    userId?: string
+    userId?: string,
+    role?: string
   ): Promise<AnnouncementWithTargetsAndReadStatus> {
     const item = await announcementRepository.findById(institutionCode, id, userId);
     if (!item) {
       throw new AppError('Announcement not found', 'NOT_FOUND', 404);
     }
+
+    const isOwn = !!userId && item.createdBy === userId;
+    if (item.status !== 'PUBLISHED' && !isAnnouncementManager(role) && !isOwn) {
+      throw new AppError('Announcement not found', 'NOT_FOUND', 404);
+    }
+
     return item;
   }
 
   /**
-   * List announcements for management users (Staff / Admin).
+   * List announcements for management users.
+   * Managers see the whole institution; other staff only see their own.
    */
   async listAnnouncements(
     institutionCode: string,
     query: AnnouncementQueryInput,
-    pagination: { limit: number; offset: number }
+    pagination: { limit: number; offset: number },
+    actor: AnnouncementActor
   ): Promise<{ items: AnnouncementWithTargetsAndReadStatus[]; total: number }> {
-    return await announcementRepository.list(institutionCode, query, pagination);
+    const createdBy = isAnnouncementManager(actor.role) ? undefined : actor.userId;
+    return await announcementRepository.list(institutionCode, query, pagination, { createdBy });
   }
 
   /**
@@ -302,6 +430,69 @@ export class AnnouncementService {
       userId,
       pagination
     );
+  }
+
+  /**
+   * Resolve the class-section IDs the viewer should receive class/section-targeted
+   * announcements for. The auth middleware does not carry class membership, so it is
+   * derived from the database here (feed + unread-count only).
+   *
+   * - students: their active enrollment (student_classes)
+   * - parents: linked student (scope.linkedStudentUSN) enrollment
+   * - teachers: classes they own (class-teacher + subject assignments)
+   * - other roles: [] (they are covered by all/role targets)
+   */
+  async resolveViewerClassSections(
+    institutionCode: string,
+    userId: string,
+    role: string
+  ): Promise<string[]> {
+    const normalizedRole = normalizeAnnouncementRole(role);
+    if (!institutionCode || !userId) return [];
+
+    if (normalizedRole !== 'student' && normalizedRole !== 'parent' && normalizedRole !== 'teacher') {
+      return [];
+    }
+
+    try {
+      const user = await dbFindUserByIdOrUid(userId);
+      if (!user || (user.institutionCode && user.institutionCode !== institutionCode)) {
+        return [];
+      }
+
+      if (normalizedRole === 'teacher') {
+        return await announcementRepository.findTeacherClassIds(institutionCode, user.id);
+      }
+
+      let studentId = user.id;
+      if (normalizedRole === 'parent') {
+        let scope: any = {};
+        try {
+          scope = typeof user.scope === 'string' ? JSON.parse(user.scope || '{}') : user.scope || {};
+        } catch {
+          scope = {};
+        }
+        const linkedUsn = scope?.linkedStudentUSN || '';
+        if (!linkedUsn) return [];
+        const studentUser = await dbFindStudentByUsnInInstitution(institutionCode, linkedUsn);
+        if (!studentUser) return [];
+        studentId = studentUser.id;
+      }
+
+      const classSectionId = await dbFindStudentClassSectionId(studentId);
+      return classSectionId ? [classSectionId] : [];
+    } catch (err: any) {
+      console.warn('[Announcements] Failed to resolve viewer class sections:', err?.message || err);
+      return [];
+    }
+  }
+
+  /**
+   * Promote SCHEDULED announcements whose publish time has arrived.
+   * Called by the in-process scheduler sweep.
+   */
+  async publishDueScheduledAnnouncements(): Promise<number> {
+    return await announcementRepository.publishDueScheduled();
   }
 
   /**

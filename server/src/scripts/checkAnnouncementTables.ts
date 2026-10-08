@@ -2,8 +2,11 @@ import 'dotenv/config';
 import pg from 'pg';
 
 async function checkTables() {
-  const dbUrl = process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/schoolerp';
-  console.log('[Check Script] DATABASE_URL:', dbUrl);
+  const dbUrl = process.env.DATABASE_URL;
+  if (!dbUrl) {
+    console.error('[Check Script] DATABASE_URL is not set. Set it in server/.env before running this script.');
+    process.exit(1);
+  }
 
   const client = new pg.Client({ connectionString: dbUrl });
   try {

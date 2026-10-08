@@ -11,6 +11,7 @@ import { institutionRoutes } from './modules/institutions/institution.routes.js'
 import { developerRoutes } from './modules/developer/developer.routes.js';
 import { libraryRoutes } from './modules/library/library.routes.js';
 import { announcementRoutes } from './modules/announcements/announcement.routes.js';
+import { startAnnouncementScheduler, stopAnnouncementScheduler } from './modules/announcements/announcement.scheduler.js';
 
 dotenv.config();
 
@@ -70,7 +71,12 @@ async function main() {
       { prefix: '/api/v1' }
     );
 
+    fastify.addHook('onClose', async () => {
+      stopAnnouncementScheduler();
+    });
+
     await fastify.listen({ port, host });
+    startAnnouncementScheduler();
     console.log(`🚀 Fastify Backend Server running on http://${host}:${port}`);
   } catch (err) {
     fastify.log.error(err);

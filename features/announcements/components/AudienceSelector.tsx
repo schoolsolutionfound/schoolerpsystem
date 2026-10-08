@@ -10,6 +10,7 @@ import { fetchClassSectionsApi } from '../../../api/academics';
 interface AudienceSelectorProps {
   targets: AnnouncementTarget[];
   onChange: (targets: AnnouncementTarget[]) => void;
+  allowBroadTargets?: boolean;
 }
 
 const TARGET_TYPES: { label: string; value: TargetType; icon: string }[] = [
@@ -26,8 +27,9 @@ const ROLES: { label: string; value: string }[] = [
   { label: 'Staff (Teachers & Admins)', value: 'staff' },
 ];
 
-export const AudienceSelector: React.FC<AudienceSelectorProps> = ({ targets, onChange }) => {
+export const AudienceSelector: React.FC<AudienceSelectorProps> = ({ targets, onChange, allowBroadTargets = true }) => {
   const currentTarget = targets[0] || { targetType: 'all', targetRole: '', classId: '', sectionId: '' };
+  const visibleTypes = allowBroadTargets ? TARGET_TYPES : TARGET_TYPES.filter((t) => t.value === 'class');
 
   const { data: classSections = [], isLoading: loadingClasses } = useQuery({
     queryKey: ['class-sections'],
@@ -79,7 +81,7 @@ export const AudienceSelector: React.FC<AudienceSelectorProps> = ({ targets, onC
       <Text style={styles.label}>Target Audience</Text>
       
       <View style={styles.typeSelectorRow}>
-        {TARGET_TYPES.map((t) => {
+        {visibleTypes.map((t) => {
           const selected = currentTarget.targetType === t.value;
           return (
             <TouchableOpacity
