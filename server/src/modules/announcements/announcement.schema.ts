@@ -44,7 +44,6 @@ export const AnnouncementQuerySchema = z.object({
   status: z.enum(AnnouncementStatuses).optional(),
   type: z.enum(AnnouncementTypes).optional(),
   priority: z.enum(AnnouncementPriorities).optional(),
-  audience: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(500).optional(),
   offset: z.coerce.number().int().min(0).optional(),
 });

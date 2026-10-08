@@ -6,6 +6,7 @@ import { TargetType, AnnouncementTarget } from '../types';
 import { Colors, BorderRadius } from '../../../constants/theme';
 import { FontFamily } from '../../../constants/fonts';
 import { fetchClassSectionsApi } from '../../../api/academics';
+import { useUserStore } from '../../../store/useUserStore';
 
 interface AudienceSelectorProps {
   targets: AnnouncementTarget[];
@@ -29,7 +30,11 @@ const ROLES: { label: string; value: string }[] = [
 export const AudienceSelector: React.FC<AudienceSelectorProps> = ({ targets, onChange }) => {
   const currentTarget = targets[0] || { targetType: 'all', targetRole: '', classId: '', sectionId: '' };
 
-  const { data: classSections = [], isLoading: loadingClasses } = useQuery({
+  const userRole = useUserStore((s) => s.userRole);
+  const employeeId = useUserStore((s) => s.employeeId);
+  const department = useUserStore((s) => s.department);
+
+  const { data: rawClassSections = [], isLoading: loadingClasses, isError: isClassError } = useQuery({
     queryKey: ['class-sections'],
     queryFn: async () => {
       try {
@@ -41,6 +46,19 @@ export const AudienceSelector: React.FC<AudienceSelectorProps> = ({ targets, onC
     },
     enabled: currentTarget.targetType === 'class' || currentTarget.targetType === 'section',
   });
+
+  const classSections = React.useMemo(() => {
+    if (userRole === 'teacher') {
+      const filtered = rawClassSections.filter((cs: any) => {
+        if (employeeId && cs.classTeacherId === employeeId) return true;
+        if (department && cs.department && cs.department.toLowerCase() === department.toLowerCase()) return true;
+        return false;
+      });
+      // If teacher has assigned class/department scope, return filtered; otherwise return rawClassSections
+      return (employeeId || department) ? filtered : rawClassSections;
+    }
+    return rawClassSections;
+  }, [rawClassSections, userRole, employeeId, department]);
 
   const handleTypeSelect = (type: TargetType) => {
     onChange([
@@ -123,9 +141,16 @@ export const AudienceSelector: React.FC<AudienceSelectorProps> = ({ targets, onC
         <View style={styles.subContainer}>
           <Text style={styles.subLabel}>Select Target Class / Section:</Text>
           {loadingClasses ? (
-            <ActivityIndicator size="small" color={Colors.light.primary} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <ActivityIndicator size="small" color={Colors.light.primary} />
+              <Text style={styles.subLabel}>Loading available classes...</Text>
+            </View>
+          ) : isClassError ? (
+            <Text style={styles.noDataText}>Unable to load available classes. Please try again.</Text>
           ) : classSections.length === 0 ? (
-            <Text style={styles.noDataText}>No class sections found. Selection will target all classes.</Text>
+            <Text style={styles.noDataText}>
+              {userRole === 'teacher' ? 'No classes are available for you to target.' : 'No classes/sections found in this institution.'}
+            </Text>
           ) : (
             <View style={styles.roleWrap}>
               {classSections.map((cs: any) => {

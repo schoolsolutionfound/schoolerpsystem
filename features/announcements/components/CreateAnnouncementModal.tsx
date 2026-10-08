@@ -24,6 +24,36 @@ interface CreateAnnouncementModalProps {
 const TYPES: AnnouncementType[] = ['GENERAL', 'ACADEMIC', 'EVENT', 'URGENT', 'NOTICE'];
 const PRIORITIES: AnnouncementPriority[] = ['LOW', 'NORMAL', 'HIGH', 'URGENT'];
 
+const formatToLocalISOString = (dateStr: string | null | undefined): string => {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return dateStr;
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
+const formatInputToIsoString = (inputStr: string): string | null => {
+  if (!inputStr || !inputStr.trim()) return null;
+  const trimmed = inputStr.trim();
+  if (trimmed.endsWith('Z')) return trimmed;
+
+  const match = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
+  if (match) {
+    const [, year, month, day, hour, minute] = match.map(Number);
+    const localDate = new Date(year, month - 1, day, hour, minute);
+    if (isNaN(localDate.getTime())) return null;
+    return localDate.toISOString();
+  }
+
+  const fallbackDate = new Date(trimmed);
+  if (isNaN(fallbackDate.getTime())) return null;
+  return fallbackDate.toISOString();
+};
+
 export const CreateAnnouncementModal: React.FC<CreateAnnouncementModalProps> = ({
   visible,
   onClose,
@@ -42,6 +72,8 @@ export const CreateAnnouncementModal: React.FC<CreateAnnouncementModalProps> = (
   const [targets, setTargets] = useState<AnnouncementTarget[]>([{ targetType: 'all', targetRole: '' }]);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = React.useRef(false);
 
   useEffect(() => {
     if (initialData) {
@@ -51,8 +83,8 @@ export const CreateAnnouncementModal: React.FC<CreateAnnouncementModalProps> = (
       setPriority(initialData.priority || 'NORMAL');
       setImageUrl(initialData.imageUrl || '');
       setAttachmentUrl(initialData.attachmentUrl || '');
-      setPublishAt(initialData.publishAt ? new Date(initialData.publishAt).toISOString().slice(0, 16) : '');
-      setExpiresAt(initialData.expiresAt ? new Date(initialData.expiresAt).toISOString().slice(0, 16) : '');
+      setPublishAt(formatToLocalISOString(initialData.publishAt));
+      setExpiresAt(formatToLocalISOString(initialData.expiresAt));
       setTargets(initialData.targets && initialData.targets.length > 0 ? initialData.targets : [{ targetType: 'all', targetRole: '' }]);
     } else {
       resetForm();
@@ -69,6 +101,8 @@ export const CreateAnnouncementModal: React.FC<CreateAnnouncementModalProps> = (
     setPublishAt('');
     setExpiresAt('');
     setTargets([{ targetType: 'all', targetRole: '' }]);
+    setIsSubmitting(false);
+    isSubmittingRef.current = false;
   };
 
   const handlePickImage = async () => {
@@ -89,7 +123,7 @@ export const CreateAnnouncementModal: React.FC<CreateAnnouncementModalProps> = (
         setImageUrl(url);
       }
     } catch (err: any) {
-      Alert.alert('Upload Error', 'Failed to upload image attachment');
+      Alert.alert('Upload Error', err?.message || 'Failed to upload image attachment');
     } finally {
       setUploadingImage(false);
     }
@@ -104,68 +138,104 @@ export const CreateAnnouncementModal: React.FC<CreateAnnouncementModalProps> = (
       if (!result.canceled && result.assets?.[0]?.uri) {
         setUploadingDoc(true);
         const uri = result.assets[0].uri;
-        const name = result.assets[0].name || 'document.pdf';
         const res = await fetch(uri);
         const blob = await res.blob();
-        const storageRef = ref(storage, `announcements/docs/${Date.now()}_${name}`);
+        const storageRef = ref(storage, `announcements/docs/${Date.now()}_${result.assets[0].name || 'file'}`);
         await uploadBytes(storageRef, blob);
         const url = await getDownloadURL(storageRef);
         setAttachmentUrl(url);
       }
     } catch (err: any) {
-      Alert.alert('Upload Error', 'Failed to upload document attachment');
+      Alert.alert('Upload Error', err?.message || 'Failed to upload document attachment');
     } finally {
       setUploadingDoc(false);
     }
   };
 
-  const handleSubmitAction = async (action: 'draft' | 'publish' | 'schedule') => {
+  const validateForm = (action: 'draft' | 'publish' | 'schedule'): boolean => {
     if (!title.trim()) {
-      Alert.alert('Validation Error', 'Title is required');
-      return;
+      Alert.alert('Validation Error', 'Title is required.');
+      return false;
     }
     if (!content.trim()) {
-      Alert.alert('Validation Error', 'Content is required');
-      return;
+      Alert.alert('Validation Error', 'Content is required.');
+      return false;
+    }
+
+    let pubDate: Date | null = null;
+    let expDate: Date | null = null;
+
+    if (publishAt && publishAt.trim()) {
+      const parsedIso = formatInputToIsoString(publishAt);
+      if (!parsedIso) {
+        Alert.alert('Validation Error', 'Please enter a valid scheduled date and time.');
+        return false;
+      }
+      pubDate = new Date(parsedIso);
+    }
+
+    if (expiresAt && expiresAt.trim()) {
+      const parsedIso = formatInputToIsoString(expiresAt);
+      if (!parsedIso) {
+        Alert.alert('Validation Error', 'Please enter a valid expiry date and time.');
+        return false;
+      }
+      expDate = new Date(parsedIso);
+    }
+
+    if (pubDate && expDate) {
+      if (expDate.getTime() <= pubDate.getTime()) {
+        Alert.alert('Validation Error', 'Expiry date/time cannot be earlier than the scheduled date/time.');
+        return false;
+      }
     }
 
     if (action === 'schedule') {
-      if (!publishAt) {
-        Alert.alert('Validation Error', 'Publication date is required when scheduling');
-        return;
+      if (!pubDate) {
+        Alert.alert('Validation Error', 'Please enter a valid scheduled date and time.');
+        return false;
       }
-      const pDate = new Date(publishAt);
-      if (isNaN(pDate.getTime()) || pDate <= new Date()) {
-        Alert.alert('Validation Error', 'Scheduled publication date must be in the future (e.g. YYYY-MM-DDTHH:mm)');
-        return;
-      }
-    }
-
-    if (expiresAt && publishAt) {
-      const pDate = new Date(publishAt);
-      const eDate = new Date(expiresAt);
-      if (!isNaN(pDate.getTime()) && !isNaN(eDate.getTime()) && eDate <= pDate) {
-        Alert.alert('Validation Error', 'Expiration date must be after publication date');
-        return;
+      if (pubDate.getTime() <= Date.now()) {
+        Alert.alert('Validation Error', 'Scheduled publication date must be in the future.');
+        return false;
       }
     }
 
-    const payload = {
-      title: title.trim(),
-      content: content.trim(),
-      type,
-      priority,
-      action,
-      publishAt: publishAt ? new Date(publishAt).toISOString() : null,
-      expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
-      imageUrl,
-      attachmentUrl,
-      targets,
-    };
-
-    await onSubmit(payload);
-    onClose();
+    return true;
   };
+
+  const handleSubmitAction = async (action: 'draft' | 'publish' | 'schedule') => {
+    if (isSubmittingRef.current || isSubmitting || loading) return;
+    if (!validateForm(action)) return;
+
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
+    try {
+      const payload = {
+        title: title.trim(),
+        content: content.trim(),
+        type,
+        priority,
+        action,
+        publishAt: publishAt.trim() ? formatInputToIsoString(publishAt) : null,
+        expiresAt: expiresAt.trim() ? formatInputToIsoString(expiresAt) : null,
+        imageUrl,
+        attachmentUrl,
+        targets,
+      };
+
+      await onSubmit(payload);
+      onClose();
+    } catch (err: any) {
+      Alert.alert('Announcement Error', err?.message || 'Failed to save announcement.');
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
+    }
+  };
+
+
+  const isBusy = loading || isSubmitting;
 
   return (
     <AppModal
@@ -179,6 +249,7 @@ export const CreateAnnouncementModal: React.FC<CreateAnnouncementModalProps> = (
           value={title}
           onChangeText={setTitle}
           placeholder="e.g. Annual Sports Day Schedule"
+          editable={!isBusy}
         />
 
         <AppInput
@@ -189,6 +260,7 @@ export const CreateAnnouncementModal: React.FC<CreateAnnouncementModalProps> = (
           multiline
           numberOfLines={4}
           style={styles.textArea}
+          editable={!isBusy}
         />
 
         {/* Type Selector */}
@@ -199,7 +271,8 @@ export const CreateAnnouncementModal: React.FC<CreateAnnouncementModalProps> = (
               <TouchableOpacity
                 key={t}
                 style={[styles.chip, type === t && styles.chipSelected]}
-                onPress={() => setType(t)}
+                onPress={() => !isBusy && setType(t)}
+                disabled={isBusy}
               >
                 <Text style={[styles.chipText, type === t && styles.chipTextSelected]}>{t}</Text>
               </TouchableOpacity>
@@ -215,7 +288,8 @@ export const CreateAnnouncementModal: React.FC<CreateAnnouncementModalProps> = (
               <TouchableOpacity
                 key={p}
                 style={[styles.chip, priority === p && styles.chipSelected]}
-                onPress={() => setPriority(p)}
+                onPress={() => !isBusy && setPriority(p)}
+                disabled={isBusy}
               >
                 <Text style={[styles.chipText, priority === p && styles.chipTextSelected]}>{p}</Text>
               </TouchableOpacity>
@@ -234,6 +308,7 @@ export const CreateAnnouncementModal: React.FC<CreateAnnouncementModalProps> = (
               value={publishAt}
               onChangeText={setPublishAt}
               placeholder="YYYY-MM-DDTHH:mm"
+              editable={!isBusy}
             />
           </View>
           <View style={{ flex: 1 }}>
@@ -242,6 +317,7 @@ export const CreateAnnouncementModal: React.FC<CreateAnnouncementModalProps> = (
               value={expiresAt}
               onChangeText={setExpiresAt}
               placeholder="YYYY-MM-DDTHH:mm"
+              editable={!isBusy}
             />
           </View>
         </View>
@@ -250,7 +326,7 @@ export const CreateAnnouncementModal: React.FC<CreateAnnouncementModalProps> = (
         <View style={styles.attachmentSection}>
           <Text style={styles.sectionLabel}>Attachments (Firebase Storage)</Text>
           <View style={styles.uploadRow}>
-            <TouchableOpacity style={styles.uploadBtn} onPress={handlePickImage} disabled={uploadingImage}>
+            <TouchableOpacity style={styles.uploadBtn} onPress={handlePickImage} disabled={uploadingImage || isBusy}>
               {uploadingImage ? (
                 <ActivityIndicator size="small" color={Colors.light.primary} />
               ) : (
@@ -261,7 +337,7 @@ export const CreateAnnouncementModal: React.FC<CreateAnnouncementModalProps> = (
               )}
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.uploadBtn} onPress={handlePickDocument} disabled={uploadingDoc}>
+            <TouchableOpacity style={styles.uploadBtn} onPress={handlePickDocument} disabled={uploadingDoc || isBusy}>
               {uploadingDoc ? (
                 <ActivityIndicator size="small" color={Colors.light.primary} />
               ) : (
@@ -276,7 +352,7 @@ export const CreateAnnouncementModal: React.FC<CreateAnnouncementModalProps> = (
           {imageUrl ? (
             <View style={styles.previewBox}>
               <Image source={{ uri: imageUrl }} style={styles.imagePreview} />
-              <TouchableOpacity onPress={() => setImageUrl('')} style={styles.removeIcon}>
+              <TouchableOpacity onPress={() => !isBusy && setImageUrl('')} disabled={isBusy} style={styles.removeIcon}>
                 <MaterialCommunityIcons name="close-circle" size={20} color={Colors.light.danger} />
               </TouchableOpacity>
             </View>
@@ -286,7 +362,7 @@ export const CreateAnnouncementModal: React.FC<CreateAnnouncementModalProps> = (
             <View style={styles.fileBox}>
               <MaterialCommunityIcons name="file-check-outline" size={18} color={Colors.light.success} />
               <Text style={styles.fileText} numberOfLines={1}>Document attached</Text>
-              <TouchableOpacity onPress={() => setAttachmentUrl('')}>
+              <TouchableOpacity onPress={() => !isBusy && setAttachmentUrl('')} disabled={isBusy}>
                 <MaterialCommunityIcons name="close-circle" size={18} color={Colors.light.danger} />
               </TouchableOpacity>
             </View>
@@ -299,7 +375,8 @@ export const CreateAnnouncementModal: React.FC<CreateAnnouncementModalProps> = (
             title="Save Draft"
             variant="outline"
             onPress={() => handleSubmitAction('draft')}
-            loading={loading}
+            loading={isBusy}
+            disabled={isBusy}
             style={{ flex: 1 }}
           />
 
@@ -307,7 +384,8 @@ export const CreateAnnouncementModal: React.FC<CreateAnnouncementModalProps> = (
             title="Schedule"
             variant="secondary"
             onPress={() => handleSubmitAction('schedule')}
-            loading={loading}
+            loading={isBusy}
+            disabled={isBusy}
             style={{ flex: 1 }}
           />
 
@@ -315,7 +393,8 @@ export const CreateAnnouncementModal: React.FC<CreateAnnouncementModalProps> = (
             title="Publish Now"
             variant="primary"
             onPress={() => handleSubmitAction('publish')}
-            loading={loading}
+            loading={isBusy}
+            disabled={isBusy}
             style={{ flex: 1 }}
           />
         </View>

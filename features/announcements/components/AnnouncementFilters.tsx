@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Text } from 'react-native';
 import { AppInput } from '../../shared/components/AppInput';
 import { AnnouncementFilterState, AnnouncementType, AnnouncementStatus, AnnouncementPriority } from '../types';
@@ -42,11 +42,31 @@ export const AnnouncementFilters: React.FC<AnnouncementFiltersProps> = ({
   onFilterChange,
   isManagement = false,
 }) => {
+  const [searchTerm, setSearchTerm] = useState(filters.search || '');
+  const isInitialMount = React.useRef(true);
+
+  useEffect(() => {
+    if (filters.search !== undefined && filters.search !== searchTerm) {
+      setSearchTerm(filters.search);
+    }
+  }, [filters.search]);
+
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    const timer = setTimeout(() => {
+      onFilterChange({ search: searchTerm });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   return (
     <View style={styles.container}>
       <AppInput
-        value={filters.search || ''}
-        onChangeText={(text) => onFilterChange({ search: text })}
+        value={searchTerm}
+        onChangeText={setSearchTerm}
         placeholder="Search announcements by title or content..."
         iconName="magnify"
         style={styles.searchInput}

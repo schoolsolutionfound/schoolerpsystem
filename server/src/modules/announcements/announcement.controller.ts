@@ -203,22 +203,6 @@ export async function cancelAnnouncementHandler(
 }
 
 /**
-  POST /api/v1/announcements/:id/archive
-  Archive an announcement.
- */
-export async function archiveAnnouncementHandler(
-  request: FastifyRequest<{ Params: { id: string } }>,
-  reply: FastifyReply
-) {
-  try {
-    const data = await announcementService.archiveAnnouncement(getInstCode(request), request.params.id);
-    return reply.send({ success: true, data });
-  } catch (err) {
-    return sendError(reply, err, 'Failed to archive announcement');
-  }
-}
-
-/**
   POST /api/v1/announcements/:id/read
   Mark announcement as read.
  */
