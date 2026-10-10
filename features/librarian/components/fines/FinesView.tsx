@@ -96,7 +96,7 @@ export const FinesView: React.FC<FinesViewProps> = ({
               <Text style={[fineStyles.kpiLabel, { color: '#991B1B' }]}>Unpaid Balance</Text>
               <MaterialCommunityIcons name="alert-circle-outline" size={18} color="#DC2626" />
             </View>
-            <Text style={[fineStyles.kpiValue, { color: '#DC2626' }]}>${unpaidTotal.toFixed(2)}</Text>
+            <Text style={[fineStyles.kpiValue, { color: '#DC2626' }]}>₹{unpaidTotal.toFixed(2)}</Text>
             <Text style={fineStyles.kpiSub}>Pending member fines</Text>
           </View>
 
@@ -105,7 +105,7 @@ export const FinesView: React.FC<FinesViewProps> = ({
               <Text style={[fineStyles.kpiLabel, { color: '#065F46' }]}>Collected Total</Text>
               <MaterialCommunityIcons name="cash-check" size={18} color="#059669" />
             </View>
-            <Text style={[fineStyles.kpiValue, { color: '#059669' }]}>${collectedTotal.toFixed(2)}</Text>
+            <Text style={[fineStyles.kpiValue, { color: '#059669' }]}>₹{collectedTotal.toFixed(2)}</Text>
             <Text style={fineStyles.kpiSub}>Paid fine revenue</Text>
           </View>
 
@@ -114,7 +114,7 @@ export const FinesView: React.FC<FinesViewProps> = ({
               <Text style={[fineStyles.kpiLabel, { color: '#1E40AF' }]}>Waived Fines</Text>
               <MaterialCommunityIcons name="hand-heart-outline" size={18} color="#2563EB" />
             </View>
-            <Text style={[fineStyles.kpiValue, { color: '#2563EB' }]}>${waivedTotal.toFixed(2)}</Text>
+            <Text style={[fineStyles.kpiValue, { color: '#2563EB' }]}>₹{waivedTotal.toFixed(2)}</Text>
             <Text style={fineStyles.kpiSub}>Approved exemptions</Text>
           </View>
         </View>
@@ -197,13 +197,13 @@ export const FinesView: React.FC<FinesViewProps> = ({
                 </View>
 
                 <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={fineStyles.fineAmount}>${item.amount.toFixed(2)}</Text>
+                  <Text style={fineStyles.fineAmount}>₹{item.amount.toFixed(2)}</Text>
                   {item.paidAmount > 0 && item.status !== 'PAID' && (
-                    <Text style={{ fontSize: 11, color: '#059669', fontWeight: '700' }}>Paid: ${item.paidAmount.toFixed(2)}</Text>
+                    <Text style={{ fontSize: 11, color: '#059669', fontWeight: '700' }}>Paid: ₹{item.paidAmount.toFixed(2)}</Text>
                   )}
                   {isPending && (
                     <Text style={{ fontSize: 11, color: '#DC2626', fontWeight: '800', marginTop: 2 }}>
-                      Bal: ${remaining.toFixed(2)}
+                      Bal: ₹{remaining.toFixed(2)}
                     </Text>
                   )}
                 </View>
@@ -253,7 +253,7 @@ export const FinesView: React.FC<FinesViewProps> = ({
                 <View style={fineStyles.actionRow}>
                   <TouchableOpacity style={fineStyles.payBtn} onPress={() => onPayFine(item)}>
                     <MaterialCommunityIcons name="cash-register" size={15} color="#121316" />
-                    <Text style={fineStyles.payBtnText}>Pay Fine (${remaining.toFixed(2)})</Text>
+                    <Text style={fineStyles.payBtnText}>Pay Fine (₹{remaining.toFixed(2)})</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity style={fineStyles.waiveBtn} onPress={() => onWaiveFine(item)}>

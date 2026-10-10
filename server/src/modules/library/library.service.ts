@@ -24,12 +24,12 @@ export class LibraryService {
 
   public async listCategories(institutionCode: string) {
     const categories = await libraryRepository.listCategories(institutionCode);
-    const books = (await libraryRepository.listBooks(institutionCode)).items;
+    const counts = await libraryRepository.countBooksByCategory(institutionCode);
 
-    return categories.map((cat) => {
-      const bookCount = books.filter((b) => b.categoryId === cat.id).length;
-      return { ...cat, bookCount };
-    });
+    return categories.map((cat) => ({
+      ...cat,
+      bookCount: counts.get(cat.id) || 0,
+    }));
   }
 
   public async getCategory(institutionCode: string, id: string) {
@@ -116,7 +116,7 @@ export class LibraryService {
       };
     });
 
-    return { data: enrichedBooks, total, limit: opts?.limit, offset: opts?.offset };
+    return { items: enrichedBooks, total, limit: opts?.limit, offset: opts?.offset };
   }
 
   public async getBook(institutionCode: string, id: string) {
@@ -158,10 +158,12 @@ export class LibraryService {
       const copyCount = totalCopies && totalCopies > 0 ? totalCopies : 1;
       const now = new Date();
 
+      // Count-based accession numbers (deterministic, collision-free within a tx)
+      let seq = await libraryRepository.countCopiesInInstitution(tx);
       for (let i = 1; i <= copyCount; i++) {
-        const randNum = String(Math.floor(100000 + Math.random() * 900000));
-        const accessionNumber = `ACC-${randNum}`;
-        const barcode = `BAR-${randNum}`;
+        seq += 1;
+        const accessionNumber = `ACC-${String(seq).padStart(6, '0')}`;
+        const barcode = `BAR-${String(seq).padStart(6, '0')}`;
 
         await libraryRepository.createCopy(
           {
@@ -198,13 +200,14 @@ export class LibraryService {
     await this.getBook(institutionCode, id);
     const copies = await libraryRepository.listCopiesByBookId(id);
 
+    // Reject deletion if ANY loan history exists (protects ledger FK integrity).
     for (const copy of copies) {
-      const activeLoan = await libraryRepository.getActiveLoanByCopyId(copy.id);
-      if (activeLoan) {
+      const historyCount = await libraryRepository.countLoansByCopyId(copy.id);
+      if (historyCount > 0) {
         throw {
           statusCode: 400,
-          code: 'CANNOT_DELETE_BOOK',
-          message: `Cannot delete book. Physical copy "${copy.accessionNumber}" has an active loan.`,
+          code: 'COPY_HAS_LOAN_HISTORY',
+          message: `Cannot delete book. Physical copy "${copy.accessionNumber}" has ${historyCount} loan record(s).`,
         };
       }
     }
@@ -271,9 +274,13 @@ export class LibraryService {
 
   public async deleteCopy(institutionCode: string, id: string) {
     await this.getCopy(institutionCode, id);
-    const activeLoan = await libraryRepository.getActiveLoanByCopyId(id);
-    if (activeLoan) {
-      throw { statusCode: 400, code: 'COPY_HAS_ACTIVE_LOANS', message: 'Cannot delete physical copy with an active or overdue loan.' };
+    const historyCount = await libraryRepository.countLoansByCopyId(id);
+    if (historyCount > 0) {
+      throw {
+        statusCode: 400,
+        code: 'COPY_HAS_LOAN_HISTORY',
+        message: `Cannot delete physical copy with ${historyCount} loan record(s). The loan ledger must remain intact.`,
+      };
     }
     return libraryRepository.deleteCopy(id);
   }
@@ -286,26 +293,7 @@ export class LibraryService {
     opts?: { limit?: number; offset?: number }
   ) {
     const { items, total } = await libraryRepository.listLoans(institutionCode, filters, opts);
-    const books = (await libraryRepository.listBooks(institutionCode)).items;
-
-    const enrichedLoans = await Promise.all(
-      items.map(async (loan) => {
-        const book = books.find((b) => b.id === loan.bookId);
-        const copy = await libraryRepository.getCopyById(loan.copyId);
-        const student = await libraryRepository.getMemberById(loan.studentId);
-        return {
-          ...loan,
-          bookTitle: book?.title || 'Book Title',
-          accessionNumber: copy?.accessionNumber || 'ACC',
-          barcode: copy?.barcode || 'BAR',
-          studentName: student?.fullName || 'Student Member',
-          admissionNo: student?.admissionNo || 'ADM',
-          classSection: student?.classSection || 'Class',
-        };
-      })
-    );
-
-    return { data: enrichedLoans, total, limit: opts?.limit, offset: opts?.offset };
+    return { items, total, limit: opts?.limit, offset: opts?.offset };
   }
 
   public async issueBook(institutionCode: string, issuedBy: string, input: IssueBookInput) {
@@ -350,7 +338,7 @@ export class LibraryService {
       throw {
         statusCode: 400,
         code: 'UNPAID_FINE_LOCK',
-        message: `Member ${student.fullName} has $${unpaidFineTotal.toFixed(2)} in unpaid fines, exceeding the threshold of $${lockThreshold.toFixed(2)}.`,
+        message: `Member ${student.fullName} has ₹${unpaidFineTotal.toFixed(2)} in unpaid fines, exceeding the threshold of ₹${lockThreshold.toFixed(2)}.`,
       };
     }
 
@@ -399,11 +387,18 @@ export class LibraryService {
     const settings = await this.getSettings(institutionCode);
 
     const returnDateStr = input.returnDate || new Date().toISOString().split('T')[0];
-    const returnDateObj = new Date(returnDateStr);
-    const dueDateObj = new Date(loan.dueDate);
 
-    const diffMs = returnDateObj.getTime() - dueDateObj.getTime();
-    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    // Parse date-only strings as LOCAL dates so off-by-one timezone bugs don't
+    // inflate overdue days by one.
+    const parseLocal = (s: any): Date => {
+      const str = String(s);
+      const [y, m, d] = str.split('-').map(Number);
+      return new Date(y, (m || 1) - 1, d || 1);
+    };
+    const returnDateObj = parseLocal(returnDateStr);
+    const dueDateObj = parseLocal(loan.dueDate);
+
+    const diffDays = Math.floor((returnDateObj.getTime() - dueDateObj.getTime()) / (1000 * 60 * 60 * 24));
     const overdueDays = Math.max(0, diffDays - settings.gracePeriodDays);
 
     const finePerDay = parseFloat(String(settings.finePerDay || '1.00'));
@@ -473,8 +468,20 @@ export class LibraryService {
       };
     }
 
+    // Fine-lock also applies to renewals, not just new issues.
+    const unpaidFineTotal = await libraryRepository.sumUnpaidFinesByStudent(loan.studentId);
+    const lockThreshold = parseFloat(String(settings.unpaidFineLockThreshold || '20.00'));
+    if (unpaidFineTotal > lockThreshold) {
+      throw {
+        statusCode: 400,
+        code: 'UNPAID_FINE_LOCK',
+        message: `Cannot renew: member has ₹${unpaidFineTotal.toFixed(2)} in unpaid fines (threshold ₹${lockThreshold.toFixed(2)}).`,
+      };
+    }
+
     const extensionDays = input.customDays || settings.loanPeriodDays;
-    const currentDueDateObj = new Date(loan.dueDate);
+    const [y, m, d] = String(loan.dueDate).split('-').map(Number);
+    const currentDueDateObj = new Date(y, (m || 1) - 1, d || 1);
     currentDueDateObj.setDate(currentDueDateObj.getDate() + extensionDays);
     const newDueDateStr = currentDueDateObj.toISOString().split('T')[0];
 
@@ -493,34 +500,7 @@ export class LibraryService {
     opts?: { limit?: number; offset?: number }
   ) {
     const { items, total } = await libraryRepository.listFines(institutionCode, filters, opts);
-
-    const enrichedFines = await Promise.all(
-      items.map(async (fine) => {
-        const student = await libraryRepository.getMemberById(fine.studentId);
-        const txns = await libraryRepository.listTransactionsByFineId(fine.id);
-        const copy = fine.bookCopyId ? await libraryRepository.getCopyById(fine.bookCopyId) : null;
-        const book = copy ? await libraryRepository.getBookById(copy.bookId) : null;
-
-        return {
-          ...fine,
-          amount: parseFloat(String(fine.amount)),
-          paidAmount: parseFloat(String(fine.paidAmount)),
-          studentName: student?.fullName || 'Student Member',
-          admissionNo: student?.admissionNo || 'ADM',
-          classSection: student?.classSection || 'Class',
-          accessionNumber: copy?.accessionNumber,
-          bookTitle: book?.title,
-          paymentTransactions: txns.map((t) => ({
-            ...t,
-            amount: parseFloat(String(t.amount)),
-            cashTendered: t.cashTendered ? parseFloat(String(t.cashTendered)) : undefined,
-            changeReturned: t.changeReturned ? parseFloat(String(t.changeReturned)) : undefined,
-          })),
-        };
-      })
-    );
-
-    return { data: enrichedFines, total, limit: opts?.limit, offset: opts?.offset };
+    return { items, total, limit: opts?.limit, offset: opts?.offset };
   }
 
   public async payFine(institutionCode: string, cashierName: string, fineId: string, input: PayFineInput) {
@@ -541,24 +521,23 @@ export class LibraryService {
       throw {
         statusCode: 400,
         code: 'PAYMENT_EXCEEDS_BALANCE',
-        message: `Payment amount $${input.amount.toFixed(2)} exceeds remaining balance of $${remainingBalance.toFixed(2)}.`,
+        message: `Payment amount ₹${input.amount.toFixed(2)} exceeds remaining balance of ₹${remainingBalance.toFixed(2)}.`,
       };
     }
 
     if (input.paymentMethod === 'CASH') {
       const tendered = input.cashTendered || 0;
       if (tendered < input.amount - 0.01) {
-        throw { statusCode: 400, code: 'INSUFFICIENT_CASH', message: `Cash tendered ($${tendered.toFixed(2)}) is less than payment amount ($${input.amount.toFixed(2)}).` };
+        throw { statusCode: 400, code: 'INSUFFICIENT_CASH', message: `Cash tendered (₹${tendered.toFixed(2)}) is less than payment amount (₹${input.amount.toFixed(2)}).` };
       }
     }
 
-    const newPaidTotal = currentPaid + input.amount;
-    const isFullyPaid = newPaidTotal >= totalAmount - 0.01;
-    const newStatus = isFullyPaid ? 'PAID' : 'PARTIALLY_PAID';
-    const receiptNo = `REC-${Math.floor(100000 + Math.random() * 900000)}`;
-
     if (!db) throw new Error('Database connection unavailable');
     return db.transaction(async (tx) => {
+      // Count-based receipt number (deterministic, avoids Math.random collisions)
+      const seq = await libraryRepository.countTransactionsInInstitution(tx);
+      const receiptNo = `REC-${String(seq + 1).padStart(6, '0')}`;
+
       const transactionRecord = await libraryRepository.createTransaction(
         {
           institutionCode,
@@ -576,14 +555,11 @@ export class LibraryService {
         tx
       );
 
-      const updatedFine = await libraryRepository.updateFine(
-        fine.id,
-        {
-          paidAmount: String(newPaidTotal) as any,
-          status: newStatus as any,
-        },
-        tx
-      );
+      // Atomic SQL increment with status guard (prevents concurrent over-credit)
+      const updatedFine = await libraryRepository.applyFinePayment(fine.id, input.amount, tx);
+      if (!updatedFine) {
+        throw { statusCode: 409, code: 'FINE_RACE_CONFLICT', message: 'Fine was modified concurrently. Please refresh and retry.' };
+      }
 
       return { fine: updatedFine, transaction: transactionRecord };
     });
@@ -674,7 +650,7 @@ export class LibraryService {
       institutionCode,
       uploadedBy: uploaderName || 'Librarian Staff',
       downloadsCount: 0,
-      fileUrl: input.fileUrl || 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+      fileUrl: input.fileUrl || '',
     });
   }
 
@@ -726,7 +702,11 @@ export class LibraryService {
 
   // ==================== MEMBERS ====================
 
-  public async listMembers(institutionCode: string, filters?: { search?: string }, opts?: { limit?: number; offset?: number }) {
+  public async listMembers(
+    institutionCode: string,
+    filters?: { search?: string; classSection?: string },
+    opts?: { limit?: number; offset?: number }
+  ) {
     return libraryRepository.listMembers(institutionCode, filters, opts);
   }
 
@@ -738,7 +718,7 @@ export class LibraryService {
 
     const { items: loans } = await libraryRepository.listLoans(institutionCode, { studentId });
     const { items: fines } = await libraryRepository.listFines(institutionCode, { studentId });
-    const reservations = (await libraryRepository.listReservations(institutionCode)).filter((r) => r.studentId === studentId);
+    const reservations = await libraryRepository.listReservations(institutionCode, studentId);
 
     const activeLoansCount = loans.filter((l) => l.status === 'ACTIVE' || l.status === 'OVERDUE').length;
 
@@ -755,35 +735,26 @@ export class LibraryService {
   // ==================== DASHBOARD & REPORTS ====================
 
   public async getDashboardStats(institutionCode: string) {
-    const books = (await libraryRepository.listBooks(institutionCode)).items;
-    const copies = await libraryRepository.listAllCopies(institutionCode);
-    const { items: loans } = await libraryRepository.listLoans(institutionCode);
-    const { items: fines } = await libraryRepository.listFines(institutionCode);
-    const { items: members } = await libraryRepository.listMembers(institutionCode);
-
-    const totalBooks = books.length;
-    const totalCopies = copies.length;
-    const availableCopies = copies.filter((c) => c.status === 'AVAILABLE').length;
-    const issuedCopies = copies.filter((c) => c.status === 'ISSUED').length;
-    const overdueLoans = loans.filter((l) => l.status === 'OVERDUE').length;
-    const activeLoans = loans.filter((l) => l.status === 'ACTIVE' || l.status === 'OVERDUE').length;
-
-    const totalFinesCollected = fines.reduce((acc, f) => acc + parseFloat(String(f.paidAmount || '0')), 0);
-    const totalFinesOutstanding = fines
-      .filter((f) => f.status === 'UNPAID' || f.status === 'PARTIALLY_PAID')
-      .reduce((acc, f) => acc + (parseFloat(String(f.amount)) - parseFloat(String(f.paidAmount || '0'))), 0);
+    const [totalBooks, copyCounts, loanCounts, fineSums, totalMembers, recentLoans] = await Promise.all([
+      libraryRepository.countBooks(institutionCode),
+      libraryRepository.countCopiesByStatus(institutionCode),
+      libraryRepository.countLoansByStatus(institutionCode),
+      libraryRepository.sumFines(institutionCode),
+      libraryRepository.countMembers(institutionCode),
+      libraryRepository.listRecentLoans(institutionCode, 5),
+    ]);
 
     return {
       totalBooks,
-      totalCopies,
-      availableCopies,
-      issuedCopies,
-      activeLoans,
-      overdueLoans,
-      totalMembers: members.length,
-      totalFinesCollected,
-      totalFinesOutstanding,
-      recentLoans: loans.slice(0, 5),
+      totalCopies: Object.values(copyCounts).reduce((a, b) => a + b, 0),
+      availableCopies: copyCounts.AVAILABLE || 0,
+      issuedCopies: copyCounts.ISSUED || 0,
+      activeLoans: loanCounts.active,
+      overdueLoans: loanCounts.overdue,
+      totalMembers,
+      totalFinesCollected: fineSums.collected,
+      totalFinesOutstanding: fineSums.outstanding,
+      recentLoans,
     };
   }
 }

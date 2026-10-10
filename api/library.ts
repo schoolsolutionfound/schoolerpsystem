@@ -7,18 +7,19 @@ export interface LibraryCategory {
   institutionCode: string;
   name: string;
   description?: string | null;
-  parentCategoryId?: string | null;
-  createdAt: string;
-  updatedAt: string;
+  parentId?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  bookCount?: number;
 }
 
 export interface LibraryAuthor {
   id: string;
   institutionCode: string;
   name: string;
-  biography?: string | null;
-  createdAt: string;
-  updatedAt: string;
+  bio?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface LibraryBook {
@@ -26,22 +27,23 @@ export interface LibraryBook {
   institutionCode: string;
   title: string;
   isbn: string;
-  authors?: string | null;
   publisher?: string | null;
-  publicationYear?: number | null;
-  categoryId?: string | null;
-  description?: string | null;
-  coverImage?: string | null;
-  language?: string | null;
-  subject?: string | null;
   edition?: string | null;
-  pages?: number | null;
-  shelfLocation?: string | null;
-  bookType?: string | null;
-  totalCopies: number;
-  availableCopies: number;
-  createdAt: string;
-  updatedAt: string;
+  publicationYear?: number | null;
+  language: string;
+  categoryId: string;
+  subject?: string | null;
+  description?: string | null;
+  bookType: string;
+  coverImage?: string | null;
+  keywords?: string[] | null;
+  authorIds?: string[] | null;
+  totalCopies?: number;
+  availableCopies?: number;
+  category?: LibraryCategory | null;
+  copies?: LibraryBookCopy[];
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface LibraryBookCopy {
@@ -49,64 +51,90 @@ export interface LibraryBookCopy {
   institutionCode: string;
   bookId: string;
   accessionNumber: string;
-  barcode?: string | null;
-  condition: string;
+  barcode: string;
+  rack?: string | null;
+  shelf?: string | null;
   status: string;
-  purchaseDate?: string | null;
-  price?: string | null;
-  vendor?: string | null;
-  notes?: string | null;
-  createdAt: string;
-  updatedAt: string;
+  condition: string;
+  addedAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface LibraryLoan {
   id: string;
   institutionCode: string;
-  bookId: string;
   copyId: string;
+  bookId: string;
   studentId: string;
   issuedBy: string;
-  issuedAt: string;
+  issueDate: string;
   dueDate: string;
-  returnedAt?: string | null;
-  renewalCount: number;
+  returnDate?: string | null;
   status: string;
-  notes?: string | null;
-  createdAt: string;
-  updatedAt: string;
+  renewalCount: number;
+  createdAt?: string;
+  updatedAt?: string;
+  // Joined fields from list endpoint
+  bookTitle?: string;
+  accessionNumber?: string;
+  barcode?: string;
+  studentName?: string;
+  admissionNo?: string;
+  classSection?: string;
 }
 
 export interface LibraryFine {
   id: string;
   institutionCode: string;
   loanId?: string | null;
-  copyId?: string | null;
+  bookCopyId?: string | null;
   studentId: string;
   fineType: string;
-  amount: string;
-  paidAmount: string;
+  damageType?: string | null;
+  damageNotes?: string | null;
+  amount: number | string;
+  paidAmount: number | string;
   status: string;
-  reason?: string | null;
   waivedBy?: string | null;
   waivedReason?: string | null;
-  dueDate?: string | null;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
+  // Joined fields from list endpoint
+  studentName?: string;
+  admissionNo?: string;
+  classSection?: string;
+  accessionNumber?: string;
+  bookTitle?: string;
+  paymentTransactions?: LibraryPaymentTransaction[];
 }
 
 export interface LibraryPaymentTransaction {
   id: string;
   institutionCode: string;
   fineId: string;
-  studentId: string;
-  amount: string;
-  paymentMode: string;
+  receiptNo: string;
+  amount: number | string;
+  paymentMethod: string;
+  cashTendered?: number | string | null;
+  changeReturned?: number | string | null;
   transactionRef?: string | null;
-  notes?: string | null;
-  paidAt: string;
-  recordedBy: string;
-  createdAt: string;
+  scannedQrPayload?: string | null;
+  paidAt?: string;
+  cashier?: string | null;
+  createdAt?: string;
+}
+
+export interface LibraryReservation {
+  id: string;
+  institutionCode: string;
+  bookId: string;
+  studentId: string;
+  status: string;
+  reservedAt?: string;
+  expiresAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface LibraryPYQ {
@@ -115,14 +143,16 @@ export interface LibraryPYQ {
   title: string;
   subject: string;
   academicYear: string;
-  classGrade?: string | null;
-  examType?: string | null;
-  fileUrl: string;
-  fileSize?: string | null;
-  uploadedBy: string;
+  examType: string;
+  classGrade: string;
+  totalMarks: number;
+  durationMinutes: number;
+  fileUrl?: string | null;
   downloadsCount: number;
-  uploadedAt: string;
-  updatedAt: string;
+  uploadedBy: string;
+  uploadedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface LibrarySettings {
@@ -131,32 +161,41 @@ export interface LibrarySettings {
   borrowingLimit: number;
   loanPeriodDays: number;
   gracePeriodDays: number;
-  finePerDay: string;
-  maxFine: string;
+  finePerDay: number;
+  maxFine: number;
   renewalLimit: number;
   allowReservation: boolean;
-  lostBookPenalty: string;
-  damagedBookPenalty: string;
+  lostBookPenalty: number;
+  damagedBookPenalty: number;
   reservationExpiryDays: number;
-  unpaidFineLockThreshold: string;
-  openingHours: string;
-  closingHours: string;
+  unpaidFineLockThreshold: number;
+  openingHours?: string | null;
+  closingHours?: string | null;
   openOnWeekends: boolean;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface LibraryMember {
   id: string;
   fullName: string;
-  admissionNo?: string;
-  email?: string;
-  phone?: string;
-  profilePicUrl?: string;
-  classSection?: string;
-  createdAt?: string;
+  admissionNo?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  profilePicUrl?: string | null;
+  classSection?: string | null;
   activeLoansCount?: number;
-  totalUnpaidFine?: number;
+  institutionCode?: string;
+  createdAt?: string;
+}
+
+export interface LibraryMemberDetails {
+  member: LibraryMember;
+  activeLoansCount: number;
+  totalLoansCount: number;
+  loans: LibraryLoan[];
+  fines: LibraryFine[];
+  reservations: LibraryReservation[];
 }
 
 export interface LibraryDashboardStats {
@@ -166,17 +205,19 @@ export interface LibraryDashboardStats {
   issuedCopies: number;
   activeLoans: number;
   overdueLoans: number;
-  totalFinesAmount: number;
-  unpaidFinesAmount: number;
+  totalMembers: number;
+  totalFinesCollected: number;
+  totalFinesOutstanding: number;
   recentLoans: LibraryLoan[];
-  recentFines: LibraryFine[];
 }
 
-export interface LibraryReportStats extends LibraryDashboardStats {}
+export type LibraryReportStats = LibraryDashboardStats;
 
 export interface PaginatedResult<T> {
   items: T[];
   total: number;
+  limit?: number;
+  offset?: number;
 }
 
 // ==================== QUERY & PAYLOAD INTERFACES ====================
@@ -193,18 +234,17 @@ export interface BookFilters {
 export interface CreateBookPayload {
   title: string;
   isbn: string;
-  authors?: string;
   publisher?: string;
-  publicationYear?: number;
-  categoryId?: string;
-  description?: string;
-  coverImage?: string;
-  language?: string;
-  subject?: string;
   edition?: string;
-  pages?: number;
-  shelfLocation?: string;
+  publicationYear?: number;
+  language?: string;
+  categoryId: string;
+  subject?: string;
+  description?: string;
   bookType?: string;
+  coverImage?: string;
+  keywords?: string[];
+  authorIds?: string[];
   totalCopies?: number;
 }
 
@@ -213,25 +253,23 @@ export type UpdateBookPayload = Partial<CreateBookPayload>;
 export interface CreateCategoryPayload {
   name: string;
   description?: string;
-  parentCategoryId?: string;
+  parentId?: string | null;
 }
 
 export type UpdateCategoryPayload = Partial<CreateCategoryPayload>;
 
 export interface CreateAuthorPayload {
   name: string;
-  biography?: string;
+  bio?: string;
 }
 
 export interface CreateCopyPayload {
   accessionNumber: string;
-  barcode?: string;
-  condition?: string;
+  barcode: string;
+  rack?: string;
+  shelf?: string;
   status?: string;
-  purchaseDate?: string;
-  price?: string;
-  vendor?: string;
-  notes?: string;
+  condition?: string;
 }
 
 export type UpdateCopyPayload = Partial<CreateCopyPayload>;
@@ -248,19 +286,21 @@ export interface LoanFilters {
 
 export interface IssueBookPayload {
   bookId: string;
-  bookCopyId: string;
+  copyId: string;
   studentId: string;
+  issueDate?: string;
   dueDate?: string;
-  notes?: string;
+  customDays?: number;
 }
 
 export interface ReturnBookPayload {
-  returnCondition?: string;
-  notes?: string;
+  copyId?: string;
+  condition?: string;
+  returnDate?: string;
 }
 
 export interface RenewLoanPayload {
-  notes?: string;
+  customDays?: number;
 }
 
 export interface FineFilters {
@@ -274,22 +314,26 @@ export interface FineFilters {
 
 export interface PayFinePayload {
   amount: number;
-  paymentMode?: string;
+  paymentMethod: string; // 'CASH' | 'CARD' | 'UPI_ONLINE' | 'DIGITAL_WALLET' | 'SCANNER_QR'
+  cashTendered?: number;
+  changeReturned?: number;
   transactionRef?: string;
-  notes?: string;
+  scannedQrPayload?: string;
 }
 
 export interface WaiveFinePayload {
   reason: string;
+  remarks: string;
 }
 
 export interface CreateDamageFinePayload {
   studentId: string;
   bookCopyId?: string;
-  loanId?: string;
-  fineType: 'DAMAGE' | 'LOST';
+  damageType: string; // TORN_PAGES | WATER_DAMAGE | ...
   amount: number;
-  reason: string;
+  damageNotes: string;
+  copyCondition?: string;
+  copyStatus?: string;
 }
 
 export interface PYQFilters {
@@ -306,16 +350,33 @@ export interface CreatePYQPayload {
   title: string;
   subject: string;
   academicYear: string;
-  classGrade?: string;
-  examType?: string;
-  fileUrl: string;
-  fileSize?: string;
+  examType: string;
+  classGrade: string;
+  totalMarks?: number;
+  durationMinutes?: number;
+  fileUrl?: string;
 }
 
-export type UpdateLibrarySettingsPayload = Partial<Omit<LibrarySettings, 'id' | 'institutionCode' | 'createdAt' | 'updatedAt'>>;
+export type UpdateLibrarySettingsPayload = Partial<{
+  borrowingLimit: number;
+  loanPeriodDays: number;
+  gracePeriodDays: number;
+  finePerDay: number;
+  maxFine: number;
+  renewalLimit: number;
+  allowReservation: boolean;
+  lostBookPenalty: number;
+  damagedBookPenalty: number;
+  reservationExpiryDays: number;
+  unpaidFineLockThreshold: number;
+  openingHours: string;
+  closingHours: string;
+  openOnWeekends: boolean;
+}>;
 
 export interface MemberFilters {
   search?: string;
+  classSection?: string;
   limit?: number;
   offset?: number;
 }
@@ -456,8 +517,8 @@ export async function issueBookApi(payload: IssueBookPayload): Promise<LibraryLo
 export async function returnBookApi(
   id: string,
   payload?: ReturnBookPayload
-): Promise<{ loan: LibraryLoan; fineCreated: boolean; fineAmount: number }> {
-  return apiClient<{ loan: LibraryLoan; fineCreated: boolean; fineAmount: number }>(`/library/loans/${id}/return`, {
+): Promise<{ loan: LibraryLoan; fine: LibraryFine | null; fineAmount: number }> {
+  return apiClient<{ loan: LibraryLoan; fine: LibraryFine | null; fineAmount: number }>(`/library/loans/${id}/return`, {
     method: 'POST',
     body: JSON.stringify(payload || {}),
   });
@@ -501,8 +562,8 @@ export async function waiveFineApi(id: string, payload: WaiveFinePayload): Promi
   });
 }
 
-export async function createDamageFineApi(payload: CreateDamageFinePayload): Promise<LibraryFine> {
-  return apiClient<LibraryFine>('/library/fines/damage', {
+export async function createDamageFineApi(payload: CreateDamageFinePayload): Promise<{ fine: LibraryFine; copy: LibraryBookCopy | null }> {
+  return apiClient<{ fine: LibraryFine; copy: LibraryBookCopy | null }>('/library/fines/damage', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -539,6 +600,7 @@ export async function deletePYQApi(id: string): Promise<{ message: string }> {
 export async function trackPYQDownloadApi(id: string): Promise<LibraryPYQ> {
   return apiClient<LibraryPYQ>(`/library/pyqs/${id}/download`, {
     method: 'POST',
+    body: JSON.stringify({}),
   });
 }
 
@@ -560,24 +622,15 @@ export async function updateLibrarySettingsApi(payload: UpdateLibrarySettingsPay
 export async function getMembersApi(filters?: MemberFilters): Promise<PaginatedResult<LibraryMember>> {
   const qs = new URLSearchParams();
   if (filters?.search) qs.set('search', filters.search);
+  if (filters?.classSection) qs.set('classSection', filters.classSection);
   if (filters?.limit) qs.set('limit', String(filters.limit));
   if (filters?.offset) qs.set('offset', String(filters.offset));
   const q = qs.toString();
   return apiClient<PaginatedResult<LibraryMember>>(`/library/members${q ? `?${q}` : ''}`);
 }
 
-export async function getMemberApi(id: string): Promise<{
-  member: LibraryMember;
-  activeLoans: LibraryLoan[];
-  borrowingHistory: LibraryLoan[];
-  fines: LibraryFine[];
-}> {
-  return apiClient<{
-    member: LibraryMember;
-    activeLoans: LibraryLoan[];
-    borrowingHistory: LibraryLoan[];
-    fines: LibraryFine[];
-  }>(`/library/members/${id}`);
+export async function getMemberApi(id: string): Promise<LibraryMemberDetails> {
+  return apiClient<LibraryMemberDetails>(`/library/members/${id}`);
 }
 
 // ==================== DASHBOARD & REPORT APIS ====================

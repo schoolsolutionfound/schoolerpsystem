@@ -20,10 +20,7 @@ import { useUserStore } from '../../store/useUserStore';
 import {
   Book,
   BookCopy,
-  Category,
-  Author,
   QuestionPaper,
-  Loan,
   Fine,
   LibrarySettings,
   StudentProfile,
@@ -47,7 +44,7 @@ import {
 import { Feather, MaterialCommunityIcons } from '../../features/librarian/components/common/Icons';
 
 // Components
-import { LibrarianSidebar, SidebarContent } from '../../features/librarian/components/layout/LibrarianSidebar';
+import { SidebarContent } from '../../features/librarian/components/layout/LibrarianSidebar';
 import { LibrarianHeader } from '../../features/librarian/components/layout/LibrarianHeader';
 import { LibrarianDashboardView } from '../../features/librarian/components/dashboard/LibrarianDashboardView';
 import { CategoriesView } from '../../features/librarian/components/categories/CategoriesView';
@@ -88,7 +85,7 @@ export default function LibrarianHomeScreen() {
   const { categories } = useLibraryCategories();
   const { authors } = useLibraryAuthors();
   const { loans, issueBook, returnBook, renewLoan, refetch: refetchLoans } = useLibraryLoans();
-  const { fines, payFine, waiveFine, createDamageFine, refetch: refetchFines } = useLibraryFines();
+  const { fines, waiveFine, createDamageFine, refetch: refetchFines } = useLibraryFines();
   const { members: students, refetch: refetchMembers } = useLibraryMembers();
   const { pyqs: questionPapers, createPYQ, deletePYQ: deletePYQApi, trackDownload, refetch: refetchPYQs } = useLibraryPYQs();
   const { settings: apiSettings, updateSettings } = useLibrarySettings();
@@ -253,6 +250,7 @@ export default function LibrarianHomeScreen() {
                   loans={loans}
                   students={students}
                   fines={fines}
+                  stats={dashboardStats}
                   onNavigate={(tab) => setActiveTab(tab)}
                   onAddBook={() => {
                     setEditingBook(null);
@@ -320,14 +318,9 @@ export default function LibrarianHomeScreen() {
                   loans={loans}
                   fines={fines}
                   settings={settings}
-                  onIssueSuccess={async (newLoan: Loan, copyId: string) => {
+                  onIssueSuccess={async (payload: { bookId: string; copyId: string; studentId: string; issueDate?: string; dueDate?: string; customDays?: number }) => {
                     try {
-                      await issueBook({
-                        bookId: newLoan.bookId,
-                        bookCopyId: copyId,
-                        studentId: newLoan.studentId,
-                        dueDate: newLoan.dueDate,
-                      });
+                      await issueBook(payload);
                       refetchBooks();
                       refetchDashboard();
                       Alert.alert('Book Issued', 'Successfully issued book to member.');
@@ -335,14 +328,14 @@ export default function LibrarianHomeScreen() {
                       Alert.alert('Error', err?.message || 'Failed to issue book.');
                     }
                   }}
-                  onReturnSuccess={async (loanId: string, copyId: string, newFine?: Fine) => {
+                  onReturnSuccess={async (loanId: string) => {
                     try {
                       const res = await returnBook(loanId);
                       refetchBooks();
                       refetchFines();
                       refetchDashboard();
-                      if (res.fineCreated) {
-                        Alert.alert('Book Returned', `Book returned successfully. An overdue fine of $${res.fineAmount.toFixed(2)} was generated.`);
+                      if (res.fine && res.fineAmount > 0) {
+                        Alert.alert('Book Returned', `Book returned successfully. An overdue fine of ₹${res.fineAmount.toFixed(2)} was generated.`);
                       } else {
                         Alert.alert('Book Returned', 'Book returned successfully with zero fines.');
                       }
@@ -350,10 +343,11 @@ export default function LibrarianHomeScreen() {
                       Alert.alert('Error', err?.message || 'Failed to return book.');
                     }
                   }}
-                  onRenewSuccess={async (loanId: string, newDueDate: string) => {
+                  onRenewSuccess={async (loanId: string) => {
                     try {
                       await renewLoan(loanId);
-                      Alert.alert('Loan Renewed', `Loan extended until ${newDueDate}.`);
+                      refetchLoans();
+                      Alert.alert('Loan Renewed', 'Loan successfully renewed.');
                     } catch (err: any) {
                       Alert.alert('Error', err?.message || 'Failed to renew loan.');
                     }
@@ -595,6 +589,7 @@ export default function LibrarianHomeScreen() {
 
         {/* Pay Fine Modal */}
         <PayFineModal
+          key={payFineModalOpen && selectedFine ? `pay-${selectedFine.id}` : 'pay-closed'}
           visible={payFineModalOpen}
           fine={selectedFine}
           students={students}
@@ -615,6 +610,7 @@ export default function LibrarianHomeScreen() {
 
         {/* Waive Fine Modal */}
         <WaiveFineModal
+          key={waiveFineModalOpen && selectedFine ? `waive-${selectedFine.id}` : 'waive-closed'}
           visible={waiveFineModalOpen}
           fine={selectedFine}
           students={students}
@@ -624,7 +620,10 @@ export default function LibrarianHomeScreen() {
           }}
           onWaiveSuccess={async (waivedFine: Fine) => {
             try {
-              await waiveFine(waivedFine.id, { reason: waivedFine.waivedReason || 'Discretionary Waiver' });
+              await waiveFine(waivedFine.id, {
+                reason: waivedFine.waivedReason || 'Discretionary Waiver',
+                remarks: waivedFine.waivedReason || 'Approved by library staff',
+              });
               await refetchFines();
               await refetchDashboard();
               setWaiveFineModalOpen(false);
@@ -640,6 +639,7 @@ export default function LibrarianHomeScreen() {
 
         {/* Damage Fine Assessment Modal */}
         <DamageFineModal
+          key={damageFineModalOpen ? 'dmg-open' : 'dmg-closed'}
           visible={damageFineModalOpen}
           students={students}
           copies={copies}
@@ -651,10 +651,9 @@ export default function LibrarianHomeScreen() {
               await createDamageFine({
                 studentId: newFine.studentId,
                 bookCopyId: newFine.bookCopyId || undefined,
-                loanId: newFine.loanId || undefined,
-                fineType: (newFine.fineType as 'DAMAGE' | 'LOST') || 'DAMAGE',
+                damageType: (newFine.damageType as string) || 'GENERAL_WEAR',
                 amount: newFine.amount,
-                reason: newFine.damageNotes || 'Book Damage',
+                damageNotes: newFine.damageNotes || 'Book Damage',
               });
               await refetchFines();
               await refetchBooks();

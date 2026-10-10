@@ -11,12 +11,26 @@ import {
 import { MaterialCommunityIcons, Feather } from '../common/Icons';
 import { Book, BookCopy, Loan, StudentProfile, Fine } from '../../types';
 
+export interface LibrarianDashboardStats {
+  totalBooks: number;
+  totalCopies: number;
+  availableCopies: number;
+  issuedCopies: number;
+  activeLoans: number;
+  overdueLoans: number;
+  totalMembers: number;
+  totalFinesCollected: number;
+  totalFinesOutstanding: number;
+  recentLoans: any[];
+}
+
 export interface LibrarianDashboardViewProps {
   books: Book[];
   copies: BookCopy[];
   loans: Loan[];
   students: StudentProfile[];
   fines: Fine[];
+  stats: LibrarianDashboardStats | null;
   onNavigate: (tab: string) => void;
   onAddBook: () => void;
 }
@@ -27,11 +41,15 @@ export const LibrarianDashboardView: React.FC<LibrarianDashboardViewProps> = ({
   loans,
   students,
   fines,
+  stats,
   onNavigate,
   onAddBook,
 }) => {
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
+
+  const today = new Date();
+  const dateTitle = today.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' });
 
   return (
     <ScrollView
@@ -48,7 +66,7 @@ export const LibrarianDashboardView: React.FC<LibrarianDashboardViewProps> = ({
         <View style={dashStyles.dateBox}>
           <Feather name="calendar" size={16} color="#374151" />
           <View>
-            <Text style={dashStyles.dateTitle}>Monday, 19 Sep 2026</Text>
+            <Text style={dashStyles.dateTitle}>{dateTitle}</Text>
             <Text style={dashStyles.dateSub}>Have a productive day!</Text>
           </View>
         </View>
@@ -62,7 +80,7 @@ export const LibrarianDashboardView: React.FC<LibrarianDashboardViewProps> = ({
           </Text>
           <Text style={dashStyles.heroTagline}>Organize. Share. Inspire.</Text>
           <View style={dashStyles.quotePill}>
-            <Text style={dashStyles.quoteText}>“A library is a universe of possibilities.”</Text>
+            <Text style={dashStyles.quoteText}>&ldquo;A library is a universe of possibilities.&rdquo;</Text>
           </View>
         </View>
         <View style={[dashStyles.heroRight, isMobile && { width: '100%', height: 130 }]}>
@@ -88,7 +106,7 @@ export const LibrarianDashboardView: React.FC<LibrarianDashboardViewProps> = ({
               Total Books
             </Text>
           </View>
-          <Text style={dashStyles.statVal}>12,460</Text>
+          <Text style={dashStyles.statVal}>{stats?.totalBooks?.toLocaleString() ?? '0'}</Text>
           <Text style={dashStyles.statGrowthPositive}>
             ▲ +2.5% <Text style={{ color: '#6B7280', fontWeight: '400' }}>from last month</Text>
           </Text>
@@ -104,7 +122,7 @@ export const LibrarianDashboardView: React.FC<LibrarianDashboardViewProps> = ({
               Reg. Members
             </Text>
           </View>
-          <Text style={dashStyles.statVal}>1,238</Text>
+          <Text style={dashStyles.statVal}>{stats?.totalMembers?.toLocaleString() ?? '0'}</Text>
           <Text style={dashStyles.statGrowthPositive}>
             ▲ +4.1% <Text style={{ color: '#6B7280', fontWeight: '400' }}>from last month</Text>
           </Text>
@@ -120,7 +138,7 @@ export const LibrarianDashboardView: React.FC<LibrarianDashboardViewProps> = ({
               Books Issued
             </Text>
           </View>
-          <Text style={dashStyles.statVal}>386</Text>
+          <Text style={dashStyles.statVal}>{stats?.activeLoans?.toLocaleString() ?? '0'}</Text>
           <Text style={dashStyles.statGrowthPositive}>
             ▲ +12% <Text style={{ color: '#6B7280', fontWeight: '400' }}>this month</Text>
           </Text>
@@ -136,7 +154,7 @@ export const LibrarianDashboardView: React.FC<LibrarianDashboardViewProps> = ({
               Books Overdue
             </Text>
           </View>
-          <Text style={dashStyles.statVal}>28</Text>
+          <Text style={dashStyles.statVal}>{stats?.overdueLoans?.toLocaleString() ?? '0'}</Text>
           <Text style={dashStyles.statGrowthNegative}>
             ▲ +3 <Text style={{ color: '#DC2626', fontStyle: 'italic' }}>attention</Text>
           </Text>
@@ -350,7 +368,7 @@ export const LibrarianDashboardView: React.FC<LibrarianDashboardViewProps> = ({
 
       {/* 7. Today's Reminders Section */}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 24, marginBottom: 12 }}>
-        <Text style={dashStyles.cardBoxTitle}>Today's Reminders</Text>
+        <Text style={dashStyles.cardBoxTitle}>Today&apos;s Reminders</Text>
         <TouchableOpacity>
           <Text style={dashStyles.viewAllBtn}>View All ›</Text>
         </TouchableOpacity>

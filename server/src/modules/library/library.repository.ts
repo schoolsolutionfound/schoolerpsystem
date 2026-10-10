@@ -1,4 +1,4 @@
-import { eq, and, desc, sql, ilike, inArray, count, sum } from 'drizzle-orm';
+import { eq, and, desc, sql, ilike, inArray, count, sum, lt, or } from 'drizzle-orm';
 import { db } from '../shared/db/index.js';
 import {
   libraryCategories,
@@ -12,6 +12,8 @@ import {
   libraryQuestionPapers,
   librarySettings,
   users,
+  studentClasses,
+  classSections,
   LibraryCategoryRecord,
   NewLibraryCategoryRecord,
   LibraryAuthorRecord,
@@ -88,6 +90,20 @@ export class LibraryRepository {
   public async countBooksByCategoryId(categoryId: string): Promise<number> {
     const [res] = await this.getDb().select({ count: count() }).from(libraryBooks).where(eq(libraryBooks.categoryId, categoryId));
     return Number(res?.count || 0);
+  }
+
+  /** One GROUP BY query: book counts per category for an institution. */
+  public async countBooksByCategory(institutionCode: string): Promise<Map<string, number>> {
+    const rows = await this.getDb()
+      .select({ categoryId: libraryBooks.categoryId, cnt: count() })
+      .from(libraryBooks)
+      .where(eq(libraryBooks.institutionCode, institutionCode))
+      .groupBy(libraryBooks.categoryId);
+    const map = new Map<string, number>();
+    for (const r of rows) {
+      if (r.categoryId) map.set(r.categoryId, Number(r.cnt));
+    }
+    return map;
   }
 
   // ==================== AUTHORS ====================
@@ -266,32 +282,105 @@ export class LibraryRepository {
 
   // ==================== LOANS ====================
 
+  /**
+   * Lazily flip ACTIVE loans past their due date to OVERDUE so status
+   * filters, dashboard counts and lists stay truthful without a cron job.
+   */
+  public async syncOverdueLoans(institutionCode: string): Promise<void> {
+    await this.getDb()
+      .update(libraryLoans)
+      .set({ status: 'OVERDUE', updatedAt: new Date() })
+      .where(
+        and(
+          eq(libraryLoans.institutionCode, institutionCode),
+          eq(libraryLoans.status, 'ACTIVE'),
+          lt(libraryLoans.dueDate, sql`CURRENT_DATE`)
+        )
+      );
+  }
+
+  /**
+   * Loans joined with book / copy / member (+ real class section) in a
+   * single query. Search spans book title/ISBN, member name/admission no
+   * and accession number.
+   */
   public async listLoans(
     institutionCode: string,
     filters?: { search?: string; studentId?: string; bookId?: string; copyId?: string; status?: string },
     opts?: { limit?: number; offset?: number }
-  ): Promise<{ items: LibraryLoanRecord[]; total: number }> {
+  ): Promise<{ items: any[]; total: number }> {
     const conditions = [eq(libraryLoans.institutionCode, institutionCode)];
 
     if (filters?.studentId) conditions.push(eq(libraryLoans.studentId, filters.studentId));
     if (filters?.bookId) conditions.push(eq(libraryLoans.bookId, filters.bookId));
     if (filters?.copyId) conditions.push(eq(libraryLoans.copyId, filters.copyId));
-    if (filters?.status) conditions.push(eq(libraryLoans.status, filters.status));
+    if (filters?.status === 'OVERDUE') {
+      // OVERDUE includes not-yet-flipped ACTIVE loans past due.
+      conditions.push(
+        or(
+          eq(libraryLoans.status, 'OVERDUE'),
+          and(eq(libraryLoans.status, 'ACTIVE'), lt(libraryLoans.dueDate, sql`CURRENT_DATE`))
+        )!
+      );
+    } else if (filters?.status) {
+      conditions.push(eq(libraryLoans.status, filters.status));
+    }
+    if (filters?.search && filters.search.trim()) {
+      const q = `%${filters.search.trim()}%`;
+      conditions.push(
+        sql`(${libraryBooks.title} ILIKE ${q} OR ${libraryBooks.isbn} ILIKE ${q} OR ${users.fullName} ILIKE ${q} OR ${users.rollNoOrUSN} ILIKE ${q} OR ${libraryBookCopies.accessionNumber} ILIKE ${q})`
+      );
+    }
 
     const whereClause = and(...conditions);
-    const [{ totalCount }] = await this.getDb().select({ totalCount: count() }).from(libraryLoans).where(whereClause);
 
-    let query = this.getDb()
-      .select()
+    const baseQuery = this.getDb()
+      .select({
+        loan: libraryLoans,
+        bookTitle: libraryBooks.title,
+        bookIsbn: libraryBooks.isbn,
+        accessionNumber: libraryBookCopies.accessionNumber,
+        barcode: libraryBookCopies.barcode,
+        studentName: users.fullName,
+        admissionNo: users.rollNoOrUSN,
+        classSectionName: classSections.name,
+      })
       .from(libraryLoans)
-      .where(whereClause)
-      .orderBy(desc(libraryLoans.createdAt));
+      .leftJoin(libraryBooks, eq(libraryLoans.bookId, libraryBooks.id))
+      .leftJoin(libraryBookCopies, eq(libraryLoans.copyId, libraryBookCopies.id))
+      .leftJoin(users, eq(libraryLoans.studentId, users.id))
+      .leftJoin(studentClasses, and(eq(studentClasses.studentId, users.id), eq(studentClasses.isActive, true)))
+      .leftJoin(classSections, eq(studentClasses.classSectionId, classSections.id));
 
+    const [{ totalCount }] = await this.getDb()
+      .select({ totalCount: count() })
+      .from(libraryLoans)
+      .leftJoin(libraryBooks, eq(libraryLoans.bookId, libraryBooks.id))
+      .leftJoin(libraryBookCopies, eq(libraryLoans.copyId, libraryBookCopies.id))
+      .leftJoin(users, eq(libraryLoans.studentId, users.id))
+      .where(whereClause);
+
+    let query = baseQuery.where(whereClause).orderBy(desc(libraryLoans.createdAt));
     if (opts?.limit) query = query.limit(opts.limit) as any;
     if (opts?.offset) query = query.offset(opts.offset) as any;
 
-    const items = await query;
+    const rows: any[] = await query;
+    const items = rows.map((r: any) => ({
+      ...r.loan,
+      bookTitle: r.bookTitle || 'Unknown Title',
+      accessionNumber: r.accessionNumber || '—',
+      barcode: r.barcode || '—',
+      studentName: r.studentName || 'Unknown Member',
+      admissionNo: r.admissionNo || '—',
+      classSection: r.classSectionName || '—',
+    }));
     return { items, total: Number(totalCount || 0) };
+  }
+
+  /** Any loan history (any status) for a copy — used to protect ledger integrity on delete. */
+  public async countLoansByCopyId(copyId: string): Promise<number> {
+    const [res] = await this.getDb().select({ cnt: count() }).from(libraryLoans).where(eq(libraryLoans.copyId, copyId));
+    return Number(res?.cnt || 0);
   }
 
   public async getLoanById(id: string): Promise<LibraryLoanRecord | undefined> {
@@ -333,11 +422,13 @@ export class LibraryRepository {
 
   // ==================== RESERVATIONS ====================
 
-  public async listReservations(institutionCode: string): Promise<LibraryReservationRecord[]> {
+  public async listReservations(institutionCode: string, studentId?: string): Promise<LibraryReservationRecord[]> {
+    const conditions = [eq(libraryReservations.institutionCode, institutionCode)];
+    if (studentId) conditions.push(eq(libraryReservations.studentId, studentId));
     return this.getDb()
       .select()
       .from(libraryReservations)
-      .where(eq(libraryReservations.institutionCode, institutionCode))
+      .where(and(...conditions))
       .orderBy(desc(libraryReservations.reservedAt));
   }
 
@@ -362,31 +453,115 @@ export class LibraryRepository {
 
   // ==================== FINES ====================
 
+  /**
+   * Fines joined with member / copy / book in one query. Search spans
+   * member name, admission no and book title.
+   */
   public async listFines(
     institutionCode: string,
     filters?: { search?: string; studentId?: string; status?: string; fineType?: string },
     opts?: { limit?: number; offset?: number }
-  ): Promise<{ items: LibraryFineRecord[]; total: number }> {
+  ): Promise<{ items: any[]; total: number }> {
     const conditions = [eq(libraryFines.institutionCode, institutionCode)];
 
     if (filters?.studentId) conditions.push(eq(libraryFines.studentId, filters.studentId));
     if (filters?.status) conditions.push(eq(libraryFines.status, filters.status));
     if (filters?.fineType) conditions.push(eq(libraryFines.fineType, filters.fineType));
+    if (filters?.search && filters.search.trim()) {
+      const q = `%${filters.search.trim()}%`;
+      conditions.push(
+        sql`(${users.fullName} ILIKE ${q} OR ${users.rollNoOrUSN} ILIKE ${q} OR ${libraryBooks.title} ILIKE ${q} OR ${libraryBookCopies.accessionNumber} ILIKE ${q})`
+      );
+    }
 
     const whereClause = and(...conditions);
-    const [{ totalCount }] = await this.getDb().select({ totalCount: count() }).from(libraryFines).where(whereClause);
 
-    let query = this.getDb()
-      .select()
+    const baseQuery = this.getDb()
+      .select({
+        fine: libraryFines,
+        studentName: users.fullName,
+        admissionNo: users.rollNoOrUSN,
+        classSectionName: classSections.name,
+        accessionNumber: libraryBookCopies.accessionNumber,
+        bookTitle: libraryBooks.title,
+      })
       .from(libraryFines)
-      .where(whereClause)
-      .orderBy(desc(libraryFines.createdAt));
+      .leftJoin(users, eq(libraryFines.studentId, users.id))
+      .leftJoin(studentClasses, and(eq(studentClasses.studentId, users.id), eq(studentClasses.isActive, true)))
+      .leftJoin(classSections, eq(studentClasses.classSectionId, classSections.id))
+      .leftJoin(libraryBookCopies, eq(libraryFines.bookCopyId, libraryBookCopies.id))
+      .leftJoin(libraryBooks, eq(libraryBookCopies.bookId, libraryBooks.id));
 
+    const [{ totalCount }] = await this.getDb()
+      .select({ totalCount: count() })
+      .from(libraryFines)
+      .leftJoin(users, eq(libraryFines.studentId, users.id))
+      .leftJoin(libraryBookCopies, eq(libraryFines.bookCopyId, libraryBookCopies.id))
+      .leftJoin(libraryBooks, eq(libraryBookCopies.bookId, libraryBooks.id))
+      .where(whereClause);
+
+    let query = baseQuery.where(whereClause).orderBy(desc(libraryFines.createdAt));
     if (opts?.limit) query = query.limit(opts.limit) as any;
     if (opts?.offset) query = query.offset(opts.offset) as any;
 
-    const items = await query;
+    const rows: any[] = await query;
+
+    // One extra query for the whole page of transactions (not N+1).
+    const fineIds = rows.map((r: any) => r.fine.id);
+    const txns = fineIds.length
+      ? await this.getDb()
+          .select()
+          .from(libraryPaymentTransactions)
+          .where(inArray(libraryPaymentTransactions.fineId, fineIds))
+          .orderBy(desc(libraryPaymentTransactions.paidAt))
+      : [];
+
+    const txnsByFine = new Map<string, LibraryPaymentTransactionRecord[]>();
+    for (const t of txns) {
+      const list = txnsByFine.get(t.fineId) || [];
+      list.push(t);
+      txnsByFine.set(t.fineId, list);
+    }
+
+    const items = rows.map((r: any) => ({
+      ...r.fine,
+      amount: parseFloat(String(r.fine.amount)),
+      paidAmount: parseFloat(String(r.fine.paidAmount)),
+      studentName: r.studentName || 'Unknown Member',
+      admissionNo: r.admissionNo || '—',
+      classSection: r.classSectionName || '—',
+      accessionNumber: r.accessionNumber || undefined,
+      bookTitle: r.bookTitle || undefined,
+      paymentTransactions: (txnsByFine.get(r.fine.id) || []).map((t) => ({
+        ...t,
+        amount: parseFloat(String(t.amount)),
+        cashTendered: t.cashTendered ? parseFloat(String(t.cashTendered)) : undefined,
+        changeReturned: t.changeReturned ? parseFloat(String(t.changeReturned)) : undefined,
+      })),
+    }));
     return { items, total: Number(totalCount || 0) };
+  }
+
+  /**
+   * Atomically credit a fine payment via SQL increment with a status guard,
+   * so two concurrent payments cannot over-credit or double-close a fine.
+   */
+  public async applyFinePayment(
+    fineId: string,
+    amount: number,
+    txRunner?: any
+  ): Promise<LibraryFineRecord | undefined> {
+    const executor = this.getDb(txRunner);
+    const [updated] = await executor
+      .update(libraryFines)
+      .set({
+        paidAmount: sql`ROUND((${libraryFines.paidAmount} + ${String(amount)})::numeric, 2)`,
+        status: sql`CASE WHEN (${libraryFines.paidAmount} + ${String(amount)}) >= ${libraryFines.amount} - 0.01 THEN 'PAID' ELSE 'PARTIALLY_PAID' END`,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(libraryFines.id, fineId), inArray(libraryFines.status, ['UNPAID', 'PARTIALLY_PAID'])))
+      .returning();
+    return updated;
   }
 
   public async getFineById(id: string): Promise<LibraryFineRecord | undefined> {
@@ -545,9 +720,13 @@ export class LibraryRepository {
 
   // ==================== MEMBERS (USERS TABLE) ====================
 
+  /**
+   * Students joined with their active class section (NOT institutionType,
+   * which is a different field). Supports classSection + search filters.
+   */
   public async listMembers(
     institutionCode: string,
-    filters?: { search?: string },
+    filters?: { search?: string; classSection?: string },
     opts?: { limit?: number; offset?: number }
   ): Promise<{ items: any[]; total: number }> {
     const conditions = [
@@ -561,11 +740,13 @@ export class LibraryRepository {
         sql`(${users.fullName} ILIKE ${q} OR ${users.email} ILIKE ${q} OR ${users.rollNoOrUSN} ILIKE ${q})`
       );
     }
+    if (filters?.classSection && filters.classSection.trim()) {
+      conditions.push(eq(classSections.name, filters.classSection.trim()));
+    }
 
     const whereClause = and(...conditions);
-    const [{ totalCount }] = await this.getDb().select({ totalCount: count() }).from(users).where(whereClause);
 
-    let query = this.getDb()
+    const baseQuery = this.getDb()
       .select({
         id: users.id,
         fullName: users.fullName,
@@ -573,22 +754,53 @@ export class LibraryRepository {
         email: users.email,
         phone: users.phone,
         profilePicUrl: users.profilePicUrl,
-        classSection: users.institutionType,
+        classSectionName: classSections.name,
         createdAt: users.createdAt,
       })
       .from(users)
-      .where(whereClause)
-      .orderBy(users.fullName);
+      .leftJoin(studentClasses, and(eq(studentClasses.studentId, users.id), eq(studentClasses.isActive, true)))
+      .leftJoin(classSections, eq(studentClasses.classSectionId, classSections.id));
 
+    const [{ totalCount }] = await this.getDb()
+      .select({ totalCount: count() })
+      .from(users)
+      .leftJoin(studentClasses, and(eq(studentClasses.studentId, users.id), eq(studentClasses.isActive, true)))
+      .leftJoin(classSections, eq(studentClasses.classSectionId, classSections.id))
+      .where(whereClause);
+
+    let query = baseQuery.where(whereClause).orderBy(users.fullName);
     if (opts?.limit) query = query.limit(opts.limit) as any;
     if (opts?.offset) query = query.offset(opts.offset) as any;
 
-    const items = await query;
+    const rows: any[] = await query;
+
+    // One batch query for active-loan counts for the whole page (not N+1).
+    const ids = rows.map((r: any) => r.id);
+    const counts: { studentId: string; cnt: number | string }[] = ids.length
+      ? await this.getDb()
+          .select({ studentId: libraryLoans.studentId, cnt: count() })
+          .from(libraryLoans)
+          .where(and(inArray(libraryLoans.studentId, ids), inArray(libraryLoans.status, ['ACTIVE', 'OVERDUE'])))
+          .groupBy(libraryLoans.studentId)
+      : [];
+    const countMap = new Map(counts.map((c) => [c.studentId, Number(c.cnt)]));
+
+    const items = rows.map((r: any) => ({
+      id: r.id,
+      fullName: r.fullName,
+      admissionNo: r.admissionNo,
+      email: r.email,
+      phone: r.phone,
+      profilePicUrl: r.profilePicUrl,
+      classSection: r.classSectionName || '—',
+      activeLoansCount: countMap.get(r.id) || 0,
+      createdAt: r.createdAt,
+    }));
     return { items, total: Number(totalCount || 0) };
   }
 
   public async getMemberById(studentId: string): Promise<any | undefined> {
-    const [user] = await this.getDb()
+    const [row] = await this.getDb()
       .select({
         id: users.id,
         fullName: users.fullName,
@@ -596,13 +808,97 @@ export class LibraryRepository {
         email: users.email,
         phone: users.phone,
         profilePicUrl: users.profilePicUrl,
-        classSection: users.institutionType,
+        classSectionName: classSections.name,
         institutionCode: users.institutionCode,
         createdAt: users.createdAt,
       })
       .from(users)
+      .leftJoin(studentClasses, and(eq(studentClasses.studentId, users.id), eq(studentClasses.isActive, true)))
+      .leftJoin(classSections, eq(studentClasses.classSectionId, classSections.id))
       .where(eq(users.id, studentId));
-    return user;
+    if (!row) return undefined;
+    return {
+      id: row.id,
+      fullName: row.fullName,
+      admissionNo: row.admissionNo,
+      email: row.email,
+      phone: row.phone,
+      profilePicUrl: row.profilePicUrl,
+      classSection: row.classSectionName || '—',
+      institutionCode: row.institutionCode,
+      createdAt: row.createdAt,
+    };
+  }
+
+  // ==================== DASHBOARD AGGREGATES (SQL, not full-table loads) ====================
+
+  public async countBooks(institutionCode: string): Promise<number> {
+    const [res] = await this.getDb().select({ cnt: count() }).from(libraryBooks).where(eq(libraryBooks.institutionCode, institutionCode));
+    return Number(res?.cnt || 0);
+  }
+
+  public async countCopiesByStatus(institutionCode: string): Promise<Record<string, number>> {
+    const rows = await this.getDb()
+      .select({ status: libraryBookCopies.status, cnt: count() })
+      .from(libraryBookCopies)
+      .where(eq(libraryBookCopies.institutionCode, institutionCode))
+      .groupBy(libraryBookCopies.status);
+    const out: Record<string, number> = { AVAILABLE: 0, ISSUED: 0, LOST: 0, DAMAGED: 0, UNDER_REPAIR: 0, WITHDRAWN: 0 };
+    for (const r of rows) out[r.status] = Number(r.cnt);
+    return out;
+  }
+
+  /** Syncs overdue status first so OVERDUE counts are never stale. */
+  public async countLoansByStatus(institutionCode: string): Promise<{ active: number; overdue: number; total: number }> {
+    await this.syncOverdueLoans(institutionCode);
+    const rows: { status: string; cnt: number | string }[] = await this.getDb()
+      .select({ status: libraryLoans.status, cnt: count() })
+      .from(libraryLoans)
+      .where(eq(libraryLoans.institutionCode, institutionCode))
+      .groupBy(libraryLoans.status);
+    const byStatus = new Map(rows.map((r) => [r.status, Number(r.cnt)]));
+    const overdue = byStatus.get('OVERDUE') || 0;
+    const active = overdue + (byStatus.get('ACTIVE') || 0);
+    const total = rows.reduce((acc, r) => acc + Number(r.cnt), 0);
+    return { active, overdue, total };
+  }
+
+  public async sumFines(institutionCode: string): Promise<{ collected: number; outstanding: number }> {
+    const [agg] = await this.getDb()
+      .select({
+        collected: sum(sql`COALESCE(${libraryFines.paidAmount}, 0)`),
+        outstanding: sql<number>`COALESCE(SUM(CASE WHEN ${libraryFines.status} IN ('UNPAID','PARTIALLY_PAID') THEN (${libraryFines.amount} - COALESCE(${libraryFines.paidAmount},0)) ELSE 0 END), 0)`,
+      })
+      .from(libraryFines)
+      .where(eq(libraryFines.institutionCode, institutionCode));
+    return {
+      collected: parseFloat(String(agg?.collected || 0)),
+      outstanding: parseFloat(String(agg?.outstanding || 0)),
+    };
+  }
+
+  public async countMembers(institutionCode: string): Promise<number> {
+    const [res] = await this.getDb()
+      .select({ cnt: count() })
+      .from(users)
+      .where(and(eq(users.institutionCode, institutionCode), eq(users.role, 'student')));
+    return Number(res?.cnt || 0);
+  }
+
+  public async listRecentLoans(institutionCode: string, limit = 5): Promise<LibraryLoanRecord[]> {
+    return this.getDb().select().from(libraryLoans).where(eq(libraryLoans.institutionCode, institutionCode)).orderBy(desc(libraryLoans.createdAt)).limit(limit);
+  }
+
+  // ==================== SEQUENCES (count-based, collision-safe) ====================
+
+  public async countCopiesInInstitution(txOrDb?: any): Promise<number> {
+    const [res] = await this.getDb(txOrDb).select({ cnt: count() }).from(libraryBookCopies);
+    return Number(res?.cnt || 0);
+  }
+
+  public async countTransactionsInInstitution(txOrDb?: any): Promise<number> {
+    const [res] = await this.getDb(txOrDb).select({ cnt: count() }).from(libraryPaymentTransactions);
+    return Number(res?.cnt || 0);
   }
 }
 

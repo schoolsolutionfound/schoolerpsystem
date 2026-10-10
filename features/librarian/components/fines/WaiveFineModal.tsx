@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -39,13 +39,6 @@ export const WaiveFineModal = ({
     return students.find((s) => s.id === fine.studentId) || null;
   }, [fine, students]);
 
-  useEffect(() => {
-    if (fine) {
-      setReason('Discretionary Waiver');
-      setRemarks('');
-    }
-  }, [fine, visible]);
-
   if (!fine) return null;
 
   const handleConfirmWaiver = () => {
@@ -63,7 +56,7 @@ export const WaiveFineModal = ({
 
     setSubmitting(false);
     onWaiveSuccess(waivedFine);
-    Alert.alert('Fine Waived', `Fine #${fine.id} of $${fine.amount.toFixed(2)} has been waived under ${reason}.`);
+    Alert.alert('Fine Waived', `Fine #${fine.id} of ₹${fine.amount.toFixed(2)} has been waived under ${reason}.`);
   };
 
   const styles = commonStyles;
@@ -86,7 +79,7 @@ export const WaiveFineModal = ({
                   <Text style={fineStyles.modalMemberName}>{student?.fullName || 'Student Member'}</Text>
                   <Text style={fineStyles.modalMemberSub}>{student?.admissionNo} • {student?.classSection}</Text>
                   <Text style={{ fontSize: 12, color: '#1E40AF', fontWeight: '800', marginTop: 4 }}>
-                    Waiving Amount: ${fine.amount.toFixed(2)} ({fine.fineType.replace('_', ' ')})
+                    Waiving Amount: ₹{fine.amount.toFixed(2)} ({fine.fineType.replace('_', ' ')})
                   </Text>
                 </View>
               </View>

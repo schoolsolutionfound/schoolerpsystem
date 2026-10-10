@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -32,9 +32,15 @@ export const PayFineModal = ({
   commonStyles: any;
   fineStyles: any;
 }) => {
-  const [payAmount, setPayAmount] = useState('');
+  const [payAmount, setPayAmount] = useState(() => {
+    if (!fine) return '';
+    return Math.max(0, fine.amount - fine.paidAmount).toFixed(2);
+  });
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CARD' | 'UPI_ONLINE' | 'DIGITAL_WALLET' | 'SCANNER_QR'>('CASH');
-  const [cashTendered, setCashTendered] = useState('');
+  const [cashTendered, setCashTendered] = useState(() => {
+    if (!fine) return '';
+    return Math.max(0, fine.amount - fine.paidAmount).toFixed(2);
+  });
   const [refNotes, setRefNotes] = useState('');
   const [scannedPayload, setScannedPayload] = useState<string | null>(null);
   const [receiptData, setReceiptData] = useState<any | null>(null);
@@ -56,18 +62,6 @@ export const PayFineModal = ({
     return Math.max(0, cashVal - payVal);
   }, [payAmount, cashTendered]);
 
-  useEffect(() => {
-    if (fine) {
-      const rem = Math.max(0, fine.amount - fine.paidAmount);
-      setPayAmount(rem.toFixed(2));
-      setCashTendered(rem.toFixed(2));
-      setPaymentMethod('CASH');
-      setRefNotes('');
-      setScannedPayload(null);
-      setReceiptData(null);
-    }
-  }, [fine, visible]);
-
   if (!fine) return null;
 
   const handleTriggerScanner = () => {
@@ -80,18 +74,18 @@ export const PayFineModal = ({
   const handleProcessPayment = () => {
     const amt = parseFloat(payAmount);
     if (isNaN(amt) || amt <= 0) {
-      Alert.alert('Invalid Amount', 'Please enter a valid payment amount greater than $0.');
+      Alert.alert('Invalid Amount', 'Please enter a valid payment amount greater than ₹0.');
       return;
     }
     if (amt > remainingBalance + 0.01) {
-      Alert.alert('Amount Exceeded', `Payment amount cannot exceed the remaining balance of $${remainingBalance.toFixed(2)}.`);
+      Alert.alert('Amount Exceeded', `Payment amount cannot exceed the remaining balance of ₹${remainingBalance.toFixed(2)}.`);
       return;
     }
 
     if (paymentMethod === 'CASH') {
       const cashVal = parseFloat(cashTendered || '0');
       if (isNaN(cashVal) || cashVal < amt - 0.01) {
-        Alert.alert('Insufficient Cash', `Cash tendered ($${cashVal.toFixed(2)}) is less than payment amount ($${amt.toFixed(2)}).`);
+        Alert.alert('Insufficient Cash', `Cash tendered (₹${cashVal.toFixed(2)}) is less than payment amount (₹${amt.toFixed(2)}).`);
         return;
       }
     }
@@ -213,11 +207,11 @@ export const PayFineModal = ({
                   <>
                     <View style={fineStyles.receiptRow}>
                       <Text style={fineStyles.receiptLabel}>Cash Tendered:</Text>
-                      <Text style={fineStyles.receiptVal}>${receiptData.cashTendered.toFixed(2)}</Text>
+                      <Text style={fineStyles.receiptVal}>₹{receiptData.cashTendered.toFixed(2)}</Text>
                     </View>
                     <View style={fineStyles.receiptRow}>
                       <Text style={fineStyles.receiptLabel}>Change Returned:</Text>
-                      <Text style={[fineStyles.receiptVal, { color: '#059669' }]}>${receiptData.changeReturned.toFixed(2)}</Text>
+                      <Text style={[fineStyles.receiptVal, { color: '#059669' }]}>₹{receiptData.changeReturned.toFixed(2)}</Text>
                     </View>
                   </>
                 )}
@@ -240,12 +234,12 @@ export const PayFineModal = ({
 
                 <View style={fineStyles.receiptRowLarge}>
                   <Text style={fineStyles.receiptLabelLarge}>Amount Paid:</Text>
-                  <Text style={fineStyles.receiptValLarge}>${receiptData.amountPaid.toFixed(2)}</Text>
+                  <Text style={fineStyles.receiptValLarge}>₹{receiptData.amountPaid.toFixed(2)}</Text>
                 </View>
 
                 <View style={fineStyles.receiptRow}>
                   <Text style={fineStyles.receiptLabel}>Remaining Balance:</Text>
-                  <Text style={fineStyles.receiptVal}>${receiptData.remainingBalance.toFixed(2)}</Text>
+                  <Text style={fineStyles.receiptVal}>₹{receiptData.remainingBalance.toFixed(2)}</Text>
                 </View>
 
                 <View style={fineStyles.receiptFooter}>
@@ -266,14 +260,14 @@ export const PayFineModal = ({
                     <Text style={fineStyles.modalMemberName}>{student?.fullName || 'Student Member'}</Text>
                     <Text style={fineStyles.modalMemberSub}>{student?.admissionNo} • {student?.classSection}</Text>
                     <Text style={{ fontSize: 11, color: '#DC2626', fontWeight: '800', marginTop: 4 }}>
-                      Fine Total: ${fine.amount.toFixed(2)} | Balance Due: ${remainingBalance.toFixed(2)}
+                      Fine Total: ₹{fine.amount.toFixed(2)} | Balance Due: ₹{remainingBalance.toFixed(2)}
                     </Text>
                   </View>
                 </View>
 
                 {/* Amount to Pay */}
                 <View style={styles.formGroup}>
-                  <Text style={styles.formLabel}>Payment Amount ($) *</Text>
+                  <Text style={styles.formLabel}>Payment Amount (₹) *</Text>
                   <TextInput
                     style={[styles.formInput, { fontSize: 16, fontWeight: '800' }]}
                     value={payAmount}
@@ -319,7 +313,7 @@ export const PayFineModal = ({
 
                     <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.formLabel}>Cash Amount Tendered ($) *</Text>
+                        <Text style={styles.formLabel}>Cash Amount Tendered (₹) *</Text>
                         <TextInput
                           style={[styles.formInput, { fontSize: 16, fontWeight: '800', color: '#059669' }]}
                           value={cashTendered}
@@ -333,7 +327,7 @@ export const PayFineModal = ({
                         <Text style={styles.formLabel}>Change to Return</Text>
                         <View style={[styles.formInput, { backgroundColor: changeReturned >= 0 ? '#ECFDF5' : '#FEF2F2', justifyContent: 'center' }]}>
                           <Text style={{ fontSize: 16, fontWeight: '900', color: changeReturned >= 0 ? '#059669' : '#DC2626' }}>
-                            ${changeReturned.toFixed(2)}
+                            ₹{changeReturned.toFixed(2)}
                           </Text>
                         </View>
                       </View>
@@ -342,12 +336,12 @@ export const PayFineModal = ({
                     {/* Quick Tender Presets */}
                     <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
                       {[
-                        { label: `Exact ($${parseFloat(payAmount || '0').toFixed(2)})`, val: parseFloat(payAmount || '0') },
-                        { label: '+$5.00', val: (parseFloat(payAmount || '0') || 0) + 5 },
-                        { label: '+$10.00', val: (parseFloat(payAmount || '0') || 0) + 10 },
-                        { label: '$20.00', val: 20 },
-                        { label: '$50.00', val: 50 },
-                        { label: '$100.00', val: 100 },
+                        { label: `Exact (₹${parseFloat(payAmount || '0').toFixed(2)})`, val: parseFloat(payAmount || '0') },
+                        { label: '+₹5.00', val: (parseFloat(payAmount || '0') || 0) + 5 },
+                        { label: '+₹10.00', val: (parseFloat(payAmount || '0') || 0) + 10 },
+                        { label: '₹20.00', val: 20 },
+                        { label: '₹50.00', val: 50 },
+                        { label: '₹100.00', val: 100 },
                       ].map((p, idx) => (
                         <TouchableOpacity
                           key={idx}

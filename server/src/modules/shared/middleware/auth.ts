@@ -205,3 +205,22 @@ export async function requireStaff(request: FastifyRequest, reply: FastifyReply)
     });
   }
 }
+
+/**
+ * Library module gate: institution staff + the dedicated librarian role.
+ */
+export async function requireLibraryStaff(request: FastifyRequest, reply: FastifyReply) {
+  await authenticate(request, reply);
+  if (reply.sent) return;
+
+  const role = normalizeRole(request.user?.role);
+  if (!['admin', 'hod', 'principal', 'teacher', 'librarian'].includes(role)) {
+    return reply.status(403).send({
+      success: false,
+      error: {
+        message: 'Access denied: Library staff privileges required',
+        code: 'FORBIDDEN',
+      },
+    });
+  }
+}

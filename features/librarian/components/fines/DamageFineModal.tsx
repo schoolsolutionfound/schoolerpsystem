@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -42,7 +42,7 @@ export const DamageFineModal = ({
   const [fineAmount, setFineAmount] = useState('10.00');
   const [damageNotes, setDamageNotes] = useState('');
   const [copyCondition, setCopyCondition] = useState<CopyCondition>('DAMAGED');
-  const [copyStatus, setCopyStatus] = useState<CopyStatus>('UNDER_REPAIR');
+  const [copyStatus] = useState<CopyStatus>('UNDER_REPAIR');
   const [submitting, setSubmitting] = useState(false);
   const [memberSearch, setMemberSearch] = useState('');
   const [copySearch, setCopySearch] = useState('');
@@ -58,20 +58,6 @@ export const DamageFineModal = ({
     { type: 'TOTAL_DESTRUCTION', label: 'Total Destruction / Unusable', icon: 'alert-decagram', defaultFee: 50.0 },
     { type: 'GENERAL_WEAR', label: 'Excessive Wear & Tear', icon: 'alert-circle-outline', defaultFee: 5.0 },
   ];
-
-  useEffect(() => {
-    if (visible) {
-      setSelectedStudentId(students[0]?.id || '');
-      setSelectedCopyId('');
-      setDamageType('TORN_PAGES');
-      setFineAmount('10.00');
-      setDamageNotes('');
-      setCopyCondition('DAMAGED');
-      setCopyStatus('UNDER_REPAIR');
-      setMemberSearch('');
-      setCopySearch('');
-    }
-  }, [visible, students]);
 
   const handleSelectDamageType = (type: DamageType) => {
     setDamageType(type);
@@ -111,7 +97,7 @@ export const DamageFineModal = ({
     }
     const amt = parseFloat(fineAmount);
     if (isNaN(amt) || amt <= 0) {
-      Alert.alert('Invalid Fine Amount', 'Please enter a valid fine penalty amount greater than $0.');
+      Alert.alert('Invalid Fine Amount', 'Please enter a valid fine penalty amount greater than ₹0.');
       return;
     }
     if (!damageNotes.trim()) {
@@ -254,7 +240,7 @@ export const DamageFineModal = ({
                         {preset.label}
                       </Text>
                       <Text style={[fineStyles.damagePresetFee, isSelected && { color: '#121316' }]}>
-                        ${preset.defaultFee.toFixed(2)}
+                        ₹{preset.defaultFee.toFixed(2)}
                       </Text>
                     </TouchableOpacity>
                   );
@@ -265,7 +251,7 @@ export const DamageFineModal = ({
             {/* Step 4: Penalty Fine Amount */}
             <View style={{ flexDirection: 'row', gap: 10 }}>
               <View style={[styles.formGroup, { flex: 1 }]}>
-                <Text style={styles.formLabel}>Assess Fine Penalty ($) *</Text>
+                <Text style={styles.formLabel}>Assess Fine Penalty (₹) *</Text>
                 <TextInput
                   style={[styles.formInput, { fontSize: 16, fontWeight: '900', color: '#DC2626' }]}
                   value={fineAmount}

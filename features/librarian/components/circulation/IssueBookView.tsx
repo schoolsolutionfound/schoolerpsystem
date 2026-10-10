@@ -20,9 +20,9 @@ export interface IssueBookViewProps {
   loans: Loan[];
   fines: Fine[];
   settings: LibrarySettings;
-  onIssueSuccess: (newLoan: Loan, copyId: string) => void;
-  onReturnSuccess: (loanId: string, copyId: string, newFine?: Fine) => void;
-  onRenewSuccess: (loanId: string, newDueDate: string) => void;
+  onIssueSuccess: (payload: { bookId: string; copyId: string; studentId: string; issueDate?: string; dueDate?: string; customDays?: number }) => Promise<void> | void;
+  onReturnSuccess: (loanId: string) => Promise<void> | void;
+  onRenewSuccess: (loanId: string) => Promise<void> | void;
   commonStyles?: any;
 }
 
@@ -147,20 +147,13 @@ export const IssueBookView: React.FC<IssueBookViewProps> = ({
     setSubmitting(true);
     try {
       const issueDate = new Date().toISOString().split('T')[0];
-      const newLoan: Loan = {
-        id: `loan-${Date.now()}`,
-        copyId: selectedCopy.id,
+      await onIssueSuccess({
         bookId: selectedBook.id,
+        copyId: selectedCopy.id,
         studentId: selectedStudent.id,
-        issuedBy: 'lib-user',
         issueDate,
         dueDate: calculatedDueDate,
-        status: 'ACTIVE',
-        renewalCount: 0,
-        createdAt: issueDate,
-      };
-
-      onIssueSuccess(newLoan, selectedCopy.id);
+      });
 
       setSelectedStudent(null);
       setSelectedBook(null);
@@ -175,41 +168,14 @@ export const IssueBookView: React.FC<IssueBookViewProps> = ({
   };
 
   const handleReturnBook = (loan: Loan) => {
-    const todayStr = new Date().toISOString().split('T')[0];
-    const dueDate = new Date(loan.dueDate);
-    const today = new Date();
-
-    const diffTime = today.getTime() - dueDate.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    let createdFine: Fine | undefined = undefined;
-    if (diffDays > (settings.gracePeriodDays || 2)) {
-      const overdueDays = diffDays - (settings.gracePeriodDays || 2);
-      const finePerDayVal = typeof settings.finePerDay === 'number' ? settings.finePerDay : parseFloat(String(settings.finePerDay || 1.0));
-      const maxFineVal = typeof settings.maxFine === 'number' ? settings.maxFine : parseFloat(String(settings.maxFine || 100.0));
-      const fineAmount = Math.min(overdueDays * finePerDayVal, maxFineVal);
-
-      createdFine = {
-        id: `fine-${Date.now()}`,
-        loanId: loan.id,
-        studentId: loan.studentId,
-        fineType: 'OVERDUE',
-        amount: fineAmount,
-        paidAmount: 0,
-        status: 'UNPAID',
-        createdAt: todayStr,
-        updatedAt: todayStr,
-      };
-    }
-
     Alert.alert(
       'Confirm Return',
-      `Mark book as returned? ${createdFine ? `\n\nNotice: An overdue fine of $${createdFine.amount.toFixed(2)} will be generated.` : ''}`,
+      'Mark book as returned? Any applicable overdue fine will be calculated by the system.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Confirm Return',
-          onPress: () => onReturnSuccess(loan.id, loan.copyId, createdFine),
+          onPress: () => onReturnSuccess(loan.id),
         },
       ]
     );
@@ -222,16 +188,12 @@ export const IssueBookView: React.FC<IssueBookViewProps> = ({
       return;
     }
 
-    const currentDue = new Date(loan.dueDate);
-    currentDue.setDate(currentDue.getDate() + (settings.loanPeriodDays || 14));
-    const newDueDateStr = currentDue.toISOString().split('T')[0];
-
     Alert.alert(
       'Confirm Renewal',
-      `Extend loan due date to ${newDueDateStr}? (Renewal ${currentRenewals + 1} of ${settings.renewalLimit})`,
+      `Renewal ${currentRenewals + 1} of ${settings.renewalLimit}. The due date will be extended by ${settings.loanPeriodDays || 14} days.`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Renew Loan', onPress: () => onRenewSuccess(loan.id, newDueDateStr) },
+        { text: 'Renew Loan', onPress: () => onRenewSuccess(loan.id) },
       ]
     );
   };
