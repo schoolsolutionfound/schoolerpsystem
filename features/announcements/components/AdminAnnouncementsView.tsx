@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, StyleSheet, Alert } from 'react-native';
 import {
   useAnnouncementsQuery,
   useCreateAnnouncementMutation,
@@ -36,7 +36,7 @@ export const AdminAnnouncementsView: React.FC = () => {
     offset: 0,
   };
 
-  const { data, isLoading, error, refetch } = useAnnouncementsQuery(queryPayload);
+  const { data, isLoading, isRefetching, error, refetch } = useAnnouncementsQuery(queryPayload);
   const createMutation = useCreateAnnouncementMutation();
   const updateMutation = useUpdateAnnouncementMutation();
   const deleteMutation = useDeleteAnnouncementMutation();
@@ -44,36 +44,70 @@ export const AdminAnnouncementsView: React.FC = () => {
   const cancelMutation = useCancelAnnouncementMutation();
   const markReadMutation = useMarkAnnouncementReadMutation();
 
-  const handleFilterChange = (newFilters: Partial<AnnouncementFilterState>) => {
+  const isActionLoading =
+    createMutation.isPending ||
+    updateMutation.isPending ||
+    deleteMutation.isPending ||
+    publishMutation.isPending ||
+    cancelMutation.isPending ||
+    markReadMutation.isPending;
+
+  const handleFilterChange = useCallback((newFilters: Partial<AnnouncementFilterState>) => {
     setFilters((prev) => ({ ...prev, ...newFilters }));
-  };
+  }, []);
 
-  const handleCreate = async (payload: any) => {
-    await createMutation.mutateAsync(payload);
-  };
+  const handleCreate = useCallback(async (payload: any) => {
+    try {
+      await createMutation.mutateAsync(payload);
+    } catch (err: any) {
+      Alert.alert('Announcement Error', err?.message || 'Failed to create announcement');
+      throw err; // rethrow so the create modal stays open and input is preserved (N2)
+    }
+  }, [createMutation]);
 
-  const handleUpdate = async (id: string, payload: any) => {
-    await updateMutation.mutateAsync({ id, payload });
-  };
+  const handleUpdate = useCallback(async (id: string, payload: any) => {
+    try {
+      await updateMutation.mutateAsync({ id, payload });
+    } catch (err: any) {
+      Alert.alert('Announcement Error', err?.message || 'Failed to update announcement');
+      throw err; // rethrow so the edit modal stays open and input is preserved (N2)
+    }
+  }, [updateMutation]);
 
-  const handleDelete = async (id: string) => {
-    await deleteMutation.mutateAsync(id);
-  };
+  const handleDelete = useCallback(async (id: string) => {
+    try {
+      await deleteMutation.mutateAsync(id);
+    } catch (err: any) {
+      Alert.alert('Announcement Error', err?.message || 'Failed to delete announcement');
+    }
+  }, [deleteMutation]);
 
-  const handlePublish = async (id: string) => {
-    await publishMutation.mutateAsync(id);
-  };
+  const handlePublish = useCallback(async (id: string) => {
+    try {
+      await publishMutation.mutateAsync(id);
+    } catch (err: any) {
+      Alert.alert('Announcement Error', err?.message || 'Failed to publish announcement');
+    }
+  }, [publishMutation]);
 
-  const handleCancel = async (id: string) => {
-    await cancelMutation.mutateAsync(id);
-  };
+  const handleCancel = useCallback(async (id: string) => {
+    try {
+      await cancelMutation.mutateAsync(id);
+    } catch (err: any) {
+      Alert.alert('Announcement Error', err?.message || 'Failed to cancel announcement');
+    }
+  }, [cancelMutation]);
 
-  const handleMarkRead = async (id: string) => {
-    await markReadMutation.mutateAsync(id);
-  };
+  const handleMarkRead = useCallback(async (id: string) => {
+    try {
+      await markReadMutation.mutateAsync(id);
+    } catch (err: any) {
+      Alert.alert('Announcement Error', err?.message || 'Failed to mark as read');
+    }
+  }, [markReadMutation]);
 
   const items = data?.items || [];
-  const total = data?.total || 0;
+  const total = data?.total ?? items.length;
 
   return (
     <View style={styles.container}>
@@ -81,6 +115,7 @@ export const AdminAnnouncementsView: React.FC = () => {
         items={items}
         total={total}
         loading={isLoading}
+        refreshing={isRefetching}
         error={error}
         onRefresh={refetch}
         filters={filters}
@@ -93,6 +128,7 @@ export const AdminAnnouncementsView: React.FC = () => {
         onMarkRead={handleMarkRead}
         isManagement={true}
         allowBroadTargets={isManager}
+        actionLoading={isActionLoading}
       />
     </View>
   );

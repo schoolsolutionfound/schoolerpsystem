@@ -14,6 +14,7 @@ interface AnnouncementCardProps {
   onPublish?: (announcement: Announcement) => void;
   onCancel?: (announcement: Announcement) => void;
   isManagement?: boolean;
+  disabled?: boolean;
 }
 
 export const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
@@ -24,6 +25,7 @@ export const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
   onPublish,
   onCancel,
   isManagement = false,
+  disabled = false,
 }) => {
   const isUrgent = announcement.priority === 'URGENT' || announcement.type === 'URGENT';
   const isHigh = announcement.priority === 'HIGH';
@@ -40,6 +42,20 @@ export const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
         return { bg: '#FEF3C7', text: Colors.light.warning, border: '#FDE68A' };
       default:
         return { bg: '#FFF4C7', text: Colors.light.primary, border: '#E8E5DC' };
+    }
+  };
+
+  const getPriorityStyle = (priority: string) => {
+    switch (priority) {
+      case 'URGENT':
+        return { bg: '#FEE2E2', text: Colors.light.danger };
+      case 'HIGH':
+        return { bg: '#FFEDD5', text: '#C2410C' };
+      case 'LOW':
+        return { bg: '#E0F2FE', text: '#0284C7' };
+      case 'NORMAL':
+      default:
+        return { bg: '#FEF3C7', text: '#D97706' };
     }
   };
 
@@ -60,6 +76,8 @@ export const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
   };
 
   const typeStyle = getTypeBadgeColor(announcement.type);
+  const priorityStyle = getPriorityStyle(announcement.priority);
+
   const formattedDate = announcement.publishAt
     ? new Date(announcement.publishAt).toLocaleDateString(undefined, {
         month: 'short',
@@ -75,8 +93,9 @@ export const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
         isUrgent && styles.urgentCard,
         isHigh && styles.highCard,
       ]}
-      onPress={() => onPress(announcement)}
+      onPress={() => !disabled && onPress(announcement)}
       activeOpacity={0.8}
+      disabled={disabled}
     >
       <View style={styles.headerRow}>
         <View style={styles.badgeRow}>
@@ -85,8 +104,8 @@ export const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
           </View>
 
           {announcement.priority !== 'NORMAL' && (
-            <View style={[styles.priorityBadge, isUrgent && { backgroundColor: '#FEE2E2' }]}>
-              <Text style={[styles.priorityText, isUrgent && { color: Colors.light.danger }]}>
+            <View style={[styles.priorityBadge, { backgroundColor: priorityStyle.bg }]}>
+              <Text style={[styles.priorityText, { color: priorityStyle.text }]}>
                 {announcement.priority}
               </Text>
             </View>
@@ -121,7 +140,8 @@ export const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
             {announcement.status === 'DRAFT' && onPublish && (
               <TouchableOpacity
                 style={styles.iconBtn}
-                onPress={() => onPublish(announcement)}
+                onPress={() => !disabled && onPublish(announcement)}
+                disabled={disabled}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
                 <MaterialCommunityIcons name="send-outline" size={18} color={Colors.light.success} />
@@ -131,7 +151,8 @@ export const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
             {(announcement.status === 'DRAFT' || announcement.status === 'SCHEDULED' || announcement.status === 'PUBLISHED') && onEdit && (
               <TouchableOpacity
                 style={styles.iconBtn}
-                onPress={() => onEdit(announcement)}
+                onPress={() => !disabled && onEdit(announcement)}
+                disabled={disabled}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
                 <MaterialCommunityIcons name="pencil-outline" size={18} color={Colors.light.secondary} />
@@ -141,7 +162,8 @@ export const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
             {announcement.status === 'DRAFT' && onDelete && (
               <TouchableOpacity
                 style={styles.iconBtn}
-                onPress={() => onDelete(announcement)}
+                onPress={() => !disabled && onDelete(announcement)}
+                disabled={disabled}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
                 <MaterialCommunityIcons name="trash-can-outline" size={18} color={Colors.light.danger} />
@@ -151,7 +173,8 @@ export const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
             {(announcement.status === 'SCHEDULED' || announcement.status === 'PUBLISHED') && onCancel && (
               <TouchableOpacity
                 style={styles.iconBtn}
-                onPress={() => onCancel(announcement)}
+                onPress={() => !disabled && onCancel(announcement)}
+                disabled={disabled}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
                 <MaterialCommunityIcons name="close-circle-outline" size={18} color={Colors.light.warning} />
@@ -179,7 +202,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF2F2',
   },
   highCard: {
-    borderColor: '#FDE68A',
+    borderColor: '#FDBA74',
+    backgroundColor: '#FFF7ED',
   },
   headerRow: {
     flexDirection: 'row',
@@ -206,12 +230,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
-    backgroundColor: '#FEF3C7',
   },
   priorityText: {
     fontSize: 11,
     fontFamily: FontFamily.semibold,
-    color: Colors.light.warning,
   },
   unreadDot: {
     width: 10,

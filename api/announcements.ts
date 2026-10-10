@@ -38,7 +38,6 @@ export interface AnnouncementQueryPayload {
   status?: 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'EXPIRED' | 'CANCELLED';
   type?: 'GENERAL' | 'ACADEMIC' | 'EVENT' | 'URGENT' | 'NOTICE';
   priority?: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
-  audience?: string;
   limit?: number;
   offset?: number;
 }
@@ -52,7 +51,6 @@ export async function fetchAnnouncementsApi(query: AnnouncementQueryPayload = {}
   if (query.status) params.append('status', query.status);
   if (query.type) params.append('type', query.type);
   if (query.priority) params.append('priority', query.priority);
-  if (query.audience) params.append('audience', query.audience);
   if (query.limit !== undefined) params.append('limit', String(query.limit));
   if (query.offset !== undefined) params.append('offset', String(query.offset));
 
@@ -65,6 +63,7 @@ export async function fetchAnnouncementsApi(query: AnnouncementQueryPayload = {}
  */
 export async function fetchAnnouncementFeedApi(query: AnnouncementQueryPayload = {}) {
   const params = new URLSearchParams();
+  if (query.search) params.append('search', query.search);
   if (query.limit !== undefined) params.append('limit', String(query.limit));
   if (query.offset !== undefined) params.append('offset', String(query.offset));
 
@@ -121,6 +120,7 @@ export async function deleteAnnouncementApi(id: string) {
 export async function publishAnnouncementApi(id: string) {
   return apiClient(`/announcements/${id}/publish`, {
     method: 'POST',
+    body: JSON.stringify({}),
   });
 }
 
@@ -130,15 +130,7 @@ export async function publishAnnouncementApi(id: string) {
 export async function cancelAnnouncementApi(id: string) {
   return apiClient(`/announcements/${id}/cancel`, {
     method: 'POST',
-  });
-}
-
-/**
- * Archive an announcement.
- */
-export async function archiveAnnouncementApi(id: string) {
-  return apiClient(`/announcements/${id}/archive`, {
-    method: 'POST',
+    body: JSON.stringify({}),
   });
 }
 
@@ -148,5 +140,7 @@ export async function archiveAnnouncementApi(id: string) {
 export async function markAnnouncementReadApi(id: string) {
   return apiClient(`/announcements/${id}/read`, {
     method: 'POST',
+    body: JSON.stringify({}),
   });
 }
+

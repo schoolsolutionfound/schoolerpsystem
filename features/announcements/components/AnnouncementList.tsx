@@ -16,6 +16,7 @@ interface AnnouncementListProps {
   items: Announcement[];
   total: number;
   loading: boolean;
+  refreshing?: boolean;
   error?: any;
   onRefresh: () => void;
   filters: AnnouncementFilterState;
@@ -29,12 +30,14 @@ interface AnnouncementListProps {
   isManagement?: boolean;
   unreadCount?: number;
   allowBroadTargets?: boolean;
+  actionLoading?: boolean;
 }
 
 export const AnnouncementList: React.FC<AnnouncementListProps> = ({
   items,
   total,
   loading,
+  refreshing = false,
   error,
   onRefresh,
   filters,
@@ -48,6 +51,7 @@ export const AnnouncementList: React.FC<AnnouncementListProps> = ({
   isManagement = false,
   unreadCount = 0,
   allowBroadTargets = true,
+  actionLoading = false,
 }) => {
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
   const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
@@ -84,7 +88,7 @@ export const AnnouncementList: React.FC<AnnouncementListProps> = ({
     if (onCancel) await onCancel(ann.id);
   };
 
-  if (loading && items.length === 0) {
+  if (loading && items.length === 0 && !error) {
     return <LoadingView message="Loading announcements..." />;
   }
 
@@ -104,6 +108,7 @@ export const AnnouncementList: React.FC<AnnouncementListProps> = ({
           <AppButton
             title="New Announcement"
             iconName="plus"
+            disabled={actionLoading}
             onPress={() => {
               setEditingAnnouncement(null);
               setCreateModalVisible(true);
@@ -127,38 +132,41 @@ export const AnnouncementList: React.FC<AnnouncementListProps> = ({
         isManagement={isManagement}
       />
 
-      {items.length === 0 ? (
-        <EmptyState
-          iconName="bullhorn-outline"
-          title="No Announcements Found"
-          description="No announcements match your search or selected filters."
-        />
-      ) : (
-        <FlatList
-          data={items}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <AnnouncementCard
-              announcement={item}
-              onPress={(ann) => setSelectedAnnouncement(ann)}
-              onEdit={isManagement ? handleCardEdit : undefined}
-              onDelete={isManagement ? handleCardDelete : undefined}
-              onPublish={isManagement ? handleCardPublish : undefined}
-              onCancel={isManagement ? handleCardCancel : undefined}
-              isManagement={isManagement}
-            />
-          )}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={loading}
-              onRefresh={onRefresh}
-              tintColor={Colors.light.primary}
-            />
-          }
-        />
-      )}
+      <FlatList
+        data={items}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <AnnouncementCard
+            announcement={item}
+            onPress={(ann) => setSelectedAnnouncement(ann)}
+            onEdit={isManagement ? handleCardEdit : undefined}
+            onDelete={isManagement ? handleCardDelete : undefined}
+            onPublish={isManagement ? handleCardPublish : undefined}
+            onCancel={isManagement ? handleCardCancel : undefined}
+            isManagement={isManagement}
+            disabled={actionLoading}
+          />
+        )}
+        ListEmptyComponent={
+          <EmptyState
+            iconName="bullhorn-outline"
+            title="No Announcements Found"
+            description="No announcements match your search or selected filters."
+          />
+        }
+        contentContainerStyle={[
+          styles.listContent,
+          items.length === 0 && { flexGrow: 1, justifyContent: 'center' },
+        ]}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={Boolean(refreshing)}
+            onRefresh={onRefresh}
+            tintColor={Colors.light.primary}
+          />
+        }
+      />
 
       <AnnouncementDetailModal
         visible={Boolean(selectedAnnouncement)}
@@ -179,6 +187,7 @@ export const AnnouncementList: React.FC<AnnouncementListProps> = ({
           onSubmit={handleCreateSubmit}
           initialData={editingAnnouncement}
           allowBroadTargets={allowBroadTargets}
+          loading={actionLoading}
         />
       )}
     </View>

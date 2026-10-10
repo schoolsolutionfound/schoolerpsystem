@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { auth } from '../../../firebaseConfig';
 import {
   fetchAnnouncementsApi,
   fetchAnnouncementFeedApi,
@@ -9,24 +10,26 @@ import {
   deleteAnnouncementApi,
   publishAnnouncementApi,
   cancelAnnouncementApi,
-  archiveAnnouncementApi,
   markAnnouncementReadApi,
   AnnouncementQueryPayload,
   CreateAnnouncementPayload,
   UpdateAnnouncementPayload,
 } from '../../../api/announcements';
 
+const getUserScope = () => auth.currentUser?.uid || 'guest';
+const isAuthReady = () => Boolean(auth.currentUser?.uid);
+
 export const ANNOUNCEMENTS_QUERY_KEY = ['announcements'];
-export const ANNOUNCEMENT_FEED_QUERY_KEY = ['announcements', 'feed'];
-export const UNREAD_COUNT_QUERY_KEY = ['announcements', 'unread-count'];
 
 /**
  * Management list query (Staff / Admin).
  */
 export function useAnnouncementsQuery(query: AnnouncementQueryPayload = {}) {
+  const userScope = getUserScope();
   return useQuery({
-    queryKey: [...ANNOUNCEMENTS_QUERY_KEY, query],
+    queryKey: ['announcements', userScope, 'management', query],
     queryFn: () => fetchAnnouncementsApi(query),
+    enabled: isAuthReady(),
   });
 }
 
@@ -34,9 +37,11 @@ export function useAnnouncementsQuery(query: AnnouncementQueryPayload = {}) {
  * User-facing active announcement feed query.
  */
 export function useAnnouncementFeedQuery(query: AnnouncementQueryPayload = {}) {
+  const userScope = getUserScope();
   return useQuery({
-    queryKey: [...ANNOUNCEMENT_FEED_QUERY_KEY, query],
+    queryKey: ['announcements', userScope, 'feed', query],
     queryFn: () => fetchAnnouncementFeedApi(query),
+    enabled: isAuthReady(),
   });
 }
 
@@ -44,10 +49,12 @@ export function useAnnouncementFeedQuery(query: AnnouncementQueryPayload = {}) {
  * Unread announcement count query.
  */
 export function useUnreadAnnouncementCountQuery() {
+  const userScope = getUserScope();
   return useQuery({
-    queryKey: UNREAD_COUNT_QUERY_KEY,
+    queryKey: ['announcements', userScope, 'unread-count'],
     queryFn: () => fetchUnreadAnnouncementCountApi(),
-    refetchInterval: 60000, // Refetch every 60 seconds
+    refetchInterval: 60000,
+    enabled: isAuthReady(),
   });
 }
 
@@ -55,10 +62,11 @@ export function useUnreadAnnouncementCountQuery() {
  * Single announcement detail query.
  */
 export function useAnnouncementDetailQuery(id: string | null) {
+  const userScope = getUserScope();
   return useQuery({
-    queryKey: [...ANNOUNCEMENTS_QUERY_KEY, 'detail', id],
+    queryKey: ['announcements', userScope, 'detail', id],
     queryFn: () => (id ? fetchAnnouncementByIdApi(id) : null),
-    enabled: Boolean(id),
+    enabled: Boolean(id) && isAuthReady(),
   });
 }
 
@@ -70,9 +78,7 @@ export function useCreateAnnouncementMutation() {
   return useMutation({
     mutationFn: (payload: CreateAnnouncementPayload) => createAnnouncementApi(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ANNOUNCEMENTS_QUERY_KEY });
-      queryClient.invalidateQueries({ queryKey: ANNOUNCEMENT_FEED_QUERY_KEY });
-      queryClient.invalidateQueries({ queryKey: UNREAD_COUNT_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ['announcements', getUserScope()] });
     },
   });
 }
@@ -86,9 +92,7 @@ export function useUpdateAnnouncementMutation() {
     mutationFn: ({ id, payload }: { id: string; payload: UpdateAnnouncementPayload }) =>
       updateAnnouncementApi(id, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ANNOUNCEMENTS_QUERY_KEY });
-      queryClient.invalidateQueries({ queryKey: ANNOUNCEMENT_FEED_QUERY_KEY });
-      queryClient.invalidateQueries({ queryKey: UNREAD_COUNT_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ['announcements', getUserScope()] });
     },
   });
 }
@@ -101,9 +105,7 @@ export function useDeleteAnnouncementMutation() {
   return useMutation({
     mutationFn: (id: string) => deleteAnnouncementApi(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ANNOUNCEMENTS_QUERY_KEY });
-      queryClient.invalidateQueries({ queryKey: ANNOUNCEMENT_FEED_QUERY_KEY });
-      queryClient.invalidateQueries({ queryKey: UNREAD_COUNT_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ['announcements', getUserScope()] });
     },
   });
 }
@@ -116,9 +118,7 @@ export function usePublishAnnouncementMutation() {
   return useMutation({
     mutationFn: (id: string) => publishAnnouncementApi(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ANNOUNCEMENTS_QUERY_KEY });
-      queryClient.invalidateQueries({ queryKey: ANNOUNCEMENT_FEED_QUERY_KEY });
-      queryClient.invalidateQueries({ queryKey: UNREAD_COUNT_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ['announcements', getUserScope()] });
     },
   });
 }
@@ -131,24 +131,7 @@ export function useCancelAnnouncementMutation() {
   return useMutation({
     mutationFn: (id: string) => cancelAnnouncementApi(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ANNOUNCEMENTS_QUERY_KEY });
-      queryClient.invalidateQueries({ queryKey: ANNOUNCEMENT_FEED_QUERY_KEY });
-      queryClient.invalidateQueries({ queryKey: UNREAD_COUNT_QUERY_KEY });
-    },
-  });
-}
-
-/**
- * Archive announcement mutation.
- */
-export function useArchiveAnnouncementMutation() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => archiveAnnouncementApi(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ANNOUNCEMENTS_QUERY_KEY });
-      queryClient.invalidateQueries({ queryKey: ANNOUNCEMENT_FEED_QUERY_KEY });
-      queryClient.invalidateQueries({ queryKey: UNREAD_COUNT_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ['announcements', getUserScope()] });
     },
   });
 }
@@ -161,8 +144,8 @@ export function useMarkAnnouncementReadMutation() {
   return useMutation({
     mutationFn: (id: string) => markAnnouncementReadApi(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ANNOUNCEMENT_FEED_QUERY_KEY });
-      queryClient.invalidateQueries({ queryKey: UNREAD_COUNT_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ['announcements', getUserScope()] });
     },
   });
 }
+

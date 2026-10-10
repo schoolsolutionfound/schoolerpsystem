@@ -2,6 +2,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
 import { Book, BookCopy, Loan, Fine, StudentProfile } from '../types';
+import { useUserStore } from '../../../store/useUserStore';
 
 export interface GeneratePdfOptions {
   reportType: string;
@@ -23,31 +24,64 @@ function escapeHtml(value: unknown): string {
 }
 
 /**
- * Builds standard Indian-Rupee or numeric currency string.
+ * Builds standard Indian-Rupee currency string preserving numeric sign.
  */
 function formatCurrency(amount: number): string {
-  return '₹' + Math.abs(amount).toFixed(2);
+  const isNegative = amount < 0;
+  const formatted = Math.abs(amount).toFixed(2);
+  return isNegative ? `-₹${formatted}` : `₹${formatted}`;
+}
+
+/**
+ * Helper to filter arrays of records based on selected time range.
+ */
+function isWithinTimeRange(dateStr?: string | null, timeRange?: string): boolean {
+  if (timeRange === 'ALL' || !timeRange) return true;
+  if (!dateStr) return false;
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return false;
+
+  const now = new Date();
+  if (timeRange === 'MONTH') {
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    return date >= startOfMonth;
+  }
+  if (timeRange === 'QUARTER') {
+    const quarterStartMonth = Math.floor(now.getMonth() / 3) * 3;
+    const startOfQuarter = new Date(now.getFullYear(), quarterStartMonth, 1);
+    return date >= startOfQuarter;
+  }
+  if (timeRange === 'YEAR') {
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
+    return date >= startOfYear;
+  }
+  return true;
 }
 
 /**
  * Builds the complete HTML string for the PDF report.
  */
 function buildReportHtml(options: GeneratePdfOptions): string {
-  const { reportType, timeRange, books, copies, loans, fines, students } = options;
+  const userStore = useUserStore.getState();
+  const institutionName = userStore.institutionName || userStore.schoolName || '—';
+
+  const { reportType, timeRange, books, copies, students } = options;
+
+  // B5: Filter loans and fines to match the requested time range
+  const filteredLoans = options.loans.filter((l) => isWithinTimeRange(l.issueDate || l.issuedAt || l.createdAt, timeRange));
+  const filteredFines = options.fines.filter((f) => isWithinTimeRange(f.createdAt, timeRange));
 
   // Key KPI metrics
   const totalBooksCount = books.length;
   const totalCopiesCount = copies.length;
-  const availableCopiesCount = copies.filter((c) => c.status === 'AVAILABLE').length;
-  const issuedCopiesCount = copies.filter((c) => c.status === 'ISSUED').length;
-  const overdueCopiesCount = copies.filter((c) => c.status === 'OVERDUE').length;
-  const damagedCopiesCount = copies.filter((c) => c.status === 'DAMAGED' || c.status === 'UNDER_REPAIR').length;
 
-  const activeLoansCount = loans.filter((l) => l.status === 'ACTIVE' || l.status === 'OVERDUE').length;
-  const overdueLoansCount = loans.filter((l) => l.status === 'OVERDUE').length;
+  // B6: Active loans must only be ACTIVE or OVERDUE (excluding RETURNED, LOST, CANCELLED)
+  const activeLoansList = filteredLoans.filter((l) => l.status === 'ACTIVE' || l.status === 'OVERDUE');
+  const activeLoansCount = activeLoansList.length;
+  const overdueLoansCount = filteredLoans.filter((l) => l.status === 'OVERDUE').length;
 
-  const totalFinesCollected = fines.reduce((acc, f) => acc + (f.paidAmount || 0), 0);
-  const totalFinesOutstanding = fines
+  const totalFinesCollected = filteredFines.reduce((acc, f) => acc + (f.paidAmount || 0), 0);
+  const totalFinesOutstanding = filteredFines
     .filter((f) => f.status === 'UNPAID' || f.status === 'PARTIALLY_PAID')
     .reduce((acc, f) => acc + (f.amount - (f.paidAmount || 0)), 0);
 
@@ -72,7 +106,7 @@ function buildReportHtml(options: GeneratePdfOptions): string {
   let tableSectionHtml = '';
 
   if (isOverdueReport) {
-    const overdueLoans = loans.filter((l) => l.status === 'OVERDUE' || (l.status === 'ACTIVE' && new Date(l.dueDate) < new Date()));
+    const overdueLoans = filteredLoans.filter((l) => l.status === 'OVERDUE' || (l.status === 'ACTIVE' && new Date(l.dueDate) < new Date()));
     tableSectionHtml = `
       <div class="section-title">Overdue Loans Audit List (${overdueLoans.length} Records)</div>
       <table>
@@ -99,8 +133,8 @@ function buildReportHtml(options: GeneratePdfOptions): string {
                         <td>${idx + 1}</td>
                         <td><strong>${escapeHtml(student?.fullName || 'Unknown Student')}</strong><br/><small>${escapeHtml(student?.admissionNo || 'N/A')}</small></td>
                         <td>${escapeHtml(book?.title || 'Unknown Title')}</td>
-                        <td>${loan.issueDate || loan.issuedAt ? new Date(loan.issueDate || loan.issuedAt!).toLocaleDateString() : 'N/A'}</td>
-                        <td style="color: #DC2626; font-weight: 700;">${new Date(loan.dueDate).toLocaleDateString()}</td>
+                        <td>${loan.issueDate || loan.issuedAt ? escapeHtml(new Date(loan.issueDate || loan.issuedAt!).toLocaleDateString()) : 'N/A'}</td>
+                        <td style="color: #DC2626; font-weight: 700;">${escapeHtml(new Date(loan.dueDate).toLocaleDateString())}</td>
                         <td><span class="badge badge-overdue">OVERDUE</span></td>
                       </tr>
                     `;
@@ -112,7 +146,7 @@ function buildReportHtml(options: GeneratePdfOptions): string {
     `;
   } else if (isFinancialReport) {
     tableSectionHtml = `
-      <div class="section-title">Fine Receipts & Outstanding Ledger (${fines.length} Transactions)</div>
+      <div class="section-title">Fine Receipts & Outstanding Ledger (${filteredFines.length} Transactions)</div>
       <table>
         <thead>
           <tr>
@@ -127,9 +161,9 @@ function buildReportHtml(options: GeneratePdfOptions): string {
         </thead>
         <tbody>
           ${
-            fines.length === 0
+            filteredFines.length === 0
               ? `<tr><td colspan="7" class="empty-cell">No fine records registered for the selected period.</td></tr>`
-              : fines
+              : filteredFines
                   .map((fine, idx) => {
                     const student = students.find((s) => s.id === fine.studentId);
                     const outstanding = fine.amount - (fine.paidAmount || 0);
@@ -199,9 +233,16 @@ function buildReportHtml(options: GeneratePdfOptions): string {
       </table>
     `;
   } else {
-    // Executive Overview (Multi-section)
+    // Executive Overview — B6: Display strictly active loans and indicate truncation clearly
+    const displayedActiveLoans = activeLoansList.slice(0, 15);
+    const displayedFines = filteredFines.slice(0, 15);
+
     tableSectionHtml = `
-      <div class="section-title">Active Loans & Circulation Summary (${loans.slice(0, 15).length} Recent)</div>
+      <div class="section-title">Active Loans & Circulation Summary (${
+        activeLoansList.length > 15
+          ? `Showing 15 of ${activeLoansList.length} Active Loans`
+          : `${activeLoansList.length} Active Loans`
+      })</div>
       <table>
         <thead>
           <tr>
@@ -215,10 +256,9 @@ function buildReportHtml(options: GeneratePdfOptions): string {
         </thead>
         <tbody>
           ${
-            loans.length === 0
-              ? `<tr><td colspan="6" class="empty-cell">No circulation records available.</td></tr>`
-              : loans
-                  .slice(0, 15)
+            displayedActiveLoans.length === 0
+              ? `<tr><td colspan="6" class="empty-cell">No active circulation records available.</td></tr>`
+              : displayedActiveLoans
                   .map((loan, idx) => {
                     const student = students.find((s) => s.id === loan.studentId);
                     const book = books.find((b) => b.id === loan.bookId);
@@ -228,8 +268,8 @@ function buildReportHtml(options: GeneratePdfOptions): string {
                         <td>${idx + 1}</td>
                         <td><strong>${escapeHtml(student?.fullName || 'Unknown Student')}</strong></td>
                         <td>${escapeHtml(book?.title || 'Unknown Title')}</td>
-                        <td>${loan.issueDate || loan.issuedAt ? new Date(loan.issueDate || loan.issuedAt!).toLocaleDateString() : 'N/A'}</td>
-                        <td>${new Date(loan.dueDate).toLocaleDateString()}</td>
+                        <td>${loan.issueDate || loan.issuedAt ? escapeHtml(new Date(loan.issueDate || loan.issuedAt!).toLocaleDateString()) : 'N/A'}</td>
+                        <td>${escapeHtml(new Date(loan.dueDate).toLocaleDateString())}</td>
                         <td><span class="badge ${badgeClass}">${escapeHtml(loan.status)}</span></td>
                       </tr>
                     `;
@@ -239,7 +279,11 @@ function buildReportHtml(options: GeneratePdfOptions): string {
         </tbody>
       </table>
 
-      <div class="section-title" style="margin-top: 24px;">Financial Fine Dues Summary</div>
+      <div class="section-title" style="margin-top: 24px;">Financial Fine Dues Summary (${
+        filteredFines.length > 15
+          ? `Showing 15 of ${filteredFines.length} Records`
+          : `${filteredFines.length} Records`
+      })</div>
       <table>
         <thead>
           <tr>
@@ -254,10 +298,9 @@ function buildReportHtml(options: GeneratePdfOptions): string {
         </thead>
         <tbody>
           ${
-            fines.length === 0
+            displayedFines.length === 0
               ? `<tr><td colspan="7" class="empty-cell">No financial dues recorded.</td></tr>`
-              : fines
-                  .slice(0, 15)
+              : displayedFines
                   .map((fine, idx) => {
                     const student = students.find((s) => s.id === fine.studentId);
                     const outstanding = fine.amount - (fine.paidAmount || 0);
@@ -267,11 +310,10 @@ function buildReportHtml(options: GeneratePdfOptions): string {
                         <td>${idx + 1}</td>
                         <td><strong>${escapeHtml(student?.fullName || 'Unknown Student')}</strong></td>
                         <td>${escapeHtml(fine.fineType || 'Fine')}</td>
-
                         <td>${formatCurrency(fine.amount)}</td>
                         <td style="color: #059669; font-weight: 700;">${formatCurrency(fine.paidAmount || 0)}</td>
                         <td style="color: #DC2626; font-weight: 700;">${formatCurrency(outstanding > 0 ? outstanding : 0)}</td>
-                        <td><span class="badge ${badgeClass}">${fine.status}</span></td>
+                        <td><span class="badge ${badgeClass}">${escapeHtml(fine.status)}</span></td>
                       </tr>
                     `;
                   })
@@ -287,7 +329,7 @@ function buildReportHtml(options: GeneratePdfOptions): string {
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>${reportType}</title>
+  <title>${escapeHtml(reportType)}</title>
   <style>
     @page { size: A4 portrait; margin: 12mm; }
     body {
@@ -434,12 +476,12 @@ function buildReportHtml(options: GeneratePdfOptions): string {
 <body>
   <div class="header">
     <div>
-      <div class="brand">School ERP — Library Management System</div>
-      <div class="report-title">${reportType}</div>
+      <div class="brand">${escapeHtml(institutionName)} — Library Management System</div>
+      <div class="report-title">${escapeHtml(reportType)}</div>
     </div>
     <div class="meta-box">
-      <div>Reporting Period: <strong>${periodLabel}</strong></div>
-      <div>Generated Date: <strong>${generatedDate}</strong></div>
+      <div>Reporting Period: <strong>${escapeHtml(periodLabel)}</strong></div>
+      <div>Generated Date: <strong>${escapeHtml(generatedDate)}</strong></div>
     </div>
   </div>
 
@@ -469,7 +511,7 @@ function buildReportHtml(options: GeneratePdfOptions): string {
   ${tableSectionHtml}
 
   <div class="footer">
-    <div>School ERP System • Library Management Module</div>
+    <div>${escapeHtml(institutionName)} • Library Management Module</div>
     <div>Confidential — For Authorized Institutional Use Only</div>
   </div>
 </body>

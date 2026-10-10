@@ -269,17 +269,17 @@ export const ParentFeesView: React.FC = () => {
             <View style={styles.receiptMeta}>
               <View>
                 <Text style={styles.receiptMetaLabel}>Receipt No</Text>
-                <Text style={styles.receiptMetaVal}>{viewingReceipt?.receiptNo}</Text>
+                <Text style={styles.receiptMetaVal}>{viewingReceipt?.receiptNo || '—'}</Text>
               </View>
               <View>
                 <Text style={styles.receiptMetaLabel}>Date of Payment</Text>
-                <Text style={styles.receiptMetaVal}>{viewingReceipt?.paidDate}</Text>
+                <Text style={styles.receiptMetaVal}>{viewingReceipt?.paidDate || viewingReceipt?.paymentDate || '—'}</Text>
               </View>
             </View>
 
             <View style={styles.receiptStudentInfo}>
-              <Text style={styles.receiptStudentName}>Student: Rohan Verma</Text>
-              <Text style={styles.receiptStudentRoll}>Class: 10-A • Roll No: 14</Text>
+              <Text style={styles.receiptStudentName}>Student: {viewingReceipt?.payerName || '—'}</Text>
+              <Text style={styles.receiptStudentRoll}>Class: {viewingReceipt?.classSection || '—'} • Roll No: {viewingReceipt?.rollNo || '—'}</Text>
             </View>
 
             <View style={styles.receiptLineItem}>

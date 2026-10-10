@@ -9,7 +9,6 @@ import {
   deleteAnnouncementHandler,
   publishAnnouncementHandler,
   cancelAnnouncementHandler,
-  archiveAnnouncementHandler,
   markAnnouncementReadHandler,
 } from './announcement.controller.js';
 import { authenticate, requireStaff } from '../shared/middleware/auth.js';
@@ -30,5 +29,5 @@ export async function announcementRoutes(fastify: FastifyInstance) {
   fastify.delete('/:id', { preHandler: [requireStaff] }, (req: any, reply) => deleteAnnouncementHandler(req, reply));
   fastify.post('/:id/publish', { preHandler: [requireStaff] }, (req: any, reply) => publishAnnouncementHandler(req, reply));
   fastify.post('/:id/cancel', { preHandler: [requireStaff] }, (req: any, reply) => cancelAnnouncementHandler(req, reply));
-  fastify.post('/:id/archive', { preHandler: [requireStaff] }, (req: any, reply) => archiveAnnouncementHandler(req, reply));
 }
+

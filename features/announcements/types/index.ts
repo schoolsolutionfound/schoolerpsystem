@@ -1,8 +1,7 @@
-export type AnnouncementType = 'GENERAL' | 'ACADEMIC' | 'EVENT' | 'URGENT' | 'NOTICE';
+﻿export type AnnouncementType = 'GENERAL' | 'ACADEMIC' | 'EVENT' | 'URGENT' | 'NOTICE';
 export type AnnouncementPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
 export type AnnouncementStatus = 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'EXPIRED' | 'CANCELLED';
 export type TargetType = 'all' | 'role' | 'class' | 'section';
-export type CreateAction = 'draft' | 'publish' | 'schedule';
 
 export interface AnnouncementTarget {
   id?: string;

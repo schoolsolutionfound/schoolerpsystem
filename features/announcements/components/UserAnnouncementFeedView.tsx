@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, StyleSheet, Alert } from 'react-native';
 import {
   useAnnouncementFeedQuery,
   useUnreadAnnouncementCountQuery,
@@ -17,27 +17,35 @@ export const UserAnnouncementFeedView: React.FC = () => {
   });
 
   const queryPayload = {
+    search: filters.search || undefined,
     limit: 50,
     offset: 0,
   };
 
-  const { data, isLoading, error, refetch } = useAnnouncementFeedQuery(queryPayload);
-  const { data: unreadData } = useUnreadAnnouncementCountQuery();
+  const { data, isLoading, isRefetching, error, refetch } = useAnnouncementFeedQuery(queryPayload);
+  const { data: unreadData, refetch: refetchUnread } = useUnreadAnnouncementCountQuery();
   const markReadMutation = useMarkAnnouncementReadMutation();
 
-  const handleFilterChange = (newFilters: Partial<AnnouncementFilterState>) => {
+  const handleFilterChange = useCallback((newFilters: Partial<AnnouncementFilterState>) => {
     setFilters((prev) => ({ ...prev, ...newFilters }));
-  };
+  }, []);
 
-  const handleMarkRead = async (id: string) => {
-    await markReadMutation.mutateAsync(id);
-  };
+  const handleRefresh = useCallback(async () => {
+    await Promise.all([refetch(), refetchUnread()]);
+  }, [refetch, refetchUnread]);
+
+  const handleMarkRead = useCallback(async (id: string) => {
+    try {
+      await markReadMutation.mutateAsync(id);
+    } catch (err: any) {
+      Alert.alert('Announcement Error', err?.message || 'Failed to mark announcement as read');
+    }
+  }, [markReadMutation]);
 
   const rawItems = data?.items || [];
-  const total = data?.total || 0;
   const unreadCount = unreadData?.unreadCount || 0;
 
-  // Filter client side by search, type, priority if specified
+  // Filter client side by type, priority if specified
   const filteredItems = rawItems.filter((item: Announcement) => {
     if (filters.search && filters.search.trim()) {
       const q = filters.search.toLowerCase();
@@ -54,14 +62,17 @@ export const UserAnnouncementFeedView: React.FC = () => {
     return true;
   });
 
+  const total = data?.total ?? filteredItems.length;
+
   return (
     <View style={styles.container}>
       <AnnouncementList
         items={filteredItems}
         total={total}
         loading={isLoading}
+        refreshing={isRefetching}
         error={error}
-        onRefresh={refetch}
+        onRefresh={handleRefresh}
         filters={filters}
         onFilterChange={handleFilterChange}
         onMarkRead={handleMarkRead}

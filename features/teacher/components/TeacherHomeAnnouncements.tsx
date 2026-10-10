@@ -1,10 +1,8 @@
-import React from 'react';
-import { View, StyleSheet, Text } from 'react-native';
+﻿import React from 'react';
+import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
 import { FontFamily } from '../../../constants/fonts';
-
-import { TouchableOpacity } from 'react-native';
 
 interface TeacherHomeAnnouncementsProps {
   onPressFeed?: () => void;

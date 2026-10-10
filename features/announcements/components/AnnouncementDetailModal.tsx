@@ -22,11 +22,14 @@ export const AnnouncementDetailModal: React.FC<AnnouncementDetailModalProps> = (
   onMarkRead,
   isUserFeed = false,
 }) => {
+  const annId = announcement?.id;
+  const isRead = announcement?.isRead;
+
   useEffect(() => {
-    if (visible && announcement && isUserFeed && !announcement.isRead && onMarkRead) {
-      onMarkRead(announcement.id);
+    if (visible && annId && isUserFeed && !isRead && onMarkRead) {
+      onMarkRead(annId);
     }
-  }, [visible, announcement, isUserFeed]);
+  }, [visible, annId, isUserFeed, isRead, onMarkRead]);
 
   if (!announcement) return null;
 
@@ -48,12 +51,32 @@ export const AnnouncementDetailModal: React.FC<AnnouncementDetailModalProps> = (
     if (url) Linking.openURL(url).catch(() => {});
   };
 
+  const getPriorityStyle = (priority: string) => {
+    switch (priority) {
+      case 'URGENT':
+        return { bg: '#FEE2E2', text: '#DC2626' };
+      case 'HIGH':
+        return { bg: '#FFEDD5', text: '#C2410C' };
+      case 'LOW':
+        return { bg: '#E0F2FE', text: '#0284C7' };
+      case 'NORMAL':
+      default:
+        return { bg: '#FEF3C7', text: '#D97706' };
+    }
+  };
+
+  const priorityStyle = getPriorityStyle(announcement.priority);
+
   return (
     <AppModal visible={visible} onClose={onClose} title="Announcement Details">
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
           <AppBadge label={announcement.type} type="active" />
-          <AppBadge label={announcement.priority} type={announcement.priority === 'URGENT' ? 'suspended' : 'trial'} />
+          <View style={[styles.priorityBadge, { backgroundColor: priorityStyle.bg }]}>
+            <Text style={[styles.priorityText, { color: priorityStyle.text }]}>
+              {announcement.priority}
+            </Text>
+          </View>
           <AppBadge label={announcement.status} type="college" />
         </View>
 
@@ -122,7 +145,17 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
     gap: 8,
+    alignItems: 'center',
     flexWrap: 'wrap',
+  },
+  priorityBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  priorityText: {
+    fontSize: 11,
+    fontFamily: FontFamily.semibold,
   },
   title: {
     fontSize: 18,
