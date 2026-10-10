@@ -1,8 +1,13 @@
-import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
-import { Platform } from 'react-native';
 import { IncomeRecord, ExpenseRecord } from '../types/finance';
-import { useUserStore } from '../../../store/useUserStore';
+import {
+  escapeHtml,
+  formatINR,
+  getInstitutionName,
+  formatGeneratedDate,
+  baseReportCss,
+  buildHtmlDocument,
+  sharePdf,
+} from '../../shared/utils/pdf/pdfShared';
 
 export interface FeeReceiptInput {
   id?: string;
@@ -25,27 +30,11 @@ export interface StatementInput {
   expenseRecords: ExpenseRecord[];
 }
 
-function escapeHtml(value: unknown): string {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
-function formatINR(amount: number): string {
-  const isNegative = amount < 0;
-  const formatted = Math.abs(amount).toLocaleString('en-IN');
-  return isNegative ? `-₹${formatted}` : `₹${formatted}`;
-}
-
 /**
  * Generates and shares a PDF receipt for Accountant Fee Collection.
  */
 export async function generateStudentFeeReceiptPdf(receipt: FeeReceiptInput): Promise<void> {
-  const userStore = useUserStore.getState();
-  const institutionName = userStore.institutionName || userStore.schoolName || '—';
+  const institutionName = getInstitutionName();
 
   // B4: Stable receipt number (no Math.random or Date.now)
   let receiptNo = receipt.receiptNo;
@@ -63,15 +52,10 @@ export async function generateStudentFeeReceiptPdf(receipt: FeeReceiptInput): Pr
   const classSection = receipt.classSection || '—';
   const rollNo = receipt.rollNo || '—';
   const paymentMethod = (receipt.paymentMethod || 'CASH').toUpperCase();
-  const generatedDate = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+  const generatedDate = formatGeneratedDate();
 
-  const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <title>Student Fee Receipt - ${escapeHtml(receiptNo)}</title>
-  <style>
+  // Receipt-specific stylesheet (card layout differs from table reports).
+  const receiptCss = `
     @page { size: A4 portrait; margin: 15mm; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -192,9 +176,12 @@ export async function generateStudentFeeReceiptPdf(receipt: FeeReceiptInput): Pr
       font-size: 11px;
       margin-bottom: 6px;
     }
-  </style>
-</head>
-<body>
+  `;
+
+  const html = buildHtmlDocument({
+    title: `Student Fee Receipt - ${receiptNo}`,
+    css: receiptCss,
+    content: `
   <div class="receipt-box">
     <div class="header">
       <div class="institution-name">${escapeHtml(institutionName)}</div>
@@ -244,34 +231,17 @@ export async function generateStudentFeeReceiptPdf(receipt: FeeReceiptInput): Pr
       <div>Confidential • ${escapeHtml(generatedDate)}</div>
     </div>
   </div>
-</body>
-</html>
-  `;
+    `,
+  });
 
-  if (Platform.OS === 'web') {
-    await Print.printAsync({ html });
-    return;
-  }
-
-  const { uri } = await Print.printToFileAsync({ html, base64: false });
-  const isAvailable = await Sharing.isAvailableAsync();
-  if (isAvailable) {
-    await Sharing.shareAsync(uri, {
-      mimeType: 'application/pdf',
-      dialogTitle: `Download Fee Receipt - ${receiptNo}`,
-      UTI: 'com.adobe.pdf',
-    });
-  } else {
-    await Print.printAsync({ uri });
-  }
+  await sharePdf(html, `Download Fee Receipt - ${receiptNo}`);
 }
 
 /**
  * Generates and shares a PDF for Accountant Financial Tally & Income/Expense Statement.
  */
 export async function generateIncomeExpenseStatementPdf(data: StatementInput): Promise<void> {
-  const userStore = useUserStore.getState();
-  const institutionName = userStore.institutionName || userStore.schoolName || '—';
+  const institutionName = getInstitutionName();
 
   const { incomeRecords = [], expenseRecords = [] } = data;
 
@@ -280,78 +250,12 @@ export async function generateIncomeExpenseStatementPdf(data: StatementInput): P
   const totalExpense = expenseRecords.reduce((sum, exp) => sum + (Number(exp.amount) || 0), 0);
   const netTally = totalIncome - totalExpense;
 
-  const generatedDate = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+  const generatedDate = formatGeneratedDate();
 
-  const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <title>Income & Expense Statement</title>
-  <style>
-    @page { size: A4 portrait; margin: 12mm; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      color: #111827;
-      background: #FFFFFF;
-      font-size: 11px;
-      line-height: 1.4;
-      margin: 0;
-      padding: 0;
-    }
-    .header {
-      border-bottom: 3px solid #10B981;
-      padding-bottom: 12px;
-      margin-bottom: 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-    }
-    .brand { font-size: 18px; font-weight: 800; color: #111827; }
-    .title { font-size: 14px; font-weight: 700; color: #059669; margin-top: 4px; }
-    .meta { text-align: right; font-size: 10px; color: #4B5563; }
-    .kpi-grid {
-      display: flex;
-      flex-direction: row;
-      gap: 10px;
-      margin-bottom: 16px;
-    }
-    .kpi-card {
-      flex: 1;
-      background: #F9FAFB;
-      border: 1px solid #E5E7EB;
-      border-radius: 6px;
-      padding: 10px;
-      text-align: center;
-    }
-    .kpi-label { font-size: 9px; text-transform: uppercase; font-weight: 700; color: #4B5563; }
-    .kpi-val { font-size: 15px; font-weight: 800; margin-top: 4px; }
-    .section-title {
-      font-size: 13px;
-      font-weight: 800;
-      color: #111827;
-      margin-top: 16px;
-      margin-bottom: 8px;
-      border-left: 4px solid #10B981;
-      padding-left: 8px;
-    }
-    table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 10px; }
-    th { background: #F3F4F6; color: #374151; font-weight: 700; text-align: left; padding: 6px 8px; border: 1px solid #E5E7EB; text-transform: uppercase; font-size: 8px; }
-    td { padding: 6px 8px; border: 1px solid #E5E7EB; color: #1F2937; word-break: break-word; }
-    tr:nth-child(even) { background: #FAFAFA; }
-    tr { page-break-inside: avoid; break-inside: avoid; }
-    .footer {
-      margin-top: 24px;
-      border-top: 1px solid #E5E7EB;
-      padding-top: 10px;
-      font-size: 9px;
-      color: #9CA3AF;
-      display: flex;
-      justify-content: space-between;
-    }
-  </style>
-</head>
-<body>
+  const html = buildHtmlDocument({
+    title: 'Income & Expense Statement',
+    css: baseReportCss('#10B981'),
+    content: `
   <div class="header">
     <div>
       <div class="brand">${escapeHtml(institutionName)}</div>
@@ -470,25 +374,9 @@ export async function generateIncomeExpenseStatementPdf(data: StatementInput): P
     <div>${escapeHtml(institutionName)} • Financial Ledger Statement</div>
     <div>Confidential — For Internal Financial Audit Use Only</div>
   </div>
-</body>
-</html>
-  `;
+    `,
+  });
 
-  if (Platform.OS === 'web') {
-    await Print.printAsync({ html });
-    return;
-  }
-
-  const { uri } = await Print.printToFileAsync({ html, base64: false });
-  const isAvailable = await Sharing.isAvailableAsync();
-  if (isAvailable) {
-    await Sharing.shareAsync(uri, {
-      mimeType: 'application/pdf',
-      dialogTitle: 'Download Financial Tally Statement',
-      UTI: 'com.adobe.pdf',
-    });
-  } else {
-    await Print.printAsync({ uri });
-  }
+  await sharePdf(html, 'Download Financial Tally Statement');
 }
 

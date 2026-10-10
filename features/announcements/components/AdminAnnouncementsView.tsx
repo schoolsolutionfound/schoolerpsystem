@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
 import {
-  useAnnouncementsQuery,
+  useAnnouncementsInfiniteQuery,
   useCreateAnnouncementMutation,
   useUpdateAnnouncementMutation,
   useDeleteAnnouncementMutation,
@@ -32,11 +32,18 @@ export const AdminAnnouncementsView: React.FC = () => {
     type: filters.type !== 'ALL' ? filters.type : undefined,
     status: filters.status !== 'ALL' ? filters.status : undefined,
     priority: filters.priority !== 'ALL' ? filters.priority : undefined,
-    limit: 100,
-    offset: 0,
   };
 
-  const { data, isLoading, isRefetching, error, refetch } = useAnnouncementsQuery(queryPayload);
+  const {
+    data,
+    isLoading,
+    isRefetching,
+    error,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useAnnouncementsInfiniteQuery(queryPayload);
   const createMutation = useCreateAnnouncementMutation();
   const updateMutation = useUpdateAnnouncementMutation();
   const deleteMutation = useDeleteAnnouncementMutation();
@@ -106,15 +113,16 @@ export const AdminAnnouncementsView: React.FC = () => {
     }
   }, [markReadMutation]);
 
-  const items = data?.items || [];
-  const total = data?.total ?? items.length;
+  const items = data?.pages?.flatMap((p) => p?.items || []) ?? [];
+  const lastPage = data?.pages?.[data.pages.length - 1];
+  const total = lastPage?.total ?? items.length;
 
   return (
     <View style={styles.container}>
       <AnnouncementList
         items={items}
         total={total}
-        loading={isLoading}
+        loading={isLoading || (!data && !error)}
         refreshing={isRefetching}
         error={error}
         onRefresh={refetch}
@@ -129,6 +137,8 @@ export const AdminAnnouncementsView: React.FC = () => {
         isManagement={true}
         allowBroadTargets={isManager}
         actionLoading={isActionLoading}
+        onEndReached={hasNextPage ? () => fetchNextPage() : undefined}
+        loadingMore={isFetchingNextPage}
       />
     </View>
   );

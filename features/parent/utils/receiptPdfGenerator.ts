@@ -1,7 +1,11 @@
-import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
-import { Platform } from 'react-native';
-import { useUserStore } from '../../../store/useUserStore';
+import {
+  escapeHtml,
+  formatINR,
+  getInstitutionName,
+  formatGeneratedDate,
+  buildHtmlDocument,
+  sharePdf,
+} from '../../shared/utils/pdf/pdfShared';
 
 export interface FeeReceiptData {
   id?: string;
@@ -17,24 +21,8 @@ export interface FeeReceiptData {
   paymentMethod?: string;
 }
 
-function escapeHtml(value: unknown): string {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
-function formatINR(amount: number): string {
-  const isNegative = amount < 0;
-  const formatted = Math.abs(amount).toLocaleString('en-IN');
-  return isNegative ? `-₹${formatted}` : `₹${formatted}`;
-}
-
 export async function generateParentFeeReceiptPdf(receipt: FeeReceiptData): Promise<void> {
-  const userStore = useUserStore.getState();
-  const institutionName = userStore.institutionName || userStore.schoolName || '—';
+  const institutionName = getInstitutionName();
 
   // B4: Stable receipt number determination
   let receiptNo = receipt.receiptNo;
@@ -52,15 +40,10 @@ export async function generateParentFeeReceiptPdf(receipt: FeeReceiptData): Prom
   const classSection = receipt.classSection || '—';
   const rollNo = receipt.rollNo || '—';
   const paymentMethod = (receipt.paymentMethod || 'UPI').toUpperCase();
-  const generatedDate = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+  const generatedDate = formatGeneratedDate();
 
-  const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <title>Fee Receipt - ${escapeHtml(receiptNo)}</title>
-  <style>
+  // Parent receipt stylesheet (amber accent, card layout).
+  const receiptCss = `
     @page { size: A4 portrait; margin: 15mm; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -184,9 +167,12 @@ export async function generateParentFeeReceiptPdf(receipt: FeeReceiptData): Prom
       font-size: 11px;
       margin-bottom: 6px;
     }
-  </style>
-</head>
-<body>
+  `;
+
+  const html = buildHtmlDocument({
+    title: `Fee Receipt - ${receiptNo}`,
+    css: receiptCss,
+    content: `
   <div class="receipt-box">
     <div class="header">
       <div class="institution-name">${escapeHtml(institutionName)}</div>
@@ -236,25 +222,9 @@ export async function generateParentFeeReceiptPdf(receipt: FeeReceiptData): Prom
       <div>Confidential — For Authorized Parent / Student Record Only • ${escapeHtml(generatedDate)}</div>
     </div>
   </div>
-</body>
-</html>
-  `;
+    `,
+  });
 
-  if (Platform.OS === 'web') {
-    await Print.printAsync({ html });
-    return;
-  }
-
-  const { uri } = await Print.printToFileAsync({ html, base64: false });
-  const isAvailable = await Sharing.isAvailableAsync();
-  if (isAvailable) {
-    await Sharing.shareAsync(uri, {
-      mimeType: 'application/pdf',
-      dialogTitle: `Download Fee Receipt - ${receiptNo}`,
-      UTI: 'com.adobe.pdf',
-    });
-  } else {
-    await Print.printAsync({ uri });
-  }
+  await sharePdf(html, `Download Fee Receipt - ${receiptNo}`);
 }
 

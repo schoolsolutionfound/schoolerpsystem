@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
 import {
-  useAnnouncementFeedQuery,
+  useAnnouncementFeedInfiniteQuery,
   useUnreadAnnouncementCountQuery,
   useMarkAnnouncementReadMutation,
 } from '../hooks/useAnnouncements';
@@ -18,11 +18,20 @@ export const UserAnnouncementFeedView: React.FC = () => {
 
   const queryPayload = {
     search: filters.search || undefined,
-    limit: 50,
-    offset: 0,
+    type: filters.type !== 'ALL' ? filters.type : undefined,
+    priority: filters.priority !== 'ALL' ? filters.priority : undefined,
   };
 
-  const { data, isLoading, isRefetching, error, refetch } = useAnnouncementFeedQuery(queryPayload);
+  const {
+    data,
+    isLoading,
+    isRefetching,
+    error,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useAnnouncementFeedInfiniteQuery(queryPayload);
   const { data: unreadData, refetch: refetchUnread } = useUnreadAnnouncementCountQuery();
   const markReadMutation = useMarkAnnouncementReadMutation();
 
@@ -42,10 +51,10 @@ export const UserAnnouncementFeedView: React.FC = () => {
     }
   }, [markReadMutation]);
 
-  const rawItems = data?.items || [];
+  const rawItems = data?.pages?.flatMap((p) => p?.items || []) ?? [];
   const unreadCount = unreadData?.unreadCount || 0;
 
-  // Filter client side by type, priority if specified
+  // Client-side filter as a safety net on top of server-side type/priority/search.
   const filteredItems = rawItems.filter((item: Announcement) => {
     if (filters.search && filters.search.trim()) {
       const q = filters.search.toLowerCase();
@@ -62,14 +71,15 @@ export const UserAnnouncementFeedView: React.FC = () => {
     return true;
   });
 
-  const total = data?.total ?? filteredItems.length;
+  const lastPage = data?.pages?.[data.pages.length - 1];
+  const total = lastPage?.total ?? rawItems.length;
 
   return (
     <View style={styles.container}>
       <AnnouncementList
         items={filteredItems}
         total={total}
-        loading={isLoading}
+        loading={isLoading || (!data && !error)}
         refreshing={isRefetching}
         error={error}
         onRefresh={handleRefresh}
@@ -78,6 +88,8 @@ export const UserAnnouncementFeedView: React.FC = () => {
         onMarkRead={handleMarkRead}
         isManagement={false}
         unreadCount={unreadCount}
+        onEndReached={hasNextPage ? () => fetchNextPage() : undefined}
+        loadingMore={isFetchingNextPage}
       />
     </View>
   );

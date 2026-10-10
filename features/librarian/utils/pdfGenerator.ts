@@ -1,8 +1,13 @@
-import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
-import { Platform } from 'react-native';
 import { Book, BookCopy, Loan, Fine, StudentProfile } from '../types';
-import { useUserStore } from '../../../store/useUserStore';
+import {
+  escapeHtml,
+  formatCurrency,
+  getInstitutionName,
+  formatGeneratedDate,
+  baseReportCss,
+  buildHtmlDocument,
+  sharePdf,
+} from '../../shared/utils/pdf/pdfShared';
 
 export interface GeneratePdfOptions {
   reportType: string;
@@ -12,24 +17,6 @@ export interface GeneratePdfOptions {
   loans: Loan[];
   fines: Fine[];
   students: StudentProfile[];
-}
-
-function escapeHtml(value: unknown): string {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
-/**
- * Builds standard Indian-Rupee currency string preserving numeric sign.
- */
-function formatCurrency(amount: number): string {
-  const isNegative = amount < 0;
-  const formatted = Math.abs(amount).toFixed(2);
-  return isNegative ? `-₹${formatted}` : `₹${formatted}`;
 }
 
 /**
@@ -62,8 +49,7 @@ function isWithinTimeRange(dateStr?: string | null, timeRange?: string): boolean
  * Builds the complete HTML string for the PDF report.
  */
 function buildReportHtml(options: GeneratePdfOptions): string {
-  const userStore = useUserStore.getState();
-  const institutionName = userStore.institutionName || userStore.schoolName || '—';
+  const institutionName = getInstitutionName();
 
   const { reportType, timeRange, books, copies, students } = options;
 
@@ -92,10 +78,7 @@ function buildReportHtml(options: GeneratePdfOptions): string {
     ALL: 'All Time',
   };
   const periodLabel = periodLabelMap[timeRange] || timeRange;
-  const generatedDate = new Date().toLocaleString('en-US', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  });
+  const generatedDate = formatGeneratedDate();
 
   // Filter dataset for specialized reports
   const isOverdueReport = reportType.toLowerCase().includes('overdue');
@@ -326,37 +309,9 @@ function buildReportHtml(options: GeneratePdfOptions): string {
     `;
   }
 
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <title>${escapeHtml(reportType)}</title>
-  <style>
-    @page { size: A4 portrait; margin: 12mm; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      color: #111827;
-      background-color: #FFFFFF;
-      font-size: 11px;
-      line-height: 1.4;
-      margin: 0;
-      padding: 0;
-    }
-    .header {
-      border-bottom: 3px solid #10B981;
-      padding-bottom: 12px;
-      margin-bottom: 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-    }
-    .brand {
-      font-size: 18px;
-      font-weight: 800;
-      color: #111827;
-      letter-spacing: -0.3px;
-    }
+  // Report-specific classes on top of the shared base stylesheet.
+  const libraryExtraCss = `
+    .brand { letter-spacing: -0.3px; }
     .report-title {
       font-size: 14px;
       font-weight: 700;
@@ -368,30 +323,7 @@ function buildReportHtml(options: GeneratePdfOptions): string {
       font-size: 10px;
       color: #4B5563;
     }
-    .meta-box strong {
-      color: #111827;
-    }
-    .kpi-grid {
-      display: flex;
-      flex-direction: row;
-      gap: 10px;
-      margin-bottom: 16px;
-      width: 100%;
-    }
-    .kpi-card {
-      flex: 1;
-      background: #F9FAFB;
-      border: 1px solid #E5E7EB;
-      border-radius: 6px;
-      padding: 10px 8px;
-      text-align: center;
-    }
-    .kpi-label {
-      font-size: 9px;
-      text-transform: uppercase;
-      font-weight: 700;
-      color: #4B5563;
-    }
+    .meta-box strong { color: #111827; }
     .kpi-value {
       font-size: 15px;
       font-weight: 800;
@@ -402,46 +334,6 @@ function buildReportHtml(options: GeneratePdfOptions): string {
       font-size: 8px;
       color: #6B7280;
       margin-top: 2px;
-    }
-    .section-title {
-      font-size: 13px;
-      font-weight: 800;
-      color: #111827;
-      margin-top: 16px;
-      margin-bottom: 8px;
-      border-left: 4px solid #10B981;
-      padding-left: 8px;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 6px;
-      font-size: 10px;
-    }
-    th {
-      background-color: #F3F4F6;
-      color: #374151;
-      font-weight: 700;
-      text-align: left;
-      padding: 6px 8px;
-      border: 1px solid #E5E7EB;
-      text-transform: uppercase;
-      font-size: 8px;
-      letter-spacing: 0.4px;
-    }
-    td {
-      padding: 6px 8px;
-      border: 1px solid #E5E7EB;
-      color: #1F2937;
-      word-break: break-word;
-      overflow-wrap: break-word;
-    }
-    tr:nth-child(even) {
-      background-color: #FAFAFA;
-    }
-    tr {
-      page-break-inside: avoid;
-      break-inside: avoid;
     }
     .badge {
       display: inline-block;
@@ -463,19 +355,12 @@ function buildReportHtml(options: GeneratePdfOptions): string {
       font-style: italic;
       padding: 14px;
     }
-    .footer {
-      margin-top: 24px;
-      border-top: 1px solid #E5E7EB;
-      padding-top: 10px;
-      font-size: 9px;
-      color: #9CA3AF;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-  </style>
-</head>
-<body>
+  `;
+
+  return buildHtmlDocument({
+    title: reportType,
+    css: baseReportCss('#10B981') + libraryExtraCss,
+    content: `
   <div class="header">
     <div>
       <div class="brand">${escapeHtml(institutionName)} — Library Management System</div>
@@ -516,9 +401,8 @@ function buildReportHtml(options: GeneratePdfOptions): string {
     <div>${escapeHtml(institutionName)} • Library Management Module</div>
     <div>Confidential — For Authorized Institutional Use Only</div>
   </div>
-</body>
-</html>
-  `;
+    `,
+  });
 }
 
 /**
@@ -526,28 +410,5 @@ function buildReportHtml(options: GeneratePdfOptions): string {
  */
 export async function generateLibraryPdfReport(options: GeneratePdfOptions): Promise<void> {
   const html = buildReportHtml(options);
-
-  if (Platform.OS === 'web') {
-    // Web platform print fallback
-    await Print.printAsync({ html });
-    return;
-  }
-
-  // Native PDF compilation via expo-print
-  const { uri } = await Print.printToFileAsync({
-    html,
-    base64: false,
-  });
-
-  const isAvailable = await Sharing.isAvailableAsync();
-  if (isAvailable) {
-    await Sharing.shareAsync(uri, {
-      mimeType: 'application/pdf',
-      dialogTitle: `Download ${options.reportType} PDF Report`,
-      UTI: 'com.adobe.pdf',
-    });
-  } else {
-    // Fallback if sharing is disabled on device
-    await Print.printAsync({ uri });
-  }
+  await sharePdf(html, `Download ${options.reportType} PDF Report`);
 }

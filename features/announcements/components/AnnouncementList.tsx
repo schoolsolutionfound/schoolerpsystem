@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, FlatList, StyleSheet, RefreshControl } from 'react-native';
+import { View, FlatList, StyleSheet, RefreshControl, ActivityIndicator } from 'react-native';
 import { AnnouncementCard } from './AnnouncementCard';
 import { AnnouncementDetailModal } from './AnnouncementDetailModal';
 import { CreateAnnouncementModal } from './CreateAnnouncementModal';
@@ -31,6 +31,8 @@ interface AnnouncementListProps {
   unreadCount?: number;
   allowBroadTargets?: boolean;
   actionLoading?: boolean;
+  onEndReached?: () => void;
+  loadingMore?: boolean;
 }
 
 export const AnnouncementList: React.FC<AnnouncementListProps> = ({
@@ -52,6 +54,8 @@ export const AnnouncementList: React.FC<AnnouncementListProps> = ({
   unreadCount = 0,
   allowBroadTargets = true,
   actionLoading = false,
+  onEndReached,
+  loadingMore = false,
 }) => {
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
   const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
@@ -159,6 +163,15 @@ export const AnnouncementList: React.FC<AnnouncementListProps> = ({
           items.length === 0 && { flexGrow: 1, justifyContent: 'center' },
         ]}
         showsVerticalScrollIndicator={false}
+        onEndReached={onEndReached}
+        onEndReachedThreshold={0.4}
+        ListFooterComponent={
+          loadingMore ? (
+            <View style={styles.footer}>
+              <ActivityIndicator size="small" color={Colors.light.primary} />
+            </View>
+          ) : null
+        }
         refreshControl={
           <RefreshControl
             refreshing={Boolean(refreshing)}
@@ -204,5 +217,9 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: 20,
+  },
+  footer: {
+    paddingVertical: 16,
+    alignItems: 'center',
   },
 });

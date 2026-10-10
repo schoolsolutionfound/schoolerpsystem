@@ -1,7 +1,11 @@
-import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
-import { Platform } from 'react-native';
-import { useUserStore } from '../../../store/useUserStore';
+import {
+  escapeHtml,
+  getInstitutionName,
+  formatGeneratedDate,
+  baseReportCss,
+  buildHtmlDocument,
+  sharePdf,
+} from '../../shared/utils/pdf/pdfShared';
 
 export interface ClassAttendanceStudentInput {
   name?: string;
@@ -29,18 +33,8 @@ export interface ClassAttendancePdfInput {
   dailyTrend?: { date: string; percentage: number }[];
 }
 
-function escapeHtml(value: unknown): string {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
 export async function generateClassAttendancePdfReport(data: ClassAttendancePdfInput): Promise<void> {
-  const userStore = useUserStore.getState();
-  const institutionName = userStore.institutionName || userStore.schoolName || '—';
+  const institutionName = getInstitutionName();
 
   const classSection =
     typeof data.classSection === 'object'
@@ -53,7 +47,7 @@ export async function generateClassAttendancePdfReport(data: ClassAttendancePdfI
       : data.range || 'Current Term';
 
   const summary = data.summary || {};
-  const generatedDate = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+  const generatedDate = formatGeneratedDate();
 
   const totalStudents = summary.studentsCount ?? summary.totalStudents ?? 0;
   const rawAvg = summary.averagePercentage ?? summary.averageAttendance ?? 0;
@@ -71,78 +65,15 @@ export async function generateClassAttendancePdfReport(data: ClassAttendancePdfI
   const topList = (data.topPerformers || []).filter((st) => st.percentage >= 90);
   const lowList = data.lowAttendance || [];
 
-  const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <title>Class Attendance Report - ${escapeHtml(classSection)}</title>
-  <style>
-    @page { size: A4 portrait; margin: 12mm; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      color: #111827;
-      background: #FFFFFF;
-      font-size: 11px;
-      line-height: 1.4;
-      margin: 0;
-      padding: 0;
-    }
-    .header {
-      border-bottom: 3px solid #10B981;
-      padding-bottom: 12px;
-      margin-bottom: 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-    }
-    .brand { font-size: 18px; font-weight: 800; color: #111827; }
-    .title { font-size: 14px; font-weight: 700; color: #059669; margin-top: 4px; }
-    .meta { text-align: right; font-size: 10px; color: #4B5563; }
-    .kpi-grid {
-      display: flex;
-      flex-direction: row;
-      gap: 10px;
-      margin-bottom: 16px;
-    }
-    .kpi-card {
-      flex: 1;
-      background: #F9FAFB;
-      border: 1px solid #E5E7EB;
-      border-radius: 6px;
-      padding: 10px;
-      text-align: center;
-    }
-    .kpi-label { font-size: 9px; text-transform: uppercase; font-weight: 700; color: #4B5563; }
-    .kpi-val { font-size: 15px; font-weight: 800; margin-top: 4px; }
-    .section-title {
-      font-size: 13px;
-      font-weight: 800;
-      color: #111827;
-      margin-top: 16px;
-      margin-bottom: 8px;
-      border-left: 4px solid #10B981;
-      padding-left: 8px;
-    }
-    table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 10px; }
-    th { background: #F3F4F6; color: #374151; font-weight: 700; text-align: left; padding: 6px 8px; border: 1px solid #E5E7EB; text-transform: uppercase; font-size: 8px; }
-    td { padding: 6px 8px; border: 1px solid #E5E7EB; color: #1F2937; word-break: break-word; }
-    tr:nth-child(even) { background: #FAFAFA; }
-    tr { page-break-inside: avoid; break-inside: avoid; }
+  const attendanceExtraCss = `
     .badge-green { background: #D1FAE5; color: #065F46; padding: 2px 6px; border-radius: 4px; font-weight: 700; font-size: 9px; }
     .badge-red { background: #FEE2E2; color: #991B1B; padding: 2px 6px; border-radius: 4px; font-weight: 700; font-size: 9px; }
-    .footer {
-      margin-top: 24px;
-      border-top: 1px solid #E5E7EB;
-      padding-top: 10px;
-      font-size: 9px;
-      color: #9CA3AF;
-      display: flex;
-      justify-content: space-between;
-    }
-  </style>
-</head>
-<body>
+  `;
+
+  const html = buildHtmlDocument({
+    title: `Class Attendance Report - ${classSection}`,
+    css: baseReportCss('#10B981') + attendanceExtraCss,
+    content: `
   <div class="header">
     <div>
       <div class="brand">${escapeHtml(institutionName)}</div>
@@ -248,25 +179,9 @@ export async function generateClassAttendancePdfReport(data: ClassAttendancePdfI
     <div>${escapeHtml(institutionName)} • Teacher Class Attendance Module</div>
     <div>Confidential — Official Academic Record</div>
   </div>
-</body>
-</html>
-  `;
+    `,
+  });
 
-  if (Platform.OS === 'web') {
-    await Print.printAsync({ html });
-    return;
-  }
-
-  const { uri } = await Print.printToFileAsync({ html, base64: false });
-  const isAvailable = await Sharing.isAvailableAsync();
-  if (isAvailable) {
-    await Sharing.shareAsync(uri, {
-      mimeType: 'application/pdf',
-      dialogTitle: `Download Attendance Report - ${classSection}`,
-      UTI: 'com.adobe.pdf',
-    });
-  } else {
-    await Print.printAsync({ uri });
-  }
+  await sharePdf(html, `Download Attendance Report - ${classSection}`);
 }
 

@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { auth } from '../../../firebaseConfig';
 import {
   fetchAnnouncementsApi,
@@ -14,32 +14,53 @@ import {
   CreateAnnouncementPayload,
   UpdateAnnouncementPayload,
 } from '../../../api/announcements';
+import { Announcement } from '../types';
 
 const getUserScope = () => auth.currentUser?.uid || 'guest';
 const isAuthReady = () => Boolean(auth.currentUser?.uid);
 
 export const ANNOUNCEMENTS_QUERY_KEY = ['announcements'];
 
+const PAGE_SIZE = 20;
+
+type AnnouncementPage = { items?: Announcement[]; total?: number };
+
 /**
- * Management list query (Staff / Admin).
+ * Management list with infinite scroll (A8): pages of PAGE_SIZE, load-more
+ * via FlatList onEndReached. Invalidations on ['announcements', userScope]
+ * still apply through the key prefix.
  */
-export function useAnnouncementsQuery(query: AnnouncementQueryPayload = {}) {
+export function useAnnouncementsInfiniteQuery(query: Omit<AnnouncementQueryPayload, 'limit' | 'offset'> = {}) {
   const userScope = getUserScope();
-  return useQuery({
-    queryKey: ['announcements', userScope, 'management', query],
-    queryFn: () => fetchAnnouncementsApi(query),
+  return useInfiniteQuery({
+    queryKey: ['announcements', userScope, 'management-infinite', query],
+    queryFn: ({ pageParam }): Promise<AnnouncementPage> =>
+      fetchAnnouncementsApi({ ...query, limit: PAGE_SIZE, offset: pageParam }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage: AnnouncementPage, allPages: AnnouncementPage[]) => {
+      const loaded = allPages.reduce((n, p) => n + (p?.items?.length || 0), 0);
+      const total = lastPage?.total ?? loaded;
+      return loaded < total ? loaded : undefined;
+    },
     enabled: isAuthReady(),
   });
 }
 
 /**
- * User-facing active announcement feed query.
+ * User feed with infinite scroll (A8).
  */
-export function useAnnouncementFeedQuery(query: AnnouncementQueryPayload = {}) {
+export function useAnnouncementFeedInfiniteQuery(query: Omit<AnnouncementQueryPayload, 'limit' | 'offset'> = {}) {
   const userScope = getUserScope();
-  return useQuery({
-    queryKey: ['announcements', userScope, 'feed', query],
-    queryFn: () => fetchAnnouncementFeedApi(query),
+  return useInfiniteQuery({
+    queryKey: ['announcements', userScope, 'feed-infinite', query],
+    queryFn: ({ pageParam }): Promise<AnnouncementPage> =>
+      fetchAnnouncementFeedApi({ ...query, limit: PAGE_SIZE, offset: pageParam }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage: AnnouncementPage, allPages: AnnouncementPage[]) => {
+      const loaded = allPages.reduce((n, p) => n + (p?.items?.length || 0), 0);
+      const total = lastPage?.total ?? loaded;
+      return loaded < total ? loaded : undefined;
+    },
     enabled: isAuthReady(),
   });
 }
