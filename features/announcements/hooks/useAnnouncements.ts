@@ -4,7 +4,6 @@ import {
   fetchAnnouncementsApi,
   fetchAnnouncementFeedApi,
   fetchUnreadAnnouncementCountApi,
-  fetchAnnouncementByIdApi,
   createAnnouncementApi,
   updateAnnouncementApi,
   deleteAnnouncementApi,
@@ -55,18 +54,6 @@ export function useUnreadAnnouncementCountQuery() {
     queryFn: () => fetchUnreadAnnouncementCountApi(),
     refetchInterval: 60000,
     enabled: isAuthReady(),
-  });
-}
-
-/**
- * Single announcement detail query.
- */
-export function useAnnouncementDetailQuery(id: string | null) {
-  const userScope = getUserScope();
-  return useQuery({
-    queryKey: ['announcements', userScope, 'detail', id],
-    queryFn: () => (id ? fetchAnnouncementByIdApi(id) : null),
-    enabled: Boolean(id) && isAuthReady(),
   });
 }
 

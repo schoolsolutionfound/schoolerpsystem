@@ -1,4 +1,4 @@
-﻿export type AnnouncementType = 'GENERAL' | 'ACADEMIC' | 'EVENT' | 'URGENT' | 'NOTICE';
+export type AnnouncementType = 'GENERAL' | 'ACADEMIC' | 'EVENT' | 'URGENT' | 'NOTICE';
 export type AnnouncementPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
 export type AnnouncementStatus = 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'EXPIRED' | 'CANCELLED';
 export type TargetType = 'all' | 'role' | 'class' | 'section';
@@ -39,5 +39,4 @@ export interface AnnouncementFilterState {
   type?: AnnouncementType | 'ALL';
   priority?: AnnouncementPriority | 'ALL';
   status?: AnnouncementStatus | 'ALL';
-  audience?: string;
 }

@@ -1,22 +1,29 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, Text, ScrollView, TouchableOpacity, RefreshControl, Alert, Platform, ActivityIndicator } from 'react-native';
-import Svg, { Rect, Line, Circle, G, Path, Text as SvgText } from 'react-native-svg';
+import { View, StyleSheet, Text, ScrollView, TouchableOpacity, RefreshControl, Alert, ActivityIndicator } from 'react-native';
+import Svg, { Rect, Line, Text as SvgText } from 'react-native-svg';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
-import { FontFamily } from '../../../constants/fonts';
 import { fetchClassAttendanceReportApi, fetchClassAttendanceExportApi } from '../../../api/academics';
 import { ShimmerSkeleton } from '../../student/components/ShimmerSkeleton';
-import { generateClassAttendancePdfReport } from '../utils/attendancePdfGenerator';
+import { generateClassAttendancePdfReport, ClassAttendancePdfInput } from '../utils/attendancePdfGenerator';
+
+type ClassAttendanceReportData = Omit<ClassAttendancePdfInput, 'summary'> & {
+  summary?: NonNullable<ClassAttendancePdfInput['summary']> & { totalMarks?: number };
+  subjects?: (Record<string, any>)[];
+  totalStudents?: number;
+};
 
 export const ClassAttendanceReport: React.FC = () => {
-  const [report, setReport] = useState<any>(null);
+  const [report, setReport] = useState<ClassAttendanceReportData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
 
   const loadReport = useCallback(async () => {
-    setLoading(true);
+    // No synchronous setLoading(true) here — that would be a setState-in-effect
+    // when invoked from the mount effect. Initial `loading` state covers first load;
+    // pull-to-refresh uses its own `refreshing` spinner.
     try {
       // No classSectionId — backend auto-resolves teacher's own class
       const res = await fetchClassAttendanceReportApi('');
@@ -28,7 +35,24 @@ export const ClassAttendanceReport: React.FC = () => {
     }
   }, []);
 
-  useEffect(() => { loadReport(); }, [loadReport]);
+  useEffect(() => {
+    // Fetch on mount via .then (not an async setState helper) to stay clear of
+    // setState-in-effect, with cancellation to avoid setState after unmount.
+    let cancelled = false;
+    fetchClassAttendanceReportApi('')
+      .then((res) => {
+        if (!cancelled) setReport(res);
+      })
+      .catch((err: any) => {
+        console.warn('[Report] Could not load report:', err?.message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -39,7 +63,7 @@ export const ClassAttendanceReport: React.FC = () => {
   const handleExport = async () => {
     setExporting(true);
     try {
-      const csv = await fetchClassAttendanceExportApi('');
+      await fetchClassAttendanceExportApi('');
       Alert.alert('Export Ready', 'CSV data has been generated.', [{ text: 'OK' }]);
     } catch (err: any) {
       Alert.alert('Export Failed', err.message || 'Could not export data');
@@ -83,8 +107,12 @@ export const ClassAttendanceReport: React.FC = () => {
             {/* Overall Summary */}
             <View style={styles.summaryCard}>
               <View style={styles.summaryHeader}>
-                <Text style={styles.summaryTitle}>{classSection?.name}</Text>
-                <Text style={styles.summarySub}>{range?.fromDate} to {range?.toDate}</Text>
+                <Text style={styles.summaryTitle}>
+                  {typeof classSection === 'object' ? classSection?.name : classSection}
+                </Text>
+                <Text style={styles.summarySub}>
+                  {typeof range === 'object' ? `${range?.fromDate || ''} to ${range?.toDate || ''}` : range}
+                </Text>
               </View>
               <View style={styles.summaryGrid}>
                 <View style={styles.summaryItem}>

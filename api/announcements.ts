@@ -79,13 +79,6 @@ export async function fetchUnreadAnnouncementCountApi() {
 }
 
 /**
- * Fetch single announcement details by ID.
- */
-export async function fetchAnnouncementByIdApi(id: string) {
-  return apiClient(`/announcements/${id}`);
-}
-
-/**
  * Create a new announcement.
  */
 export async function createAnnouncementApi(payload: CreateAnnouncementPayload) {

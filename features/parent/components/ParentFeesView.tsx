@@ -23,6 +23,7 @@ export const ParentFeesView: React.FC = () => {
   const [viewingReceipt, setViewingReceipt] = useState<any | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [txnId, setTxnId] = useState('');
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const addIncome = useFinanceStore((s) => s.addIncome);
@@ -45,6 +46,7 @@ export const ParentFeesView: React.FC = () => {
   const handleOpenPay = (fee: any) => {
     setSelectedFee(fee);
     setPaymentSuccess(false);
+    setTxnId('');
     setShowPayModal(true);
   };
 
@@ -54,6 +56,8 @@ export const ParentFeesView: React.FC = () => {
     setTimeout(() => {
       setIsProcessing(false);
       setPaymentSuccess(true);
+      // Stable per-payment reference captured once at success time (was Date.now() in render).
+      setTxnId(`UPI-${Date.now().toString().slice(-8)}`);
 
       addIncome({
         title: `Parent Fee: ${selectedFee.payerName || 'Parent'} (${selectedFee.title})`,
@@ -193,7 +197,7 @@ export const ParentFeesView: React.FC = () => {
                   ₹{selectedFee?.amount.toLocaleString('en-IN')} paid for {selectedFee?.title}.
                 </Text>
                 <Text style={styles.successRef}>
-                  Txn ID: UPI-{Date.now().toString().slice(-8)}
+                  Txn ID: {txnId}
                 </Text>
                 <TouchableOpacity
                   style={styles.modalDoneBtn}

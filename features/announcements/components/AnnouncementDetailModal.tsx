@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Linking } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { AppModal } from '../../shared/components/AppModal';
@@ -24,9 +24,15 @@ export const AnnouncementDetailModal: React.FC<AnnouncementDetailModalProps> = (
 }) => {
   const annId = announcement?.id;
   const isRead = announcement?.isRead;
+  // Fire mark-read exactly once per announcement id (N1): the `announcement`
+  // prop is a snapshot that never flips isRead, and `onMarkRead` gets a fresh
+  // identity each render — without this guard the effect would re-fire and
+  // spam POST /:id/read on every refetch while the modal is open.
+  const markedIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    if (visible && annId && isUserFeed && !isRead && onMarkRead) {
+    if (visible && annId && isUserFeed && !isRead && onMarkRead && !markedIdsRef.current.has(annId)) {
+      markedIdsRef.current.add(annId);
       onMarkRead(annId);
     }
   }, [visible, annId, isUserFeed, isRead, onMarkRead]);

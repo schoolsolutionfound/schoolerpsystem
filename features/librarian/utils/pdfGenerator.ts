@@ -106,7 +106,9 @@ function buildReportHtml(options: GeneratePdfOptions): string {
   let tableSectionHtml = '';
 
   if (isOverdueReport) {
-    const overdueLoans = filteredLoans.filter((l) => l.status === 'OVERDUE' || (l.status === 'ACTIVE' && new Date(l.dueDate) < new Date()));
+    // Audit list uses ALL overdue loans regardless of the report period filter (N4):
+  // an audit must never hide older overdue records just because they predate the window.
+  const overdueLoans = options.loans.filter((l) => l.status === 'OVERDUE' || (l.status === 'ACTIVE' && new Date(l.dueDate) < new Date()));
     tableSectionHtml = `
       <div class="section-title">Overdue Loans Audit List (${overdueLoans.length} Records)</div>
       <table>

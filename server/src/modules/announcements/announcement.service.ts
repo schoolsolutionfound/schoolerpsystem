@@ -347,36 +347,6 @@ export class AnnouncementService {
   }
 
   /**
-   * Archive announcement handler.
-   */
-  async archiveAnnouncement(
-    institutionCode: string,
-    id: string,
-    actor: AnnouncementActor
-  ): Promise<AnnouncementWithTargetsAndReadStatus> {
-    const existing = await announcementRepository.findById(institutionCode, id);
-    if (!existing) {
-      throw new AppError('Announcement not found', 'NOT_FOUND', 404);
-    }
-
-    this.assertCanManage(actor, existing);
-
-    if (existing.status === 'CANCELLED' || existing.status === 'EXPIRED') {
-      return existing;
-    }
-
-    const updated = await announcementRepository.update(institutionCode, id, {
-      status: 'EXPIRED',
-    });
-
-    if (!updated) {
-      throw new AppError('Failed to archive announcement', 'ARCHIVE_FAILED', 500);
-    }
-
-    return updated;
-  }
-
-  /**
    * Get single announcement by ID with institution check.
    * Non-published announcements are only visible to managers and their creator.
    */

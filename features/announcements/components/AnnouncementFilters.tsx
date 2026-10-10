@@ -44,12 +44,17 @@ export const AnnouncementFilters: React.FC<AnnouncementFiltersProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState(filters.search || '');
   const isInitialMount = React.useRef(true);
-
+  // Keep the latest callback in a ref so the debounce effect doesn't re-arm
+  // (and re-fire) whenever the parent re-renders with a new function identity.
+  const onFilterChangeRef = React.useRef(onFilterChange);
   useEffect(() => {
-    if (filters.search !== undefined && filters.search !== searchTerm) {
-      setSearchTerm(filters.search);
-    }
-  }, [filters.search]);
+    onFilterChangeRef.current = onFilterChange;
+  });
+
+  // NOTE: no parent→local sync effect here. `filters.search` is only ever set
+  // by this component's own debounce, so an external sync is unnecessary; if a
+  // parent ever needs to set search externally, remount with a `key` instead
+  // of reintroducing a setState-in-effect.
 
   useEffect(() => {
     if (isInitialMount.current) {
@@ -57,7 +62,7 @@ export const AnnouncementFilters: React.FC<AnnouncementFiltersProps> = ({
       return;
     }
     const timer = setTimeout(() => {
-      onFilterChange({ search: searchTerm });
+      onFilterChangeRef.current({ search: searchTerm });
     }, 300);
     return () => clearTimeout(timer);
   }, [searchTerm]);
