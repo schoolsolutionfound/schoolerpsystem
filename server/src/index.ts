@@ -1,8 +1,24 @@
-import 'dotenv/config';
+/**
+ * @file index.ts
+ * @description SchoolHub Fastify backend server entry point.
+ *
+ * Responsibilities:
+ *  - Registers @fastify/cors with environment-configured allowed origins
+ *  - Registers @fastify/rate-limit (default: 300 req/min per IP)
+ *  - Mounts all API v1 route modules under /api/v1
+ *  - Exposes a /health endpoint for uptime checks
+ *
+ * Environment variables (see server/.env.example):
+ *  PORT            — HTTP port to bind (default: 5000)
+ *  HOST            — Host to bind (default: 0.0.0.0)
+ *  CORS_ORIGINS    — Comma-separated list of allowed origins
+ *  RATE_LIMIT_MAX  — Max requests per minute per IP
+ */
+
+import 'dotenv/config'; // Loads .env file via dotenv automatically
 import Fastify from 'fastify';
 import cors, { type OriginFunction } from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
-import dotenv from 'dotenv';
 import { authRoutes } from './modules/auth/auth.routes.js';
 import { userRoutes } from './modules/users/user.routes.js';
 import { adminRoutes } from './modules/admin/admin.routes.js';
@@ -13,8 +29,6 @@ import { startNotificationQueue, stopNotificationQueue } from './modules/notific
 import { libraryRoutes } from './modules/library/library.routes.js';
 import { announcementRoutes } from './modules/announcements/announcement.routes.js';
 import { startAnnouncementScheduler, stopAnnouncementScheduler } from './modules/announcements/announcement.scheduler.js';
-
-dotenv.config();
 
 const port = Number(process.env.PORT) || 5000;
 const host = process.env.HOST || '0.0.0.0';

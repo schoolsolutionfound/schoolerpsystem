@@ -30,33 +30,45 @@ export function useAuthGuard({
     const isSessionRequiredSharedRoute = pathname === '/notifications';
 
     if (userSession) {
+      // Still waiting for profile sync
       if (!isProfileSynced && userRole === 'loading') return;
-
-      // Email verification check disabled — can be re-enabled later
 
       if (isPublicAuthRoute) {
         const state = useUserStore.getState();
+        let targetRoute = '/auth';
+
         if (state.mustChangePassword) {
-          router.replace('/change-password');
+          targetRoute = '/change-password';
         } else if (!state.profileCompleted) {
-          router.replace('/complete-profile');
+          targetRoute = '/complete-profile';
         } else {
-          router.replace(getHomeRouteForRole(state.userRole) as any);
+          targetRoute = getHomeRouteForRole(state.userRole || userRole);
+        }
+
+        if (pathname !== targetRoute && targetRoute !== '/auth') {
+          router.replace(targetRoute as any);
         }
         return;
       }
 
       if (!isRouteAllowedForRole(pathname, userRole)) {
-        router.replace(getHomeRouteForRole(userRole) as any);
+        const targetRoute = getHomeRouteForRole(userRole);
+        if (pathname !== targetRoute) {
+          router.replace(targetRoute as any);
+        }
       }
     } else {
       if (isSessionRequiredSharedRoute) {
-        router.replace('/auth');
+        if (pathname !== '/auth') {
+          router.replace('/auth');
+        }
       } else if (!isPublicAuthRoute && !isRouteAllowedForRole(pathname, userRole)) {
-        router.replace('/auth');
+        if (pathname !== '/auth') {
+          router.replace('/auth');
+        }
       }
     }
-  }, [pathname, userRole, userSession, _hasHydrated, authLoading, isProfileSynced, router]);
+  }, [pathname, userRole, userSession?.uid, _hasHydrated, authLoading, isProfileSynced, router]);
 
   return false;
 }

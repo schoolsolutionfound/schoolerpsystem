@@ -38,6 +38,7 @@ yarn-error.*
 *-firebase-adminsdk-*.json
 /schoolerp_backup_utf8.sql
 /schoolerp_full.sql
+serviceAccountKey.json
 
 # typescript
 *.tsbuildinfo
