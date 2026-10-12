@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
+  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -32,11 +33,13 @@ export const AssignCourseInstructorModal: React.FC<AssignCourseInstructorModalPr
   const [selectedFacultyId, setSelectedFacultyId] = useState<string>(course?.instructorId || '');
   const [search, setSearch] = useState('');
   const [saving, setSaving] = useState(false);
+  const [prevCourseId, setPrevCourseId] = useState<string | null>(course?.id || null);
 
-  useEffect(() => {
-    setSelectedFacultyId(course?.instructorId || '');
+  if (course && course.id !== prevCourseId) {
+    setPrevCourseId(course.id);
+    setSelectedFacultyId(course.instructorId || '');
     setSearch('');
-  }, [course]);
+  }
 
   if (!course) return null;
 
@@ -59,20 +62,37 @@ export const AssignCourseInstructorModal: React.FC<AssignCourseInstructorModalPr
     setSaving(true);
     try {
       await onAssign(course.id, faculty.id, faculty.name);
-      onClose();
+      onClose(); // E11: Only close on success
+    } catch {
+      // Keep modal open so user can retry or pick another instructor
     } finally {
       setSaving(false);
     }
   };
 
-  const handleUnassign = async () => {
-    setSaving(true);
-    try {
-      await onAssign(course.id, '', '');
-      onClose();
-    } finally {
-      setSaving(false);
-    }
+  const handleUnassign = () => {
+    Alert.alert(
+      'Confirm Unassignment',
+      `Are you sure you want to remove the instructor from ${course.name}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Unassign',
+          style: 'destructive',
+          onPress: async () => {
+            setSaving(true);
+            try {
+              await onAssign(course.id, '', '');
+              onClose(); // E11: Only close on success
+            } catch {
+              // Keep modal open
+            } finally {
+              setSaving(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const formatRank = (rank: string) => {

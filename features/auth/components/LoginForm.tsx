@@ -86,59 +86,61 @@ export const LoginForm: React.FC<LoginFormProps> = ({
         )}
       </TouchableOpacity>
 
-      {/* Quick Demo Test Accounts */}
-      <View style={styles.demoSection}>
-        <Text style={styles.demoTitle}>QUICK DEMO ACCOUNTS</Text>
-        <View style={styles.demoGrid}>
-          <TouchableOpacity
-            style={[styles.demoChip, email === 'principal.oakridge@school.com' && styles.demoChipActive]}
-            onPress={() => {
-              setEmail('principal.oakridge@school.com');
-              setPassword('Principal@123');
-            }}
-            activeOpacity={0.7}
-          >
-            <MaterialCommunityIcons name="shield-crown" size={16} color="#D97706" />
-            <Text style={styles.demoChipText}>Principal</Text>
-          </TouchableOpacity>
+      {/* Quick Demo Test Accounts (dev-only: excluded in production builds) */}
+      {__DEV__ && (
+        <View style={styles.demoSection}>
+          <Text style={styles.demoTitle}>QUICK DEMO ACCOUNTS (DEV ONLY)</Text>
+          <View style={styles.demoGrid}>
+            <TouchableOpacity
+              style={[styles.demoChip, email === 'principal.oakridge@school.com' && styles.demoChipActive]}
+              onPress={() => {
+                setEmail('principal.oakridge@school.com');
+                setPassword('Principal@123');
+              }}
+              activeOpacity={0.7}
+            >
+              <MaterialCommunityIcons name="shield-crown" size={16} color="#D97706" />
+              <Text style={styles.demoChipText}>Principal</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.demoChip, email === 'hod.cs@school.com' && styles.demoChipActive]}
-            onPress={() => {
-              setEmail('hod.cs@school.com');
-              setPassword('Hod@123');
-            }}
-            activeOpacity={0.7}
-          >
-            <MaterialCommunityIcons name="domain" size={16} color="#EA580C" />
-            <Text style={styles.demoChipText}>HOD</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.demoChip, email === 'hod.cs@school.com' && styles.demoChipActive]}
+              onPress={() => {
+                setEmail('hod.cs@school.com');
+                setPassword('Hod@123');
+              }}
+              activeOpacity={0.7}
+            >
+              <MaterialCommunityIcons name="domain" size={16} color="#EA580C" />
+              <Text style={styles.demoChipText}>HOD</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.demoChip, email === 'admi.okridge@school.com' && styles.demoChipActive]}
-            onPress={() => {
-              setEmail('admi.okridge@school.com');
-              setPassword('Admin@123');
-            }}
-            activeOpacity={0.7}
-          >
-            <MaterialCommunityIcons name="shield-account" size={16} color="#2563EB" />
-            <Text style={styles.demoChipText}>Admin</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.demoChip, email === 'admi.okridge@school.com' && styles.demoChipActive]}
+              onPress={() => {
+                setEmail('admi.okridge@school.com');
+                setPassword('Admin@123');
+              }}
+              activeOpacity={0.7}
+            >
+              <MaterialCommunityIcons name="shield-account" size={16} color="#2563EB" />
+              <Text style={styles.demoChipText}>Admin</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.demoChip, email === 'normal.parent@gmail.com' && styles.demoChipActive]}
-            onPress={() => {
-              setEmail('normal.parent@gmail.com');
-              setPassword('Parent@123');
-            }}
-            activeOpacity={0.7}
-          >
-            <MaterialCommunityIcons name="account-child" size={16} color="#059669" />
-            <Text style={styles.demoChipText}>Parent</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.demoChip, email === 'normal.parent@gmail.com' && styles.demoChipActive]}
+              onPress={() => {
+                setEmail('normal.parent@gmail.com');
+                setPassword('Parent@123');
+              }}
+              activeOpacity={0.7}
+            >
+              <MaterialCommunityIcons name="account-child" size={16} color="#059669" />
+              <Text style={styles.demoChipText}>Parent</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      )}
     </View>
   );
 };

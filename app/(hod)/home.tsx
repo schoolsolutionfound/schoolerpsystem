@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -14,6 +14,7 @@ import { signOut } from 'firebase/auth';
 import { auth } from '../../firebaseConfig';
 import { useUserStore } from '../../store/useUserStore';
 import { FontFamily } from '../../constants/fonts';
+import { BorderRadius } from '../../constants/theme';
 import {
   HODTab,
   HODKPIs,
@@ -62,8 +63,10 @@ export default function HODHomeScreen() {
 
   // User store
   const fullName = useUserStore((state) => state.fullName) || 'Head of Department';
-  const department = useUserStore((state) => state.department) || 'Computer Science & Engineering';
-  const institutionName = useUserStore((state) => state.institutionName) || 'College of Engineering';
+  const rawDepartment = useUserStore((state) => state.department);
+  const department = rawDepartment?.trim() || 'Department not set';
+  const rawInstName = useUserStore((state) => state.institutionName);
+  const institutionName = rawInstName?.trim() || 'Institution not set';
   const profilePic = useUserStore((state) => state.profilePic);
   const resetUser = useUserStore((state) => state.resetUser);
 
@@ -72,6 +75,9 @@ export default function HODHomeScreen() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const isMountedRef = useRef(true);
 
   // Departmental Data
   const [kpis, setKpis] = useState<HODKPIs>({
@@ -99,29 +105,44 @@ export default function HODHomeScreen() {
 
   // Load department data
   const loadData = useCallback(async () => {
+    setErrorMessage(null); // Clear previous error on retry (E14)
     try {
+      const targetDept = department === 'Department not set' ? undefined : department;
       const [kpisRes, facultyRes, coursesRes, elgRes, noticesRes] = await Promise.all([
-        fetchHODKPIsApi(department),
-        fetchHODFacultyApi(department),
-        fetchDepartmentCoursesApi(department),
-        fetchExamEligibilityApi(department),
-        fetchDepartmentNoticesApi(department),
+        fetchHODKPIsApi(targetDept),
+        fetchHODFacultyApi(targetDept),
+        fetchDepartmentCoursesApi(targetDept),
+        fetchExamEligibilityApi(targetDept),
+        fetchDepartmentNoticesApi(targetDept),
       ]);
+
+      if (!isMountedRef.current) return;
       setKpis(kpisRes);
       setFaculty(facultyRes);
       setCourses(coursesRes);
       setEligibility(elgRes);
       setNotices(noticesRes);
-    } catch {
-      // offline / mock fallback will already handle
+    } catch (err: any) {
+      if (!isMountedRef.current) return;
+      console.warn('HOD data load error:', err);
+      setErrorMessage(err?.message || 'Failed to load department records. Check server connection.');
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }, [department]);
 
   useEffect(() => {
-    loadData();
+    isMountedRef.current = true;
+    const timer = setTimeout(() => {
+      loadData();
+    }, 0);
+    return () => {
+      isMountedRef.current = false;
+      clearTimeout(timer);
+    };
   }, [loadData]);
 
   const handleRefresh = () => {
@@ -155,14 +176,11 @@ export default function HODHomeScreen() {
         setCourses((prev) =>
           prev.map((c) => (c.id === courseId ? res.course : c))
         );
-        // Refresh faculty workload
-        const updatedFaculty = await fetchHODFacultyApi(department);
-        setFaculty(updatedFaculty);
-        const updatedKpis = await fetchHODKPIsApi(department);
-        setKpis(updatedKpis);
+        await loadData();
       }
-    } catch {
-      Alert.alert('Assignment Error', 'Could not assign faculty instructor.');
+    } catch (err: any) {
+      Alert.alert('Assignment Error', err?.message || 'Could not assign faculty instructor.');
+      throw err;
     }
   };
 
@@ -178,11 +196,11 @@ export default function HODHomeScreen() {
         setEligibility((prev) =>
           prev.map((r) => (r.id === recordId ? res.record : r))
         );
-        const updatedKpis = await fetchHODKPIsApi(department);
-        setKpis(updatedKpis);
+        await loadData();
       }
-    } catch {
-      Alert.alert('Update Error', 'Could not update hall ticket clearance decision.');
+    } catch (err: any) {
+      Alert.alert('Update Error', err?.message || 'Could not update hall ticket clearance decision.');
+      throw err;
     }
   };
 
@@ -192,9 +210,11 @@ export default function HODHomeScreen() {
       const res = await createDepartmentNoticeApi(noticeData);
       if (res.success) {
         setNotices((prev) => [res.notice, ...prev]);
+        await loadData();
       }
-    } catch {
-      Alert.alert('Posting Error', 'Could not publish department memo.');
+    } catch (err: any) {
+      Alert.alert('Posting Error', err?.message || 'Could not publish department memo.');
+      throw err;
     }
   };
 
@@ -207,6 +227,10 @@ export default function HODHomeScreen() {
     );
   }
 
+  const unreadNoticeCount = notices.filter(
+    (n) => n.priority === 'urgent' || n.priority === 'important'
+  ).length;
+
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safe} edges={['top']}>
@@ -217,15 +241,26 @@ export default function HODHomeScreen() {
           institutionName={institutionName}
           profilePic={profilePic}
           activeTab={activeTab}
-          noticeBadgeCount={notices.length}
+          noticeBadgeCount={unreadNoticeCount}
           onMenuPress={() => setDrawerOpen(true)}
           onNotificationsPress={() => setActiveTab('notices')}
           onProfilePress={() => router.push('/(hod)/profile')}
           onBackToDashboard={() => setActiveTab('dashboard')}
         />
 
-        {/* View Switcher */}
-        <View style={styles.body}>
+        {/* View Switcher or Error Screen */}
+        {errorMessage ? (
+          <View style={styles.errorContainer}>
+            <MaterialCommunityIcons name="alert-circle-outline" size={48} color="#DC2626" />
+            <Text style={styles.errorTitle}>Unable to load department</Text>
+            <Text style={styles.errorSubtitle}>{errorMessage}</Text>
+            <TouchableOpacity style={styles.retryBtn} onPress={loadData} activeOpacity={0.8}>
+              <MaterialCommunityIcons name="refresh" size={18} color="#FFFFFF" />
+              <Text style={styles.retryText}>Retry Connection</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.body}>
           {activeTab === 'dashboard' && (
             <HODDashboardView
               kpis={kpis}
@@ -292,6 +327,7 @@ export default function HODHomeScreen() {
             <AttendanceReportsView mode="department" department={department || undefined} />
           )}
         </View>
+        )}
 
         {/* Bottom Tab Bar */}
         <View style={styles.bottomBar}>
@@ -385,6 +421,39 @@ const styles = StyleSheet.create({
   },
   body: {
     flex: 1,
+  },
+  errorContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+    gap: 12,
+  },
+  errorTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+    textAlign: 'center',
+  },
+  errorSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  retryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#EA580C',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: BorderRadius.button,
+  },
+  retryText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
   bottomBar: {
     flexDirection: 'row',

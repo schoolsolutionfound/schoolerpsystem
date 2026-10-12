@@ -4,6 +4,8 @@ import { academicsRepository } from '../academics/academics.repository.js';
 import {
   dbFindUsersByInstitution,
   dbCountUsersByInstitution,
+  dbFindFacultyByInstitution,
+  dbCountFacultyByInstitution,
   dbCountClassSectionsByInstitution,
   dbCountSubjectsByInstitution,
   dbCountAttendanceSessionsByInstitution,
@@ -575,11 +577,11 @@ export class AdminService {
     return { message: 'Document deleted successfully' };
   }
 
-  // --- Teacher Management ---
+  // --- Teacher / Faculty Management ---
   public async getTeachers(institutionCode: string, limit = 100, offset = 0) {
     const [items, total] = await Promise.all([
-      dbFindUsersByInstitution(institutionCode, 'teacher', { limit, offset }),
-      dbCountUsersByInstitution(institutionCode, 'teacher'),
+      dbFindFacultyByInstitution(institutionCode, { limit, offset }),
+      dbCountFacultyByInstitution(institutionCode),
     ]);
     return { data: items, total, limit, offset };
   }

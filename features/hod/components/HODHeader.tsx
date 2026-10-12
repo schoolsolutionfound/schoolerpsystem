@@ -17,13 +17,6 @@ interface HODHeaderProps {
   onBackToDashboard?: () => void;
 }
 
-const getGreeting = (): string => {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Good Morning';
-  if (hour < 17) return 'Good Afternoon';
-  return 'Good Evening';
-};
-
 export const HODHeader: React.FC<HODHeaderProps> = ({
   fullName,
   department,
@@ -36,7 +29,6 @@ export const HODHeader: React.FC<HODHeaderProps> = ({
   onProfilePress,
   onBackToDashboard,
 }) => {
-  const greeting = getGreeting();
   const isSubTab = activeTab === 'attendance';
 
   return (

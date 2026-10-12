@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -14,6 +14,7 @@ import { signOut } from 'firebase/auth';
 import { auth } from '../../firebaseConfig';
 import { useUserStore } from '../../store/useUserStore';
 import { FontFamily } from '../../constants/fonts';
+import { BorderRadius } from '../../constants/theme';
 import {
   PrincipalTab,
   PrincipalKPIs,
@@ -64,7 +65,6 @@ export default function PrincipalHomeScreen() {
   // User store selectors
   const fullName = useUserStore((state) => state.fullName) || 'Principal';
   const institutionName = useUserStore((state) => state.institutionName) || 'My Institution';
-  const institutionCode = useUserStore((state) => state.institutionCode || state.institutionId) || 'DEFAULT';
   const institutionType = useUserStore((state) => state.institutionType) || 'school';
   const profilePic = useUserStore((state) => state.profilePic);
   const resetUser = useUserStore((state) => state.resetUser);
@@ -74,6 +74,9 @@ export default function PrincipalHomeScreen() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const isMountedRef = useRef(true);
 
   // Data states
   const [kpis, setKpis] = useState<PrincipalKPIs>({
@@ -101,31 +104,44 @@ export default function PrincipalHomeScreen() {
 
   // Load all principal data
   const loadData = useCallback(async () => {
+    setErrorMessage(null); // Clear previous error
     try {
       const [kpisData, homeroomsData, staffData, counselingData, noticesData] =
         await Promise.all([
-          fetchPrincipalKPIsApi(institutionCode),
-          fetchPrincipalHomeroomsApi(institutionCode),
-          fetchPrincipalStaffDirectoryApi(institutionCode),
-          fetchCounselingRecordsApi(institutionCode),
-          fetchSchoolNoticesApi(institutionCode),
+          fetchPrincipalKPIsApi(),
+          fetchPrincipalHomeroomsApi(),
+          fetchPrincipalStaffDirectoryApi(),
+          fetchCounselingRecordsApi(),
+          fetchSchoolNoticesApi(),
         ]);
 
+      if (!isMountedRef.current) return;
       setKpis(kpisData);
       setHomerooms(homeroomsData);
       setStaffList(staffData);
       setCounseling(counselingData);
       setNotices(noticesData);
     } catch (err: any) {
+      if (!isMountedRef.current) return;
       console.warn('Principal data load error:', err);
+      setErrorMessage(err.message || 'Failed to load school data. Check server connection.');
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
-  }, [institutionCode]);
+  }, []);
 
   useEffect(() => {
-    loadData();
+    isMountedRef.current = true;
+    const timer = setTimeout(() => {
+      loadData();
+    }, 0);
+    return () => {
+      isMountedRef.current = false;
+      clearTimeout(timer);
+    };
   }, [loadData]);
 
   const handleRefresh = () => {
@@ -140,50 +156,16 @@ export default function PrincipalHomeScreen() {
   };
 
   const handleConfirmAssign = async (sectionId: string, teacherId: string, teacherName: string) => {
-    await assignHomeroomTeacherApi(sectionId, teacherId, teacherName);
-    setHomerooms((prev) =>
-      prev.map((h) =>
-        h.id === sectionId
-          ? {
-              ...h,
-              homeroomTeacherId: teacherId || undefined,
-              homeroomTeacherName: teacherName || undefined,
-            }
-          : h
-      )
-    );
-    // Also update staff directory assignedClass
-    setStaffList((prev) =>
-      prev.map((s) => {
-        if (teacherId && s.id === teacherId) {
-          return {
-            ...s,
-            designation: 'homeroom_teacher',
-            assignedClass: selectedSection?.name,
-          };
-        }
-        if (!teacherId && s.assignedClass === selectedSection?.name) {
-          return {
-            ...s,
-            assignedClass: undefined,
-          };
-        }
-        return s;
-      })
-    );
-
-    // Update unassigned count in KPIs
-    setKpis((prev) => ({
-      ...prev,
-      unassignedHomerooms: teacherId
-        ? Math.max(0, prev.unassignedHomerooms - 1)
-        : prev.unassignedHomerooms + 1,
-    }));
-
-    if (teacherId) {
-      Alert.alert('Homeroom Assigned', `${teacherName} is now the assigned Class Teacher.`);
-    } else {
-      Alert.alert('Homeroom Unassigned', `Class teacher assignment cleared for ${selectedSection?.name || 'this class'}.`);
+    try {
+      await assignHomeroomTeacherApi(sectionId, teacherId, teacherName);
+      await loadData();
+      if (teacherId) {
+        Alert.alert('Homeroom Assigned', `${teacherName} is now the assigned Class Teacher.`);
+      } else {
+        Alert.alert('Homeroom Unassigned', `Class teacher assignment cleared for ${selectedSection?.name || 'this class'}.`);
+      }
+    } catch (err: any) {
+      Alert.alert('Assignment Failed', err.message || 'Failed to update homeroom assignment.');
     }
   };
 
@@ -242,7 +224,7 @@ export default function PrincipalHomeScreen() {
           institutionType={institutionType}
           profilePic={profilePic}
           activeTab={activeTab}
-          noticeBadgeCount={notices.length}
+          noticeBadgeCount={notices.filter((n) => n.priority === 'urgent' || n.priority === 'important').length}
           onMenuPress={() => setDrawerOpen(true)}
           onNotificationsPress={() => setActiveTab('notices')}
           onProfilePress={() => router.push('/(principal)/profile')}
@@ -251,7 +233,17 @@ export default function PrincipalHomeScreen() {
 
         {/* Active View Container */}
         <View style={styles.content}>
-          {loading ? (
+          {errorMessage && !loading ? (
+            <View style={styles.errorWrap}>
+              <MaterialCommunityIcons name="alert-circle-outline" size={44} color="#DC2626" />
+              <Text style={styles.errorTitle}>Unable to load school records</Text>
+              <Text style={styles.errorSubtitle}>{errorMessage}</Text>
+              <TouchableOpacity style={styles.retryBtn} onPress={loadData} activeOpacity={0.8}>
+                <MaterialCommunityIcons name="refresh" size={18} color="#FFFFFF" />
+                <Text style={styles.retryText}>Retry Connection</Text>
+              </TouchableOpacity>
+            </View>
+          ) : loading ? (
             <View style={styles.loaderWrap}>
               <ActivityIndicator size="large" color="#D97706" />
               <Text style={styles.loaderText}>Loading Principal Cockpit...</Text>
@@ -404,6 +396,40 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B6B6B',
     fontFamily: FontFamily.medium,
+  },
+  errorWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+    gap: 12,
+  },
+  errorTitle: {
+    fontSize: 18,
+    color: '#111827',
+    fontFamily: FontFamily.bold,
+    textAlign: 'center',
+  },
+  errorSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontFamily: FontFamily.regular,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  retryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#D97706',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: BorderRadius.button,
+  },
+  retryText: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontFamily: FontFamily.semibold,
   },
   bottomBar: {
     flexDirection: 'row',

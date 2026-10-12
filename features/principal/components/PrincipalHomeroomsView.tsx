@@ -20,6 +20,26 @@ interface PrincipalHomeroomsViewProps {
   onAssignTeacher: (section: HomeroomSection) => void;
 }
 
+type WingFilterType = 'all' | 'primary' | 'middle' | 'secondary' | 'unassigned' | 'unclassified';
+
+function detectWing(sec: HomeroomSection): 'primary' | 'middle' | 'secondary' | 'unclassified' {
+  const text = `${sec.grade || ''} ${sec.name || ''}`.toLowerCase();
+
+  // Roman numerals check
+  if (/\b(ix|x|xi|xii)\b/.test(text)) return 'secondary';
+  if (/\b(vi|vii|viii)\b/.test(text)) return 'middle';
+  if (/\b(i|ii|iii|iv|v)\b/.test(text)) return 'primary';
+
+  const digits = (sec.grade || sec.name || '').replace(/[^0-9]/g, '');
+  const num = parseInt(digits, 10);
+  if (!isNaN(num)) {
+    if (num >= 1 && num <= 5) return 'primary';
+    if (num >= 6 && num <= 8) return 'middle';
+    if (num >= 9 && num <= 12) return 'secondary';
+  }
+  return 'unclassified';
+}
+
 export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
   homerooms,
   refreshing,
@@ -27,7 +47,7 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
   onAssignTeacher,
 }) => {
   const [search, setSearch] = useState('');
-  const [wingFilter, setWingFilter] = useState<'all' | 'primary' | 'middle' | 'secondary' | 'unassigned'>('all');
+  const [wingFilter, setWingFilter] = useState<WingFilterType>('all');
 
   const unassignedCount = homerooms.filter((h) => !h.homeroomTeacherId).length;
 
@@ -41,15 +61,9 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
     if (!matchesSearch) return false;
 
     if (wingFilter === 'unassigned') return !sec.homeroomTeacherId;
+    if (wingFilter === 'all') return true;
 
-    const gradeDigits = (sec.grade || sec.name || '').replace(/[^0-9]/g, '');
-    const gradeNum = parseInt(gradeDigits, 10);
-    if (isNaN(gradeNum)) return true;
-
-    if (wingFilter === 'primary') return gradeNum >= 1 && gradeNum <= 5;
-    if (wingFilter === 'middle') return gradeNum >= 6 && gradeNum <= 8;
-    if (wingFilter === 'secondary') return gradeNum >= 9;
-    return true;
+    return detectWing(sec) === wingFilter;
   });
 
   return (
@@ -83,6 +97,7 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
               { key: 'primary' as const, label: 'Primary (Gr 1-5)' },
               { key: 'middle' as const, label: 'Middle (Gr 6-8)' },
               { key: 'secondary' as const, label: 'Secondary (Gr 9-12)' },
+              { key: 'unclassified' as const, label: 'Unclassified' },
             ]
           ).map((item) => {
             const active = wingFilter === item.key;

@@ -5,6 +5,15 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { useUserStore } from '../../../store/useUserStore';
 import { syncLoginApi } from '../../../api/auth';
 
+function normalizeUserRole(rawRole: string | undefined): string {
+  const r = (rawRole || '').toLowerCase().trim();
+  if (r === 'institution admin') return 'admin';
+  if (r === 'hid') return 'hod';
+  return r;
+}
+
+const VALID_ROLES = ['admin', 'principal', 'hod', 'teacher', 'student', 'parent', 'dev'];
+
 export function useAppSync(userSession: User | null) {
   const setUserProfile = useUserStore((state) => state.setUserProfile);
   const setProfileExists = useUserStore((state) => state.setProfileExists);
@@ -20,10 +29,11 @@ export function useAppSync(userSession: User | null) {
     let isCancelled = false;
 
     const applyBackendData = (res: any) => {
-      const rawRole = (res.userRole || '').toLowerCase();
-      const finalRole = (rawRole === 'institution admin' || rawRole === 'admin')
-        ? 'admin'
-        : (rawRole || 'student');
+      const backendRole = normalizeUserRole(res.userRole || res.role);
+      const currentRole = normalizeUserRole(useUserStore.getState().userRole);
+      const finalRole = VALID_ROLES.includes(backendRole)
+        ? backendRole
+        : (VALID_ROLES.includes(currentRole) ? currentRole : 'student');
 
       setUserProfile({
         fullName: res.fullName || currentUser.displayName || '',
@@ -90,10 +100,11 @@ export function useAppSync(userSession: User | null) {
         if (docSnap.exists()) {
           const data = docSnap.data();
           if (data) {
-            const currentStoreRole = useUserStore.getState().userRole;
-            const finalRole = (currentStoreRole === 'admin' || currentStoreRole === 'teacher')
-              ? currentStoreRole
-              : (data.role || 'student');
+            const currentStoreRole = normalizeUserRole(useUserStore.getState().userRole);
+            const docRole = normalizeUserRole(data.role || data.userRole);
+            const finalRole = VALID_ROLES.includes(docRole)
+              ? docRole
+              : (VALID_ROLES.includes(currentStoreRole) ? currentStoreRole : 'student');
 
             setUserProfile({
               fullName: data.fullName || '',

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,6 @@ import {
   ScrollView,
   Animated,
   Easing,
-  Image,
   useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -62,9 +61,8 @@ export const PrincipalDrawer: React.FC<PrincipalDrawerProps> = ({
   const roles = useUserStore((state) => state.roles || []);
   const switchRole = useUserStore((state) => state.switchRole);
 
-  const slideX = useRef(new Animated.Value(-width)).current;
-  const fade = useRef(new Animated.Value(0)).current;
-  const [mounted, setMounted] = useState(visible);
+  const [slideX] = useState(() => new Animated.Value(-width));
+  const [fade] = useState(() => new Animated.Value(0));
 
   const handleSwitchRole = (targetRole: any) => {
     switchRole(targetRole);
@@ -74,7 +72,6 @@ export const PrincipalDrawer: React.FC<PrincipalDrawerProps> = ({
 
   useEffect(() => {
     if (visible) {
-      setMounted(true);
       Animated.parallel([
         Animated.timing(slideX, {
           toValue: 0,
@@ -88,7 +85,7 @@ export const PrincipalDrawer: React.FC<PrincipalDrawerProps> = ({
           useNativeDriver: true,
         }),
       ]).start();
-    } else if (mounted) {
+    } else {
       Animated.parallel([
         Animated.timing(slideX, {
           toValue: -width,
@@ -101,18 +98,16 @@ export const PrincipalDrawer: React.FC<PrincipalDrawerProps> = ({
           duration: 250,
           useNativeDriver: true,
         }),
-      ]).start(({ finished }) => {
-        if (finished) setMounted(false);
-      });
+      ]).start();
     }
-  }, [visible]);
+  }, [visible, width, slideX, fade]);
 
-  if (!mounted) return null;
+  if (!visible) return null;
 
   const drawerWidth = Math.min(width * 0.82, 340);
 
   return (
-    <Modal visible={mounted} transparent animationType="none" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
       <View style={styles.modalRoot}>
         {/* Backdrop */}
         <Animated.View style={[styles.backdrop, { opacity: fade }]}>
