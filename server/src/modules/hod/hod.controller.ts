@@ -115,7 +115,7 @@ export async function assignCourseInstructorHandler(request: FastifyRequest, rep
       facultyName,
     });
 
-    return reply.send({ success: true, course: updated });
+    return reply.send({ success: true, data: updated, course: updated });
   } catch (err: any) {
     return reply.status(err.statusCode || 500).send({
       success: false,
@@ -163,7 +163,7 @@ export async function updateHallTicketStatusHandler(request: FastifyRequest, rep
       user?.name || 'Head of Department'
     );
 
-    return reply.send({ success: true, record: updated });
+    return reply.send({ success: true, data: updated, record: updated });
   } catch (err: any) {
     return reply.status(err.statusCode || 500).send({
       success: false,
@@ -203,7 +203,7 @@ export async function createNoticeHandler(request: FastifyRequest, reply: Fastif
       department: body.department || department,
     });
 
-    return reply.status(201).send({ success: true, notice: created });
+    return reply.status(201).send({ success: true, data: created, notice: created });
   } catch (err: any) {
     return reply.status(err.statusCode || 500).send({
       success: false,

@@ -68,7 +68,7 @@ export async function apiClient<T = any>(
       throw new AppError(msg, code, response.status);
     }
 
-    return data.data as T;
+    return (data.data !== undefined ? data.data : data) as T;
   } catch (error: any) {
     if (error instanceof AppError) throw error;
     console.warn(`[API Client Network Warning] Failed to reach Fastify API at ${url}: ${error.message}`);
