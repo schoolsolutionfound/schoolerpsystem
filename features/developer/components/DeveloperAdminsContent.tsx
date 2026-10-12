@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
+import { useRouter } from 'expo-router';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   useAdminsQuery,
   useInstitutionsQuery,
@@ -20,6 +22,7 @@ import { ErrorState } from '../../shared/components/ErrorState';
 import { Colors, BorderRadius } from '../../../constants/theme';
 
 export function DeveloperAdminsContent() {
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedInstFilter, setSelectedInstFilter] = useState<string>('all');
 
@@ -56,6 +59,26 @@ export function DeveloperAdminsContent() {
 
   return (
     <View style={styles.container}>
+      <View style={styles.topHeader}>
+        <View style={styles.headerLeft}>
+          <View style={styles.iconCircle}>
+            <MaterialCommunityIcons name="account-group" size={24} color={Colors.light.primary} />
+          </View>
+          <View>
+            <Text style={styles.headerTitle}>Institution Admins</Text>
+            <Text style={styles.headerSubtitle}>{admins.length} Total Configured</Text>
+          </View>
+        </View>
+        <TouchableOpacity
+          style={styles.createButton}
+          onPress={() => router.push('/(developer)/admins/create')}
+          activeOpacity={0.8}
+        >
+          <MaterialCommunityIcons name="plus" size={18} color="#FFFFFF" />
+          <Text style={styles.createButtonText}>Add Admin</Text>
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.searchSection}>
         <AppInput
           placeholder="Search by name, email, or institution..."
@@ -94,7 +117,9 @@ export function DeveloperAdminsContent() {
         ) : filteredAdmins.length === 0 ? (
           <EmptyState
             title={searchTerm ? 'No Matching Admins' : 'No Institution Admins Found'}
-            description={searchTerm ? `No admins match "${searchTerm}".` : 'No admins configured yet.'}
+            description={searchTerm ? `No admins match "${searchTerm}".` : 'Configure your first institution admin.'}
+            actionTitle={searchTerm ? undefined : 'Create Admin'}
+            onAction={searchTerm ? undefined : () => router.push('/(developer)/admins/create')}
           />
         ) : (
           <FlatList
@@ -103,7 +128,7 @@ export function DeveloperAdminsContent() {
             renderItem={({ item }) => (
               <InstitutionAdminCard
                 admin={item}
-                onEdit={() => {}}
+                onEdit={() => router.push(`/(developer)/admins/edit/${item.id}` as any)}
                 onDelete={() => handleDeleteAdmin(item.id, item.fullName)}
               />
             )}
@@ -112,13 +137,50 @@ export function DeveloperAdminsContent() {
           />
         )}
       </View>
+
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => router.push('/(developer)/admins/create')}
+        activeOpacity={0.8}
+      >
+        <MaterialCommunityIcons name="plus" size={28} color="#FFFFFF" />
+      </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  searchSection: { paddingHorizontal: 16, marginTop: 8 },
+  container: { flex: 1, position: 'relative' },
+  topHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 6,
+  },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  iconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFF4C7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: { fontSize: 18, fontWeight: '700', color: Colors.light.text },
+  headerSubtitle: { fontSize: 12, color: Colors.light.icon, marginTop: 1 },
+  createButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: Colors.light.primary,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: BorderRadius.button,
+  },
+  createButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '600' },
+  searchSection: { paddingHorizontal: 16, marginTop: 4 },
   searchInput: { marginBottom: 8 },
   filterChipContainer: { flexDirection: 'row', paddingHorizontal: 16, marginBottom: 12, gap: 8 },
   chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: BorderRadius.chip, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: Colors.light.border },
@@ -126,5 +188,22 @@ const styles = StyleSheet.create({
   chipText: { fontSize: 12, color: Colors.light.icon, fontWeight: '600' },
   activeChipText: { color: '#FFFFFF' },
   contentWrap: { flex: 1, paddingHorizontal: 16 },
-  listContainer: { paddingBottom: 24 },
+  listContainer: { paddingBottom: 80 },
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.light.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+  },
 });
+

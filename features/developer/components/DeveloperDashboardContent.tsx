@@ -8,6 +8,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import {
   useDeveloperStatsQuery,
   useInstitutionsQuery,
@@ -24,6 +25,7 @@ const TEXT_MUTED = '#6B6B6B';
 const BORDER = '#E8E5DC';
 
 export function DeveloperDashboardContent() {
+  const router = useRouter();
   const [createModalVisible, setCreateModalVisible] = useState(false);
 
   const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useDeveloperStatsQuery();
@@ -101,7 +103,10 @@ export function DeveloperDashboardContent() {
           <Text style={styles.quickActionTitle}>Create Institution</Text>
           <Text style={styles.quickActionSub}>Register a new school or college</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.quickActionCard}>
+        <TouchableOpacity
+          style={styles.quickActionCard}
+          onPress={() => router.push('/(developer)/admins/create')}
+        >
           <View style={[styles.quickIconCircle, { backgroundColor: '#FFF4C7' }]}>
             <MaterialCommunityIcons name="account-plus-outline" size={24} color={PURPLE} />
           </View>
@@ -112,7 +117,7 @@ export function DeveloperDashboardContent() {
 
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Recent Institutions</Text>
-        <TouchableOpacity>
+        <TouchableOpacity onPress={() => router.push('/(developer)/institutions' as any)}>
           <Text style={styles.viewAllText}>View All</Text>
         </TouchableOpacity>
       </View>
@@ -134,7 +139,7 @@ export function DeveloperDashboardContent() {
 
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Recent Admins</Text>
-        <TouchableOpacity>
+        <TouchableOpacity onPress={() => router.push('/(developer)/admins' as any)}>
           <Text style={styles.viewAllText}>View All</Text>
         </TouchableOpacity>
       </View>
