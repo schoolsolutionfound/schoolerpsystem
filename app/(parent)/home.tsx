@@ -60,25 +60,27 @@ export default function ParentHomeScreen() {
 
   const fetchAttendance = useCallback(async () => {
     let foundChildName = '';
-    try {
-      const res = await fetchParentAttendanceApi();
-      setOverall(res?.overall || null);
-      if (res) {
-        setChildProfile(res);
-        if (res.childName) {
-          foundChildName = res.childName;
-          setChildName(res.childName);
-          useUserStore.getState().setUserProfile({
-            childName: res.childName,
-            childId: res.childId || '',
-            linkedStudentUSN: res.childUSN || '',
-            relation: res.relation || '',
-          });
+    if (storeLinkedStudentUSN) {
+      try {
+        const res = await fetchParentAttendanceApi();
+        setOverall(res?.overall || null);
+        if (res) {
+          setChildProfile(res);
+          if (res.childName) {
+            foundChildName = res.childName;
+            setChildName(res.childName);
+            useUserStore.getState().setUserProfile({
+              childName: res.childName,
+              childId: res.childId || '',
+              linkedStudentUSN: res.childUSN || '',
+              relation: res.relation || '',
+            });
+          }
         }
-      }
-    } catch (err: any) {
-      if (!err?.message?.includes('No linked student found')) {
-        console.warn('[ParentHome] fetchAttendance error:', err);
+      } catch (err: any) {
+        if (!err?.message?.includes('No linked student') && err?.code !== 'NO_LINKED_STUDENT' && err?.statusCode !== 404) {
+          console.warn('[ParentHome] fetchAttendance error:', err);
+        }
       }
     }
 
