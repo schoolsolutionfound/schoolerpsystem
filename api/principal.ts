@@ -169,31 +169,32 @@ export async function assignHomeroomTeacherApi(
 }
 
 export async function fetchCounselingRecordsApi(): Promise<CounselingRecord[]> {
-  const res = await apiClient<{ success: boolean; data: CounselingRecord[] }>('/admin/counseling');
-  return Array.isArray(res?.data) ? res.data : [];
+  const res = await apiClient<any>('/admin/counseling');
+  const items = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : [];
+  return items;
 }
 
 export async function createCounselingRecordApi(record: Omit<CounselingRecord, 'id'>): Promise<CounselingRecord> {
-  const res = await apiClient<{ success: boolean; data: CounselingRecord }>('/admin/counseling', {
+  const res = await apiClient<any>('/admin/counseling', {
     method: 'POST',
     body: JSON.stringify(record),
   });
-  return res.data;
+  return res?.data || res;
 }
 
 export async function updateCounselingStatusApi(id: string, status: CounselingRecord['status']): Promise<boolean> {
-  const res = await apiClient<{ success: boolean; data: CounselingRecord }>(`/admin/counseling/${id}`, {
+  const res = await apiClient<any>(`/admin/counseling/${id}`, {
     method: 'PATCH',
     body: JSON.stringify({ status }),
   });
-  return res.success;
+  return !!res;
 }
 
 export async function fetchSchoolNoticesApi(): Promise<SchoolNotice[]> {
-  const res = await apiClient<{ success: boolean; data: any[] }>('/announcements');
-  const items = Array.isArray(res?.data) ? res.data : [];
+  const res = await apiClient<any>('/announcements');
+  const items = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : [];
 
-  return items.map((a) => ({
+  return items.map((a: any) => ({
     id: a.id,
     title: a.title,
     content: a.content,
@@ -208,7 +209,7 @@ export async function fetchSchoolNoticesApi(): Promise<SchoolNotice[]> {
 export async function createSchoolNoticeApi(
   notice: Omit<SchoolNotice, 'id' | 'publishedDate' | 'acknowledgedCount'>
 ): Promise<SchoolNotice> {
-  const res = await apiClient<{ success: boolean; data: any }>('/announcements', {
+  const res = await apiClient<any>('/announcements', {
     method: 'POST',
     body: JSON.stringify({
       title: notice.title,
@@ -218,15 +219,15 @@ export async function createSchoolNoticeApi(
     }),
   });
 
-  const a = res.data;
+  const a = res?.data || res;
   return {
-    id: a.id,
-    title: a.title,
-    content: a.content,
-    priority: a.priority,
+    id: a?.id || `notice-${Date.now()}`,
+    title: a?.title || notice.title,
+    content: a?.content || notice.content,
+    priority: a?.priority || notice.priority,
     targetAudience: notice.targetAudience,
-    publishedDate: a.createdAt ? new Date(a.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-    author: a.authorName || 'Principal Office',
+    publishedDate: a?.createdAt ? new Date(a.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+    author: a?.authorName || 'Principal Office',
     acknowledgedCount: 0,
   };
 }
