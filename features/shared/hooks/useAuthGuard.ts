@@ -59,9 +59,7 @@ export function useAuthGuard({
       }
     } else {
       if (isSessionRequiredSharedRoute) {
-        if (pathname !== '/auth') {
-          router.replace('/auth');
-        }
+        router.replace('/auth');
       } else if (!isPublicAuthRoute && !isRouteAllowedForRole(pathname, userRole)) {
         if (pathname !== '/auth') {
           router.replace('/auth');

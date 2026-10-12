@@ -11,6 +11,8 @@ const ROLE_ROUTES: Record<string, string> = {
   hod: '/(hod)/home',
   librarian: '/(librarian)/home',
   driver: '/(driver)/home',
+  admission_officer: '/(admin)/admissions',
+  'admission officer': '/(admin)/admissions',
 };
 
 const ROLE_GROUP: Record<string, string> = {
@@ -26,6 +28,8 @@ const ROLE_GROUP: Record<string, string> = {
   hod: '/(hod)',
   librarian: '/(librarian)',
   driver: '/(driver)',
+  admission_officer: '/(admin)',
+  'admission officer': '/(admin)',
 };
 
 const SHARED_ROUTES = [
@@ -53,21 +57,24 @@ function extractGroup(pathname: string): string {
   return match ? `/${match[1]}` : '';
 }
 
-export function isRouteAllowedForRole(pathname: string, role?: string): boolean {
-  const norm = (role || '').toLowerCase().trim();
+export function isRouteAllowedForRole(pathname: string, role?: string, roles?: string[]): boolean {
   if (SHARED_ROUTES.includes(pathname)) return true;
-  if (!norm || norm === 'loading') return false;
+
+  const allRoles = Array.from(new Set([
+    ...(role ? [role.toLowerCase().trim()] : []),
+    ...(roles ? roles.map((r) => r.toLowerCase().trim()) : []),
+  ])).filter((r) => r && r !== 'loading');
+
+  if (allRoles.length === 0) return false;
 
   // Explicitly scoped root-level routes (no group directory).
   const scopedRoles = ROLE_SCOPED_ROOT_ROUTES[pathname];
-  if (scopedRoles) return scopedRoles.includes(norm);
-
-  const allowedGroup = ROLE_GROUP[norm];
-  if (!allowedGroup) return false;
+  if (scopedRoles) return allRoles.some((r) => scopedRoles.includes(r));
 
   const pathGroup = extractGroup(pathname);
   // Routes without a group prefix are denied unless listed in
   // SHARED_ROUTES or ROLE_SCOPED_ROOT_ROUTES above.
   if (!pathGroup) return false;
-  return pathGroup === allowedGroup;
+
+  return allRoles.some((r) => ROLE_GROUP[r] === pathGroup);
 }

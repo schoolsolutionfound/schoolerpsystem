@@ -17,7 +17,7 @@ export interface AdminDashboardStats {
   attendanceSessions: number;
 }
 
-type AdminTab = 'dashboard' | 'institution' | 'students' | 'teachers' | 'users' | 'academics' | 'timetable' | 'attendance' | 'announcements' | 'profile';
+type AdminTab = 'dashboard' | 'institution' | 'students' | 'teachers' | 'users' | 'academics' | 'timetable' | 'attendance' | 'announcements' | 'admissions' | 'profile';
 
 interface AdminDashboardViewProps {
   fullName: string;

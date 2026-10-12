@@ -45,6 +45,7 @@ export const users = pgTable('users', {
   twelfthPercentage: varchar('twelfth_percentage', { length: 10 }).default(''),
   title: text('title').default(''),
   scope: jsonb('scope').$type<Record<string, any>>().default({}),
+  roles: jsonb('roles').$type<string[]>().default([]),
   permissions: jsonb('permissions').$type<string[]>().default([]),
   graduatedAt: timestamp('graduated_at'),
   createdAt: timestamp('created_at').defaultNow(),
@@ -460,8 +461,7 @@ export type ExpenseRecordRow = typeof expenseRecords.$inferSelect;
 export type NewExpenseRecordRow = typeof expenseRecords.$inferInsert;
 
 // =====================================================================// NOTIFICATION MODULE SCHEMAS
-// ============================================================================
-
+// =====================================================================
 export const notifications = pgTable('notifications', {
   id: text('id').primaryKey().$defaultFn(idPrefix('ntf')),
   institutionCode: varchar('institution_code', { length: 100 }).notNull(),
@@ -887,3 +887,30 @@ export const announcementReads = pgTable('announcement_reads', {
 export type AnnouncementReadRecord = typeof announcementReads.$inferSelect;
 export type NewAnnouncementReadRecord = typeof announcementReads.$inferInsert;
 
+export const admissions = pgTable('admissions', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('adm')),
+  parentId: text('parent_id').notNull(),
+  parentName: text('parent_name').default(''),
+  parentEmail: text('parent_email').default(''),
+  parentPhone: text('parent_phone').default(''),
+  schoolId: text('school_id').notNull(),
+  schoolName: text('school_name').default(''),
+  childFullName: text('child_full_name').notNull(),
+  childAge: integer('child_age').notNull(),
+  childGender: varchar('child_gender', { length: 20 }).notNull().default('male'),
+  previousSchool: text('previous_school').default(''),
+  gradeApplyingFor: varchar('grade_applying_for', { length: 50 }).notNull(),
+  status: varchar('status', { length: 50 }).notNull().default('pending'), // pending | test_scheduled | approved | accepted | rejected | offer_declined
+  entranceTestDate: timestamp('entrance_test_date'),
+  entranceTestVenue: text('entrance_test_venue').default(''),
+  entranceTestInstructions: text('entrance_test_instructions').default(''),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  parentIdx: index('idx_admissions_parent').on(table.parentId),
+  schoolIdx: index('idx_admissions_school').on(table.schoolId),
+  statusIdx: index('idx_admissions_status').on(table.status),
+}));
+
+export type AdmissionRecord = typeof admissions.$inferSelect;
+export type NewAdmissionRecord = typeof admissions.$inferInsert;

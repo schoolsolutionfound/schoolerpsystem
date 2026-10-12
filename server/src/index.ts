@@ -29,6 +29,7 @@ import { startNotificationQueue, stopNotificationQueue } from './modules/notific
 import { libraryRoutes } from './modules/library/library.routes.js';
 import { announcementRoutes } from './modules/announcements/announcement.routes.js';
 import { startAnnouncementScheduler, stopAnnouncementScheduler } from './modules/announcements/announcement.scheduler.js';
+import { admissionsRoutes } from './modules/admissions/admissions.routes.js';
 
 const port = Number(process.env.PORT) || 5000;
 const host = process.env.HOST || '0.0.0.0';
@@ -141,6 +142,7 @@ async function main() {
         await apiV1.register(notificationRoutes, { prefix: '/notifications' });
         await apiV1.register(libraryRoutes, { prefix: '/library' });
         await apiV1.register(announcementRoutes, { prefix: '/announcements' });
+        await apiV1.register(admissionsRoutes, { prefix: '/admissions' });
       },
       { prefix: '/api/v1' }
     );

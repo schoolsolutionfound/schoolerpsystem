@@ -23,6 +23,7 @@ import {
   getUsersHandler,
   createUserHandler,
   resetUserPasswordHandler,
+  updateUserHandler,
   singleFeedHandler,
   bulkFeedHandler,
   getFeesHandler,
@@ -81,6 +82,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
   // Unified User Management (all roles)
   fastify.get('/users', { preHandler: [requireAdmin] }, getUsersHandler);
   fastify.post('/users', { preHandler: [requireAdmin], config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, createUserHandler);
+  fastify.patch('/users/:id', { preHandler: [requireAdmin], config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, updateUserHandler);
   fastify.post('/users/:id/reset-password', { preHandler: [requireAdmin], config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, resetUserPasswordHandler);
 
   // Fee Management (admin + accountant)

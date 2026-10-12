@@ -284,13 +284,17 @@ export default function AdminHomeScreen() {
           </View>
         ) : (
           <View style={styles.content}>
-            {activeTab === 'dashboard' && (
               <AdminDashboardView
                 fullName={fullName}
                 stats={stats}
-                onNavigateTab={(tab) => setActiveTab(tab)}
+                onNavigateTab={(tab) => {
+                  if (tab === 'admissions') {
+                    router.push('/(admin)/admissions' as any);
+                    return;
+                  }
+                  setActiveTab(tab as any);
+                }}
               />
-            )}
 
             {activeTab === 'institution' && (
               <AdminInstitutionView config={config} onSaveConfig={handleSaveConfig} />

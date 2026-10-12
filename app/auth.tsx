@@ -33,6 +33,8 @@ export default function AuthScreen() {
 
     setLoading(true);
     try {
+      if (auth?.config) auth.config.apiKey = 'AIzaSyAcEE-UveuoG4Fgy48AE20q1a38aQmkqDY';
+      if (auth?.app?.options) auth.app.options.apiKey = 'AIzaSyAcEE-UveuoG4Fgy48AE20q1a38aQmkqDY';
       await signInWithEmailAndPassword(auth, email, password);
     } catch (e: any) {
       // Generic message only — never reveal whether the email exists (user enumeration).
