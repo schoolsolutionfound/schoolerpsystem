@@ -5,7 +5,13 @@ export { SingleFeedPayload, CreateStudentPayload, CreateTeacherPayload };
 
 function extractInstCode(req: FastifyRequest): string {
   const user = (req as any).user;
-  return user?.institutionCode || (req.query as any)?.institutionCode || 'DEFAULT';
+  const instCode = user?.institutionCode;
+  if (!instCode) {
+    const error: any = new Error('TENANT_REQUIRED: No institution assigned to current user account.');
+    error.statusCode = 403;
+    throw error;
+  }
+  return instCode;
 }
 
 export async function getInstitutionConfigHandler(request: FastifyRequest, reply: FastifyReply) {

@@ -8,6 +8,7 @@ import {
   ScrollView,
   TextInput,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../../constants/theme';
@@ -32,12 +33,13 @@ export const AssignHomeroomModal: React.FC<AssignHomeroomModalProps> = ({
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>(section?.homeroomTeacherId || '');
   const [search, setSearch] = useState('');
   const [saving, setSaving] = useState(false);
+  const [prevSectionId, setPrevSectionId] = useState<string | null>(section?.id || null);
 
-  // Sync state if section changes
-  React.useEffect(() => {
-    setSelectedTeacherId(section?.homeroomTeacherId || '');
+  if (section && section.id !== prevSectionId) {
+    setPrevSectionId(section.id);
+    setSelectedTeacherId(section.homeroomTeacherId || '');
     setSearch('');
-  }, [section]);
+  }
 
   if (!section) return null;
 
@@ -55,23 +57,48 @@ export const AssignHomeroomModal: React.FC<AssignHomeroomModalProps> = ({
     const teacher = staffList.find((t) => t.id === selectedTeacherId);
     if (!teacher) return;
 
+    if (teacher.assignedClass && teacher.assignedClass !== section.name) {
+      Alert.alert(
+        'Teacher Unavailable',
+        `${teacher.fullName} is already assigned to ${teacher.assignedClass}. Please choose a teacher without an existing homeroom assignment.`
+      );
+      return;
+    }
+
     setSaving(true);
     try {
       await onAssign(section.id, teacher.id, teacher.fullName);
       onClose();
+    } catch (err: any) {
+      Alert.alert('Assignment Failed', err.message || 'Server failed to save homeroom assignment.');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleUnassign = async () => {
-    setSaving(true);
-    try {
-      await onAssign(section.id, '', '');
-      onClose();
-    } finally {
-      setSaving(false);
-    }
+  const handleUnassign = () => {
+    Alert.alert(
+      'Confirm Unassignment',
+      `Are you sure you want to unassign ${section.homeroomTeacherName || 'the teacher'} from ${section.name}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Unassign',
+          style: 'destructive',
+          onPress: async () => {
+            setSaving(true);
+            try {
+              await onAssign(section.id, '', '');
+              onClose();
+            } catch (err: any) {
+              Alert.alert('Unassign Failed', err.message || 'Server failed to unassign teacher.');
+            } finally {
+              setSaving(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -134,11 +161,22 @@ export const AssignHomeroomModal: React.FC<AssignHomeroomModalProps> = ({
           <ScrollView style={styles.scrollList} contentContainerStyle={styles.scrollContent}>
             {eligibleTeachers.map((teacher) => {
               const isSelected = selectedTeacherId === teacher.id;
+              const isAssignedElsewhere = Boolean(
+                teacher.assignedClass && teacher.assignedClass !== section.name
+              );
               return (
                 <TouchableOpacity
                   key={teacher.id}
-                  style={[styles.teacherRow, isSelected && styles.teacherRowActive]}
-                  onPress={() => setSelectedTeacherId(teacher.id)}
+                  style={[
+                    styles.teacherRow,
+                    isSelected && styles.teacherRowActive,
+                    isAssignedElsewhere && { opacity: 0.55 },
+                  ]}
+                  onPress={() => {
+                    if (isAssignedElsewhere) return;
+                    setSelectedTeacherId(teacher.id);
+                  }}
+                  disabled={isAssignedElsewhere}
                   activeOpacity={0.7}
                 >
                   <View style={[styles.avatarCircle, isSelected && styles.avatarCircleActive]}>
@@ -152,11 +190,15 @@ export const AssignHomeroomModal: React.FC<AssignHomeroomModalProps> = ({
                     <Text style={styles.teacherMeta}>
                       {teacher.department || 'General'} • {teacher.experienceYears || 5} yrs exp
                     </Text>
-                    {teacher.assignedClass && (
-                      <Text style={styles.alreadyAssignedText}>
-                        Already Homeroom for: {teacher.assignedClass}
+                    {isAssignedElsewhere ? (
+                      <Text style={[styles.alreadyAssignedText, { color: '#DC2626' }]}>
+                        Assigned to: {teacher.assignedClass} (Unavailable)
                       </Text>
-                    )}
+                    ) : teacher.assignedClass ? (
+                      <Text style={styles.alreadyAssignedText}>
+                        Current Homeroom: {teacher.assignedClass}
+                      </Text>
+                    ) : null}
                   </View>
 
                   <View style={[styles.radioCircle, isSelected && styles.radioCircleActive]}>

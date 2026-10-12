@@ -44,7 +44,7 @@ export const AddCounselingNoteModal: React.FC<AddCounselingNoteModalProps> = ({
 }) => {
   const [studentName, setStudentName] = useState('');
   const [gradeSection, setGradeSection] = useState('');
-  const [counselorName, setCounselorName] = useState('Dr. Evelyn Reed (Guidance Lead)');
+  const [counselorName, setCounselorName] = useState('Guidance Lead');
   const [concernCategory, setConcernCategory] = useState<CounselingConcernCategory>('attendance_issue');
   const [severity, setSeverity] = useState<'low' | 'medium' | 'high'>('medium');
   const [actionPlan, setActionPlan] = useState('');
@@ -54,6 +54,7 @@ export const AddCounselingNoteModal: React.FC<AddCounselingNoteModalProps> = ({
   const reset = () => {
     setStudentName('');
     setGradeSection('');
+    setCounselorName('Guidance Lead');
     setActionPlan('');
     setParentContacted(false);
     setSeverity('medium');
@@ -129,6 +130,18 @@ export const AddCounselingNoteModal: React.FC<AddCounselingNoteModalProps> = ({
                   onChangeText={setGradeSection}
                 />
               </View>
+            </View>
+
+            {/* Counselor */}
+            <View style={styles.fieldGroup}>
+              <Text style={styles.label}>Counselor / Faculty Lead</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. Guidance Lead"
+                placeholderTextColor="#9CA3AF"
+                value={counselorName}
+                onChangeText={setCounselorName}
+              />
             </View>
 
             {/* Concern Category */}

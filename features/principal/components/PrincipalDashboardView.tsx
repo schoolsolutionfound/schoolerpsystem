@@ -89,7 +89,7 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
       <View style={styles.pulseCard}>
         <View style={styles.pulseHeader}>
           <View>
-            <Text style={styles.pulseTitle}>Today's Operational Pulse</Text>
+            <Text style={styles.pulseTitle}>Today&apos;s Operational Pulse</Text>
             <Text style={styles.pulseSub}>Live campus attendance & teacher deployment</Text>
           </View>
           <View style={styles.liveIndicator}>

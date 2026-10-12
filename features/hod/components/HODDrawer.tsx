@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -55,16 +55,14 @@ export const HODDrawer: React.FC<HODDrawerProps> = ({
   const { width } = useWindowDimensions();
 
   const fullName = useUserStore((state) => state.fullName) || 'Head of Department';
-  const email = useUserStore((state) => state.email);
   const department = useUserStore((state) => state.department) || 'Department Head';
   const institutionName = useUserStore((state) => state.institutionName) || 'College of Engineering';
   const userRole = useUserStore((state) => state.userRole);
   const roles = useUserStore((state) => state.roles || []);
   const switchRole = useUserStore((state) => state.switchRole);
 
-  const slideX = useRef(new Animated.Value(-width)).current;
-  const fade = useRef(new Animated.Value(0)).current;
-  const [mounted, setMounted] = useState(visible);
+  const [slideX] = useState(() => new Animated.Value(-width));
+  const [fade] = useState(() => new Animated.Value(0));
 
   const handleSwitchRole = (targetRole: any) => {
     switchRole(targetRole);
@@ -74,7 +72,6 @@ export const HODDrawer: React.FC<HODDrawerProps> = ({
 
   useEffect(() => {
     if (visible) {
-      setMounted(true);
       Animated.parallel([
         Animated.timing(slideX, {
           toValue: 0,
@@ -101,16 +98,16 @@ export const HODDrawer: React.FC<HODDrawerProps> = ({
           duration: 180,
           useNativeDriver: true,
         }),
-      ]).start(() => setMounted(false));
+      ]).start();
     }
-  }, [visible, width]);
+  }, [visible, width, slideX, fade]);
 
-  if (!mounted && !visible) return null;
+  if (!visible) return null;
 
   const drawerWidth = Math.min(width * 0.82, 340);
 
   return (
-    <Modal visible={mounted} transparent animationType="none" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
       <View style={styles.container}>
         {/* Backdrop */}
         <Animated.View style={[styles.backdrop, { opacity: fade }]}>

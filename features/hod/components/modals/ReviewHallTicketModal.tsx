@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -33,16 +33,16 @@ export const ReviewHallTicketModal: React.FC<ReviewHallTicketModalProps> = ({
   onClose,
   onUpdateStatus,
 }) => {
-  const [selectedStatus, setSelectedStatus] = useState<HallTicketStatus>('detained');
-  const [hodRemarks, setHodRemarks] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState<HallTicketStatus>(record?.hallTicketStatus || 'detained');
+  const [hodRemarks, setHodRemarks] = useState(record?.remarks || '');
   const [saving, setSaving] = useState(false);
+  const [prevRecordId, setPrevRecordId] = useState<string | null>(record?.id || null);
 
-  useEffect(() => {
-    if (record) {
-      setSelectedStatus(record.hallTicketStatus);
-      setHodRemarks(record.remarks || '');
-    }
-  }, [record]);
+  if (record && record.id !== prevRecordId) {
+    setPrevRecordId(record.id);
+    setSelectedStatus(record.hallTicketStatus);
+    setHodRemarks(record.remarks || '');
+  }
 
   if (!record) return null;
 
@@ -51,6 +51,8 @@ export const ReviewHallTicketModal: React.FC<ReviewHallTicketModalProps> = ({
     try {
       await onUpdateStatus(record.id, selectedStatus, hodRemarks.trim());
       onClose();
+    } catch {
+      // Keep modal open so user can provide required condonation remarks (E6, E11)
     } finally {
       setSaving(false);
     }

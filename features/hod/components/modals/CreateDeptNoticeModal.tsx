@@ -64,6 +64,8 @@ export const CreateDeptNoticeModal: React.FC<CreateDeptNoticeModalProps> = ({
         authorRole: 'Head of Department',
       });
       handleClose();
+    } catch {
+      // Keep modal open so user does not lose drafted memo (E11)
     } finally {
       setSaving(false);
     }

@@ -10,6 +10,9 @@ import { academicsRoutes } from './modules/academics/academics.routes.js';
 import { institutionRoutes } from './modules/institutions/institution.routes.js';
 import { developerRoutes } from './modules/developer/developer.routes.js';
 import { admissionsRoutes } from './modules/admissions/admissions.routes.js';
+import { announcementsRoutes } from './modules/announcements/announcements.routes.js';
+import { counselingRoutes } from './modules/counseling/counseling.routes.js';
+import { hodRoutes } from './modules/hod/hod.routes.js';
 
 dotenv.config();
 
@@ -64,6 +67,9 @@ async function main() {
         await apiV1.register(institutionRoutes, { prefix: '/institutions' });
         await apiV1.register(developerRoutes, { prefix: '/developer' });
         await apiV1.register(admissionsRoutes, { prefix: '/admissions' });
+        await apiV1.register(announcementsRoutes, { prefix: '/announcements' });
+        await apiV1.register(counselingRoutes, { prefix: '/admin/counseling' });
+        await apiV1.register(hodRoutes, { prefix: '/admin/hod' });
       },
       { prefix: '/api/v1' }
     );

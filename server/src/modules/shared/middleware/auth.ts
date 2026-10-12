@@ -138,7 +138,16 @@ export async function requireDeveloper(request: FastifyRequest, reply: FastifyRe
 export function normalizeRole(role: string | undefined): string {
   const normalized = (role || '').toLowerCase().trim();
   if (normalized === 'institution admin') return 'admin';
+  if (normalized === 'hid') return 'hod';
   return normalized;
+}
+
+export function getTenantInstitutionCode(request: FastifyRequest): string {
+  const code = request.user?.institutionCode;
+  if (!code) {
+    throw new Error('TENANT_REQUIRED: No institution assigned to current user account.');
+  }
+  return code;
 }
 
 export async function requireAdmin(request: FastifyRequest, reply: FastifyReply) {
@@ -151,6 +160,38 @@ export async function requireAdmin(request: FastifyRequest, reply: FastifyReply)
       success: false,
       error: {
         message: 'Access denied: Institution Administrator privileges required',
+        code: 'FORBIDDEN',
+      },
+    });
+  }
+}
+
+export async function requireAdminOrPrincipal(request: FastifyRequest, reply: FastifyReply) {
+  await authenticate(request, reply);
+  if (reply.sent) return;
+
+  const role = normalizeRole(request.user?.role);
+  if (role !== 'admin' && role !== 'principal') {
+    return reply.status(403).send({
+      success: false,
+      error: {
+        message: 'Access denied: Administrator or Principal privileges required',
+        code: 'FORBIDDEN',
+      },
+    });
+  }
+}
+
+export async function requireHODOrAdmin(request: FastifyRequest, reply: FastifyReply) {
+  await authenticate(request, reply);
+  if (reply.sent) return;
+
+  const role = normalizeRole(request.user?.role);
+  if (role !== 'admin' && role !== 'principal' && role !== 'hod') {
+    return reply.status(403).send({
+      success: false,
+      error: {
+        message: 'Access denied: HOD or Administrator privileges required',
         code: 'FORBIDDEN',
       },
     });
