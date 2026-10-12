@@ -10,13 +10,14 @@
  *  - Clean mobile responsive layout with Export Statement action
  */
 
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Alert, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { formatINR, getCategoryTotal } from '../utils/financeUtils';
 import { showAlert } from '../../shared/utils/showAlert';
+import { generateIncomeExpenseStatementPdf } from '../utils/financePdfGenerator';
 
 export const IncomeExpenseTallyView: React.FC = () => {
   const getTotalIncome = useFinanceStore((s) => s.getTotalIncome);
@@ -24,6 +25,8 @@ export const IncomeExpenseTallyView: React.FC = () => {
   const getNetTally = useFinanceStore((s) => s.getNetTally);
   const incomeRecords = useFinanceStore((s) => s.incomeRecords);
   const expenseRecords = useFinanceStore((s) => s.expenseRecords);
+
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const totalIncome = getTotalIncome();
   const totalExpense = getTotalExpenses();
@@ -45,11 +48,22 @@ export const IncomeExpenseTallyView: React.FC = () => {
   const hostelExpensesTotal = getCategoryTotal(expenseRecords, 'hostel_expense');
   const utilityTotal        = getCategoryTotal(expenseRecords, 'utility');
 
-  const handleExportStatement = () => {
-    showAlert(
-      'Financial Summary Exported',
-      `• Total Fee Collections: ${formatINR(totalIncome)}\n• Total Expenditures: ${formatINR(totalExpense)}\n• Net Surplus Balance: ${formatINR(netTally)}\n\nReport downloaded to device downloads.`
-    );
+  const handleExportStatement = async () => {
+    if (isGeneratingPdf) return;
+    setIsGeneratingPdf(true);
+    try {
+      await generateIncomeExpenseStatementPdf({
+        totalIncome,
+        totalExpense,
+        netTally,
+        incomeRecords,
+        expenseRecords,
+      });
+    } catch (err: any) {
+      Alert.alert('Export Failed', err?.message || 'Could not generate financial statement PDF.');
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   return (
@@ -61,9 +75,13 @@ export const IncomeExpenseTallyView: React.FC = () => {
             <Text style={styles.tallyCardTitle}>Income & Expense Tally</Text>
             <Text style={styles.tallyCardSubtitle}>Current Academic Term Financial Balance</Text>
           </View>
-          <TouchableOpacity style={styles.exportBtn} onPress={handleExportStatement}>
-            <MaterialCommunityIcons name="file-export-outline" size={16} color="#FFFFFF" />
-            <Text style={styles.exportBtnText}>Export</Text>
+          <TouchableOpacity style={[styles.exportBtn, { opacity: isGeneratingPdf ? 0.7 : 1 }]} onPress={handleExportStatement} disabled={isGeneratingPdf}>
+            {isGeneratingPdf ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <MaterialCommunityIcons name="file-export-outline" size={16} color="#FFFFFF" />
+            )}
+            <Text style={styles.exportBtnText}>{isGeneratingPdf ? 'Generating...' : 'Export PDF'}</Text>
           </TouchableOpacity>
         </View>
 

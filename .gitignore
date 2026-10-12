@@ -34,8 +34,10 @@ yarn-error.*
 .env
 .env*.local
 
-# secrets
+# secrets and db dumps
 *-firebase-adminsdk-*.json
+/schoolerp_backup_utf8.sql
+/schoolerp_full.sql
 
 # typescript
 *.tsbuildinfo

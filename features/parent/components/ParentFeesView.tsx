@@ -17,6 +17,7 @@ import { useUserStore } from '../../../store/useUserStore';
 import { fetchParentFeesApi } from '../../../api/academics';
 import { mapParentFees } from '../../accountant/utils/feeMappers';
 import { IncomeRecord } from '../../accountant/types/finance';
+import { generateParentFeeReceiptPdf } from '../utils/receiptPdfGenerator';
 
 export const ParentFeesView: React.FC = () => {
   const institutionName = useUserStore((s) => s.institutionName) || 'School';
@@ -34,6 +35,8 @@ export const ParentFeesView: React.FC = () => {
   const [viewingReceipt, setViewingReceipt] = useState<IncomeRecord | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [txnId, setTxnId] = useState('');
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const loadFees = useCallback(async () => {
     try {
@@ -93,6 +96,7 @@ export const ParentFeesView: React.FC = () => {
   const handleOpenPay = (fee: IncomeRecord) => {
     setSelectedFee(fee);
     setPaymentSuccess(false);
+    setTxnId('');
     setShowPayModal(true);
   };
 
@@ -102,6 +106,7 @@ export const ParentFeesView: React.FC = () => {
     setTimeout(() => {
       setIsProcessing(false);
       setPaymentSuccess(true);
+      setTxnId(`PAY-${Date.now().toString().slice(-8)}`);
       loadFees();
     }, 800);
   };
@@ -109,6 +114,19 @@ export const ParentFeesView: React.FC = () => {
   const handleOpenReceipt = (fee: IncomeRecord) => {
     setViewingReceipt(fee);
     setShowReceiptModal(true);
+  };
+
+  const handleDownloadReceiptPdf = async () => {
+    if (!viewingReceipt || isGeneratingPdf) return;
+    setIsGeneratingPdf(true);
+    try {
+      await generateParentFeeReceiptPdf(viewingReceipt);
+      setShowReceiptModal(false);
+    } catch (err: any) {
+      Alert.alert('Download Failed', err?.message || 'Could not generate receipt PDF.');
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   if (loading) {
@@ -261,7 +279,9 @@ export const ParentFeesView: React.FC = () => {
                 <Text style={styles.successTitle}>Payment Recorded</Text>
                 <Text style={styles.successSub}>
                   ₹{selectedFee?.amount.toLocaleString('en-IN')} noted for {selectedFee?.title}.
-                  Accounts will confirm shortly.
+                </Text>
+                <Text style={styles.successRef}>
+                  Txn ID: {txnId}
                 </Text>
                 <TouchableOpacity
                   style={styles.modalDoneBtn}
@@ -338,8 +358,8 @@ export const ParentFeesView: React.FC = () => {
             </View>
 
             <View style={styles.receiptStudentInfo}>
-              <Text style={styles.receiptStudentName}>Student: {childName || '—'}</Text>
-              <Text style={styles.receiptStudentRoll}>USN: {linkedStudentUSN || '—'}</Text>
+              <Text style={styles.receiptStudentName}>Student: {childName || viewingReceipt?.payerName || '—'}</Text>
+              <Text style={styles.receiptStudentRoll}>USN: {linkedStudentUSN || viewingReceipt?.classSection || '—'}</Text>
             </View>
 
             <View style={styles.receiptLineItem}>
@@ -363,14 +383,18 @@ export const ParentFeesView: React.FC = () => {
             </View>
 
             <TouchableOpacity
-              style={styles.downloadPdfBtn}
-              onPress={() => {
-                Alert.alert('Receipt', 'Receipt saved to device storage.');
-                setShowReceiptModal(false);
-              }}
+              style={[styles.downloadPdfBtn, { opacity: isGeneratingPdf ? 0.7 : 1 }]}
+              onPress={handleDownloadReceiptPdf}
+              disabled={isGeneratingPdf}
             >
-              <MaterialCommunityIcons name="download" size={18} color="#FFFFFF" />
-              <Text style={styles.downloadPdfBtnText}>Save Receipt</Text>
+              {isGeneratingPdf ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <MaterialCommunityIcons name="download" size={18} color="#FFFFFF" />
+              )}
+              <Text style={styles.downloadPdfBtnText}>
+                {isGeneratingPdf ? 'Generating PDF...' : 'Save / Download PDF'}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -552,6 +576,7 @@ const styles = StyleSheet.create({
   },
   successTitle: { fontSize: 18, fontWeight: '800', color: '#1A1B1C', fontFamily: FontFamily.extrabold },
   successSub: { fontSize: 13, color: '#6B6B6B', textAlign: 'center', marginTop: 6, fontFamily: FontFamily.regular },
+  successRef: { fontSize: 11, color: '#16A34A', fontWeight: '700', textAlign: 'center', marginTop: 4, fontFamily: FontFamily.bold },
   modalDoneBtn: {
     backgroundColor: '#16A34A',
     borderRadius: 12,

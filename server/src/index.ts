@@ -10,6 +10,9 @@ import { academicsRoutes } from './modules/academics/academics.routes.js';
 import { developerRoutes } from './modules/developer/developer.routes.js';
 import { notificationRoutes } from './modules/notifications/notification.routes.js';
 import { startNotificationQueue, stopNotificationQueue } from './modules/notifications/notification.queue.js';
+import { libraryRoutes } from './modules/library/library.routes.js';
+import { announcementRoutes } from './modules/announcements/announcement.routes.js';
+import { startAnnouncementScheduler, stopAnnouncementScheduler } from './modules/announcements/announcement.scheduler.js';
 
 dotenv.config();
 
@@ -122,11 +125,18 @@ async function main() {
         await apiV1.register(academicsRoutes, { prefix: '/admin' });
         await apiV1.register(developerRoutes, { prefix: '/developer' });
         await apiV1.register(notificationRoutes, { prefix: '/notifications' });
+        await apiV1.register(libraryRoutes, { prefix: '/library' });
+        await apiV1.register(announcementRoutes, { prefix: '/announcements' });
       },
       { prefix: '/api/v1' }
     );
 
+    fastify.addHook('onClose', async () => {
+      stopAnnouncementScheduler();
+    });
+
     await fastify.listen({ port, host });
+    startAnnouncementScheduler();
     console.log(`🚀 Fastify Backend Server running on http://${host}:${port}`);
     console.log(`   Environment: ${isProduction ? 'production' : 'development'} | trustProxy: ${String(trustProxy)}`);
 
@@ -136,6 +146,7 @@ async function main() {
     // Graceful shutdown
     const shutdown = async () => {
       stopNotificationQueue();
+      stopAnnouncementScheduler();
       await fastify.close();
       process.exit(0);
     };

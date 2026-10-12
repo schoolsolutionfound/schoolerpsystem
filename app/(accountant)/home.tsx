@@ -12,9 +12,10 @@ import { IncomeManagementView } from '../../features/accountant/components/Incom
 import { AccountsTallyView } from '../../features/accountant/components/AccountsTallyView';
 import { ExpenseManagementView } from '../../features/accountant/components/ExpenseManagementView';
 import { useFinanceStore } from '../../features/accountant/store/useFinanceStore';
+import { UserAnnouncementFeedView } from '../../features/announcements';
 import { FontFamily } from '../../constants/fonts';
 
-type FinanceTab = 'overview' | 'fees' | 'dues' | 'income' | 'expenses' | 'accounts';
+type FinanceTab = 'overview' | 'fees' | 'dues' | 'income' | 'expenses' | 'accounts' | 'announcements';
 
 const TABS: { key: FinanceTab; label: string; icon: string }[] = [
   { key: 'overview', label: 'Overview', icon: 'view-dashboard-outline' },
@@ -23,6 +24,7 @@ const TABS: { key: FinanceTab; label: string; icon: string }[] = [
   { key: 'income', label: 'Income', icon: 'cash-plus' },
   { key: 'expenses', label: 'Expenses', icon: 'cash-minus' },
   { key: 'accounts', label: 'Accounts', icon: 'calculator-variant-outline' },
+  { key: 'announcements', label: 'News', icon: 'bullhorn-outline' },
 ];
 
 export default function AccountantHomeScreen() {
@@ -109,6 +111,7 @@ export default function AccountantHomeScreen() {
           {activeTab === 'income' && <IncomeManagementView />}
           {activeTab === 'expenses' && <ExpenseManagementView />}
           {activeTab === 'accounts' && <AccountsTallyView />}
+          {activeTab === 'announcements' && <UserAnnouncementFeedView />}
         </ScrollView>
       </SafeAreaView>
     </View>

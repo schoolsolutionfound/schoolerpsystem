@@ -20,8 +20,9 @@ import { ClassAttendanceReport } from '../../features/teacher/components/ClassAt
 import { TeacherDrawer } from '../../features/teacher/components/TeacherDrawer';
 import { ShimmerProvider } from '../../features/student/components/ShimmerSkeleton';
 import { FontFamily } from '../../constants/fonts';
+import { AdminAnnouncementsView, UserAnnouncementFeedView } from '../../features/announcements';
 
-type Tab = 'home' | 'schedule' | 'attendance' | 'marks' | 'reports' | 'homework' | 'chat' | 'locate' | 'profile';
+type Tab = 'home' | 'schedule' | 'attendance' | 'marks' | 'reports' | 'homework' | 'chat' | 'locate' | 'announcements' | 'announcements-manage' | 'profile';
 
 function getWeekDates(): string[] {
   const now = new Date();
@@ -138,7 +139,10 @@ export default function TeacherHomeScreen() {
                 loading={loading}
               />
               <TeacherWeeklyBarCard weekData={weekData} loading={loading} />
-              <TeacherHomeAnnouncements />
+              <TeacherHomeAnnouncements
+                onPressFeed={() => setActiveTab('announcements')}
+                onPressManage={() => setActiveTab('announcements-manage')}
+              />
               <TeacherHomePeriodsList
                 loading={loading}
                 slots={todaySlots}
@@ -147,6 +151,10 @@ export default function TeacherHomeScreen() {
             </ScrollView>
           </ShimmerProvider>
         );
+      case 'announcements':
+        return <UserAnnouncementFeedView />;
+      case 'announcements-manage':
+        return <AdminAnnouncementsView />;
       case 'schedule':
         return <TeacherTimetableView onOpenAttendance={openSlot} />;
       case 'attendance':

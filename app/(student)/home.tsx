@@ -18,8 +18,9 @@ import { StudentBusTrackingView } from '../../features/student/components/Studen
 import { StudentHomeFeeSummary } from '../../features/student/components/StudentHomeFeeSummary';
 import { ShimmerProvider } from '../../features/student/components/ShimmerSkeleton';
 import { FontFamily } from '../../constants/fonts';
+import { UserAnnouncementFeedView } from '../../features/announcements';
 
-  type Tab = 'home' | 'attendance' | 'bus' | 'marks' | 'schedule' | 'homework' | 'fees';
+type Tab = 'home' | 'attendance' | 'bus' | 'marks' | 'schedule' | 'homework' | 'fees' | 'announcements';
 
 function toMinutes(timeStr?: string): number | null {
   if (!timeStr) return null;
@@ -159,11 +160,13 @@ export default function HomeScreen() {
               refreshControl={refreshControl}
             >
               <StudentHomeAttendanceCard loading={attendanceLoading || slotsLoading} overall={overall} currentSlot={currentSlot} />
-              <StudentHomeAnnouncements />
+              <StudentHomeAnnouncements onPress={() => setActiveTab('announcements')} />
               <StudentHomePeriodsList loading={slotsLoading} slots={todaySlots} />
             </ScrollView>
           </ShimmerProvider>
         );
+      case 'announcements':
+        return <UserAnnouncementFeedView />;
       case 'schedule':
         return <StudentTimetableView />;
       case 'attendance':

@@ -15,8 +15,9 @@ import { ParentFeesView } from '../../features/parent/components/ParentFeesView'
 import { ParentScheduleView } from '../../features/parent/components/ParentScheduleView';
 import { ParentDrawer } from '../../features/parent/components/ParentDrawer';
 import { FontFamily } from '../../constants/fonts';
+import { UserAnnouncementFeedView } from '../../features/announcements';
 
-type Tab = 'home' | 'fees' | 'track' | 'attendance' | 'marks' | 'homework' | 'schedule';
+type Tab = 'home' | 'fees' | 'track' | 'attendance' | 'marks' | 'homework' | 'schedule' | 'announcements';
 
 const TABS: { key: Tab; label: string; icon: string; iconFilled: string }[] = [
   { key: 'home', label: 'Home', icon: 'home-outline', iconFilled: 'home' },
@@ -24,6 +25,9 @@ const TABS: { key: Tab; label: string; icon: string; iconFilled: string }[] = [
   { key: 'track', label: 'Track', icon: 'bus', iconFilled: 'bus' },
   { key: 'attendance', label: 'Attendance', icon: 'book-outline', iconFilled: 'book' },
   { key: 'marks', label: 'Marks', icon: 'certificate-outline', iconFilled: 'certificate' },
+  { key: 'homework', label: 'Homework', icon: 'notebook-outline', iconFilled: 'notebook' },
+  { key: 'schedule', label: 'Schedule', icon: 'calendar-clock', iconFilled: 'calendar-clock' },
+  { key: 'announcements', label: 'News', icon: 'bullhorn-outline', iconFilled: 'bullhorn' },
 ];
 
 export default function ParentHomeScreen() {
@@ -158,6 +162,8 @@ export default function ParentHomeScreen() {
             />
           </ScrollView>
         );
+      case 'announcements':
+        return <UserAnnouncementFeedView />;
       case 'attendance':
         return <ParentAttendanceView />;
       case 'fees':
@@ -170,6 +176,8 @@ export default function ParentHomeScreen() {
         return <ParentHomeworkView />;
       case 'schedule':
         return <ParentScheduleView />;
+      case 'announcements':
+        return <UserAnnouncementFeedView />;
       default:
         return null;
     }
