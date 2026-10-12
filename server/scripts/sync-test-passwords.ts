@@ -18,6 +18,7 @@ async function syncPasswords() {
     { email: 'principal.oakridge@school.com', password: 'Principal@123' },
     { email: 'admi.okridge@school.com', password: 'Admin@123' },
     { email: 'safwancoding1919@gmail.com', password: 'Safwan@123' },
+    { email: 'dev@schoolerp.com', password: 'Devpass123!' },
   ];
 
   console.log('--- Setting Firebase Auth Passwords ---');
