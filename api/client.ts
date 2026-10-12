@@ -3,17 +3,19 @@ import { AppError } from '../utils/errorHandler';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 const getBaseUrl = (): string => {
+  // In development, dynamically connect to the active Metro host IP (handles mobile on Wi-Fi automatically)
+  if (__DEV__) {
+    const hostUri = Constants.expoConfig?.hostUri || (Constants as any).manifest2?.extra?.expoGo?.debuggerHost;
+    if (hostUri) {
+      const hostIp = hostUri.split(':')[0];
+      if (hostIp && hostIp !== 'localhost' && hostIp !== '127.0.0.1') {
+        return `http://${hostIp}:5000/api/v1`;
+      }
+    }
+  }
+
   if (process.env.EXPO_PUBLIC_API_URL) {
     return process.env.EXPO_PUBLIC_API_URL;
-  }
-  
-  // Extract host IP dynamically when running on physical devices/emulators via Expo Go
-  const hostUri = Constants.expoConfig?.hostUri || (Constants as any).manifest2?.extra?.expoGo?.debuggerHost;
-  if (hostUri) {
-    const hostIp = hostUri.split(':')[0];
-    if (hostIp && hostIp !== 'localhost' && hostIp !== '127.0.0.1') {
-      return `http://${hostIp}:5000/api/v1`;
-    }
   }
 
   return Platform.OS === 'android'
