@@ -284,6 +284,7 @@ export default function AdminHomeScreen() {
           </View>
         ) : (
           <View style={styles.content}>
+            {activeTab === 'dashboard' && (
               <AdminDashboardView
                 fullName={fullName}
                 stats={stats}
@@ -295,6 +296,7 @@ export default function AdminHomeScreen() {
                   setActiveTab(tab as any);
                 }}
               />
+            )}
 
             {activeTab === 'institution' && (
               <AdminInstitutionView config={config} onSaveConfig={handleSaveConfig} />
