@@ -6,8 +6,9 @@ import { BorderRadius } from '../../../constants/theme';
 const SCHOOL_ROLES = [
   { key: 'admin', label: 'Admin', icon: 'shield-account-outline' },
   { key: 'principal', label: 'Principal', icon: 'account-tie-outline' },
+  { key: 'hod', label: 'HOD', icon: 'account-tie' },
   { key: 'admission_officer', label: 'Admission Officer', icon: 'account-plus-outline' },
-  { key: 'accountant', label: 'Accountant', icon: 'calculator-outline' },
+  { key: 'accountant', label: 'Accountant', icon: 'calculator-variant-outline' },
   { key: 'teacher', label: 'Teacher', icon: 'human-male-board' },
   { key: 'student', label: 'Student', icon: 'account-school-outline' },
   { key: 'parent', label: 'Parent', icon: 'account-multiple-outline' },
@@ -17,9 +18,10 @@ const SCHOOL_ROLES = [
 
 const COLLEGE_ROLES = [
   { key: 'admin', label: 'Admin', icon: 'shield-account-outline' },
-  { key: 'hod', label: 'HOD', icon: 'account-tie-outline' },
+  { key: 'principal', label: 'Principal', icon: 'account-tie-outline' },
+  { key: 'hod', label: 'HOD', icon: 'account-tie' },
   { key: 'admission_officer', label: 'Admission Officer', icon: 'account-plus-outline' },
-  { key: 'accountant', label: 'Accountant', icon: 'calculator-outline' },
+  { key: 'accountant', label: 'Accountant', icon: 'calculator-variant-outline' },
   { key: 'teacher', label: 'Teacher', icon: 'human-male-board' },
   { key: 'student', label: 'Student', icon: 'account-school-outline' },
   { key: 'parent', label: 'Parent', icon: 'account-multiple-outline' },
