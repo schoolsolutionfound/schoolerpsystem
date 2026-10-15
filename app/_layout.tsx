@@ -103,6 +103,7 @@ const AppLayout = function Layout() {
         '/(librarian)': 'librarian',
         '/(developer)': 'dev',
         '/(driver)': 'driver',
+        '/(placement)': 'placement_officer',
       };
       const requiredRole = groupToRole[routeGroup];
       if (requiredRole && requiredRole !== currentRole) return;
@@ -242,6 +243,7 @@ const AppLayout = function Layout() {
           <Stack.Screen name="(librarian)" />
           <Stack.Screen name="(developer)" />
           <Stack.Screen name="(driver)" />
+          <Stack.Screen name="(placement)" />
         </Stack>
       </View>
     </QueryClientProvider>

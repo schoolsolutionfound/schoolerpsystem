@@ -392,3 +392,118 @@ export const feePayments = pgTable('fee_payments', {
 
 export type FeePaymentRecord = typeof feePayments.$inferSelect;
 export type NewFeePaymentRecord = typeof feePayments.$inferInsert;
+
+// ==========================================
+// PLACEMENT CELL SCHEMA
+// ==========================================
+
+export const placementMembers = pgTable('placement_members', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('pm')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  userId: text('user_id').notNull(),
+  accessLevel: varchar('access_level', { length: 20 }).notNull().default('member'), // 'head' | 'member'
+  grantedBy: text('granted_by').notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  instCodeIdx: index('idx_placement_members_inst').on(table.institutionCode),
+  userIdx: index('idx_placement_members_user').on(table.userId),
+  userInstUnique: uniqueIndex('uq_placement_members_inst_user').on(table.institutionCode, table.userId),
+}));
+
+export type PlacementMemberRecord = typeof placementMembers.$inferSelect;
+export type NewPlacementMemberRecord = typeof placementMembers.$inferInsert;
+
+export const studentPlacementProfiles = pgTable('student_placement_profiles', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('spp')),
+  userId: text('user_id').notNull().unique(),
+  fullName: text('full_name').notNull(),
+  phone: varchar('phone', { length: 20 }).default(''),
+  email: varchar('email', { length: 255 }).notNull(),
+  photoUrl: text('photo_url').default(''),
+  resumeUrl: text('resume_url').default(''),
+  cgpa: numeric('cgpa', { precision: 4, scale: 2 }),
+  tenthPercent: numeric('tenth_percent', { precision: 5, scale: 2 }),
+  twelfthOrDiplomaPercent: numeric('twelfth_or_diploma_percent', { precision: 5, scale: 2 }),
+  activeBacklogs: integer('active_backlogs').default(0),
+  portfolioUrl: text('portfolio_url').default(''),
+  linkedinUrl: text('linkedin_url').default(''),
+  githubUrl: text('github_url').default(''),
+  leetcodeUrl: text('leetcode_url').default(''),
+  otherLinks: jsonb('other_links').$type<{ name: string; url: string }[]>().default([]),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export type StudentPlacementProfileRecord = typeof studentPlacementProfiles.$inferSelect;
+export type NewStudentPlacementProfileRecord = typeof studentPlacementProfiles.$inferInsert;
+
+export const placementDrives = pgTable('placement_drives', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('pd')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  companyName: varchar('company_name', { length: 200 }).notNull(),
+  logoUrl: text('logo_url').default(''),
+  bannerUrl: text('banner_url').default(''),
+  title: varchar('title', { length: 200 }).notNull(),
+  description: text('description').default(''),
+  jobType: varchar('job_type', { length: 50 }).notNull().default('full_time'), // full_time | internship
+  ctcOrStipend: varchar('ctc_or_stipend', { length: 100 }).default(''),
+  location: varchar('location', { length: 200 }).default(''),
+  rounds: jsonb('rounds').$type<{ name: string; description: string; date?: string }[]>().default([]),
+  allowedBranches: jsonb('allowed_branches').$type<string[]>().default([]),
+  allowedYears: jsonb('allowed_years').$type<string[]>().default([]),
+  minCgpa: numeric('min_cgpa', { precision: 4, scale: 2 }),
+  maxBacklogs: integer('max_backlogs'),
+  applyDeadline: timestamp('apply_deadline').notNull(),
+  status: varchar('status', { length: 20 }).notNull().default('draft'), // draft | published | closed
+  createdBy: text('created_by').notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  instCodeIdx: index('idx_placement_drives_inst').on(table.institutionCode),
+  statusIdx: index('idx_placement_drives_status').on(table.status),
+}));
+
+export type PlacementDriveRecord = typeof placementDrives.$inferSelect;
+export type NewPlacementDriveRecord = typeof placementDrives.$inferInsert;
+
+export const placementAnnouncements = pgTable('placement_announcements', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('pa')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  driveId: text('drive_id'), // nullable for general notices
+  title: varchar('title', { length: 200 }).notNull(),
+  body: text('body').notNull(),
+  attachmentUrl: text('attachment_url').default(''),
+  targetBranches: jsonb('target_branches').$type<string[]>().default([]),
+  targetYears: jsonb('target_years').$type<string[]>().default([]),
+  isPinned: boolean('is_pinned').notNull().default(false),
+  postedBy: text('posted_by').notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  instCodeIdx: index('idx_placement_announcements_inst').on(table.institutionCode),
+  driveIdx: index('idx_placement_announcements_drive').on(table.driveId),
+}));
+
+export type PlacementAnnouncementRecord = typeof placementAnnouncements.$inferSelect;
+export type NewPlacementAnnouncementRecord = typeof placementAnnouncements.$inferInsert;
+
+export const driveApplications = pgTable('drive_applications', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('da')),
+  driveId: text('drive_id').notNull(),
+  studentId: text('student_id').notNull(),
+  status: varchar('status', { length: 20 }).notNull().default('applied'), // applied | withdrawn | shortlisted | rejected | selected
+  currentRoundIndex: integer('current_round_index').notNull().default(0),
+  profileSnapshot: jsonb('profile_snapshot').$type<any>().notNull(),
+  resumeUrl: text('resume_url').notNull(),
+  appliedAt: timestamp('applied_at').defaultNow(),
+  withdrawnAt: timestamp('withdrawn_at'),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  driveIdx: index('idx_drive_applications_drive').on(table.driveId),
+  studentIdx: index('idx_drive_applications_student').on(table.studentId),
+  statusIdx: index('idx_drive_applications_status').on(table.status),
+  driveStudentUnique: uniqueIndex('uq_drive_applications_drive_student').on(table.driveId, table.studentId),
+}));
+
+export type DriveApplicationRecord = typeof driveApplications.$inferSelect;
+export type NewDriveApplicationRecord = typeof driveApplications.$inferInsert;
+

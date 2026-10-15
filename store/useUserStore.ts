@@ -25,6 +25,7 @@ interface UserState {
   mustChangePassword: boolean;
   profileCompleted: boolean;
   institutionType: InstitutionType;
+  placementAccess?: 'head' | 'member' | null;
   rollNoOrUSN: string;
   parentPhone: string;
   tenthPercentage: string;
@@ -70,6 +71,7 @@ export const useUserStore = create<UserState>()(
       mustChangePassword: false,
       profileCompleted: false,
       institutionType: 'college',
+      placementAccess: null,
       rollNoOrUSN: '',
       parentPhone: '',
       tenthPercentage: '',
@@ -116,6 +118,7 @@ export const useUserStore = create<UserState>()(
           mustChangePassword: false,
           profileCompleted: false,
           institutionType: 'college',
+          placementAccess: null,
           rollNoOrUSN: '',
           parentPhone: '',
           tenthPercentage: '',
@@ -156,6 +159,7 @@ export const useUserStore = create<UserState>()(
         language: state.language,
         mustChangePassword: state.mustChangePassword,
         profileCompleted: state.profileCompleted,
+        placementAccess: state.placementAccess,
         rollNoOrUSN: state.rollNoOrUSN,
         parentPhone: state.parentPhone,
         tenthPercentage: state.tenthPercentage,

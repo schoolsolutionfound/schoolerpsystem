@@ -11,6 +11,8 @@ import { BorderRadius } from '../constants/theme';
 import { handleGlobalError, AppError } from '../utils/errorHandler';
 import { getHomeRouteForRole } from '../features/shared/utils/routeGuards';
 import { FontFamily } from '../constants/fonts';
+import { auth } from '../firebaseConfig';
+import { signOut } from 'firebase/auth';
 import { CompleteProfileForm } from '../features/student/components/CompleteProfileForm';
 import { AdminCompleteProfileForm } from '../features/admin/components/AdminCompleteProfileForm';
 import { TeacherCompleteProfileForm } from '../features/teacher/components/TeacherCompleteProfileForm';
@@ -192,6 +194,16 @@ export default function CompleteProfileScreen() {
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      useUserStore.getState().resetUser();
+      router.replace('/auth');
+    } catch (err) {
+      console.error('Logout error:', err);
+    }
+  };
+
   const renderForm = () => {
     if (isStudent) {
       return (
@@ -258,8 +270,13 @@ export default function CompleteProfileScreen() {
             </View>
 
             <View style={styles.header}>
-              <Text style={styles.title}>Complete Your Profile</Text>
-              <Text style={styles.subtitle}>Please fill in the remaining details to activate your account.</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.title}>Complete Your Profile</Text>
+                  <Text style={styles.subtitle}>Please fill in the remaining details to activate your account.</Text>
+                </View>
+                <MaterialCommunityIcons name="logout" size={24} color="#EF4444" onPress={handleLogout} style={{ padding: 4 }} />
+              </View>
             </View>
 
             {renderForm()}
