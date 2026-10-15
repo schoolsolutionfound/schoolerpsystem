@@ -107,6 +107,7 @@ export interface SchoolNotice {
   content: string;
   priority: 'normal' | 'important' | 'urgent';
   targetAudience: 'all' | 'teachers' | 'students' | 'parents' | 'staff';
+  department?: string;
   publishedDate: string;
   author: string;
   acknowledgedCount?: number;

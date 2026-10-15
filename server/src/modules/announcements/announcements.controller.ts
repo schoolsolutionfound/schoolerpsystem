@@ -13,10 +13,11 @@ export async function listAnnouncementsHandler(request: FastifyRequest, reply: F
     }
 
     const { department } = (request.query as any) || {};
+    const effectiveDept = department || user?.department;
     const announcements = await announcementsService.listAnnouncements(
       instCode,
       user?.role,
-      department
+      effectiveDept
     );
 
     return reply.send({ success: true, data: announcements });

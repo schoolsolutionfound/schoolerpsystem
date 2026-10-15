@@ -200,6 +200,7 @@ export async function fetchSchoolNoticesApi(): Promise<SchoolNotice[]> {
     content: a.content,
     priority: a.priority || 'normal',
     targetAudience: (a.targetAudience === 'faculty' ? 'teachers' : a.targetAudience) || 'all',
+    department: a.department || '',
     publishedDate: a.createdAt ? new Date(a.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
     author: a.authorName || 'Principal Office',
     acknowledgedCount: 0,
@@ -216,6 +217,7 @@ export async function createSchoolNoticeApi(
       content: notice.content,
       priority: notice.priority,
       targetAudience: notice.targetAudience === 'teachers' ? 'faculty' : notice.targetAudience,
+      department: notice.department || '',
     }),
   });
 
@@ -226,6 +228,7 @@ export async function createSchoolNoticeApi(
     content: a?.content || notice.content,
     priority: a?.priority || notice.priority,
     targetAudience: notice.targetAudience,
+    department: a?.department || notice.department || '',
     publishedDate: a?.createdAt ? new Date(a.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
     author: a?.authorName || 'Principal Office',
     acknowledgedCount: 0,

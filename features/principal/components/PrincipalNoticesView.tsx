@@ -142,6 +142,13 @@ export const PrincipalNoticesView: React.FC<PrincipalNoticesViewProps> = ({
                       <Text style={styles.importantBadgeText}>IMPORTANT</Text>
                     </View>
                   )}
+
+                  {/* Target Department Badge */}
+                  {notice.department ? (
+                    <View style={styles.deptBadge}>
+                      <Text style={styles.deptBadgeText}>🏷️ {notice.department.toUpperCase()}</Text>
+                    </View>
+                  ) : null}
                 </View>
 
                 <Text style={styles.dateText}>{notice.publishedDate}</Text>
@@ -333,6 +340,20 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#D97706',
     fontFamily: FontFamily.extrabold,
+  },
+  deptBadge: {
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  deptBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#1D4ED8',
+    fontFamily: FontFamily.bold,
   },
   dateText: {
     fontSize: 11,
