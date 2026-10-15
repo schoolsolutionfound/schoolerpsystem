@@ -1,6 +1,6 @@
 import { db } from '../shared/db/index.js';
 import { announcements, AnnouncementRecord } from '../shared/db/schema.js';
-import { eq, and, desc, or } from 'drizzle-orm';
+import { eq, and, desc, or, sql } from 'drizzle-orm';
 
 function getDb() {
   if (!db) {
@@ -31,20 +31,104 @@ export class AnnouncementsService {
     const database = getDb();
     const conditions = [eq(announcements.institutionCode, institutionCode)];
 
-    // Target audience filtering for non-admin/non-principal
     const normalizedRole = (role || '').toLowerCase();
-    if (normalizedRole === 'student') {
-      conditions.push(or(eq(announcements.targetAudience, 'all'), eq(announcements.targetAudience, 'students'))!);
-    } else if (normalizedRole === 'parent') {
-      conditions.push(or(eq(announcements.targetAudience, 'all'), eq(announcements.targetAudience, 'parents'))!);
-    } else if (normalizedRole === 'teacher' || normalizedRole === 'hod') {
-      // staff can see all, faculty, and their department
-      if (department) {
+
+    // 1. Principal & Admin: Head of Institution has FULL institutional access across all departments & audiences
+    if (
+      normalizedRole === 'principal' ||
+      normalizedRole === 'admin' ||
+      normalizedRole === 'headmaster' ||
+      normalizedRole === 'director'
+    ) {
+      // Principal sees all notices without restrictions
+    } else if (
+      normalizedRole === 'teacher' ||
+      normalizedRole === 'faculty' ||
+      normalizedRole === 'professor'
+    ) {
+      // Teachers see circulars targeted to all, faculty, teachers, or staff
+      conditions.push(
+        or(
+          eq(announcements.targetAudience, 'all'),
+          eq(announcements.targetAudience, 'faculty'),
+          eq(announcements.targetAudience, 'teachers'),
+          eq(announcements.targetAudience, 'staff')
+        )!
+      );
+
+      // Department scoping: school-wide OR teacher's specific department
+      if (department && department.trim() !== '' && department.toLowerCase() !== 'all') {
         conditions.push(
           or(
-            eq(announcements.targetAudience, 'all'),
-            eq(announcements.targetAudience, 'faculty'),
-            eq(announcements.department, department)
+            eq(announcements.department, ''),
+            sql`${announcements.department} IS NULL`,
+            sql`LOWER(${announcements.department}) = 'all'`,
+            sql`LOWER(${announcements.department}) = LOWER(${department})`
+          )!
+        );
+      } else {
+        conditions.push(
+          or(
+            eq(announcements.department, ''),
+            sql`${announcements.department} IS NULL`,
+            sql`LOWER(${announcements.department}) = 'all'`
+          )!
+        );
+      }
+    } else if (normalizedRole === 'hod') {
+      // HOD sees circulars for all, faculty, teachers, staff, or hod
+      conditions.push(
+        or(
+          eq(announcements.targetAudience, 'all'),
+          eq(announcements.targetAudience, 'faculty'),
+          eq(announcements.targetAudience, 'teachers'),
+          eq(announcements.targetAudience, 'staff'),
+          eq(announcements.targetAudience, 'hod')
+        )!
+      );
+
+      // Department scoping: school-wide OR HOD's department
+      if (department && department.trim() !== '' && department.toLowerCase() !== 'all') {
+        conditions.push(
+          or(
+            eq(announcements.department, ''),
+            sql`${announcements.department} IS NULL`,
+            sql`LOWER(${announcements.department}) = 'all'`,
+            sql`LOWER(${announcements.department}) = LOWER(${department})`
+          )!
+        );
+      }
+    } else if (normalizedRole === 'student') {
+      conditions.push(
+        or(
+          eq(announcements.targetAudience, 'all'),
+          eq(announcements.targetAudience, 'students')
+        )!
+      );
+      if (department && department.trim() !== '' && department.toLowerCase() !== 'all') {
+        conditions.push(
+          or(
+            eq(announcements.department, ''),
+            sql`${announcements.department} IS NULL`,
+            sql`LOWER(${announcements.department}) = 'all'`,
+            sql`LOWER(${announcements.department}) = LOWER(${department})`
+          )!
+        );
+      }
+    } else if (normalizedRole === 'parent') {
+      conditions.push(
+        or(
+          eq(announcements.targetAudience, 'all'),
+          eq(announcements.targetAudience, 'parents')
+        )!
+      );
+      if (department && department.trim() !== '' && department.toLowerCase() !== 'all') {
+        conditions.push(
+          or(
+            eq(announcements.department, ''),
+            sql`${announcements.department} IS NULL`,
+            sql`LOWER(${announcements.department}) = 'all'`,
+            sql`LOWER(${announcements.department}) = LOWER(${department})`
           )!
         );
       }

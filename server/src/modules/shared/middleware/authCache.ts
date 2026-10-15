@@ -7,21 +7,21 @@
 const AUTH_CACHE_TTL_MS = 60_000;
 const MAX_CACHE_ENTRIES = 10_000;
 
-const cache = new Map<string, { role: string; institutionCode: string; expiresAt: number }>();
+const cache = new Map<string, { role: string; institutionCode: string; department?: string; expiresAt: number }>();
 
-export function getCachedAuth(uid: string): { role: string; institutionCode: string } | undefined {
+export function getCachedAuth(uid: string): { role: string; institutionCode: string; department?: string } | undefined {
   const entry = cache.get(uid);
   if (!entry) return undefined;
   if (Date.now() > entry.expiresAt) {
     cache.delete(uid);
     return undefined;
   }
-  return { role: entry.role, institutionCode: entry.institutionCode };
+  return { role: entry.role, institutionCode: entry.institutionCode, department: entry.department };
 }
 
-export function setCachedAuth(uid: string, role: string, institutionCode: string) {
+export function setCachedAuth(uid: string, role: string, institutionCode: string, department?: string) {
   if (cache.size > MAX_CACHE_ENTRIES) cache.clear();
-  cache.set(uid, { role, institutionCode, expiresAt: Date.now() + AUTH_CACHE_TTL_MS });
+  cache.set(uid, { role, institutionCode, department, expiresAt: Date.now() + AUTH_CACHE_TTL_MS });
 }
 
 export function invalidateCachedAuth(uid?: string) {

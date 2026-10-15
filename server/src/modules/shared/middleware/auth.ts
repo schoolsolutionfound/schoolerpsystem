@@ -9,6 +9,7 @@ export interface AuthenticatedUser {
   role?: string;
   displayName?: string;
   institutionCode?: string;
+  department?: string;
 }
 
 declare module 'fastify' {
@@ -71,18 +72,25 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
   // Robust Flow: Fetch User from PostgreSQL to retrieve authoritative Role & Institution mapping
   let dbUserRole = tokenRole;
   let institutionCode = '';
+  let department = '';
 
   const cached = getCachedAuth(firebaseUid);
   if (cached) {
     dbUserRole = cached.role || tokenRole;
     institutionCode = cached.institutionCode;
+    department = cached.department || '';
   } else {
     try {
       const dbUser = await dbFindByUid(firebaseUid);
       if (dbUser) {
         dbUserRole = dbUser.role || tokenRole || '';
         institutionCode = dbUser.institutionCode || '';
-        setCachedAuth(firebaseUid, dbUserRole, institutionCode);
+        let scope: any = dbUser.scope;
+        if (typeof scope === 'string') {
+          try { scope = JSON.parse(scope); } catch { scope = {}; }
+        }
+        department = (dbUser as any).department || scope?.department || scope?.dept || '';
+        setCachedAuth(firebaseUid, dbUserRole, institutionCode, department);
       }
     } catch (err: any) {
       console.warn('[Auth Middleware Warning] PostgreSQL user lookup failed:', err.message);
@@ -104,6 +112,7 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
     email: email,
     role: dbUserRole,
     institutionCode,
+    department,
   };
 }
 

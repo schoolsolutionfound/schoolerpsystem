@@ -62,16 +62,20 @@ export class HODService {
 
     const detentionAlertsCount = eligRecords.filter((e) => e.hallTicketStatus !== 'eligible').length;
 
-    // 4. Student count
+    // 4. Student count in department
+    const studentConditions = [
+      eq(users.institutionCode, institutionCode),
+      eq(users.role, 'student'),
+    ];
+    if (department && department.trim() !== '') {
+      studentConditions.push(
+        sql`(${users.scope}->>'department' ILIKE ${department} OR ${users.scope}->>'dept' ILIKE ${department})`
+      );
+    }
     const studentUsers = await database
       .select({ count: sql<number>`count(*)` })
       .from(users)
-      .where(
-        and(
-          eq(users.institutionCode, institutionCode),
-          eq(users.role, 'student')
-        )
-      );
+      .where(and(...studentConditions));
     const totalStudents = Number(studentUsers[0]?.count || 0);
 
     return {
@@ -137,7 +141,7 @@ export class HODService {
       })
       .filter((f) => {
         if (!department || department.trim() === '') return true;
-        return f.department.toLowerCase() === department.toLowerCase() || f.department === '';
+        return f.department.toLowerCase() === department.toLowerCase();
       });
 
     return facultyList;

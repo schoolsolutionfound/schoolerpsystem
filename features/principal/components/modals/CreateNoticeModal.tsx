@@ -31,6 +31,7 @@ export const CreateNoticeModal: React.FC<CreateNoticeModalProps> = ({
   const [content, setContent] = useState('');
   const [priority, setPriority] = useState<SchoolNotice['priority']>('important');
   const [targetAudience, setTargetAudience] = useState<SchoolNotice['targetAudience']>('all');
+  const [department, setDepartment] = useState('');
   const [saving, setSaving] = useState(false);
 
   const reset = () => {
@@ -38,6 +39,7 @@ export const CreateNoticeModal: React.FC<CreateNoticeModalProps> = ({
     setContent('');
     setPriority('important');
     setTargetAudience('all');
+    setDepartment('');
   };
 
   const handlePublish = async () => {
@@ -50,6 +52,7 @@ export const CreateNoticeModal: React.FC<CreateNoticeModalProps> = ({
         content: content.trim(),
         priority,
         targetAudience,
+        department: department.trim() === 'all' ? '' : department.trim(),
         author: 'Principal / Headmaster',
       });
       reset();
@@ -122,6 +125,43 @@ export const CreateNoticeModal: React.FC<CreateNoticeModalProps> = ({
                   );
                 })}
               </View>
+            </View>
+
+            {/* Target Department */}
+            <View style={styles.fieldGroup}>
+              <Text style={styles.label}>Target Department (Optional)</Text>
+              <View style={styles.chipsWrap}>
+                {[
+                  { key: '', label: '🌐 All Departments' },
+                  { key: 'Computer Science', label: '💻 Computer Science' },
+                  { key: 'Mathematics', label: '📐 Mathematics' },
+                  { key: 'Science', label: '🔬 Science' },
+                  { key: 'English', label: '📖 English' },
+                ].map((dept) => {
+                  const active = (department || '').toLowerCase() === dept.key.toLowerCase();
+                  return (
+                    <TouchableOpacity
+                      key={dept.key}
+                      style={[styles.chip, active && styles.chipActive]}
+                      onPress={() => setDepartment(dept.key)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                        {dept.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              {department && !['', 'computer science', 'mathematics', 'science', 'english'].includes(department.toLowerCase()) ? (
+                <TextInput
+                  style={[styles.input, { marginTop: 4 }]}
+                  placeholder="Or enter custom department name..."
+                  placeholderTextColor="#9CA3AF"
+                  value={department}
+                  onChangeText={setDepartment}
+                />
+              ) : null}
             </View>
 
             {/* Priority */}
