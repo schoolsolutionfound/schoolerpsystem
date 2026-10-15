@@ -11,6 +11,8 @@ const ROLE_ROUTES: Record<string, string> = {
   hod: '/(hod)/home',
   librarian: '/(librarian)/home',
   driver: '/(driver)/home',
+  admission_officer: '/(admin)/admissions',
+  'admission officer': '/(admin)/admissions',
 };
 
 const ROLE_GROUP: Record<string, string> = {
@@ -26,6 +28,8 @@ const ROLE_GROUP: Record<string, string> = {
   hod: '/(hod)',
   librarian: '/(librarian)',
   driver: '/(driver)',
+  admission_officer: '/(admin)',
+  'admission officer': '/(admin)',
 };
 
 const SHARED_ROUTES = [
@@ -43,15 +47,17 @@ function extractGroup(pathname: string): string {
   return match ? `/${match[1]}` : '';
 }
 
-export function isRouteAllowedForRole(pathname: string, role?: string): boolean {
-  const norm = (role || '').toLowerCase().trim();
+export function isRouteAllowedForRole(pathname: string, role?: string, roles?: string[]): boolean {
   if (SHARED_ROUTES.includes(pathname)) return true;
-  if (!norm || norm === 'loading') return false;
-
-  const allowedGroup = ROLE_GROUP[norm];
-  if (!allowedGroup) return false;
-
   const pathGroup = extractGroup(pathname);
   if (!pathGroup) return true;
-  return pathGroup === allowedGroup;
+
+  const allRoles = Array.from(new Set([
+    ...(role ? [role.toLowerCase().trim()] : []),
+    ...(roles ? roles.map((r) => r.toLowerCase().trim()) : []),
+  ]));
+
+  if (allRoles.length === 0 || allRoles.includes('loading')) return false;
+
+  return allRoles.some((r) => ROLE_GROUP[r] === pathGroup);
 }

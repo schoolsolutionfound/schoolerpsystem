@@ -43,7 +43,9 @@ export const ParentAttendanceView: React.FC = () => {
       const res = await fetchParentAttendanceApi();
       setData(res);
     } catch (err: any) {
-      console.warn('[ParentAttendance]', err.message);
+      if (!err?.message?.includes('No linked student found')) {
+        console.warn('[ParentAttendance]', err.message);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);

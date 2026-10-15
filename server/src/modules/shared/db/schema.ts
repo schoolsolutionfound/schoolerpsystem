@@ -39,6 +39,7 @@ export const users = pgTable('users', {
   twelfthPercentage: varchar('twelfth_percentage', { length: 10 }).default(''),
   title: text('title').default(''),
   scope: jsonb('scope').$type<Record<string, any>>().default({}),
+  roles: jsonb('roles').$type<string[]>().default([]),
   permissions: jsonb('permissions').$type<string[]>().default([]),
   graduatedAt: timestamp('graduated_at'),
   createdAt: timestamp('created_at').defaultNow(),
@@ -392,3 +393,138 @@ export const feePayments = pgTable('fee_payments', {
 
 export type FeePaymentRecord = typeof feePayments.$inferSelect;
 export type NewFeePaymentRecord = typeof feePayments.$inferInsert;
+
+export const admissions = pgTable('admissions', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('adm')),
+  parentId: text('parent_id').notNull(),
+  parentName: text('parent_name').default(''),
+  parentEmail: text('parent_email').default(''),
+  parentPhone: text('parent_phone').default(''),
+  schoolId: text('school_id').notNull(),
+  schoolName: text('school_name').default(''),
+  childFullName: text('child_full_name').notNull(),
+  childAge: integer('child_age').notNull(),
+  childGender: varchar('child_gender', { length: 20 }).notNull().default('male'),
+  previousSchool: text('previous_school').default(''),
+  gradeApplyingFor: varchar('grade_applying_for', { length: 50 }).notNull(),
+  status: varchar('status', { length: 30 }).notNull().default('pending'), // pending | test_scheduled | approved | accepted | rejected | offer_declined
+  entranceTestDate: timestamp('entrance_test_date'),
+  entranceTestVenue: text('entrance_test_venue').default(''),
+  entranceTestInstructions: text('entrance_test_instructions').default(''),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  parentIdx: index('idx_admissions_parent').on(table.parentId),
+  schoolIdx: index('idx_admissions_school').on(table.schoolId),
+  statusIdx: index('idx_admissions_status').on(table.status),
+}));
+
+export type AdmissionRecord = typeof admissions.$inferSelect;
+export type NewAdmissionRecord = typeof admissions.$inferInsert;
+
+export const announcements = pgTable('announcements', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('ann')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  title: varchar('title', { length: 300 }).notNull(),
+  content: text('content').notNull(),
+  targetAudience: varchar('target_audience', { length: 50 }).notNull().default('all'), // all | faculty | students | parents | lab_assistants
+  department: varchar('department', { length: 100 }).default(''),
+  priority: varchar('priority', { length: 20 }).notNull().default('normal'), // normal | important | urgent
+  authorId: text('author_id').notNull(),
+  authorName: text('author_name').notNull(),
+  authorRole: varchar('author_role', { length: 50 }).notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  instIdx: index('idx_announcements_inst').on(table.institutionCode),
+  deptIdx: index('idx_announcements_dept').on(table.department),
+  audienceIdx: index('idx_announcements_audience').on(table.targetAudience),
+  createdIdx: index('idx_announcements_created').on(table.createdAt),
+}));
+
+export type AnnouncementRecord = typeof announcements.$inferSelect;
+export type NewAnnouncementRecord = typeof announcements.$inferInsert;
+
+export const counselingRecords = pgTable('counseling_records', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('coun')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  studentId: text('student_id').notNull(),
+  studentName: varchar('student_name', { length: 200 }).notNull(),
+  gradeSection: varchar('grade_section', { length: 100 }).default(''),
+  counselorId: text('counselor_id').notNull(),
+  counselorName: varchar('counselor_name', { length: 200 }).notNull(),
+  concernCategory: varchar('concern_category', { length: 50 }).notNull(), // attendance_issue | academic_stress | peer_conflict | career_guidance | behavioral
+  severity: varchar('severity', { length: 20 }).notNull().default('medium'), // low | medium | high
+  actionPlan: text('action_plan').default(''),
+  parentContacted: boolean('parent_contacted').default(false),
+  status: varchar('status', { length: 30 }).notNull().default('active'), // active | in_progress | resolved
+  date: date('date').notNull(),
+  lastFollowUpDate: date('last_follow_up_date'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  instIdx: index('idx_counseling_inst').on(table.institutionCode),
+  studentIdx: index('idx_counseling_student').on(table.studentId),
+  counselorIdx: index('idx_counseling_counselor').on(table.counselorId),
+  statusIdx: index('idx_counseling_status').on(table.status),
+}));
+
+export type CounselingRecordEntity = typeof counselingRecords.$inferSelect;
+export type NewCounselingRecordEntity = typeof counselingRecords.$inferInsert;
+
+export const departmentCourses = pgTable('department_courses', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('dc')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  code: varchar('code', { length: 50 }).notNull(),
+  name: varchar('name', { length: 200 }).notNull(),
+  department: varchar('department', { length: 100 }).notNull(),
+  semester: varchar('semester', { length: 50 }).notNull(),
+  batchYear: varchar('batch_year', { length: 50 }).default(''),
+  type: varchar('type', { length: 30 }).notNull().default('theory'), // theory | practical_lab | elective | project
+  credits: integer('credits').notNull().default(3),
+  instructorId: text('instructor_id').default(''),
+  instructorName: varchar('instructor_name', { length: 200 }).default(''),
+  instructorRank: varchar('instructor_rank', { length: 50 }).default(''),
+  enrolledStudentsCount: integer('enrolled_students_count').default(0),
+  totalPlannedHours: integer('total_planned_hours').default(45),
+  completedHours: integer('completed_hours').default(0),
+  syllabusProgressPct: integer('syllabus_progress_pct').default(0),
+  labBatchesCount: integer('lab_batches_count').default(1),
+  version: integer('version').default(1),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  instDeptIdx: index('idx_dept_courses_inst_dept').on(table.institutionCode, table.department),
+  instructorIdx: index('idx_dept_courses_instructor').on(table.instructorId),
+}));
+
+export type DepartmentCourseEntity = typeof departmentCourses.$inferSelect;
+export type NewDepartmentCourseEntity = typeof departmentCourses.$inferInsert;
+
+export const examEligibility = pgTable('exam_eligibility', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('ee')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  studentId: text('student_id').notNull(),
+  studentName: varchar('student_name', { length: 200 }).notNull(),
+  usn: varchar('usn', { length: 50 }).notNull(),
+  semester: varchar('semester', { length: 50 }).notNull(),
+  department: varchar('department', { length: 100 }).notNull(),
+  overallAttendancePct: numeric('overall_attendance_pct', { precision: 5, scale: 2 }).notNull().default('0'),
+  coursesBelowThreshold: integer('courses_below_threshold').default(0),
+  internalAssessmentScore: numeric('internal_assessment_score', { precision: 5, scale: 2 }).default('0'),
+  hallTicketStatus: varchar('hall_ticket_status', { length: 30 }).notNull().default('detained'), // eligible | condonation_needed | detained
+  condonationReason: text('condonation_reason').default(''),
+  approvedBy: text('approved_by').default(''),
+  approvalDate: date('approval_date'),
+  remarks: text('remarks').default(''),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  instDeptIdx: index('idx_exam_eligibility_inst_dept').on(table.institutionCode, table.department),
+  studentIdx: index('idx_exam_eligibility_student').on(table.studentId),
+  statusIdx: index('idx_exam_eligibility_status').on(table.hallTicketStatus),
+}));
+
+export type ExamEligibilityEntity = typeof examEligibility.$inferSelect;
+export type NewExamEligibilityEntity = typeof examEligibility.$inferInsert;
+

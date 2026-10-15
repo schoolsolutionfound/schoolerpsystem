@@ -20,7 +20,13 @@ import {
 
 function getInstCode(req: FastifyRequest): string {
   const user = (req as any).user;
-  return user?.institutionCode || '';
+  const instCode = user?.institutionCode;
+  if (!instCode) {
+    const error: any = new Error('TENANT_REQUIRED: No institution assigned to current user account.');
+    error.statusCode = 403;
+    throw error;
+  }
+  return instCode;
 }
 
 function getPagination(query: any): { limit: number; offset: number } | undefined {

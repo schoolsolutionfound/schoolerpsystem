@@ -49,14 +49,14 @@ import {
   listStudentHomeworkHandler,
   listParentHomeworkHandler,
 } from './academics.controller.js';
-import { authenticate, requireAdmin, requireTeacherOrAdmin, requireStaff, requireRole } from '../shared/middleware/auth.js';
+import { authenticate, requireAdmin, requireAdminOrPrincipal, requireTeacherOrAdmin, requireStaff, requireRole } from '../shared/middleware/auth.js';
 
 export async function academicsRoutes(fastify: FastifyInstance) {
-  // Class Sections
-  fastify.get('/class-sections', { preHandler: [authenticate] }, (req, reply) => listClassSectionsHandler(req, reply));
-  fastify.post('/class-sections', { preHandler: [requireAdmin] }, (req, reply) => createClassSectionHandler(req, reply));
-  fastify.put('/class-sections/:id', { preHandler: [requireAdmin] }, (req, reply) => updateClassSectionHandler(req as any, reply));
-  fastify.delete('/class-sections/:id', { preHandler: [requireAdmin] }, (req, reply) => deleteClassSectionHandler(req as any, reply));
+  // Class Sections (staff only; students/parents cannot view staff class sections)
+  fastify.get('/class-sections', { preHandler: [requireStaff] }, (req, reply) => listClassSectionsHandler(req, reply));
+  fastify.post('/class-sections', { preHandler: [requireAdminOrPrincipal] }, (req, reply) => createClassSectionHandler(req, reply));
+  fastify.put('/class-sections/:id', { preHandler: [requireAdminOrPrincipal] }, (req, reply) => updateClassSectionHandler(req as any, reply));
+  fastify.delete('/class-sections/:id', { preHandler: [requireAdminOrPrincipal] }, (req, reply) => deleteClassSectionHandler(req as any, reply));
 
   // Subjects
   fastify.get('/subjects', { preHandler: [authenticate] }, (req, reply) => listSubjectsHandler(req, reply));

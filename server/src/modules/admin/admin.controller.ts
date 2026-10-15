@@ -5,7 +5,13 @@ export { SingleFeedPayload, CreateStudentPayload, CreateTeacherPayload };
 
 function extractInstCode(req: FastifyRequest): string {
   const user = (req as any).user;
-  return user?.institutionCode || (req.query as any)?.institutionCode || 'DEFAULT';
+  const instCode = user?.institutionCode;
+  if (!instCode) {
+    const error: any = new Error('TENANT_REQUIRED: No institution assigned to current user account.');
+    error.statusCode = 403;
+    throw error;
+  }
+  return instCode;
 }
 
 export async function getInstitutionConfigHandler(request: FastifyRequest, reply: FastifyReply) {
@@ -328,6 +334,21 @@ export async function createUserHandler(request: FastifyRequest, reply: FastifyR
     return reply.status(err.statusCode || 400).send({
       success: false,
       error: { message: err.message || 'Failed to create user', code: err.code || 'CREATE_USER_ERROR' },
+    });
+  }
+}
+
+export async function updateUserHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const instCode = extractInstCode(request);
+    const { id } = request.params as { id: string };
+    const body = request.body as any;
+    const data = await adminService.updateUser(id, instCode, body);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return reply.status(err.statusCode || 400).send({
+      success: false,
+      error: { message: err.message || 'Failed to update user', code: err.code || 'UPDATE_USER_ERROR' },
     });
   }
 }
