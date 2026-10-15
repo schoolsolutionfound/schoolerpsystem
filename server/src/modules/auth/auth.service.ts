@@ -2,7 +2,9 @@ import { authRepository, IAuthRepository } from './auth.repository.js';
 import { admin, isFirebaseAdminInitialized } from '../shared/config/firebase.js';
 import { AuthenticatedUser } from '../shared/middleware/auth.js';
 import { institutionService } from '../institutions/institution.service.js';
-import { dbFindStudentByUsnInInstitution } from '../shared/db/index.js';
+import { dbFindStudentByUsnInInstitution, db } from '../shared/db/index.js';
+import { placementMembers } from '../shared/db/schema.js';
+import { eq, and } from 'drizzle-orm';
 
 function parseScope(val: any): Record<string, any> {
   if (!val) return {};
@@ -36,6 +38,21 @@ export class AuthService {
       }
     } catch {}
 
+    let placementAccess: 'head' | 'member' | null = null;
+    if (db && user.institutionCode && user.role !== 'student' && user.role !== 'parent') {
+      try {
+        const membership = await db.query.placementMembers.findFirst({
+          where: and(
+            eq(placementMembers.institutionCode, user.institutionCode),
+            eq(placementMembers.userId, user.id)
+          ),
+        });
+        if (membership) placementAccess = membership.accessLevel as 'head' | 'member';
+      } catch (err) {
+        console.warn('[Auth Service] Failed to fetch placement access:', err);
+      }
+    }
+
     return {
       id: user.id,
       firebaseUid: user.firebaseUid,
@@ -54,6 +71,7 @@ export class AuthService {
       mustChangePassword: user.mustChangePassword,
       profileCompleted: user.profileCompleted,
       designation: user.title || '',
+      placementAccess,
       ...parseScope(user.scope),
       ...await this.resolveParentChild(user),
     };

@@ -11,6 +11,7 @@ const ROLE_ROUTES: Record<string, string> = {
   hod: '/(hod)/home',
   librarian: '/(librarian)/home',
   driver: '/(driver)/home',
+  placement_officer: '/(placement)/home',
 };
 
 const ROLE_GROUP: Record<string, string> = {
@@ -26,6 +27,7 @@ const ROLE_GROUP: Record<string, string> = {
   hod: '/(hod)',
   librarian: '/(librarian)',
   driver: '/(driver)',
+  placement_officer: '/(placement)',
 };
 
 const SHARED_ROUTES = [

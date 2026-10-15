@@ -1,5 +1,8 @@
 import { userRepository, IUserRepository } from './user.repository.js';
 import { AuthenticatedUser } from '../shared/middleware/auth.js';
+import { db } from '../shared/db/index.js';
+import { placementMembers } from '../shared/db/schema.js';
+import { eq, and } from 'drizzle-orm';
 
 export interface CompleteProfileInput {
   phone?: string;
@@ -40,6 +43,21 @@ export class UserService {
       };
     }
 
+    let placementAccess: 'head' | 'member' | null = null;
+    if (db && user.institutionCode && user.role !== 'student' && user.role !== 'parent') {
+      try {
+        const membership = await db.query.placementMembers.findFirst({
+          where: and(
+            eq(placementMembers.institutionCode, user.institutionCode),
+            eq(placementMembers.userId, user.id)
+          ),
+        });
+        if (membership) placementAccess = membership.accessLevel as 'head' | 'member';
+      } catch (err) {
+        console.warn('[User Service] Failed to fetch placement access:', err);
+      }
+    }
+
     return {
       id: user.id,
       firebaseUid: user.firebaseUid,
@@ -57,6 +75,7 @@ export class UserService {
       tenthPercentage: user.tenthPercentage,
       twelfthPercentage: user.twelfthPercentage,
       designation: user.title || '',
+      placementAccess,
       ...parseScope(user.scope),
     };
   }

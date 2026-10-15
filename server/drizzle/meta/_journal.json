@@ -8,6 +8,20 @@
       "when": 1784787489689,
       "tag": "0000_same_warhawk",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790818070729,
+      "tag": "0001_curvy_mikhail_rasputin",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790865681796,
+      "tag": "0002_clear_stone_men",
+      "breakpoints": true
     }
   ]
 }

@@ -16,6 +16,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
+import { useUserStore } from '../../../store/useUserStore';
 
 interface AdminDrawerProps {
   visible: boolean;
@@ -46,6 +47,8 @@ export const AdminDrawer: React.FC<AdminDrawerProps> = ({
   onLogout,
 }) => {
   const router = useRouter();
+  const placementAccess = useUserStore((s) => s.placementAccess);
+  const institutionType = useUserStore((s) => s.institutionType);
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
 
@@ -161,6 +164,20 @@ export const AdminDrawer: React.FC<AdminDrawerProps> = ({
                   <Feather name="chevron-right" size={16} color="#5A5A5A" />
                 </TouchableOpacity>
               ))}
+
+              {institutionType === 'college' && (placementAccess === 'head' || placementAccess === 'member') && (
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  activeOpacity={0.7}
+                  onPress={() => handleRoutePress('/(placement)/drives')}
+                >
+                  <View style={styles.menuIcon}>
+                    <MaterialCommunityIcons name="briefcase-outline" size={18} color="#9A9A9A" />
+                  </View>
+                  <Text style={styles.menuText}>Placement Admin</Text>
+                  <Feather name="chevron-right" size={16} color="#5A5A5A" />
+                </TouchableOpacity>
+              )}
 
               <Text style={[styles.sectionLabel, { marginTop: 18 }]}>ACCOUNT</Text>
               {SECONDARY.map((item) => (

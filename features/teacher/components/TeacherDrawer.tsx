@@ -61,6 +61,8 @@ export const TeacherDrawer: React.FC<TeacherDrawerProps> = ({
 }) => {
   const router = useRouter();
   const resetUser = useUserStore((s) => s.resetUser);
+  const placementAccess = useUserStore((s) => s.placementAccess);
+  const institutionType = useUserStore((s) => s.institutionType);
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
 
@@ -208,6 +210,20 @@ export const TeacherDrawer: React.FC<TeacherDrawerProps> = ({
                 <Feather name="chevron-right" size={16} color="#5A5A5A" />
               </TouchableOpacity>
             ))}
+
+            {institutionType === 'college' && (placementAccess === 'head' || placementAccess === 'member') && (
+              <TouchableOpacity
+                style={styles.menuItem}
+                activeOpacity={0.7}
+                onPress={() => navigateAndClose('/(placement)/drives')}
+              >
+                <View style={styles.menuIcon}>
+                  <MaterialCommunityIcons name="briefcase-outline" size={18} color="#9A9A9A" />
+                </View>
+                <Text style={styles.menuText}>Placement Admin</Text>
+                <Feather name="chevron-right" size={16} color="#5A5A5A" />
+              </TouchableOpacity>
+            )}
 
             <Text style={[styles.sectionLabel, { marginTop: 18 }]}>ACCOUNT</Text>
             {SECONDARY.map((item) => (

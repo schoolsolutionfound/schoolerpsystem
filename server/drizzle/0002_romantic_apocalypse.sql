@@ -1,0 +1,1 @@
+ALTER TABLE "drive_applications" ADD COLUMN "current_round_index" integer DEFAULT 0 NOT NULL;
