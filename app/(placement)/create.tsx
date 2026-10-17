@@ -1,15 +1,27 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Text, TextInput, ActivityIndicator, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Text,
+  TextInput,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import { useRouter } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { createDrive } from '../../api/placement';
 import { FontFamily } from '../../constants/fonts';
+import { BorderRadius } from '../../constants/theme';
 
 export default function CreatePlacementDriveScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  
+
   const [form, setForm] = useState({
     companyName: '',
     title: '',
@@ -17,27 +29,64 @@ export default function CreatePlacementDriveScreen() {
     jobType: 'full_time',
     ctcOrStipend: '',
     location: '',
-    applyDeadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // default 1 week from now
+    minCgpa: '',
+    maxBacklogs: '0',
+    applyDeadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
   });
 
+  const [rounds, setRounds] = useState<{ name: string; description: string }[]>([
+    { name: 'Online Assessment', description: 'Aptitude & Coding Test' },
+    { name: 'Technical Interview', description: 'Core Concepts & DSA' },
+    { name: 'HR Interview', description: 'Behavioral & Fitment' },
+  ]);
+
+  const addRound = () => {
+    setRounds([
+      ...rounds,
+      { name: `Round ${rounds.length + 1}`, description: '' },
+    ]);
+  };
+
+  const removeRound = (index: number) => {
+    if (rounds.length <= 1) {
+      Alert.alert('Notice', 'A placement drive must have at least one round.');
+      return;
+    }
+    setRounds(rounds.filter((_, i) => i !== index));
+  };
+
+  const updateRound = (index: number, key: 'name' | 'description', value: string) => {
+    const updated = [...rounds];
+    updated[index][key] = value;
+    setRounds(updated);
+  };
+
   const handleSubmit = async () => {
-    if (!form.companyName || !form.title || !form.applyDeadline) {
-      Alert.alert('Error', 'Company Name, Drive Title, and Deadline are required.');
+    if (!form.companyName.trim() || !form.title.trim() || !form.applyDeadline.trim()) {
+      Alert.alert('Required Fields', 'Company Name, Job Title, and Application Deadline are required.');
       return;
     }
 
     setLoading(true);
     try {
       await createDrive({
-        ...form,
+        companyName: form.companyName.trim(),
+        title: form.title.trim(),
+        description: form.description.trim(),
         jobType: form.jobType as any,
+        ctcOrStipend: form.ctcOrStipend.trim(),
+        location: form.location.trim(),
+        minCgpa: form.minCgpa ? parseFloat(form.minCgpa) : undefined,
+        maxBacklogs: form.maxBacklogs ? parseInt(form.maxBacklogs, 10) : undefined,
+        applyDeadline: form.applyDeadline.trim(),
         status: 'published',
         allowedBranches: [],
         allowedYears: [],
-        rounds: []
+        rounds,
       });
-      Alert.alert('Success', 'Drive created successfully!', [
-        { text: 'OK', onPress: () => router.back() }
+
+      Alert.alert('Drive Published', 'Placement drive has been successfully created and published.', [
+        { text: 'View Drives', onPress: () => router.back() },
       ]);
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Failed to create drive.');
@@ -48,93 +97,198 @@ export default function CreatePlacementDriveScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <MaterialCommunityIcons name="close" size={24} color="#1A1B1C" />
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
+          <Feather name="x" size={20} color="#171717" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Create New Drive</Text>
-        <TouchableOpacity onPress={handleSubmit} disabled={loading} style={styles.saveBtn}>
-          {loading ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={styles.saveText}>Publish</Text>}
+        <Text style={styles.headerTitle}>Create Placement Drive</Text>
+        <TouchableOpacity
+          onPress={handleSubmit}
+          disabled={loading}
+          style={styles.publishBtn}
+          activeOpacity={0.8}
+        >
+          {loading ? (
+            <ActivityIndicator size="small" color="#1A1B1C" />
+          ) : (
+            <Text style={styles.publishText}>Publish</Text>
+          )}
         </TouchableOpacity>
       </View>
 
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={styles.scroll}>
-          <Text style={styles.sectionTitle}>Basic Information</Text>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}
+      >
+        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+          {/* Section: Basic Info */}
+          <Text style={styles.sectionHeader}>BASIC INFORMATION</Text>
+          <View style={styles.card}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Company Name *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. Google, Microsoft, Infosys"
+                placeholderTextColor="#9A9A9A"
+                value={form.companyName}
+                onChangeText={(t) => setForm({ ...form, companyName: t })}
+              />
+            </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Company Name *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. Google, Microsoft"
-              value={form.companyName}
-              onChangeText={(t) => setForm({ ...form, companyName: t })}
-            />
-          </View>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Job Title / Role *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. Associate Software Engineer (2026 Batch)"
+                placeholderTextColor="#9A9A9A"
+                value={form.title}
+                onChangeText={(t) => setForm({ ...form, title: t })}
+              />
+            </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Drive Title *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. Software Engineer Fresher 2026"
-              value={form.title}
-              onChangeText={(t) => setForm({ ...form, title: t })}
-            />
-          </View>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Location</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. Bangalore, India (or Hybrid / Remote)"
+                placeholderTextColor="#9A9A9A"
+                value={form.location}
+                onChangeText={(t) => setForm({ ...form, location: t })}
+              />
+            </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Location</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. Bangalore, India (or Remote)"
-              value={form.location}
-              onChangeText={(t) => setForm({ ...form, location: t })}
-            />
-          </View>
-
-          <View style={styles.row}>
-            <View style={[styles.inputGroup, { flex: 1 }]}>
-              <Text style={styles.label}>Job Type</Text>
+            {/* Job Type Toggle */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Employment Type</Text>
               <View style={styles.typeSelector}>
-                {['full_time', 'internship'].map((type) => (
-                  <TouchableOpacity
-                    key={type}
-                    style={[styles.typeBtn, form.jobType === type && styles.typeBtnActive]}
-                    onPress={() => setForm({ ...form, jobType: type })}
-                  >
-                    <Text style={[styles.typeText, form.jobType === type && styles.typeTextActive]}>
-                      {type === 'full_time' ? 'Full Time' : 'Internship'}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                {[
+                  { key: 'full_time', label: 'Full Time' },
+                  { key: 'internship', label: 'Internship' },
+                  { key: 'part_time', label: 'Part Time' },
+                ].map((type) => {
+                  const active = form.jobType === type.key;
+                  return (
+                    <TouchableOpacity
+                      key={type.key}
+                      style={[styles.typeBtn, active && styles.typeBtnActive]}
+                      onPress={() => setForm({ ...form, jobType: type.key })}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.typeText, active && styles.typeTextActive]}>
+                        {type.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </View>
-            <View style={[styles.inputGroup, { flex: 1, marginLeft: 12 }]}>
+
+            <View style={styles.inputGroup}>
               <Text style={styles.label}>CTC / Stipend</Text>
               <TextInput
                 style={styles.input}
-                placeholder="e.g. 12 LPA"
+                placeholder="e.g. 14 LPA (or ₹45,000/month stipend)"
+                placeholderTextColor="#9A9A9A"
                 value={form.ctcOrStipend}
                 onChangeText={(t) => setForm({ ...form, ctcOrStipend: t })}
               />
             </View>
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Application Deadline (YYYY-MM-DD) *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="2026-12-31"
-              value={form.applyDeadline}
-              onChangeText={(t) => setForm({ ...form, applyDeadline: t })}
-            />
+          {/* Section: Eligibility Criteria */}
+          <Text style={styles.sectionHeader}>ELIGIBILITY & DEADLINE</Text>
+          <View style={styles.card}>
+            <View style={styles.row}>
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.label}>Min CGPA</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g. 7.5"
+                  placeholderTextColor="#9A9A9A"
+                  keyboardType="decimal-pad"
+                  value={form.minCgpa}
+                  onChangeText={(t) => setForm({ ...form, minCgpa: t })}
+                />
+              </View>
+
+              <View style={[styles.inputGroup, { flex: 1, marginLeft: 12 }]}>
+                <Text style={styles.label}>Max Backlogs</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g. 0"
+                  placeholderTextColor="#9A9A9A"
+                  keyboardType="number-pad"
+                  value={form.maxBacklogs}
+                  onChangeText={(t) => setForm({ ...form, maxBacklogs: t })}
+                />
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Application Deadline (YYYY-MM-DD) *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="2026-12-31"
+                placeholderTextColor="#9A9A9A"
+                value={form.applyDeadline}
+                onChangeText={(t) => setForm({ ...form, applyDeadline: t })}
+              />
+            </View>
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Description</Text>
+          {/* Section: Selection Stages / Rounds */}
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionHeader}>SELECTION ROUNDS ({rounds.length})</Text>
+            <TouchableOpacity onPress={addRound} style={styles.addRoundBtn} activeOpacity={0.7}>
+              <MaterialCommunityIcons name="plus" size={16} color="#1A1B1C" />
+              <Text style={styles.addRoundText}>Add Stage</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.card}>
+            {rounds.map((round, idx) => (
+              <View key={idx} style={styles.roundItem}>
+                <View style={styles.roundHeaderRow}>
+                  <View style={styles.roundIndexPill}>
+                    <Text style={styles.roundIndexText}>Round {idx + 1}</Text>
+                  </View>
+                  {rounds.length > 1 && (
+                    <TouchableOpacity
+                      onPress={() => removeRound(idx)}
+                      hitSlop={8}
+                      style={styles.deleteRoundBtn}
+                    >
+                      <Feather name="trash-2" size={16} color="#DC2626" />
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                <TextInput
+                  style={[styles.input, { marginBottom: 6 }]}
+                  placeholder="Round Title (e.g. Technical Interview 1)"
+                  placeholderTextColor="#9A9A9A"
+                  value={round.name}
+                  onChangeText={(v) => updateRound(idx, 'name', v)}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Round Description (optional details/format)"
+                  placeholderTextColor="#9A9A9A"
+                  value={round.description}
+                  onChangeText={(v) => updateRound(idx, 'description', v)}
+                />
+              </View>
+            ))}
+          </View>
+
+          {/* Section: Job Description */}
+          <Text style={styles.sectionHeader}>JOB DESCRIPTION & NOTES</Text>
+          <View style={styles.card}>
             <TextInput
               style={[styles.input, styles.textArea]}
-              placeholder="Describe the role, responsibilities, and requirements..."
+              placeholder="Outline role responsibilities, required tech stack, eligibility notes, bond details..."
+              placeholderTextColor="#9A9A9A"
               value={form.description}
               onChangeText={(t) => setForm({ ...form, description: t })}
               multiline
@@ -159,35 +313,127 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: '#E8E5DC',
   },
-  backBtn: { padding: 8, backgroundColor: '#F3F4F6', borderRadius: 20 },
-  headerTitle: { fontSize: 18, fontFamily: FontFamily.bold, color: '#1A1B1C' },
-  saveBtn: { backgroundColor: '#F4C430', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, minWidth: 80, alignItems: 'center' },
-  saveText: { color: '#1A1B1C', fontFamily: FontFamily.bold, fontSize: 14 },
-  
-  scroll: { padding: 20 },
-  sectionTitle: { fontSize: 18, fontFamily: FontFamily.bold, color: '#111827', marginBottom: 16 },
-  
-  inputGroup: { marginBottom: 16 },
-  row: { flexDirection: 'row', marginBottom: 16 },
-  label: { fontSize: 13, fontFamily: FontFamily.semibold, color: '#4B5563', marginBottom: 6 },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F3F1EA',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#171717',
+    fontFamily: FontFamily.bold,
+  },
+  publishBtn: {
+    backgroundColor: '#F4C430',
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+    borderRadius: BorderRadius.button,
+    minWidth: 80,
+    alignItems: 'center',
+  },
+  publishText: {
+    color: '#1A1B1C',
+    fontWeight: '800',
+    fontSize: 13,
+  },
+
+  scroll: { padding: 14, gap: 10 },
+  sectionHeader: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#8A8A8A',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginTop: 6,
+    paddingHorizontal: 2,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 6,
+    paddingHorizontal: 2,
+  },
+  addRoundBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF4C7',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+    gap: 4,
+  },
+  addRoundText: { fontSize: 11, fontWeight: '800', color: '#1A1B1C' },
+
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.card,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    padding: 14,
+    gap: 12,
+  },
+  inputGroup: { gap: 6 },
+  row: { flexDirection: 'row' },
+  label: { fontSize: 12, fontWeight: '700', color: '#4B5563' },
   input: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
+    borderColor: '#E8E5DC',
+    borderRadius: BorderRadius.input,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    fontSize: 15,
-    fontFamily: FontFamily.medium,
-    color: '#111827',
+    fontSize: 14,
+    color: '#171717',
+    fontFamily: FontFamily.regular,
   },
-  textArea: { minHeight: 120, paddingTop: 12 },
-  
-  typeSelector: { flexDirection: 'row', backgroundColor: '#F3F4F6', borderRadius: 8, padding: 4 },
-  typeBtn: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 6 },
-  typeBtnActive: { backgroundColor: '#FFFFFF', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 },
-  typeText: { fontSize: 13, fontFamily: FontFamily.medium, color: '#6B7280' },
-  typeTextActive: { color: '#111827', fontFamily: FontFamily.bold },
+  textArea: { minHeight: 110, paddingTop: 10 },
+
+  typeSelector: {
+    flexDirection: 'row',
+    backgroundColor: '#F3F1EA',
+    borderRadius: 8,
+    padding: 3,
+    gap: 4,
+  },
+  typeBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 6,
+  },
+  typeBtnActive: {
+    backgroundColor: '#1A1B1C',
+  },
+  typeText: { fontSize: 12, fontWeight: '700', color: '#6B6B6B' },
+  typeTextActive: { color: '#FFFFFF', fontWeight: '800' },
+
+  roundItem: {
+    backgroundColor: '#FFFEFE',
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+  },
+  roundHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  roundIndexPill: {
+    backgroundColor: '#FFF4C7',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  roundIndexText: { fontSize: 11, fontWeight: '800', color: '#1A1B1C' },
+  deleteRoundBtn: { padding: 4 },
 });

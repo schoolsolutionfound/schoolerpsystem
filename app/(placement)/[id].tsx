@@ -1,31 +1,42 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Text, Image, Alert, RefreshControl } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Text,
+  Alert,
+  RefreshControl,
+} from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { listDrives, getDriveApplicationsForStaff, updateApplicationStatusForStaff, DriveApplication, PlacementDrive } from '../../api/placement';
-import { LoadingView } from '../../features/shared/components/LoadingView';
-import { AppCard } from '../../features/shared/components/AppCard';
-import { AppBadge } from '../../features/shared/components/AppBadge';
-import { AppButton } from '../../features/shared/components/AppButton';
-import { EmptyState } from '../../features/shared/components/EmptyState';
-import { FontFamily } from '../../constants/fonts';
 import * as Linking from 'expo-linking';
+import {
+  listDrives,
+  getDriveApplicationsForStaff,
+  updateApplicationStatusForStaff,
+  DriveApplication,
+  PlacementDrive,
+} from '../../api/placement';
+import { FontFamily } from '../../constants/fonts';
+import { BorderRadius } from '../../constants/theme';
+import { ShimmerProvider } from '../../features/student/components/ShimmerSkeleton';
+import { PlacementStudentsSkeleton } from '../../features/placement/components/PlacementSkeleton';
 
 export default function PlacementAdminApplicantsScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  
+
   const [drive, setDrive] = useState<PlacementDrive | null>(null);
   const [applications, setApplications] = useState<DriveApplication[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  
+
   // Filters
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [branchFilter, setBranchFilter] = useState<string>('all');
-  const [roundFilter, setRoundFilter] = useState<string>('all');
-  
+
   const fetchData = async () => {
     try {
       if (!id) return;
@@ -34,12 +45,13 @@ export default function PlacementAdminApplicantsScreen() {
         listDrives(),
       ]);
       setApplications(appsData || []);
-      const found = drivesData?.find(d => d.id === id);
+      const found = drivesData?.find((d) => d.id === id);
       setDrive(found || null);
     } catch (err) {
       console.warn('Failed to load applicants:', err);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -50,18 +62,23 @@ export default function PlacementAdminApplicantsScreen() {
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchData();
-    setRefreshing(false);
   };
 
   const handleUpdateStatus = async (appId: string, newStatus: string, currentRoundIndex?: number) => {
     try {
       await updateApplicationStatusForStaff(id as string, appId, newStatus, currentRoundIndex);
-      // Optimistically update UI
-      setApplications(prev => prev.map(a => 
-        a.id === appId 
-          ? { ...a, status: newStatus as any, currentRoundIndex: currentRoundIndex ?? a.currentRoundIndex } 
-          : a
-      ));
+      // Optimistically update
+      setApplications((prev) =>
+        prev.map((a) =>
+          a.id === appId
+            ? {
+                ...a,
+                status: newStatus as any,
+                currentRoundIndex: currentRoundIndex ?? a.currentRoundIndex,
+              }
+            : a
+        )
+      );
     } catch (err: any) {
       Alert.alert('Error', err?.message || 'Failed to update status.');
     }
@@ -71,22 +88,32 @@ export default function PlacementAdminApplicantsScreen() {
 
   const getStatusOptions = (app: DriveApplication) => {
     if (app.status === 'withdrawn') return [];
-    
-    const options = [];
-    
-    // Always have a fast-track option to Hire or Reject
-    if (app.status !== 'hired') options.push({ label: 'Hire', action: 'hired' });
-    if (app.status !== 'rejected') options.push({ label: 'Reject', action: 'rejected' });
-    if (app.status === 'hired' || app.status === 'rejected') options.push({ label: 'Undo (to Applied)', action: 'applied' });
+
+    const options: { label: string; action: string; roundIndex?: number; color: string }[] = [];
 
     // Shortlisting logic
-    if (app.status === 'applied' || (app.status === 'shortlisted' && app.currentRoundIndex < totalRounds)) {
-      const nextRound = app.status === 'applied' ? 1 : app.currentRoundIndex + 1;
-      options.unshift({ 
-        label: `Shortlist R${nextRound}`, 
-        action: 'shortlisted', 
-        roundIndex: nextRound 
+    if (
+      app.status === 'applied' ||
+      (app.status === 'shortlisted' && (app.currentRoundIndex || 0) < totalRounds)
+    ) {
+      const nextRound = app.status === 'applied' ? 1 : (app.currentRoundIndex || 0) + 1;
+      const roundName = drive?.rounds?.[nextRound - 1]?.name;
+      options.push({
+        label: roundName ? `Shortlist R${nextRound} (${roundName})` : `Shortlist R${nextRound}`,
+        action: 'shortlisted',
+        roundIndex: nextRound,
+        color: '#F4C430',
       });
+    }
+
+    if (app.status !== 'hired') {
+      options.push({ label: 'Hire Candidate', action: 'hired', color: '#16A34A' });
+    }
+    if (app.status !== 'rejected') {
+      options.push({ label: 'Reject', action: 'rejected', color: '#DC2626' });
+    }
+    if (app.status === 'hired' || app.status === 'rejected') {
+      options.push({ label: 'Reset to Applied', action: 'applied', color: '#6B6B6B' });
     }
 
     return options;
@@ -94,12 +121,14 @@ export default function PlacementAdminApplicantsScreen() {
 
   const branches = useMemo(() => {
     const b = new Set<string>();
-    applications.forEach(a => { if (a.student?.branch) b.add(a.student.branch); });
+    applications.forEach((a) => {
+      if (a.student?.branch) b.add(a.student.branch);
+    });
     return Array.from(b);
   }, [applications]);
 
   const filteredApps = useMemo(() => {
-    return applications.filter(a => {
+    return applications.filter((a) => {
       if (statusFilter !== 'all' && a.status !== statusFilter) return false;
       if (branchFilter !== 'all' && a.student?.branch !== branchFilter) return false;
       return true;
@@ -107,182 +136,270 @@ export default function PlacementAdminApplicantsScreen() {
   }, [applications, statusFilter, branchFilter]);
 
   const stats = useMemo(() => {
-    const s = { total: applications.length, applied: 0, shortlisted: 0, hired: 0 };
-    applications.forEach(a => {
+    const s = { total: applications.length, applied: 0, shortlisted: 0, hired: 0, rejected: 0 };
+    applications.forEach((a) => {
       if (a.status === 'applied') s.applied++;
       if (a.status === 'shortlisted') s.shortlisted++;
       if (a.status === 'hired') s.hired++;
+      if (a.status === 'rejected') s.rejected++;
     });
     return s;
   }, [applications]);
 
-  const getStatusColor = (status: string): { type: any } => {
-    switch(status) {
-      case 'hired': return { type: 'active' };
-      case 'shortlisted': return { type: 'trial' };
-      case 'rejected': return { type: 'inactive' };
-      case 'withdrawn': return { type: 'inactive' };
-      default: return { type: 'school' };
-    }
-  };
-
-  if (loading) return <LoadingView message="Loading applicants..." />;
+  if (loading && !refreshing) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+            <Feather name="arrow-left" size={22} color="#171717" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Hiring Pipeline</Text>
+          <View style={{ width: 36 }} />
+        </View>
+        <ScrollView contentContainerStyle={styles.scroll}>
+          <ShimmerProvider>
+            <PlacementStudentsSkeleton />
+          </ShimmerProvider>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <MaterialCommunityIcons name="arrow-left" size={24} color="#1A1B1C" />
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
+          <Feather name="arrow-left" size={22} color="#171717" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Applicants</Text>
-        <View style={{ width: 32 }} />
+        <View style={{ flex: 1, marginHorizontal: 8 }}>
+          <Text style={styles.headerTitle} numberOfLines={1}>
+            {drive?.title || 'Drive Applicants'}
+          </Text>
+          <Text style={styles.headerSub} numberOfLines={1}>
+            {drive?.companyName || 'Placement Drive'}
+          </Text>
+        </View>
+        <View style={styles.driveBadge}>
+          <Text style={styles.driveBadgeText}>{drive?.status?.toUpperCase() || 'DRIVE'}</Text>
+        </View>
       </View>
 
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scroll}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#1A1B1C"
+            colors={['#1A1B1C']}
+            progressBackgroundColor="#FFFFFF"
+          />
+        }
       >
-        <View style={styles.statsRow}>
-          <View style={styles.statBox}>
-            <Text style={styles.statNum}>{stats.total}</Text>
-            <Text style={styles.statLabel}>Total</Text>
+        {/* Dark Pipeline Overview Card */}
+        <View style={styles.overallCard}>
+          <View style={styles.ring}>
+            <Text style={styles.ringValue}>{stats.total}</Text>
+            <Text style={styles.ringLabel}>Total Applicants</Text>
           </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statNum}>{stats.applied}</Text>
-            <Text style={styles.statLabel}>Applied</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statNum}>{stats.shortlisted}</Text>
-            <Text style={styles.statLabel}>Shortlisted</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statNum}>{stats.hired}</Text>
-            <Text style={styles.statLabel}>Hired</Text>
+          <View style={styles.overallStats}>
+            <View style={styles.statCol}>
+              <Text style={[styles.statValue, { color: '#FFFFFF' }]}>{stats.applied}</Text>
+              <Text style={styles.statLabel}>Applied</Text>
+            </View>
+            <View style={styles.statCol}>
+              <Text style={[styles.statValue, { color: '#F4C430' }]}>{stats.shortlisted}</Text>
+              <Text style={styles.statLabel}>Shortlisted</Text>
+            </View>
+            <View style={styles.statCol}>
+              <Text style={[styles.statValue, { color: '#16A34A' }]}>{stats.hired}</Text>
+              <Text style={styles.statLabel}>Hired</Text>
+            </View>
           </View>
         </View>
 
-        <View style={styles.filtersWrapper}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersScroll}>
-            <TouchableOpacity 
-              style={[styles.filterChip, statusFilter === 'all' && styles.filterChipActive]}
-              onPress={() => setStatusFilter('all')}
-            >
-              <Text style={[styles.filterText, statusFilter === 'all' && styles.filterTextActive]}>All Status</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.filterChip, statusFilter === 'applied' && styles.filterChipActive]}
-              onPress={() => setStatusFilter('applied')}
-            >
-              <Text style={[styles.filterText, statusFilter === 'applied' && styles.filterTextActive]}>Applied</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.filterChip, statusFilter === 'shortlisted' && styles.filterChipActive]}
-              onPress={() => setStatusFilter('shortlisted')}
-            >
-              <Text style={[styles.filterText, statusFilter === 'shortlisted' && styles.filterTextActive]}>Shortlisted</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.filterChip, statusFilter === 'hired' && styles.filterChipActive]}
-              onPress={() => setStatusFilter('hired')}
-            >
-              <Text style={[styles.filterText, statusFilter === 'hired' && styles.filterTextActive]}>Hired</Text>
-            </TouchableOpacity>
-            
-            <View style={styles.vDivider} />
-            
-            <TouchableOpacity 
-              style={[styles.filterChip, branchFilter === 'all' && styles.filterChipActive]}
-              onPress={() => setBranchFilter('all')}
-            >
-              <Text style={[styles.filterText, branchFilter === 'all' && styles.filterTextActive]}>All Branches</Text>
-            </TouchableOpacity>
-            {branches.map(b => (
-              <TouchableOpacity 
-                key={b}
-                style={[styles.filterChip, branchFilter === b && styles.filterChipActive]}
-                onPress={() => setBranchFilter(b)}
+        {/* Status Filter Pills */}
+        <View style={styles.filterRow}>
+          {[
+            { key: 'all', label: `All (${applications.length})` },
+            { key: 'applied', label: `Applied (${stats.applied})` },
+            { key: 'shortlisted', label: `Shortlisted (${stats.shortlisted})` },
+            { key: 'hired', label: `Hired (${stats.hired})` },
+            { key: 'rejected', label: `Rejected (${stats.rejected})` },
+          ].map((tab) => {
+            const isActive = statusFilter === tab.key;
+            return (
+              <TouchableOpacity
+                key={tab.key}
+                style={[styles.filterBtn, isActive && styles.filterBtnActive]}
+                onPress={() => setStatusFilter(tab.key)}
+                activeOpacity={0.7}
               >
-                <Text style={[styles.filterText, branchFilter === b && styles.filterTextActive]}>{b}</Text>
+                <Text style={[styles.filterText, isActive && styles.filterTextActive]}>
+                  {tab.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* Branch Filter Pills */}
+        {branches.length > 1 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.branchFilterScroll}
+          >
+            <TouchableOpacity
+              style={[styles.branchPill, branchFilter === 'all' && styles.branchPillActive]}
+              onPress={() => setBranchFilter('all')}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.branchText, branchFilter === 'all' && styles.branchTextActive]}>
+                All Branches
+              </Text>
+            </TouchableOpacity>
+            {branches.map((b) => (
+              <TouchableOpacity
+                key={b}
+                style={[styles.branchPill, branchFilter === b && styles.branchPillActive]}
+                onPress={() => setBranchFilter(b)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.branchText, branchFilter === b && styles.branchTextActive]}>
+                  {b}
+                </Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
-        </View>
+        )}
 
+        {/* Applicants List */}
         {filteredApps.length === 0 ? (
-          <EmptyState
-            iconName="account-search-outline"
-            title="No Applicants Found"
-            description="No students match the current filters."
-          />
+          <View style={styles.emptyCard}>
+            <MaterialCommunityIcons name="account-search-outline" size={40} color="#6B6B6B" />
+            <Text style={styles.emptyTitle}>No Applicants Found</Text>
+            <Text style={styles.emptySub}>
+              No candidates match your current filter settings for this drive.
+            </Text>
+          </View>
         ) : (
-          filteredApps.map(app => (
-            <AppCard key={app.id} style={styles.appCard}>
-              <View style={styles.appHeader}>
-                <View style={styles.appHeaderLeft}>
-                  {app.student?.profilePicUrl ? (
-                    <Image source={{ uri: app.student.profilePicUrl }} style={styles.avatar} />
-                  ) : (
-                    <View style={styles.avatarPlaceholder}>
-                      <MaterialCommunityIcons name="account" size={24} color="#9CA3AF" />
-                    </View>
-                  )}
-                  <View>
-                    <Text style={styles.studentName}>{app.student?.fullName || 'Unknown Student'}</Text>
+          filteredApps.map((app) => {
+            const isHired = app.status === 'hired';
+            const isShortlisted = app.status === 'shortlisted';
+            const isRejected = app.status === 'rejected';
+
+            const statusBg = isHired
+              ? 'rgba(22, 163, 74, 0.15)'
+              : isShortlisted
+              ? 'rgba(244, 196, 48, 0.15)'
+              : isRejected
+              ? 'rgba(220, 38, 38, 0.12)'
+              : '#F3F1EA';
+            const statusTextColor = isHired
+              ? '#16A34A'
+              : isShortlisted
+              ? '#D97706'
+              : isRejected
+              ? '#DC2626'
+              : '#6B6B6B';
+            const statusLabel = isShortlisted
+              ? `Round ${app.currentRoundIndex || 1}`
+              : app.status.toUpperCase();
+
+            const options = getStatusOptions(app);
+
+            return (
+              <View key={app.id} style={styles.appCard}>
+                {/* Top row */}
+                <View style={styles.appCardHeader}>
+                  <View style={styles.avatarCircle}>
+                    <Text style={styles.avatarText}>
+                      {app.student?.fullName
+                        ? app.student.fullName.substring(0, 2).toUpperCase()
+                        : 'ST'}
+                    </Text>
+                  </View>
+
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.studentName}>{app.student?.fullName || 'Student'}</Text>
                     <Text style={styles.studentMeta}>
-                      {app.student?.branch || 'N/A'} • {app.student?.year || 'N/A'}
+                      {app.student?.branch || 'General'} • {app.student?.year || 'Candidate'}
+                    </Text>
+                  </View>
+
+                  <View style={[styles.statusPill, { backgroundColor: statusBg }]}>
+                    <Text style={[styles.statusPillText, { color: statusTextColor }]}>
+                      {statusLabel}
                     </Text>
                   </View>
                 </View>
-                <AppBadge 
-                  label={app.status === 'shortlisted' ? `SHORTLISTED R${app.currentRoundIndex || 1}` : app.status.toUpperCase()} 
-                  type={getStatusColor(app.status).type} 
-                />
-              </View>
 
-              <View style={styles.contactRow}>
-                <Text style={styles.contactText}>{app.student?.email}</Text>
-                <Text style={styles.contactText}>{app.student?.phone}</Text>
-              </View>
-
-              <View style={styles.gradesRow}>
-                <View style={styles.gradeBox}>
-                  <Text style={styles.gradeLabel}>10th</Text>
-                  <Text style={styles.gradeValue}>{app.student?.tenthPercentage || 'N/A'}</Text>
-                </View>
-                <View style={styles.gradeBox}>
-                  <Text style={styles.gradeLabel}>12th</Text>
-                  <Text style={styles.gradeValue}>{app.student?.twelfthPercentage || 'N/A'}</Text>
-                </View>
-              </View>
-
-              <View style={styles.actionsRow}>
-                {!!app.resumeUrl && (
-                  <TouchableOpacity 
-                    style={styles.resumeBtn}
-                    onPress={() => Linking.openURL(app.resumeUrl)}
-                  >
-                    <MaterialCommunityIcons name="file-document-outline" size={16} color="#3B82F6" />
-                    <Text style={styles.resumeText}>View Resume</Text>
-                  </TouchableOpacity>
-                )}
-                
-                <View style={styles.statusButtons}>
-                  {getStatusOptions(app).map((opt, i) => (
-                    <TouchableOpacity 
-                      key={i}
-                      style={[styles.statusBtn, opt.action === 'rejected' && { backgroundColor: '#FEE2E2', borderColor: '#FCA5A5' }]}
-                      onPress={() => handleUpdateStatus(app.id, opt.action, opt.roundIndex)}
+                {/* Academic & contact info */}
+                <View style={styles.academicRow}>
+                  <View style={styles.academicCol}>
+                    <Text style={styles.academicLabel}>10th Score</Text>
+                    <Text style={styles.academicVal}>{app.student?.tenthPercentage || 'N/A'}</Text>
+                  </View>
+                  <View style={styles.academicCol}>
+                    <Text style={styles.academicLabel}>12th / Diploma</Text>
+                    <Text style={styles.academicVal}>{app.student?.twelfthPercentage || 'N/A'}</Text>
+                  </View>
+                  {app.resumeUrl ? (
+                    <TouchableOpacity
+                      style={styles.resumeBtn}
+                      onPress={() => Linking.openURL(app.resumeUrl)}
+                      activeOpacity={0.7}
                     >
-                      <Text style={[styles.statusBtnText, opt.action === 'rejected' && { color: '#DC2626' }]}>
-                        {opt.label}
-                      </Text>
+                      <MaterialCommunityIcons name="file-pdf-box" size={16} color="#DC2626" />
+                      <Text style={styles.resumeBtnText}>Resume</Text>
                     </TouchableOpacity>
-                  ))}
+                  ) : (
+                    <View style={styles.noResumeBadge}>
+                      <Text style={styles.noResumeText}>No Resume</Text>
+                    </View>
+                  )}
+                </View>
+
+                <View style={styles.divider} />
+
+                {/* Pipeline Actions */}
+                <View style={styles.pipelineActions}>
+                  <Text style={styles.actionPrompt}>Advance Candidate:</Text>
+                  <View style={styles.actionsWrap}>
+                    {options.map((opt, i) => (
+                      <TouchableOpacity
+                        key={i}
+                        style={[
+                          styles.actionBtn,
+                          opt.action === 'hired' && styles.actionBtnHired,
+                          opt.action === 'rejected' && styles.actionBtnRejected,
+                          opt.action === 'shortlisted' && styles.actionBtnShortlisted,
+                        ]}
+                        onPress={() =>
+                          handleUpdateStatus(app.id, opt.action, opt.roundIndex)
+                        }
+                        activeOpacity={0.75}
+                      >
+                        <Text
+                          style={[
+                            styles.actionBtnText,
+                            opt.action === 'hired' && styles.actionTextHired,
+                            opt.action === 'rejected' && styles.actionTextRejected,
+                            opt.action === 'shortlisted' && styles.actionTextShortlisted,
+                          ]}
+                        >
+                          {opt.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
                 </View>
               </View>
-            </AppCard>
-          ))
+            );
+          })
         )}
       </ScrollView>
     </SafeAreaView>
@@ -290,56 +407,190 @@ export default function PlacementAdminApplicantsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9FAFB' },
+  container: { flex: 1, backgroundColor: '#FFFDF7' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: '#E8E5DC',
   },
-  backBtn: { padding: 4 },
-  headerTitle: { fontSize: 18, fontFamily: FontFamily.bold, color: '#1A1B1C' },
-  
-  scroll: { paddingBottom: 60 },
-  
-  statsRow: { flexDirection: 'row', padding: 16, gap: 12 },
-  statBox: { flex: 1, backgroundColor: '#FFFFFF', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#F3F4F6', alignItems: 'center' },
-  statNum: { fontSize: 20, fontFamily: FontFamily.bold, color: '#111827' },
-  statLabel: { fontSize: 11, fontFamily: FontFamily.medium, color: '#6B7280', marginTop: 4 },
-  
-  filtersWrapper: { paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
-  filtersScroll: { paddingHorizontal: 16, gap: 8, alignItems: 'center' },
-  filterChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB' },
-  filterChipActive: { backgroundColor: '#DBEAFE', borderColor: '#BFDBFE' },
-  filterText: { fontSize: 13, fontFamily: FontFamily.medium, color: '#4B5563' },
-  filterTextActive: { color: '#1D4ED8' },
-  vDivider: { width: 1, height: 20, backgroundColor: '#E5E7EB', marginHorizontal: 4 },
-  
-  appCard: { marginHorizontal: 16, marginTop: 16, padding: 16 },
-  appHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
-  appHeaderLeft: { flexDirection: 'row', gap: 12, flex: 1 },
-  avatar: { width: 44, height: 44, borderRadius: 22 },
-  avatarPlaceholder: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
-  studentName: { fontSize: 15, fontFamily: FontFamily.semibold, color: '#111827', marginBottom: 2 },
-  studentMeta: { fontSize: 12, fontFamily: FontFamily.medium, color: '#6B7280' },
-  
-  contactRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
-  contactText: { fontSize: 12, fontFamily: FontFamily.regular, color: '#4B5563' },
-  
-  gradesRow: { flexDirection: 'row', gap: 16, marginBottom: 16 },
-  gradeBox: { flex: 1, backgroundColor: '#F9FAFB', padding: 8, borderRadius: 8, alignItems: 'center' },
-  gradeLabel: { fontSize: 11, fontFamily: FontFamily.medium, color: '#6B7280', marginBottom: 2 },
-  gradeValue: { fontSize: 13, fontFamily: FontFamily.semibold, color: '#111827' },
-  
-  actionsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  resumeBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 10, backgroundColor: '#EFF6FF', borderRadius: 6 },
-  resumeText: { fontSize: 12, fontFamily: FontFamily.medium, color: '#3B82F6' },
-  
-  statusButtons: { flexDirection: 'row', gap: 8 },
-  statusBtn: { paddingVertical: 6, paddingHorizontal: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 6 },
-  statusBtnText: { fontSize: 12, fontFamily: FontFamily.medium, color: '#4B5563' },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F3F1EA',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: { fontSize: 16, fontWeight: '800', color: '#171717', fontFamily: FontFamily.bold },
+  headerSub: { fontSize: 11, color: '#6B6B6B', marginTop: 1, fontFamily: FontFamily.regular },
+  driveBadge: {
+    backgroundColor: '#FFF4C7',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#F4C430',
+  },
+  driveBadgeText: { fontSize: 9, fontWeight: '800', color: '#1A1B1C' },
+
+  scroll: { padding: 14, paddingBottom: 60, gap: 12 },
+
+  // Dark Overview Card
+  overallCard: {
+    backgroundColor: '#1A1B1C',
+    borderRadius: BorderRadius.card,
+    padding: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#2A2B2C',
+  },
+  ring: { alignItems: 'center' },
+  ringValue: { fontSize: 30, fontWeight: '900', color: '#F4C430' },
+  ringLabel: {
+    fontSize: 10,
+    color: '#8A8A8A',
+    marginTop: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    fontWeight: '700',
+  },
+  overallStats: { flexDirection: 'row', gap: 18 },
+  statCol: { alignItems: 'center' },
+  statValue: { fontSize: 18, fontWeight: '800' },
+  statLabel: {
+    fontSize: 10,
+    color: '#8A8A8A',
+    marginTop: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    fontWeight: '700',
+  },
+
+  // Filters
+  filterRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  filterBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    backgroundColor: '#F3F1EA',
+  },
+  filterBtnActive: {
+    backgroundColor: '#1A1B1C',
+  },
+  filterText: { fontSize: 11, fontWeight: '700', color: '#6B6B6B' },
+  filterTextActive: { color: '#FFFFFF', fontWeight: '800' },
+
+  branchFilterScroll: { gap: 6, paddingVertical: 2 },
+  branchPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+  },
+  branchPillActive: { backgroundColor: '#F4C430', borderColor: '#F4C430' },
+  branchText: { fontSize: 11, fontWeight: '700', color: '#6B6B6B' },
+  branchTextActive: { color: '#1A1B1C', fontWeight: '800' },
+
+  // Applicant Card
+  appCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.card,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    padding: 14,
+  },
+  appCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  avatarCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#FFF4C7',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#F4C430',
+  },
+  avatarText: { fontSize: 14, fontWeight: '800', color: '#1A1B1C' },
+  studentName: { fontSize: 14, fontWeight: '800', color: '#171717' },
+  studentMeta: { fontSize: 11, color: '#6B6B6B', marginTop: 2 },
+  statusPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  statusPillText: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
+
+  academicRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginTop: 12,
+  },
+  academicCol: { flex: 1 },
+  academicLabel: { fontSize: 10, color: '#8A8A8A', fontWeight: '700' },
+  academicVal: { fontSize: 13, fontWeight: '800', color: '#171717', marginTop: 2 },
+  resumeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FFF4C7',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 6,
+  },
+  resumeBtnText: { fontSize: 12, fontWeight: '800', color: '#1A1B1C' },
+  noResumeBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  noResumeText: { fontSize: 11, color: '#9CA3AF', fontStyle: 'italic' },
+
+  divider: { height: 1, backgroundColor: '#F3F1EA', marginVertical: 12 },
+
+  // Actions
+  pipelineActions: { gap: 8 },
+  actionPrompt: { fontSize: 10, color: '#8A8A8A', fontWeight: '800', textTransform: 'uppercase' },
+  actionsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  actionBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    backgroundColor: '#F3F1EA',
+  },
+  actionBtnHired: { backgroundColor: 'rgba(22, 163, 74, 0.15)' },
+  actionBtnRejected: { backgroundColor: 'rgba(220, 38, 38, 0.12)' },
+  actionBtnShortlisted: { backgroundColor: '#FFF4C7', borderWidth: 1, borderColor: '#F4C430' },
+  actionBtnText: { fontSize: 11, fontWeight: '800', color: '#171717' },
+  actionTextHired: { color: '#16A34A' },
+  actionTextRejected: { color: '#DC2626' },
+  actionTextShortlisted: { color: '#1A1B1C' },
+
+  // Empty
+  emptyCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.card,
+    padding: 30,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    marginTop: 20,
+  },
+  emptyTitle: { fontSize: 15, fontWeight: '800', color: '#171717', marginTop: 8 },
+  emptySub: { fontSize: 12, color: '#6B6B6B', textAlign: 'center', marginTop: 4 },
 });

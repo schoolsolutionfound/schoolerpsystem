@@ -577,12 +577,12 @@ export class PlacementService {
 
     return { message: 'Application status updated', application: result[0] };
   }
-  public async searchEligibleMembers(user: { uid: string; institutionCode: string }) {
+  public async searchEligibleMembers(user: { uid: string; institutionCode?: string }) {
     if (!db) throw new Error('Database not initialized');
     
     const eligibleUsers = await db.query.users.findMany({
       where: and(
-        eq(users.institutionCode, user.institutionCode),
+        eq(users.institutionCode, user.institutionCode || ''),
         or(
           eq(users.role, 'teacher'),
           eq(users.role, 'admin'),
@@ -594,18 +594,21 @@ export class PlacementService {
         fullName: true,
         email: true,
         role: true,
-        profilePic: true,
+        profilePicUrl: true,
       }
     });
 
-    return eligibleUsers;
+    return eligibleUsers.map((u) => ({
+      ...u,
+      profilePic: u.profilePicUrl,
+    }));
   }
 
-  public async listMembers(user: { uid: string; institutionCode: string }) {
+  public async listMembers(user: { uid: string; institutionCode?: string }) {
     if (!db) throw new Error('Database not initialized');
     
     const members = await db.query.placementMembers.findMany({
-      where: eq(placementMembers.institutionCode, user.institutionCode),
+      where: eq(placementMembers.institutionCode, user.institutionCode || ''),
       with: {
         user: {
           columns: {
@@ -613,17 +616,140 @@ export class PlacementService {
             fullName: true,
             email: true,
             role: true,
-            profilePic: true,
+            profilePicUrl: true,
           }
         }
       }
     });
     
-    return members.map(m => ({
-      ...m.user,
-      accessLevel: m.accessLevel,
-      addedAt: m.createdAt
-    }));
+    return members.map(m => {
+      const u = m.user as any;
+      return {
+        id: u?.id || m.userId,
+        fullName: u?.fullName || 'Member',
+        email: u?.email || '',
+        role: u?.role || 'staff',
+        profilePic: u?.profilePicUrl || '',
+        accessLevel: m.accessLevel,
+        addedAt: m.createdAt,
+      };
+    });
+  }
+
+  public async listStudents(currentUser: AuthenticatedUser) {
+    if (!db) throw new Error('Database not initialized');
+
+    const students = await db.query.users.findMany({
+      where: and(
+        eq(users.institutionCode, currentUser.institutionCode || ''),
+        eq(users.role, 'student')
+      ),
+      columns: {
+        id: true,
+        fullName: true,
+        email: true,
+        phone: true,
+        profilePicUrl: true,
+        rollNoOrUSN: true,
+        tenthPercentage: true,
+        twelfthPercentage: true,
+      },
+    });
+
+    const studentIds = students.map((s) => s.id);
+    let profilesMap: Record<string, any> = {};
+
+    if (studentIds.length > 0) {
+      const profiles = await db.query.studentPlacementProfiles.findMany({
+        where: sql`${studentPlacementProfiles.userId} IN ${studentIds}`,
+      });
+      for (const p of profiles) {
+        profilesMap[p.userId] = p;
+      }
+    }
+
+    const enriched = await Promise.all(
+      students.map(async (st) => {
+        let branch = '';
+        let year = '';
+        try {
+          const csId = await dbFindStudentClassSectionId(st.id);
+          if (csId) {
+            const cs = await db!.query.classSections.findFirst({
+              where: eq(classSections.id, csId),
+            });
+            if (cs) {
+              branch = cs.department || '';
+              year = cs.academicYear || '';
+            }
+          }
+        } catch {}
+
+        const profile = profilesMap[st.id] || null;
+
+        return {
+          id: st.id,
+          fullName: st.fullName,
+          email: st.email,
+          phone: st.phone || profile?.phone || '',
+          rollNoOrUSN: st.rollNoOrUSN || '',
+          profilePic: st.profilePicUrl || profile?.photoUrl || '',
+          branch: branch || 'General',
+          academicYear: year || 'N/A',
+          cgpa: profile?.cgpa ? parseFloat(profile.cgpa) : null,
+          tenthPercent: profile?.tenthPercent ? parseFloat(profile.tenthPercent) : (st.tenthPercentage ? parseFloat(st.tenthPercentage) : null),
+          twelfthPercent: profile?.twelfthOrDiplomaPercent ? parseFloat(profile.twelfthOrDiplomaPercent) : (st.twelfthPercentage ? parseFloat(st.twelfthPercentage) : null),
+          activeBacklogs: profile?.activeBacklogs ?? 0,
+          resumeUrl: profile?.resumeUrl || '',
+          portfolioUrl: profile?.portfolioUrl || '',
+          linkedinUrl: profile?.linkedinUrl || '',
+          githubUrl: profile?.githubUrl || '',
+          leetcodeUrl: profile?.leetcodeUrl || '',
+        };
+      })
+    );
+
+    return enriched;
+  }
+
+  public async getStats(currentUser: AuthenticatedUser) {
+    if (!db) throw new Error('Database not initialized');
+
+    const instCode = currentUser.institutionCode || '';
+
+    const [drives, apps, members, studentsCount] = await Promise.all([
+      db.query.placementDrives.findMany({
+        where: eq(placementDrives.institutionCode, instCode),
+      }),
+      db.query.driveApplications.findMany({
+        where: sql`${driveApplications.driveId} IN (SELECT id FROM ${placementDrives} WHERE ${placementDrives.institutionCode} = ${instCode})`,
+      }),
+      db.query.placementMembers.findMany({
+        where: eq(placementMembers.institutionCode, instCode),
+      }),
+      db.query.users.findMany({
+        where: and(eq(users.institutionCode, instCode), eq(users.role, 'student')),
+        columns: { id: true },
+      }),
+    ]);
+
+    const activeDrives = drives.filter((d) => d.status === 'published').length;
+    const closedDrives = drives.filter((d) => d.status === 'closed').length;
+    const draftDrives = drives.filter((d) => d.status === 'draft').length;
+    const hiredCount = apps.filter((a) => a.status === 'hired').length;
+    const shortlistedCount = apps.filter((a) => a.status === 'shortlisted').length;
+
+    return {
+      totalDrives: drives.length,
+      activeDrives,
+      closedDrives,
+      draftDrives,
+      totalApplications: apps.length,
+      hiredCount,
+      shortlistedCount,
+      totalMembers: members.length,
+      totalStudents: studentsCount.length,
+    };
   }
 }
 

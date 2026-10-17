@@ -200,6 +200,30 @@ export class PlacementController {
       });
     }
   }
+
+  public async listStudents(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const students = await placementService.listStudents(request.user!);
+      return reply.send({ success: true, students });
+    } catch (error: any) {
+      return reply.status(error.statusCode || 500).send({
+        success: false,
+        error: { message: error.message || 'Failed to list students' },
+      });
+    }
+  }
+
+  public async getStats(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const stats = await placementService.getStats(request.user!);
+      return reply.send({ success: true, stats });
+    } catch (error: any) {
+      return reply.status(error.statusCode || 500).send({
+        success: false,
+        error: { message: error.message || 'Failed to get placement stats' },
+      });
+    }
+  }
 }
 
 export const placementController = new PlacementController();

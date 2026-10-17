@@ -1,14 +1,23 @@
-import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Text, RefreshControl, Image } from 'react-native';
+import React, { useEffect, useState, useMemo } from 'react';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Text,
+  RefreshControl,
+  Image,
+} from 'react-native';
 import { useRouter } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { listDrives, getStudentApplications, PlacementDrive, DriveApplication } from '../../../api/placement';
-import { LoadingView } from '../../../features/shared/components/LoadingView';
-import { EmptyState } from '../../../features/shared/components/EmptyState';
-import { AppCard } from '../../../features/shared/components/AppCard';
-import { AppBadge } from '../../../features/shared/components/AppBadge';
 import { FontFamily } from '../../../constants/fonts';
+import { BorderRadius } from '../../../constants/theme';
+import { ShimmerProvider } from '../../../features/student/components/ShimmerSkeleton';
+import { PlacementDriveCardSkeleton } from '../../../features/placement/components/PlacementSkeleton';
+
+type FilterType = 'all' | 'eligible' | 'applied';
 
 export default function PlacementFeedScreen() {
   const router = useRouter();
@@ -16,12 +25,13 @@ export default function PlacementFeedScreen() {
   const [applications, setApplications] = useState<DriveApplication[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [filter, setFilter] = useState<FilterType>('all');
 
   const fetchFeed = async () => {
     try {
       const [drivesData, appsData] = await Promise.all([
-        listDrives(),
-        getStudentApplications(),
+        listDrives().catch(() => []),
+        getStudentApplications().catch(() => []),
       ]);
       setDrives(drivesData || []);
       setApplications(appsData || []);
@@ -29,6 +39,7 @@ export default function PlacementFeedScreen() {
       console.warn('Failed to load placement feed:', err);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -39,91 +50,249 @@ export default function PlacementFeedScreen() {
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchFeed();
-    setRefreshing(false);
   };
 
-  if (loading) return <LoadingView message="Loading placement drives..." />;
-
-  const getApplicationStatus = (driveId: string) => {
-    return applications.find(a => a.driveId === driveId && a.status !== 'withdrawn');
+  const getApplication = (driveId: string) => {
+    return applications.find((a) => a.driveId === driveId && a.status !== 'withdrawn');
   };
+
+  const filteredDrives = useMemo(() => {
+    return drives.filter((d) => {
+      const app = getApplication(d.id);
+      if (filter === 'applied') return !!app;
+      if (filter === 'eligible') return !!d.eligible && !app;
+      return true;
+    });
+  }, [drives, applications, filter]);
+
+  if (loading && !refreshing) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+            <Feather name="arrow-left" size={22} color="#171717" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Campus Placements</Text>
+          <View style={{ width: 36 }} />
+        </View>
+        <ScrollView contentContainerStyle={styles.scroll}>
+          <ShimmerProvider>
+            <PlacementDriveCardSkeleton />
+            <PlacementDriveCardSkeleton />
+          </ShimmerProvider>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
+  const appliedCount = applications.filter((a) => a.status !== 'withdrawn').length;
+  const eligibleCount = drives.filter((d) => d.eligible).length;
+  const shortlistedCount = applications.filter(
+    (a) => a.status === 'shortlisted' || a.status === 'hired'
+  ).length;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <MaterialCommunityIcons name="arrow-left" size={24} color="#1A1B1C" />
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
+          <Feather name="arrow-left" size={22} color="#171717" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Placement Cell</Text>
-        <TouchableOpacity style={styles.profileBtn} onPress={() => router.push('/(student)/placement/profile')}>
-          <MaterialCommunityIcons name="account-circle-outline" size={24} color="#1A1B1C" />
+        <View style={{ flex: 1, marginHorizontal: 8 }}>
+          <Text style={styles.headerTitle}>Campus Placements</Text>
+          <Text style={styles.headerSub}>Opportunities & Eligibility</Text>
+        </View>
+        <TouchableOpacity
+          style={styles.profileBtn}
+          onPress={() => router.push('/(student)/placement/profile')}
+          activeOpacity={0.7}
+        >
+          <MaterialCommunityIcons name="account-edit-outline" size={20} color="#1A1B1C" />
+          <Text style={styles.profileBtnText}>My Profile</Text>
         </TouchableOpacity>
       </View>
 
       <ScrollView
         contentContainerStyle={styles.scroll}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-      >
-        {drives.length === 0 ? (
-          <EmptyState
-            iconName="briefcase-outline"
-            title="No Drives Available"
-            description="There are no upcoming placement drives published at the moment."
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#1A1B1C"
+            colors={['#1A1B1C']}
+            progressBackgroundColor="#FFFFFF"
           />
-        ) : (
-          drives.map(drive => {
-            const application = getApplicationStatus(drive.id);
-            const isApplied = !!application;
-            
+        }
+      >
+        {/* Dark Summary Banner */}
+        <View style={styles.overallCard}>
+          <View style={styles.ring}>
+            <Text style={styles.ringValue}>{drives.length}</Text>
+            <Text style={styles.ringLabel}>Drives Open</Text>
+          </View>
+          <View style={styles.overallStats}>
+            <View style={styles.statCol}>
+              <Text style={[styles.statValue, { color: '#F4C430' }]}>{eligibleCount}</Text>
+              <Text style={styles.statLabel}>Eligible</Text>
+            </View>
+            <View style={styles.statCol}>
+              <Text style={[styles.statValue, { color: '#FFFFFF' }]}>{appliedCount}</Text>
+              <Text style={styles.statLabel}>Applied</Text>
+            </View>
+            <View style={styles.statCol}>
+              <Text style={[styles.statValue, { color: '#16A34A' }]}>{shortlistedCount}</Text>
+              <Text style={styles.statLabel}>Progressed</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Filter Pills */}
+        <View style={styles.filterRow}>
+          {[
+            { key: 'all', label: `All Drives (${drives.length})` },
+            { key: 'eligible', label: `Eligible for Me (${eligibleCount})` },
+            { key: 'applied', label: `My Applications (${appliedCount})` },
+          ].map((tab) => {
+            const isActive = filter === tab.key;
             return (
-              <AppCard key={drive.id} style={styles.driveCard}>
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={() => router.push(`/(student)/placement/${drive.id}` as any)}
-                >
-                  <View style={styles.cardHeader}>
+              <TouchableOpacity
+                key={tab.key}
+                style={[styles.filterBtn, isActive && styles.filterBtnActive]}
+                onPress={() => setFilter(tab.key as FilterType)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.filterText, isActive && styles.filterTextActive]}>
+                  {tab.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* Drives List */}
+        {filteredDrives.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <MaterialCommunityIcons name="briefcase-off-outline" size={40} color="#6B6B6B" />
+            <Text style={styles.emptyTitle}>No Placement Drives Available</Text>
+            <Text style={styles.emptySub}>
+              {filter === 'applied'
+                ? "You haven't applied to any drives yet. Check the eligible tab!"
+                : 'There are no active placement drives published for this filter.'}
+            </Text>
+          </View>
+        ) : (
+          filteredDrives.map((drive) => {
+            const application = getApplication(drive.id);
+            const isApplied = !!application;
+            const isShortlisted = application?.status === 'shortlisted';
+            const isHired = application?.status === 'hired';
+
+            const statusBg = isHired
+              ? 'rgba(22, 163, 74, 0.15)'
+              : isShortlisted
+              ? 'rgba(244, 196, 48, 0.2)'
+              : isApplied
+              ? '#F3F1EA'
+              : drive.eligible
+              ? 'rgba(244, 196, 48, 0.15)'
+              : 'rgba(220, 38, 38, 0.1)';
+
+            const statusColor = isHired
+              ? '#16A34A'
+              : isShortlisted
+              ? '#D97706'
+              : isApplied
+              ? '#1A1B1C'
+              : drive.eligible
+              ? '#B45309'
+              : '#DC2626';
+
+            const statusLabel = isHired
+              ? 'HIRED / OFFERED'
+              : isShortlisted
+              ? `ROUND ${application?.currentRoundIndex || 1}`
+              : isApplied
+              ? 'APPLIED'
+              : drive.eligible
+              ? 'ELIGIBLE'
+              : 'INELIGIBLE';
+
+            return (
+              <TouchableOpacity
+                key={drive.id}
+                style={styles.card}
+                activeOpacity={0.75}
+                onPress={() => router.push(`/(student)/placement/${drive.id}` as any)}
+              >
+                {/* Header row */}
+                <View style={styles.cardTopRow}>
+                  <View style={styles.companyRow}>
                     {drive.logoUrl ? (
-                      <Image source={{ uri: drive.logoUrl }} style={styles.logo} />
+                      <Image source={{ uri: drive.logoUrl }} style={styles.logoImage} />
                     ) : (
                       <View style={styles.logoPlaceholder}>
-                        <MaterialCommunityIcons name="office-building" size={24} color="#9CA3AF" />
+                        <Text style={styles.logoInitial}>
+                          {drive.companyName ? drive.companyName.substring(0, 2).toUpperCase() : 'CO'}
+                        </Text>
                       </View>
                     )}
-                    <View style={styles.cardHeaderRight}>
-                      {isApplied ? (
-                        <AppBadge label="Applied" type="active" />
-                      ) : drive.eligible ? (
-                        <AppBadge label="Eligible" type="trial" />
-                      ) : (
-                        <AppBadge label="Ineligible" type="inactive" />
-                      )}
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.companyName}>{drive.companyName}</Text>
+                      <Text style={styles.driveTitle} numberOfLines={1}>{drive.title}</Text>
                     </View>
                   </View>
-                  
-                  <Text style={styles.companyName}>{drive.companyName}</Text>
-                  <Text style={styles.driveTitle}>{drive.title}</Text>
-                  
-                  <View style={styles.metaRow}>
-                    <MaterialCommunityIcons name="map-marker-outline" size={14} color="#6B7280" />
-                    <Text style={styles.metaText}>{drive.location || 'Remote/Not specified'}</Text>
+
+                  <View style={[styles.statusPill, { backgroundColor: statusBg }]}>
+                    <Text style={[styles.statusText, { color: statusColor }]}>{statusLabel}</Text>
                   </View>
-                  
-                  <View style={styles.metaRow}>
-                    <MaterialCommunityIcons name="cash" size={14} color="#6B7280" />
-                    <Text style={styles.metaText}>{drive.ctcOrStipend || 'Not specified'}</Text>
+                </View>
+
+                {/* Ineligibility Reason */}
+                {!drive.eligible && drive.ineligibilityReason && !isApplied && (
+                  <View style={styles.ineligibleBanner}>
+                    <MaterialCommunityIcons name="alert-circle-outline" size={14} color="#DC2626" />
+                    <Text style={styles.ineligibleText}>{drive.ineligibilityReason}</Text>
                   </View>
-                  
-                  <View style={styles.divider} />
-                  
-                  <View style={styles.footerRow}>
-                    <Text style={styles.deadlineText}>
-                      Deadline: {new Date(drive.applyDeadline).toLocaleDateString()}
+                )}
+
+                {/* Details row */}
+                <View style={styles.metaRow}>
+                  {drive.location ? (
+                    <View style={styles.metaItem}>
+                      <MaterialCommunityIcons name="map-marker-outline" size={14} color="#6B6B6B" />
+                      <Text style={styles.metaText}>{drive.location}</Text>
+                    </View>
+                  ) : null}
+                  {drive.ctcOrStipend ? (
+                    <View style={styles.metaItem}>
+                      <MaterialCommunityIcons name="cash" size={14} color="#F4C430" />
+                      <Text style={styles.metaText}>{drive.ctcOrStipend}</Text>
+                    </View>
+                  ) : null}
+                  <View style={styles.metaItem}>
+                    <MaterialCommunityIcons name="calendar-clock" size={14} color="#6B6B6B" />
+                    <Text style={styles.metaText}>
+                      Deadline: {new Date(drive.applyDeadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </Text>
-                    <MaterialCommunityIcons name="chevron-right" size={20} color="#9CA3AF" />
                   </View>
-                </TouchableOpacity>
-              </AppCard>
+                </View>
+
+                <View style={styles.divider} />
+
+                {/* Card footer */}
+                <View style={styles.cardFooter}>
+                  <Text style={styles.roundsText}>
+                    {drive.rounds?.length || 0} Selection Rounds
+                  </Text>
+                  <View style={styles.viewDetailsRow}>
+                    <Text style={styles.viewDetailsText}>
+                      {isApplied ? 'View Application Status' : 'View Drive Details'}
+                    </Text>
+                    <Feather name="chevron-right" size={16} color="#1A1B1C" />
+                  </View>
+                </View>
+              </TouchableOpacity>
             );
           })
         )}
@@ -133,41 +302,169 @@ export default function PlacementFeedScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9FAFB' },
+  container: { flex: 1, backgroundColor: '#FFFDF7' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: '#E8E5DC',
   },
-  backBtn: { padding: 4 },
-  headerTitle: { fontSize: 18, fontFamily: FontFamily.bold, color: '#1A1B1C' },
-  profileBtn: { padding: 4 },
-  scroll: { padding: 16, gap: 16 },
-  
-  driveCard: { padding: 16 },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
-  logo: { width: 48, height: 48, borderRadius: 8, resizeMode: 'contain' },
-  logoPlaceholder: {
-    width: 48,
-    height: 48,
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F3F1EA',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: { fontSize: 16, fontWeight: '800', color: '#171717', fontFamily: FontFamily.bold },
+  headerSub: { fontSize: 11, color: '#6B6B6B', marginTop: 1, fontFamily: FontFamily.regular },
+  profileBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FFF4C7',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#F4C430',
+  },
+  profileBtnText: { fontSize: 11, fontWeight: '800', color: '#1A1B1C' },
+
+  scroll: { padding: 14, paddingBottom: 60, gap: 12 },
+
+  // Overview Card
+  overallCard: {
+    backgroundColor: '#1A1B1C',
+    borderRadius: BorderRadius.card,
+    padding: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#2A2B2C',
+  },
+  ring: { alignItems: 'center' },
+  ringValue: { fontSize: 30, fontWeight: '900', color: '#F4C430' },
+  ringLabel: {
+    fontSize: 10,
+    color: '#8A8A8A',
+    marginTop: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    fontWeight: '700',
+  },
+  overallStats: { flexDirection: 'row', gap: 18 },
+  statCol: { alignItems: 'center' },
+  statValue: { fontSize: 18, fontWeight: '800' },
+  statLabel: {
+    fontSize: 10,
+    color: '#8A8A8A',
+    marginTop: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    fontWeight: '700',
+  },
+
+  // Filter Row
+  filterRow: {
+    flexDirection: 'row',
+    backgroundColor: '#F3F1EA',
+    borderRadius: 8,
+    padding: 3,
+    gap: 3,
+  },
+  filterBtn: {
+    flex: 1,
+    paddingVertical: 7,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: 6,
   },
-  cardHeaderRight: { alignItems: 'flex-end' },
-  companyName: { fontSize: 14, fontFamily: FontFamily.medium, color: '#6B7280', marginBottom: 2 },
-  driveTitle: { fontSize: 18, fontFamily: FontFamily.bold, color: '#111827', marginBottom: 12 },
-  
-  metaRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6, gap: 6 },
-  metaText: { fontSize: 13, fontFamily: FontFamily.regular, color: '#4B5563' },
-  
-  divider: { height: 1, backgroundColor: '#F3F4F6', marginVertical: 12 },
-  footerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  deadlineText: { fontSize: 12, fontFamily: FontFamily.medium, color: '#DC2626' },
+  filterBtnActive: {
+    backgroundColor: '#1A1B1C',
+  },
+  filterText: { fontSize: 11, fontWeight: '700', color: '#6B6B6B' },
+  filterTextActive: { color: '#FFFFFF', fontWeight: '800' },
+
+  // Drive Card
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.card,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    padding: 14,
+  },
+  cardTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  companyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+    marginRight: 8,
+  },
+  logoImage: { width: 42, height: 42, borderRadius: 8, resizeMode: 'contain' },
+  logoPlaceholder: {
+    width: 42,
+    height: 42,
+    borderRadius: 8,
+    backgroundColor: '#FFF4C7',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logoInitial: { fontSize: 14, fontWeight: '800', color: '#F4C430' },
+  companyName: { fontSize: 11, color: '#6B6B6B', fontWeight: '600' },
+  driveTitle: { fontSize: 14, fontWeight: '800', color: '#171717', marginTop: 1 },
+  statusPill: {
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  statusText: { fontSize: 10, fontWeight: '800' },
+
+  ineligibleBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FEF2F2',
+    borderRadius: 6,
+    padding: 8,
+    marginTop: 10,
+  },
+  ineligibleText: { fontSize: 11, color: '#DC2626', flex: 1, fontWeight: '600' },
+
+  metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 10 },
+  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  metaText: { fontSize: 12, color: '#4B5563', fontWeight: '600' },
+
+  divider: { height: 1, backgroundColor: '#F3F1EA', marginVertical: 10 },
+
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  roundsText: { fontSize: 11, color: '#6B6B6B', fontWeight: '600' },
+  viewDetailsRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  viewDetailsText: { fontSize: 12, fontWeight: '800', color: '#1A1B1C' },
+
+  emptyCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.card,
+    padding: 30,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    marginTop: 20,
+  },
+  emptyTitle: { fontSize: 15, fontWeight: '800', color: '#171717', marginTop: 8 },
+  emptySub: { fontSize: 12, color: '#6B6B6B', textAlign: 'center', marginTop: 4, lineHeight: 18 },
 });

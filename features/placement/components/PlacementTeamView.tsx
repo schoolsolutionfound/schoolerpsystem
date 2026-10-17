@@ -1,21 +1,34 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView, Text, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+  TextInput,
+  RefreshControl,
+} from 'react-native';
+import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { listPlacementMembers, searchEligibleMembers, assignPlacementMember } from '../../../api/placement';
 import { FontFamily } from '../../../constants/fonts';
+import { BorderRadius } from '../../../constants/theme';
 
 export function PlacementTeamView() {
   const [members, setMembers] = useState<any[]>([]);
   const [eligibleUsers, setEligibleUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [assigning, setAssigning] = useState<string | null>(null);
 
   const loadData = async () => {
     try {
       const [m, e] = await Promise.all([
-        listPlacementMembers(),
-        searchEligibleMembers()
+        listPlacementMembers().catch(() => []),
+        searchEligibleMembers().catch(() => []),
       ]);
       setMembers(m || []);
       setEligibleUsers(e || []);
@@ -23,6 +36,7 @@ export function PlacementTeamView() {
       console.warn(err);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -30,29 +44,35 @@ export function PlacementTeamView() {
     loadData();
   }, []);
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadData();
+  };
+
   const handleAssign = (userId: string, fullName: string) => {
-    Alert.alert('Assign Member', `Assign ${fullName} to the Placement Cell?`, [
+    Alert.alert('Assign Placement Officer', `Add ${fullName} as a Placement Member?`, [
       { text: 'Cancel', style: 'cancel' },
-      { 
-        text: 'Assign', 
+      {
+        text: 'Assign',
         onPress: async () => {
           try {
             setAssigning(userId);
             await assignPlacementMember({ userId, accessLevel: 'member' });
-            Alert.alert('Success', 'Member assigned successfully.');
+            Alert.alert('Success', `${fullName} is now assigned to the Placement Cell.`);
             await loadData();
             setShowSearch(false);
+            setSearchQuery('');
           } catch (err: any) {
-            Alert.alert('Error', err.message || 'Failed to assign.');
+            Alert.alert('Error', err.message || 'Failed to assign member.');
           } finally {
             setAssigning(null);
           }
-        }
-      }
+        },
+      },
     ]);
   };
 
-  if (loading) {
+  if (loading && !refreshing) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color="#F4C430" />
@@ -60,73 +80,163 @@ export function PlacementTeamView() {
     );
   }
 
-  // Filter out users who are already in the team
-  const availableUsers = eligibleUsers.filter(u => !members.find(m => m.id === u.id));
+  // Filter out users already in team
+  const availableUsers = eligibleUsers
+    .filter((u) => !members.find((m) => m.id === u.id))
+    .filter(
+      (u) =>
+        !searchQuery ||
+        u.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        u.email?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+  const headCount = members.filter((m) => m.accessLevel === 'head').length;
+  const memberCount = members.filter((m) => m.accessLevel !== 'head').length;
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Placement Team</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={() => setShowSearch(!showSearch)}>
-          <MaterialCommunityIcons name={showSearch ? "close" : "plus"} size={20} color="#1A1B1C" />
-          <Text style={styles.addText}>{showSearch ? "Cancel" : "Add Member"}</Text>
-        </TouchableOpacity>
-      </View>
+    <View style={styles.root}>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#1A1B1C"
+            colors={['#1A1B1C']}
+            progressBackgroundColor="#FFFFFF"
+          />
+        }
+      >
+        {/* Dark Team Overview Card */}
+        <View style={styles.overallCard}>
+          <View style={styles.ring}>
+            <Text style={styles.ringValue}>{members.length}</Text>
+            <Text style={styles.ringLabel}>Team Officers</Text>
+          </View>
+          <View style={styles.overallStats}>
+            <View style={styles.statCol}>
+              <Text style={[styles.statValue, { color: '#F4C430' }]}>{headCount}</Text>
+              <Text style={styles.statLabel}>Lead / Head</Text>
+            </View>
+            <View style={styles.statCol}>
+              <Text style={[styles.statValue, { color: '#FFFFFF' }]}>{memberCount}</Text>
+              <Text style={styles.statLabel}>Members</Text>
+            </View>
+            <View style={styles.statCol}>
+              <Text style={[styles.statValue, { color: '#16A34A' }]}>{eligibleUsers.length}</Text>
+              <Text style={styles.statLabel}>Staff Pool</Text>
+            </View>
+          </View>
+        </View>
 
-      <ScrollView contentContainerStyle={styles.scroll}>
+        {/* Action Toggle to Add Member */}
+        <TouchableOpacity
+          style={styles.addToggleBtn}
+          onPress={() => setShowSearch(!showSearch)}
+          activeOpacity={0.8}
+        >
+          <MaterialCommunityIcons
+            name={showSearch ? 'close-circle' : 'account-plus'}
+            size={18}
+            color="#1A1B1C"
+          />
+          <Text style={styles.addToggleText}>
+            {showSearch ? 'Close Staff Directory' : 'Appoint New Placement Member'}
+          </Text>
+        </TouchableOpacity>
+
+        {/* Expandable Staff Directory Section */}
         {showSearch && (
-          <View style={styles.searchSection}>
-            <Text style={styles.sectionTitle}>Eligible Staff ({availableUsers.length})</Text>
+          <View style={styles.appointSection}>
+            <Text style={styles.sectionHeader}>Select Eligible Staff to Appoint</Text>
+            <View style={styles.searchBox}>
+              <Feather name="search" size={16} color="#6B6B6B" />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search staff by name or email..."
+                placeholderTextColor="#9A9A9A"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={8}>
+                  <Feather name="x" size={16} color="#6B6B6B" />
+                </TouchableOpacity>
+              )}
+            </View>
+
             {availableUsers.length === 0 ? (
-              <Text style={styles.emptyText}>No eligible staff available to add.</Text>
+              <View style={styles.emptySearchBox}>
+                <Text style={styles.emptyText}>No available staff match your query.</Text>
+              </View>
             ) : (
-              availableUsers.map(user => (
-                <View key={user.id} style={styles.userCard}>
-                  <View style={styles.avatar}>
-                    <Text style={styles.avatarText}>{user.fullName?.[0]}</Text>
+              availableUsers.map((user) => (
+                <View key={user.id} style={styles.staffCard}>
+                  <View style={styles.staffAvatar}>
+                    <Text style={styles.staffAvatarText}>
+                      {user.fullName ? user.fullName.substring(0, 2).toUpperCase() : 'ST'}
+                    </Text>
                   </View>
-                  <View style={styles.userInfo}>
-                    <Text style={styles.userName}>{user.fullName}</Text>
-                    <Text style={styles.userRole}>{user.role.toUpperCase()}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.staffName}>{user.fullName}</Text>
+                    <Text style={styles.staffRole}>{user.role?.toUpperCase()} • {user.email}</Text>
                   </View>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.assignBtn}
                     onPress={() => handleAssign(user.id, user.fullName)}
                     disabled={assigning === user.id}
+                    activeOpacity={0.7}
                   >
                     {assigning === user.id ? (
                       <ActivityIndicator size="small" color="#1A1B1C" />
                     ) : (
-                      <Text style={styles.assignText}>Assign</Text>
+                      <Text style={styles.assignBtnText}>Assign</Text>
                     )}
                   </TouchableOpacity>
                 </View>
               ))
             )}
-            <View style={styles.divider} />
           </View>
         )}
 
-        <Text style={styles.sectionTitle}>Current Team Members</Text>
+        {/* Current Placement Team Members */}
+        <Text style={styles.sectionTitle}>Current Placement Cell Officers</Text>
         {members.length === 0 ? (
-          <Text style={styles.emptyText}>No members in the placement cell yet.</Text>
+          <View style={styles.emptyCard}>
+            <MaterialCommunityIcons name="account-group-outline" size={40} color="#6B6B6B" />
+            <Text style={styles.emptyTitle}>No Placement Officers Assigned</Text>
+            <Text style={styles.emptySub}>
+              Use the button above to assign staff members to the placement cell.
+            </Text>
+          </View>
         ) : (
-          members.map(member => (
-            <View key={member.id} style={styles.userCard}>
-              <View style={[styles.avatar, { backgroundColor: '#FDF9E6' }]}>
-                <Text style={[styles.avatarText, { color: '#F4C430' }]}>{member.fullName?.[0]}</Text>
+          members.map((member) => {
+            const isHead = member.accessLevel === 'head';
+            return (
+              <View key={member.id} style={styles.memberCard}>
+                <View style={[styles.avatar, isHead && styles.headAvatar]}>
+                  <Text style={[styles.avatarText, isHead && styles.headAvatarText]}>
+                    {member.fullName ? member.fullName.substring(0, 2).toUpperCase() : 'PO'}
+                  </Text>
+                </View>
+
+                <View style={styles.memberInfo}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={styles.memberName}>{member.fullName}</Text>
+                    {isHead && <MaterialCommunityIcons name="star" size={16} color="#F4C430" />}
+                  </View>
+                  <Text style={styles.memberEmail}>{member.email}</Text>
+                </View>
+
+                <View style={[styles.roleChip, isHead && styles.headChip]}>
+                  <Text style={[styles.roleChipText, isHead && styles.headChipText]}>
+                    {isHead ? 'Placement Head' : 'Placement Member'}
+                  </Text>
+                </View>
               </View>
-              <View style={styles.userInfo}>
-                <Text style={styles.userName}>{member.fullName}</Text>
-                <Text style={styles.userRole}>
-                  {member.accessLevel === 'head' ? 'Placement Head' : 'Placement Member'}
-                </Text>
-              </View>
-              {member.accessLevel === 'head' && (
-                <MaterialCommunityIcons name="star" size={20} color="#F4C430" />
-              )}
-            </View>
-          ))
+            );
+          })
         )}
       </ScrollView>
     </View>
@@ -134,61 +244,173 @@ export function PlacementTeamView() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFDF7' },
+  root: { flex: 1, backgroundColor: '#FFFDF7' },
+  container: { padding: 14, paddingBottom: 60, gap: 12 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
+
+  // Dark Overview Card
+  overallCard: {
+    backgroundColor: '#1A1B1C',
+    borderRadius: BorderRadius.card,
+    padding: 18,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20, 
-    backgroundColor: '#FFFFFF', 
-    borderBottomWidth: 1, 
-    borderBottomColor: '#F3F4F6' 
-  },
-  title: { fontSize: 24, fontFamily: FontFamily.bold, color: '#111827' },
-  addBtn: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    backgroundColor: '#F4C430', 
-    paddingHorizontal: 12, 
-    paddingVertical: 8, 
-    borderRadius: 8,
-    gap: 4
-  },
-  addText: { color: '#1A1B1C', fontFamily: FontFamily.bold, fontSize: 13 },
-  scroll: { padding: 16 },
-  sectionTitle: { fontSize: 16, fontFamily: FontFamily.bold, color: '#111827', marginBottom: 12 },
-  emptyText: { fontSize: 14, color: '#6B7280', fontStyle: 'italic', marginBottom: 16 },
-  
-  searchSection: { marginBottom: 24 },
-  divider: { height: 1, backgroundColor: '#E5E7EB', marginVertical: 16 },
-  
-  userCard: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    backgroundColor: '#FFFFFF',
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#F3F4F6',
+    borderColor: '#2A2B2C',
   },
-  avatar: { 
-    width: 40, height: 40, borderRadius: 20, 
-    backgroundColor: '#F3F4F6', 
-    justifyContent: 'center', alignItems: 'center', 
-    marginRight: 12 
+  ring: { alignItems: 'center' },
+  ringValue: { fontSize: 32, fontWeight: '900', color: '#F4C430' },
+  ringLabel: {
+    fontSize: 10,
+    color: '#8A8A8A',
+    marginTop: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    fontWeight: '700',
   },
-  avatarText: { fontSize: 16, fontFamily: FontFamily.bold, color: '#4B5563' },
-  userInfo: { flex: 1 },
-  userName: { fontSize: 15, fontFamily: FontFamily.bold, color: '#111827' },
-  userRole: { fontSize: 12, fontFamily: FontFamily.medium, color: '#6B7280' },
-  
-  assignBtn: { 
-    backgroundColor: '#F4C430', 
-    paddingHorizontal: 16, 
-    paddingVertical: 6, 
-    borderRadius: 6 
+  overallStats: { flexDirection: 'row', gap: 18 },
+  statCol: { alignItems: 'center' },
+  statValue: { fontSize: 18, fontWeight: '800' },
+  statLabel: {
+    fontSize: 10,
+    color: '#8A8A8A',
+    marginTop: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    fontWeight: '700',
   },
-  assignText: { fontSize: 12, fontFamily: FontFamily.bold, color: '#1A1B1C' }
+
+  // Add Toggle Button
+  addToggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F4C430',
+    borderRadius: BorderRadius.button,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  addToggleText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#1A1B1C',
+    fontFamily: FontFamily.bold,
+  },
+
+  // Appoint Section
+  appointSection: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.card,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    padding: 14,
+    gap: 10,
+  },
+  sectionHeader: { fontSize: 13, fontWeight: '800', color: '#171717' },
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F1EA',
+    borderRadius: BorderRadius.input,
+    paddingHorizontal: 10,
+    height: 38,
+    gap: 8,
+  },
+  searchInput: { flex: 1, fontSize: 12, color: '#171717', fontFamily: FontFamily.regular },
+  emptySearchBox: { padding: 16, alignItems: 'center' },
+  emptyText: { fontSize: 12, color: '#6B6B6B', fontStyle: 'italic' },
+  staffCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFEFE',
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    gap: 10,
+  },
+  staffAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F3F1EA',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  staffAvatarText: { fontSize: 12, fontWeight: '800', color: '#1A1B1C' },
+  staffName: { fontSize: 13, fontWeight: '700', color: '#171717' },
+  staffRole: { fontSize: 10, color: '#6B6B6B', marginTop: 1 },
+  assignBtn: {
+    backgroundColor: '#F4C430',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  assignBtnText: { fontSize: 11, fontWeight: '800', color: '#1A1B1C' },
+
+  // Current Members List
+  sectionTitle: {
+    fontSize: 11,
+    color: '#8A8A8A',
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginTop: 6,
+    paddingHorizontal: 2,
+  },
+  memberCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.card,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    padding: 12,
+    gap: 12,
+  },
+  avatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#F3F1EA',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: { fontSize: 13, fontWeight: '800', color: '#1A1B1C' },
+  headAvatar: {
+    backgroundColor: '#FFF4C7',
+    borderWidth: 1,
+    borderColor: '#F4C430',
+  },
+  headAvatarText: { color: '#1A1B1C' },
+  memberInfo: { flex: 1 },
+  memberName: { fontSize: 14, fontWeight: '800', color: '#171717' },
+  memberEmail: { fontSize: 11, color: '#6B6B6B', marginTop: 2 },
+  roleChip: {
+    backgroundColor: '#F3F1EA',
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  roleChipText: { fontSize: 10, fontWeight: '800', color: '#6B6B6B', textTransform: 'uppercase' },
+  headChip: {
+    backgroundColor: '#FFF4C7',
+    borderWidth: 1,
+    borderColor: '#F4C430',
+  },
+  headChipText: { color: '#1A1B1C' },
+
+  emptyCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.card,
+    padding: 30,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    marginTop: 10,
+  },
+  emptyTitle: { fontSize: 15, fontWeight: '800', color: '#171717', marginTop: 8 },
+  emptySub: { fontSize: 12, color: '#6B6B6B', textAlign: 'center', marginTop: 4 },
 });

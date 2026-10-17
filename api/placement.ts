@@ -156,3 +156,46 @@ export async function assignPlacementMember(data: { userId: string; accessLevel:
     body: JSON.stringify(data),
   });
 }
+
+export interface PlacementStudent {
+  id: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  rollNoOrUSN: string;
+  profilePic?: string;
+  branch: string;
+  academicYear: string;
+  cgpa: number | null;
+  tenthPercent: number | null;
+  twelfthPercent: number | null;
+  activeBacklogs: number;
+  resumeUrl: string;
+  portfolioUrl?: string;
+  linkedinUrl?: string;
+  githubUrl?: string;
+  leetcodeUrl?: string;
+}
+
+export interface PlacementStats {
+  totalDrives: number;
+  activeDrives: number;
+  closedDrives: number;
+  draftDrives: number;
+  totalApplications: number;
+  hiredCount: number;
+  shortlistedCount: number;
+  totalMembers: number;
+  totalStudents: number;
+}
+
+export async function listPlacementStudents(): Promise<PlacementStudent[]> {
+  const res = await apiClient<{ students: PlacementStudent[] }>('/placement/students');
+  return (res as any).students;
+}
+
+export async function getPlacementStats(): Promise<PlacementStats> {
+  const res = await apiClient<{ stats: PlacementStats }>('/placement/stats');
+  return (res as any).stats;
+}
+

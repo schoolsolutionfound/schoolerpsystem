@@ -86,4 +86,18 @@ export async function placementRoutes(fastify: FastifyInstance) {
     { preHandler: [requireCollege, requirePlacementAccess] },
     placementController.updateApplicationStatus.bind(placementController)
   );
+
+  // --- Students Directory (Staff) ---
+  fastify.get(
+    '/students',
+    { preHandler: [requireCollege, requirePlacementAccess] },
+    placementController.listStudents.bind(placementController)
+  );
+
+  // --- Stats (Staff) ---
+  fastify.get(
+    '/stats',
+    { preHandler: [requireCollege, requirePlacementAccess] },
+    placementController.getStats.bind(placementController)
+  );
 }

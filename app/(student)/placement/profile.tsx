@@ -1,13 +1,22 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Text, Alert } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Text,
+  TextInput,
+  Alert,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import { useRouter } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getPlacementProfile, updatePlacementProfile, PlacementProfile } from '../../../api/placement';
-import { LoadingView } from '../../../features/shared/components/LoadingView';
-import { AppInput } from '../../../features/shared/components/AppInput';
-import { AppButton } from '../../../features/shared/components/AppButton';
 import { FontFamily } from '../../../constants/fonts';
+import { BorderRadius } from '../../../constants/theme';
 
 export default function PlacementProfileScreen() {
   const router = useRouter();
@@ -45,157 +54,280 @@ export default function PlacementProfileScreen() {
     try {
       setSaving(true);
       await updatePlacementProfile({
-        resumeUrl,
-        portfolioUrl,
-        linkedinUrl,
-        githubUrl,
-        leetcodeUrl,
+        resumeUrl: resumeUrl.trim(),
+        portfolioUrl: portfolioUrl.trim(),
+        linkedinUrl: linkedinUrl.trim(),
+        githubUrl: githubUrl.trim(),
+        leetcodeUrl: leetcodeUrl.trim(),
       });
-      Alert.alert('Success', 'Profile updated successfully!');
+      Alert.alert('Profile Saved', 'Your placement profile has been updated successfully!');
       router.back();
     } catch (err: any) {
-      Alert.alert('Error', err?.message || 'Failed to update profile.');
+      Alert.alert('Save Failed', err?.message || 'Could not update placement profile.');
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) return <LoadingView message="Loading profile..." />;
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.centerBox}>
+          <ActivityIndicator size="large" color="#F4C430" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   if (!profile) return null;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <MaterialCommunityIcons name="arrow-left" size={24} color="#1A1B1C" />
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
+          <Feather name="arrow-left" size={22} color="#171717" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Placement Profile</Text>
-        <View style={{ width: 32 }} />
+        <View style={{ width: 36 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Academic Information</Text>
-          <View style={styles.readOnlyGrid}>
-            <View style={styles.readOnlyItem}>
-              <Text style={styles.readOnlyLabel}>Branch</Text>
-              <Text style={styles.readOnlyValue}>{profile.branch || 'N/A'}</Text>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}
+      >
+        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+          {/* Institutional Academic Card */}
+          <Text style={styles.sectionHeader}>ACADEMIC RECORD (INSTITUTIONAL)</Text>
+          <View style={styles.card}>
+            <View style={styles.readOnlyGrid}>
+              <View style={styles.gridItem}>
+                <Text style={styles.itemLabel}>Branch / Stream</Text>
+                <Text style={styles.itemVal}>{profile.branch || 'General'}</Text>
+              </View>
+              <View style={styles.gridItem}>
+                <Text style={styles.itemLabel}>Academic Year</Text>
+                <Text style={styles.itemVal}>{profile.year || 'Current'}</Text>
+              </View>
+              <View style={styles.gridItem}>
+                <Text style={styles.itemLabel}>College CGPA</Text>
+                <Text style={[styles.itemVal, { color: '#F4C430' }]}>
+                  {profile.cgpa !== null && profile.cgpa !== undefined ? profile.cgpa : 'N/A'}
+                </Text>
+              </View>
+              <View style={styles.gridItem}>
+                <Text style={styles.itemLabel}>Active Backlogs</Text>
+                <Text style={[styles.itemVal, { color: profile.activeBacklogs > 0 ? '#DC2626' : '#16A34A' }]}>
+                  {profile.activeBacklogs}
+                </Text>
+              </View>
+              <View style={styles.gridItem}>
+                <Text style={styles.itemLabel}>10th Percentage</Text>
+                <Text style={styles.itemVal}>{profile.tenthPercent ? `${profile.tenthPercent}%` : 'N/A'}</Text>
+              </View>
+              <View style={styles.gridItem}>
+                <Text style={styles.itemLabel}>12th / Diploma %</Text>
+                <Text style={styles.itemVal}>{profile.twelfthOrDiplomaPercent ? `${profile.twelfthOrDiplomaPercent}%` : 'N/A'}</Text>
+              </View>
             </View>
-            <View style={styles.readOnlyItem}>
-              <Text style={styles.readOnlyLabel}>Year</Text>
-              <Text style={styles.readOnlyValue}>{profile.year || 'N/A'}</Text>
-            </View>
-            <View style={styles.readOnlyItem}>
-              <Text style={styles.readOnlyLabel}>CGPA</Text>
-              <Text style={styles.readOnlyValue}>{profile.cgpa !== null ? profile.cgpa : 'N/A'}</Text>
-            </View>
-            <View style={styles.readOnlyItem}>
-              <Text style={styles.readOnlyLabel}>Active Backlogs</Text>
-              <Text style={styles.readOnlyValue}>{profile.activeBacklogs}</Text>
+
+            <View style={styles.hintBox}>
+              <MaterialCommunityIcons name="information-outline" size={14} color="#6B6B6B" />
+              <Text style={styles.hintText}>
+                Academic records are synchronized from your college administration records. Contact your placement cell if corrections are needed.
+              </Text>
             </View>
           </View>
-          <Text style={styles.readOnlyHint}>
-            * Academic details are managed by the institution. Contact your placement cell if these are incorrect.
-          </Text>
-        </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Application Materials</Text>
-          <AppInput
-            label="Resume / CV (PDF URL)"
-            value={resumeUrl}
-            onChangeText={setResumeUrl}
-            placeholder="https://firebasestorage.googleapis.com/.../resume.pdf"
-            helperText="Upload your resume to Firebase Storage and paste the URL here. Make sure it's a valid link."
-          />
-        </View>
+          {/* Application Materials */}
+          <Text style={styles.sectionHeader}>APPLICATION MATERIALS</Text>
+          <View style={styles.card}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Resume / CV (PDF Link) *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="https://firebasestorage.googleapis.com/.../resume.pdf"
+                placeholderTextColor="#9A9A9A"
+                value={resumeUrl}
+                onChangeText={setResumeUrl}
+                autoCapitalize="none"
+              />
+              <Text style={styles.fieldHint}>
+                Paste a public PDF link (such as Firebase Storage or Google Drive with viewer access).
+              </Text>
+            </View>
+          </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Links & Portfolio</Text>
-          <AppInput
-            label="LinkedIn URL"
-            value={linkedinUrl}
-            onChangeText={setLinkedinUrl}
-            placeholder="https://linkedin.com/in/..."
-          />
-          <AppInput
-            label="GitHub URL"
-            value={githubUrl}
-            onChangeText={setGithubUrl}
-            placeholder="https://github.com/..."
-          />
-          <AppInput
-            label="LeetCode URL"
-            value={leetcodeUrl}
-            onChangeText={setLeetcodeUrl}
-            placeholder="https://leetcode.com/u/..."
-          />
-          <AppInput
-            label="Personal Portfolio URL"
-            value={portfolioUrl}
-            onChangeText={setPortfolioUrl}
-            placeholder="https://..."
-          />
-        </View>
+          {/* Portfolio & Profiles */}
+          <Text style={styles.sectionHeader}>PROFILES & PORTFOLIO</Text>
+          <View style={styles.card}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>LinkedIn Profile URL</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="https://linkedin.com/in/username"
+                placeholderTextColor="#9A9A9A"
+                value={linkedinUrl}
+                onChangeText={setLinkedinUrl}
+                autoCapitalize="none"
+              />
+            </View>
 
-        <View style={{ height: 40 }} />
-      </ScrollView>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>GitHub Profile URL</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="https://github.com/username"
+                placeholderTextColor="#9A9A9A"
+                value={githubUrl}
+                onChangeText={setGithubUrl}
+                autoCapitalize="none"
+              />
+            </View>
 
-      {/* Footer */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>LeetCode / Coding Profile</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="https://leetcode.com/username"
+                placeholderTextColor="#9A9A9A"
+                value={leetcodeUrl}
+                onChangeText={setLeetcodeUrl}
+                autoCapitalize="none"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Personal Website / Portfolio</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="https://myportfolio.dev"
+                placeholderTextColor="#9A9A9A"
+                value={portfolioUrl}
+                onChangeText={setPortfolioUrl}
+                autoCapitalize="none"
+              />
+            </View>
+          </View>
+
+          <View style={{ height: 90 }} />
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      {/* Sticky Save Footer */}
       <View style={styles.footer}>
-        <AppButton
-          title="Save Profile"
-          variant="primary"
+        <TouchableOpacity
+          style={styles.saveBtn}
           onPress={handleSave}
-          loading={saving}
-        />
+          disabled={saving}
+          activeOpacity={0.85}
+        >
+          {saving ? (
+            <ActivityIndicator size="small" color="#1A1B1C" />
+          ) : (
+            <Text style={styles.saveBtnText}>Save Placement Profile</Text>
+          )}
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9FAFB' },
+  container: { flex: 1, backgroundColor: '#FFFDF7' },
+  centerBox: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: '#E8E5DC',
   },
-  backBtn: { padding: 4 },
-  headerTitle: { fontSize: 18, fontFamily: FontFamily.bold, color: '#1A1B1C' },
-  
-  scroll: { padding: 20, paddingBottom: 100 },
-  
-  section: {
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F3F1EA',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: { fontSize: 16, fontWeight: '800', color: '#171717', fontFamily: FontFamily.bold },
+
+  scroll: { padding: 14, gap: 10 },
+  sectionHeader: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#8A8A8A',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginTop: 6,
+    paddingHorizontal: 2,
+  },
+
+  card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    borderRadius: BorderRadius.card,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E8E5DC',
+    padding: 14,
+    gap: 12,
   },
-  sectionTitle: { fontSize: 16, fontFamily: FontFamily.bold, color: '#111827', marginBottom: 16 },
-  
-  readOnlyGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
-  readOnlyItem: { width: '45%', marginBottom: 8 },
-  readOnlyLabel: { fontSize: 12, fontFamily: FontFamily.medium, color: '#6B7280', marginBottom: 4 },
-  readOnlyValue: { fontSize: 15, fontFamily: FontFamily.semibold, color: '#111827' },
-  readOnlyHint: { fontSize: 11, fontFamily: FontFamily.regular, color: '#9CA3AF', marginTop: 12, fontStyle: 'italic' },
-  
+
+  readOnlyGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  gridItem: { width: '47%', paddingVertical: 4 },
+  itemLabel: { fontSize: 11, color: '#8A8A8A', fontWeight: '600' },
+  itemVal: { fontSize: 14, fontWeight: '800', color: '#171717', marginTop: 2 },
+
+  hintBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#F3F1EA',
+    borderRadius: 6,
+    padding: 8,
+    marginTop: 4,
+  },
+  hintText: { fontSize: 11, color: '#6B6B6B', flex: 1, lineHeight: 15 },
+
+  inputGroup: { gap: 6 },
+  label: { fontSize: 12, fontWeight: '700', color: '#4B5563' },
+  input: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    borderRadius: BorderRadius.input,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 13,
+    color: '#171717',
+    fontFamily: FontFamily.regular,
+  },
+  fieldHint: { fontSize: 10, color: '#8A8A8A', marginTop: 2 },
+
   footer: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 20,
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: '#E8E5DC',
+    padding: 14,
   },
+  saveBtn: {
+    backgroundColor: '#F4C430',
+    borderRadius: BorderRadius.button,
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  saveBtnText: { fontSize: 14, fontWeight: '800', color: '#1A1B1C' },
 });
