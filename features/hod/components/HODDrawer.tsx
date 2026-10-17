@@ -196,6 +196,32 @@ export const HODDrawer: React.FC<HODDrawerProps> = ({
               );
             })}
 
+            {/* Educator & Teaching Operations */}
+            <Text style={styles.sectionHeader}>EDUCATOR OPERATIONS</Text>
+            <TouchableOpacity
+              style={styles.navItem}
+              onPress={() => {
+                onClose();
+                router.push('/teacher-timetable');
+              }}
+              activeOpacity={0.7}
+            >
+              <MaterialCommunityIcons name="calendar-clock" size={22} color="#1D4ED8" />
+              <Text style={styles.navItemText}>My Teaching Timetable</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.navItem}
+              onPress={() => {
+                onClose();
+                router.push('/teacher-attendance');
+              }}
+              activeOpacity={0.7}
+            >
+              <MaterialCommunityIcons name="clipboard-check" size={22} color="#15803D" />
+              <Text style={styles.navItemText}>Mark Lecture Attendance</Text>
+            </TouchableOpacity>
+
             {/* Role Switcher Section (if user holds multiple roles) */}
             {roles && roles.length > 1 && (
               <View style={styles.roleSwitchSection}>

@@ -44,6 +44,7 @@ import { AttendanceReportsView } from '../../features/shared/components/Attendan
 import { AssignCourseInstructorModal } from '../../features/hod/components/modals/AssignCourseInstructorModal';
 import { ReviewHallTicketModal } from '../../features/hod/components/modals/ReviewHallTicketModal';
 import { CreateDeptNoticeModal } from '../../features/hod/components/modals/CreateDeptNoticeModal';
+import { DepartmentDossierModal } from '../../features/hod/components/modals/DepartmentDossierModal';
 
 const BOTTOM_TABS: {
   key: HODTab;
@@ -102,13 +103,14 @@ export default function HODHomeScreen() {
   const [eligibilityModalVisible, setEligibilityModalVisible] = useState(false);
   const [selectedEligibilityRecord, setSelectedEligibilityRecord] = useState<ExamEligibilityRecord | null>(null);
   const [noticeModalVisible, setNoticeModalVisible] = useState(false);
+  const [deptDossierModalVisible, setDeptDossierModalVisible] = useState(false);
 
   // Load department data
   const loadData = useCallback(async () => {
     setErrorMessage(null); // Clear previous error on retry (E14)
     try {
       const targetDept = department === 'Department not set' ? undefined : department;
-      const [kpisRes, facultyRes, coursesRes, elgRes, noticesRes] = await Promise.all([
+      const results = await Promise.allSettled([
         fetchHODKPIsApi(targetDept),
         fetchHODFacultyApi(targetDept),
         fetchDepartmentCoursesApi(targetDept),
@@ -117,11 +119,11 @@ export default function HODHomeScreen() {
       ]);
 
       if (!isMountedRef.current) return;
-      setKpis(kpisRes);
-      setFaculty(facultyRes);
-      setCourses(coursesRes);
-      setEligibility(elgRes);
-      setNotices(noticesRes);
+      if (results[0].status === 'fulfilled' && results[0].value) setKpis(results[0].value);
+      if (results[1].status === 'fulfilled' && results[1].value) setFaculty(results[1].value);
+      if (results[2].status === 'fulfilled' && results[2].value) setCourses(results[2].value);
+      if (results[3].status === 'fulfilled' && results[3].value) setEligibility(results[3].value);
+      if (results[4].status === 'fulfilled' && results[4].value) setNotices(results[4].value);
     } catch (err: any) {
       if (!isMountedRef.current) return;
       console.warn('HOD data load error:', err);
@@ -279,6 +281,13 @@ export default function HODHomeScreen() {
                 setEligibilityModalVisible(true);
               }}
               onOpenNoticeModal={() => setNoticeModalVisible(true)}
+              onOpenDeptDossierModal={() => setDeptDossierModalVisible(true)}
+              onNavigateToTeacherTimetable={() => router.push('/teacher-timetable')}
+              onNavigateToTeacherAttendance={() => router.push('/teacher-attendance')}
+              onSwitchToTeacherPortal={() => {
+                useUserStore.getState().switchRole('teacher');
+                router.replace('/(teacher)/home');
+              }}
             />
           )}
 
@@ -393,6 +402,19 @@ export default function HODHomeScreen() {
           authorName={fullName}
           onClose={() => setNoticeModalVisible(false)}
           onSubmit={handleCreateNotice}
+        />
+
+        <DepartmentDossierModal
+          visible={deptDossierModalVisible}
+          onClose={() => setDeptDossierModalVisible(false)}
+          kpis={kpis}
+          courses={courses}
+          faculty={faculty}
+          eligibility={eligibility}
+          notices={notices}
+          departmentName={department}
+          institutionName={institutionName}
+          onRefresh={loadData}
         />
       </SafeAreaView>
     </View>

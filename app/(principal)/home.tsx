@@ -45,6 +45,7 @@ import { AttendanceReportsView } from '../../features/shared/components/Attendan
 import { AssignHomeroomModal } from '../../features/principal/components/modals/AssignHomeroomModal';
 import { AddCounselingNoteModal } from '../../features/principal/components/modals/AddCounselingNoteModal';
 import { CreateNoticeModal } from '../../features/principal/components/modals/CreateNoticeModal';
+import { CampusDossierModal } from '../../features/principal/components/modals/CampusDossierModal';
 
 const BOTTOM_TABS: {
   key: PrincipalTab;
@@ -101,30 +102,30 @@ export default function PrincipalHomeScreen() {
   const [selectedSection, setSelectedSection] = useState<HomeroomSection | null>(null);
   const [counselingModalVisible, setCounselingModalVisible] = useState(false);
   const [noticeModalVisible, setNoticeModalVisible] = useState(false);
+  const [dossierModalVisible, setDossierModalVisible] = useState(false);
 
   // Load all principal data
   const loadData = useCallback(async () => {
     setErrorMessage(null); // Clear previous error
     try {
-      const [kpisData, homeroomsData, staffData, counselingData, noticesData] =
-        await Promise.all([
-          fetchPrincipalKPIsApi(),
-          fetchPrincipalHomeroomsApi(),
-          fetchPrincipalStaffDirectoryApi(),
-          fetchCounselingRecordsApi(),
-          fetchSchoolNoticesApi(),
-        ]);
+      const results = await Promise.allSettled([
+        fetchPrincipalKPIsApi(),
+        fetchPrincipalHomeroomsApi(),
+        fetchPrincipalStaffDirectoryApi(),
+        fetchCounselingRecordsApi(),
+        fetchSchoolNoticesApi(),
+      ]);
 
       if (!isMountedRef.current) return;
-      setKpis(kpisData);
-      setHomerooms(homeroomsData);
-      setStaffList(staffData);
-      setCounseling(counselingData);
-      setNotices(noticesData);
+      if (results[0].status === 'fulfilled' && results[0].value) setKpis(results[0].value);
+      if (results[1].status === 'fulfilled' && results[1].value) setHomerooms(results[1].value);
+      if (results[2].status === 'fulfilled' && results[2].value) setStaffList(results[2].value);
+      if (results[3].status === 'fulfilled' && results[3].value) setCounseling(results[3].value);
+      if (results[4].status === 'fulfilled' && results[4].value) setNotices(results[4].value);
     } catch (err: any) {
       if (!isMountedRef.current) return;
       console.warn('Principal data load error:', err);
-      setErrorMessage(err.message || 'Failed to load school data. Check server connection.');
+      setErrorMessage(err?.message || 'Failed to load school data. Check server connection.');
     } finally {
       if (isMountedRef.current) {
         setLoading(false);
@@ -264,6 +265,13 @@ export default function PrincipalHomeScreen() {
                   }}
                   onOpenAssignModal={handleOpenAssignModal}
                   onOpenNoticeModal={() => setNoticeModalVisible(true)}
+                  onOpenDossierModal={() => setDossierModalVisible(true)}
+                  onNavigateToTeacherTimetable={() => router.push('/teacher-timetable')}
+                  onNavigateToTeacherAttendance={() => router.push('/teacher-attendance')}
+                  onSwitchToTeacherPortal={() => {
+                    useUserStore.getState().switchRole('teacher');
+                    router.replace('/(teacher)/home');
+                  }}
                 />
               )}
 
@@ -369,6 +377,18 @@ export default function PrincipalHomeScreen() {
         visible={noticeModalVisible}
         onClose={() => setNoticeModalVisible(false)}
         onSubmit={handlePublishNotice}
+      />
+
+      <CampusDossierModal
+        visible={dossierModalVisible}
+        onClose={() => setDossierModalVisible(false)}
+        kpis={kpis}
+        homerooms={homerooms}
+        staff={staffList}
+        counseling={counseling}
+        notices={notices}
+        institutionName={institutionName}
+        onRefresh={loadData}
       />
     </View>
   );
