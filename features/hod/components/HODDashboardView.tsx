@@ -7,6 +7,7 @@ import {
   ScrollView,
   RefreshControl,
   TextInput,
+  useWindowDimensions,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { FontFamily } from '../../../constants/fonts';
@@ -69,6 +70,13 @@ export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
   onNavigateToTeacherAttendance,
   onSwitchToTeacherPortal,
 }) => {
+  const { width: windowWidth } = useWindowDimensions();
+  const horizontalPadding = 16;
+  const cardGap = 10;
+  // Calculate exact 2-column card width dynamically based on screen width
+  const colWidth = Math.floor((windowWidth - (horizontalPadding * 2) - cardGap) / 2);
+  const quickCardWidth = Math.max(130, Math.floor((windowWidth - 32 - 10) / 2.3));
+
   const [courseSearch, setCourseSearch] = useState('');
   const [showAllCourses, setShowAllCourses] = useState(false);
 
@@ -111,50 +119,54 @@ export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
       {/* 2. TOP 2 EDUCATIONAL & TIMETABLE ACTION CARDS */}
       <View style={styles.topActionsRow}>
         <TouchableOpacity
-          style={styles.topActionCard}
+          style={[styles.topActionCard, { width: colWidth }]}
           onPress={onOpenDeptDossierModal || (() => onNavigateTab('courses'))}
           activeOpacity={0.8}
         >
           <View style={styles.blackIconBox}>
-            <MaterialCommunityIcons name="book-open-outline" size={22} color="#F59E0B" />
+            <MaterialCommunityIcons name="book-open-outline" size={18} color="#F59E0B" />
           </View>
           <View style={styles.topActionContent}>
-            <Text style={styles.topActionTitle}>Educational Tools</Text>
+            <Text style={styles.topActionTitle} numberOfLines={1} adjustsFontSizeToFit>
+              Educational Tools
+            </Text>
             <Text style={styles.topActionSub} numberOfLines={2}>
-              Manage courses, syllabus and academic labs.
+              Manage courses & academic labs.
             </Text>
           </View>
-          <MaterialCommunityIcons name="chevron-right" size={20} color="#9CA3AF" />
+          <MaterialCommunityIcons name="chevron-right" size={16} color="#9CA3AF" />
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.topActionCard}
+          style={[styles.topActionCard, { width: colWidth }]}
           onPress={onNavigateToTeacherTimetable}
           activeOpacity={0.8}
         >
           <View style={styles.blackIconBox}>
-            <MaterialCommunityIcons name="calendar-clock" size={22} color="#F59E0B" />
+            <MaterialCommunityIcons name="calendar-clock" size={18} color="#F59E0B" />
           </View>
           <View style={styles.topActionContent}>
-            <Text style={styles.topActionTitle}>My Timetable</Text>
+            <Text style={styles.topActionTitle} numberOfLines={1} adjustsFontSizeToFit>
+              My Timetable
+            </Text>
             <Text style={styles.topActionSub} numberOfLines={2}>
               View your schedule for the day.
             </Text>
           </View>
-          <MaterialCommunityIcons name="chevron-right" size={20} color="#9CA3AF" />
+          <MaterialCommunityIcons name="chevron-right" size={16} color="#9CA3AF" />
         </TouchableOpacity>
       </View>
 
-      {/* 3. METRICS (2x2 GRID) */}
+      {/* 3. METRICS (2x2 GRID RESPONSIVE) */}
       <View style={styles.metricsGrid}>
         {/* Card 1: Students */}
         <TouchableOpacity
-          style={styles.metricCard}
+          style={[styles.metricCard, { width: colWidth }]}
           onPress={() => onNavigateTab('courses')}
           activeOpacity={0.8}
         >
           <View style={styles.blackIconBox}>
-            <MaterialCommunityIcons name="account-group" size={22} color="#F59E0B" />
+            <MaterialCommunityIcons name="account-group" size={20} color="#F59E0B" />
           </View>
           <View style={styles.metricContent}>
             <Text style={styles.metricVal}>{kpis.totalStudents || 350}</Text>
@@ -165,12 +177,12 @@ export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
 
         {/* Card 2: Faculty */}
         <TouchableOpacity
-          style={styles.metricCard}
+          style={[styles.metricCard, { width: colWidth }]}
           onPress={() => onNavigateTab('faculty')}
           activeOpacity={0.8}
         >
           <View style={styles.blackIconBox}>
-            <MaterialCommunityIcons name="account" size={22} color="#F59E0B" />
+            <MaterialCommunityIcons name="account" size={20} color="#F59E0B" />
           </View>
           <View style={styles.metricContent}>
             <Text style={styles.metricVal}>{kpis.facultyOnDuty || kpis.totalFaculty || 8}</Text>
@@ -181,12 +193,12 @@ export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
 
         {/* Card 3: Classes / Courses */}
         <TouchableOpacity
-          style={styles.metricCard}
+          style={[styles.metricCard, { width: colWidth }]}
           onPress={() => onNavigateTab('courses')}
           activeOpacity={0.8}
         >
           <View style={styles.blackIconBox}>
-            <MaterialCommunityIcons name="book-open-outline" size={22} color="#F59E0B" />
+            <MaterialCommunityIcons name="book-open-outline" size={20} color="#F59E0B" />
           </View>
           <View style={styles.metricContent}>
             <Text style={styles.metricVal}>{courses.length || kpis.activeCourses || 7}</Text>
@@ -197,12 +209,12 @@ export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
 
         {/* Card 4: Detentions */}
         <TouchableOpacity
-          style={styles.metricCard}
+          style={[styles.metricCard, { width: colWidth }]}
           onPress={() => onNavigateTab('eligibility')}
           activeOpacity={0.8}
         >
           <View style={styles.blackIconBox}>
-            <MaterialCommunityIcons name="file-document-outline" size={22} color="#F59E0B" />
+            <MaterialCommunityIcons name="file-document-outline" size={20} color="#F59E0B" />
           </View>
           <View style={styles.metricContent}>
             <Text style={styles.metricVal}>{pendingDetentions.length || kpis.detentionAlertsCount || 0}</Text>
@@ -272,7 +284,7 @@ export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
                     activeOpacity={0.8}
                   >
                     <Text style={styles.assignPillText}>
-                      {c.instructorName ? 'Assigned' : 'Assign'}
+                      {c.instructorName ? 'Assign' : 'Assign'}
                     </Text>
                     <MaterialCommunityIcons name="chevron-right" size={16} color="#B45309" />
                   </TouchableOpacity>
@@ -321,7 +333,7 @@ export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
             </Text>
             <MaterialCommunityIcons
               name={showAllCourses ? 'chevron-up' : 'chevron-right'}
-              size={20}
+              size={18}
               color="#111827"
             />
           </TouchableOpacity>
@@ -342,66 +354,66 @@ export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
         >
           {/* Card 1: All Classes / Courses */}
           <TouchableOpacity
-            style={styles.quickCard}
+            style={[styles.quickCard, { width: quickCardWidth }]}
             onPress={() => onNavigateTab('courses')}
             activeOpacity={0.8}
           >
             <View style={styles.blackIconBoxSm}>
-              <MaterialCommunityIcons name="book-open-outline" size={18} color="#F59E0B" />
+              <MaterialCommunityIcons name="book-open-outline" size={16} color="#F59E0B" />
             </View>
             <View style={styles.quickCardText}>
-              <Text style={styles.quickCardTitle}>All Courses</Text>
+              <Text style={styles.quickCardTitle} numberOfLines={1}>All Courses</Text>
               <Text style={styles.quickCardSub}>{courses.length} Subjects</Text>
             </View>
-            <MaterialCommunityIcons name="chevron-right" size={18} color="#9CA3AF" />
+            <MaterialCommunityIcons name="chevron-right" size={16} color="#9CA3AF" />
           </TouchableOpacity>
 
           {/* Card 2: Faculty Roster */}
           <TouchableOpacity
-            style={styles.quickCard}
+            style={[styles.quickCard, { width: quickCardWidth }]}
             onPress={() => onNavigateTab('faculty')}
             activeOpacity={0.8}
           >
             <View style={styles.blackIconBoxSm}>
-              <MaterialCommunityIcons name="account-group" size={18} color="#F59E0B" />
+              <MaterialCommunityIcons name="account-group" size={16} color="#F59E0B" />
             </View>
             <View style={styles.quickCardText}>
-              <Text style={styles.quickCardTitle}>Faculty Load</Text>
+              <Text style={styles.quickCardTitle} numberOfLines={1}>Faculty Load</Text>
               <Text style={styles.quickCardSub}>{kpis.totalFaculty} Instructors</Text>
             </View>
-            <MaterialCommunityIcons name="chevron-right" size={18} color="#9CA3AF" />
+            <MaterialCommunityIcons name="chevron-right" size={16} color="#9CA3AF" />
           </TouchableOpacity>
 
           {/* Card 3: Detentions / Hall Tickets */}
           <TouchableOpacity
-            style={styles.quickCard}
+            style={[styles.quickCard, { width: quickCardWidth }]}
             onPress={() => onNavigateTab('eligibility')}
             activeOpacity={0.8}
           >
             <View style={styles.blackIconBoxSm}>
-              <MaterialCommunityIcons name="file-document-outline" size={18} color="#F59E0B" />
+              <MaterialCommunityIcons name="file-document-outline" size={16} color="#F59E0B" />
             </View>
             <View style={styles.quickCardText}>
-              <Text style={styles.quickCardTitle}>Hall Tickets</Text>
+              <Text style={styles.quickCardTitle} numberOfLines={1}>Hall Tickets</Text>
               <Text style={styles.quickCardSub}>{pendingDetentions.length} Flagged</Text>
             </View>
-            <MaterialCommunityIcons name="chevron-right" size={18} color="#9CA3AF" />
+            <MaterialCommunityIcons name="chevron-right" size={16} color="#9CA3AF" />
           </TouchableOpacity>
 
           {/* Card 4: Post Memo */}
           <TouchableOpacity
-            style={styles.quickCard}
+            style={[styles.quickCard, { width: quickCardWidth }]}
             onPress={onOpenNoticeModal}
             activeOpacity={0.8}
           >
             <View style={styles.blackIconBoxSm}>
-              <MaterialCommunityIcons name="bullhorn-outline" size={18} color="#F59E0B" />
+              <MaterialCommunityIcons name="bullhorn-outline" size={16} color="#F59E0B" />
             </View>
             <View style={styles.quickCardText}>
-              <Text style={styles.quickCardTitle}>Department Memo</Text>
+              <Text style={styles.quickCardTitle} numberOfLines={1}>Dept Memo</Text>
               <Text style={styles.quickCardSub}>Create Notice</Text>
             </View>
-            <MaterialCommunityIcons name="chevron-right" size={18} color="#9CA3AF" />
+            <MaterialCommunityIcons name="chevron-right" size={16} color="#9CA3AF" />
           </TouchableOpacity>
         </ScrollView>
       </View>
@@ -418,15 +430,15 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: 14,
     paddingBottom: 24,
-    gap: 16,
+    gap: 14,
   },
 
   // 1. Greeting
   greetingSection: {
     gap: 2,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   dateText: {
     fontFamily: FontFamily.regular,
@@ -455,23 +467,24 @@ const styles = StyleSheet.create({
   // 2. Top Action Cards
   topActionsRow: {
     flexDirection: 'row',
-    gap: 12,
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   topActionCard: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E5E7EB',
     borderRadius: 12,
-    padding: 12,
-    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    gap: 6,
   },
   blackIconBox: {
-    width: 42,
-    height: 42,
-    borderRadius: 10,
+    width: 36,
+    height: 36,
+    borderRadius: 8,
     backgroundColor: '#111827',
     alignItems: 'center',
     justifyContent: 'center',
@@ -481,14 +494,14 @@ const styles = StyleSheet.create({
   },
   topActionTitle: {
     fontFamily: FontFamily.bold,
-    fontSize: 13,
+    fontSize: 12,
     color: '#111827',
   },
   topActionSub: {
     fontFamily: FontFamily.regular,
-    fontSize: 11,
+    fontSize: 10,
     color: '#6B7280',
-    lineHeight: 14,
+    lineHeight: 13,
     marginTop: 2,
   },
 
@@ -496,36 +509,37 @@ const styles = StyleSheet.create({
   metricsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    justifyContent: 'space-between',
+    gap: 10,
   },
   metricCard: {
-    width: '48.2%',
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E5E7EB',
     borderRadius: 12,
-    padding: 12,
-    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    gap: 8,
   },
   metricContent: {
     flex: 1,
   },
   metricVal: {
     fontFamily: FontFamily.bold,
-    fontSize: 22,
+    fontSize: 20,
     color: '#111827',
-    lineHeight: 26,
+    lineHeight: 24,
   },
   metricLabel: {
     fontFamily: FontFamily.bold,
-    fontSize: 13,
+    fontSize: 12,
     color: '#111827',
   },
   metricSub: {
     fontFamily: FontFamily.regular,
-    fontSize: 11,
+    fontSize: 10,
     color: '#6B7280',
     marginTop: 1,
   },
@@ -536,8 +550,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
     borderRadius: 12,
-    padding: 16,
-    gap: 12,
+    padding: 14,
+    gap: 10,
   },
   classSectionHeader: {
     flexDirection: 'row',
@@ -545,8 +559,8 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   blackSquareSm: {
-    width: 38,
-    height: 38,
+    width: 36,
+    height: 36,
     borderRadius: 8,
     backgroundColor: '#111827',
     alignItems: 'center',
@@ -587,16 +601,16 @@ const styles = StyleSheet.create({
 
   // Class List Items
   classList: {
-    gap: 12,
+    gap: 10,
   },
   classItem: {
-    paddingVertical: 8,
-    gap: 8,
+    paddingVertical: 6,
+    gap: 6,
   },
   classItemBorder: {
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
-    paddingBottom: 12,
+    paddingBottom: 10,
   },
   classItemTop: {
     flexDirection: 'row',
@@ -615,15 +629,15 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.regular,
     fontSize: 12,
     color: '#6B7280',
-    marginTop: 2,
+    marginTop: 1,
   },
   assignPillBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 2,
     backgroundColor: '#FEF3C7',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: 6,
   },
   assignPillText: {
@@ -634,12 +648,13 @@ const styles = StyleSheet.create({
   classItemStats: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    flexWrap: 'wrap',
+    gap: 12,
   },
   statChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
   },
   statusDot: {
     width: 6,
@@ -680,7 +695,7 @@ const styles = StyleSheet.create({
 
   // 5. Quick Access
   quickAccessSection: {
-    gap: 12,
+    gap: 10,
   },
   quickAccessHeader: {
     flexDirection: 'row',
@@ -702,18 +717,17 @@ const styles = StyleSheet.create({
     paddingRight: 16,
   },
   quickCard: {
-    width: 150,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E5E7EB',
     borderRadius: 12,
-    padding: 12,
+    padding: 10,
     gap: 6,
   },
   blackIconBoxSm: {
-    width: 34,
-    height: 34,
-    borderRadius: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 6,
     backgroundColor: '#111827',
     alignItems: 'center',
     justifyContent: 'center',
@@ -724,12 +738,12 @@ const styles = StyleSheet.create({
   },
   quickCardTitle: {
     fontFamily: FontFamily.bold,
-    fontSize: 13,
+    fontSize: 12,
     color: '#111827',
   },
   quickCardSub: {
     fontFamily: FontFamily.regular,
-    fontSize: 11,
+    fontSize: 10,
     color: '#6B7280',
   },
 });
