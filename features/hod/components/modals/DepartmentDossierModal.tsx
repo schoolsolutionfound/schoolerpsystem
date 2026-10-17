@@ -170,7 +170,12 @@ ${notices
           </TouchableOpacity>
 
           {/* Tabs */}
-          <View style={styles.tabsRow}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.tabsRowScroll}
+            contentContainerStyle={styles.tabsRow}
+          >
             {(
               [
                 { key: 'overview', label: 'Pulse', icon: 'view-dashboard' },
@@ -199,7 +204,7 @@ ${notices
                 </TouchableOpacity>
               );
             })}
-          </View>
+          </ScrollView>
 
           {/* Content Area */}
           <ScrollView style={styles.scrollBody} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -651,12 +656,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingTop: 8,
   },
+  tabsRowScroll: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    maxHeight: 52,
+  },
   tabItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
     paddingVertical: 10,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
@@ -679,6 +689,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
+    paddingBottom: 90,
     gap: 16,
   },
   tabSection: {

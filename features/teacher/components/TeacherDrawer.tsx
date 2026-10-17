@@ -61,6 +61,8 @@ export const TeacherDrawer: React.FC<TeacherDrawerProps> = ({
 }) => {
   const router = useRouter();
   const resetUser = useUserStore((s) => s.resetUser);
+  const roles = useUserStore((s) => s.roles) || [];
+  const switchRole = useUserStore((s) => s.switchRole);
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
 
@@ -228,6 +230,41 @@ export const TeacherDrawer: React.FC<TeacherDrawerProps> = ({
                 <Feather name="chevron-right" size={16} color="#5A5A5A" />
               </TouchableOpacity>
             ))}
+
+            <Text style={[styles.sectionLabel, { marginTop: 18 }]}>SWITCH PORTAL</Text>
+            <TouchableOpacity
+              style={styles.menuItem}
+              activeOpacity={0.7}
+              onPress={() => {
+                onClose();
+                switchRole('principal');
+                router.replace('/(principal)/home');
+              }}
+            >
+              <View style={[styles.menuIcon, { backgroundColor: '#262626' }]}>
+                <MaterialCommunityIcons name="shield-account-outline" size={18} color="#F4C430" />
+              </View>
+              <Text style={styles.menuText}>Principal Dashboard</Text>
+              <Feather name="chevron-right" size={16} color="#5A5A5A" />
+            </TouchableOpacity>
+
+            {roles.includes('hod') && (
+              <TouchableOpacity
+                style={styles.menuItem}
+                activeOpacity={0.7}
+                onPress={() => {
+                  onClose();
+                  switchRole('hod');
+                  router.replace('/(hod)/home');
+                }}
+              >
+                <View style={[styles.menuIcon, { backgroundColor: '#262626' }]}>
+                  <MaterialCommunityIcons name="domain" size={18} color="#FB923C" />
+                </View>
+                <Text style={styles.menuText}>HOD Dashboard</Text>
+                <Feather name="chevron-right" size={16} color="#5A5A5A" />
+              </TouchableOpacity>
+            )}
           </ScrollView>
 
           <View style={styles.footer}>

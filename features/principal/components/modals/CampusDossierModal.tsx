@@ -107,7 +107,12 @@ ${notices.map((n, i) => `  ${i + 1}. [${n.priority.toUpperCase()}] ${n.title} (A
           </View>
 
           {/* Quick Sub-Tabs */}
-          <View style={styles.tabRow}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.tabRowScroll}
+            contentContainerStyle={styles.tabRow}
+          >
             {(
               [
                 { key: 'overview', label: 'Executive Pulse', icon: 'view-dashboard' },
@@ -132,7 +137,7 @@ ${notices.map((n, i) => `  ${i + 1}. [${n.priority.toUpperCase()}] ${n.title} (A
                 </Text>
               </TouchableOpacity>
             ))}
-          </View>
+          </ScrollView>
 
           {/* Content Scroll View */}
           <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -368,21 +373,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  tabRow: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingVertical: 12,
+  tabRowScroll: {
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
+    maxHeight: 54,
+  },
+  tabRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 2,
   },
   tabBtn: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 9,
-    borderRadius: 10,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    borderRadius: 20,
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
     borderColor: '#E2E8F0',
@@ -392,7 +402,7 @@ const styles = StyleSheet.create({
     borderColor: '#0F172A',
   },
   tabBtnText: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: FontFamily.bold,
     fontWeight: '700',
     color: '#64748B',
@@ -404,7 +414,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingVertical: 14,
+    paddingTop: 14,
+    paddingBottom: 90,
     gap: 14,
   },
   tabContent: {

@@ -72,6 +72,8 @@ export default function TeacherHomeScreen() {
   const profilePic = useUserStore((state) => state.profilePic);
   const email = useUserStore((state) => state.email) || '';
   const institutionName = useUserStore((state) => state.institutionName) || '';
+  const roles = useUserStore((state) => state.roles) || [];
+  const canSwitchToHOD = roles.includes('hod');
 
   const { tab } = useLocalSearchParams<{ tab?: string }>();
   const [activeTab, setActiveTab] = useState<Tab>((tab as Tab) || 'home');
@@ -213,6 +215,18 @@ export default function TeacherHomeScreen() {
           onMenuPress={() => setDrawerOpen(true)}
           onNotificationsPress={() => router.push('/notifications')}
           onProfilePress={() => router.push('/(teacher)/profile')}
+          onSwitchToPrincipal={() => {
+            useUserStore.getState().switchRole('principal');
+            router.replace('/(principal)/home');
+          }}
+          onSwitchToHOD={
+            canSwitchToHOD
+              ? () => {
+                  useUserStore.getState().switchRole('hod');
+                  router.replace('/(hod)/home');
+                }
+              : undefined
+          }
         />
 
         <View style={styles.content}>
