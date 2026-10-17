@@ -53,10 +53,10 @@ const BOTTOM_TABS: {
   icon: keyof typeof MaterialCommunityIcons.glyphMap;
   iconActive: keyof typeof MaterialCommunityIcons.glyphMap;
 }[] = [
-  { key: 'dashboard', label: 'Cockpit', icon: 'view-dashboard-outline', iconActive: 'view-dashboard' },
-  { key: 'homerooms', label: 'Homeroom', icon: 'google-classroom', iconActive: 'google-classroom' },
-  { key: 'staff', label: 'Faculty', icon: 'human-male-board', iconActive: 'human-male-board' },
-  { key: 'counseling', label: 'Guidance', icon: 'heart-pulse', iconActive: 'heart-pulse' },
+  { key: 'dashboard', label: 'Dashboard', icon: 'home-outline', iconActive: 'home' },
+  { key: 'homerooms', label: 'Homeroom', icon: 'account-group-outline', iconActive: 'account-group' },
+  { key: 'staff', label: 'Faculty', icon: 'account-outline', iconActive: 'account' },
+  { key: 'counseling', label: 'Guidance', icon: 'heart-outline', iconActive: 'heart' },
   { key: 'notices', label: 'Circulars', icon: 'bullhorn-outline', iconActive: 'bullhorn' },
 ];
 
@@ -257,6 +257,7 @@ export default function PrincipalHomeScreen() {
             <>
               {activeTab === 'dashboard' && (
                 <PrincipalDashboardView
+                  fullName={fullName}
                   kpis={kpis}
                   homerooms={homerooms}
                   notices={notices}
@@ -336,11 +337,17 @@ export default function PrincipalHomeScreen() {
                 <MaterialCommunityIcons
                   name={active ? tab.iconActive : tab.icon}
                   size={24}
-                  color={active ? '#D97706' : '#9CA3AF'}
+                  color={active ? '#111827' : '#9CA3AF'}
                 />
                 <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>
                   {tab.label}
                 </Text>
+                <View
+                  style={[
+                    styles.tabIndicator,
+                    { backgroundColor: active ? '#F59E0B' : 'transparent' },
+                  ]}
+                />
               </TouchableOpacity>
             );
           })}
@@ -472,14 +479,18 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   tabLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#9CA3AF',
-    fontFamily: FontFamily.semibold,
+    fontSize: 11,
+    color: '#6B7280',
+    fontFamily: FontFamily.regular,
   },
   tabLabelActive: {
-    color: '#D97706',
-    fontWeight: '800',
+    color: '#111827',
     fontFamily: FontFamily.bold,
+  },
+  tabIndicator: {
+    width: 24,
+    height: 3,
+    borderRadius: 2,
+    marginTop: 3,
   },
 });

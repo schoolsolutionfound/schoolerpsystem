@@ -52,9 +52,9 @@ const BOTTOM_TABS: {
   icon: keyof typeof MaterialCommunityIcons.glyphMap;
   iconActive: keyof typeof MaterialCommunityIcons.glyphMap;
 }[] = [
-  { key: 'dashboard', label: 'Overview', icon: 'view-dashboard-outline', iconActive: 'view-dashboard' },
+  { key: 'dashboard', label: 'Dashboard', icon: 'home-outline', iconActive: 'home' },
   { key: 'courses', label: 'Courses', icon: 'book-open-outline', iconActive: 'book-open' },
-  { key: 'faculty', label: 'Faculty', icon: 'human-male-board', iconActive: 'human-male-board' },
+  { key: 'faculty', label: 'Faculty', icon: 'account-outline', iconActive: 'account' },
   { key: 'eligibility', label: 'Detentions', icon: 'card-account-details-outline', iconActive: 'card-account-details' },
   { key: 'notices', label: 'Memos', icon: 'bullhorn-outline', iconActive: 'bullhorn' },
 ];
@@ -269,6 +269,8 @@ export default function HODHomeScreen() {
           <View style={styles.body}>
           {activeTab === 'dashboard' && (
             <HODDashboardView
+              fullName={fullName}
+              department={department}
               kpis={kpis}
               courses={courses}
               eligibility={eligibility}
@@ -356,11 +358,17 @@ export default function HODHomeScreen() {
                 <MaterialCommunityIcons
                   name={isSelected ? tab.iconActive : tab.icon}
                   size={24}
-                  color={isSelected ? '#EA580C' : '#9CA3AF'}
+                  color={isSelected ? '#111827' : '#9CA3AF'}
                 />
                 <Text style={[styles.tabLabel, isSelected && styles.tabLabelSelected]}>
                   {tab.label}
                 </Text>
+                <View
+                  style={[
+                    styles.tabIndicator,
+                    { backgroundColor: isSelected ? '#F59E0B' : 'transparent' },
+                  ]}
+                />
               </TouchableOpacity>
             );
           })}
@@ -501,14 +509,19 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   tabLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#9CA3AF',
+    fontSize: 11,
+    color: '#6B7280',
     marginTop: 2,
-    fontFamily: FontFamily.poppins,
+    fontFamily: FontFamily.regular,
   },
   tabLabelSelected: {
-    color: '#EA580C',
-    fontWeight: '800',
+    color: '#111827',
+    fontFamily: FontFamily.bold,
+  },
+  tabIndicator: {
+    width: 24,
+    height: 3,
+    borderRadius: 2,
+    marginTop: 3,
   },
 });
