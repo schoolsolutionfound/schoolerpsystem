@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, Text, Modal, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { View, StyleSheet, Text, Modal, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { signOut } from 'firebase/auth';
+import { auth } from '../firebaseConfig';
 import * as ImagePicker from 'expo-image-picker';
 import { useUserStore } from '../store/useUserStore';
 import { completeProfileApi } from '../api/users';
@@ -26,6 +28,7 @@ export default function CompleteProfileScreen() {
   const [syncing, setSyncing] = useState(false);
   const syncResolved = useRef(false);
 
+  const resetUser = useUserStore((state) => state.resetUser);
   const fullName = useUserStore((state) => state.fullName) || '';
   const email = useUserStore((state) => state.email) || '';
   const userRole = useUserStore((state) => state.userRole) || 'student';
@@ -33,6 +36,23 @@ export default function CompleteProfileScreen() {
   const institutionType = useUserStore((state) => state.institutionType) || 'college';
 
   const isStudent = userRole === 'student';
+
+  const handleLogout = () => {
+    Alert.alert('Log Out', 'Are you sure you want to log out of this account?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Log Out',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await signOut(auth);
+          } catch {}
+          resetUser();
+          router.replace('/auth');
+        },
+      },
+    ]);
+  };
 
   // Wait for profile sync before allowing redirect
   useEffect(() => {
@@ -250,11 +270,17 @@ export default function CompleteProfileScreen() {
       <SafeAreaView style={styles.safe}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.flex}>
           <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-            <View style={styles.progressContainer}>
-              <Text style={styles.stepText}>Step 2 of 2</Text>
-              <View style={styles.barTrack}>
-                <View style={[styles.barFill, { width: '100%' }]} />
+            <View style={styles.topRow}>
+              <View style={styles.progressContainer}>
+                <Text style={styles.stepText}>Step 2 of 2</Text>
+                <View style={styles.barTrack}>
+                  <View style={[styles.barFill, { width: '100%' }]} />
+                </View>
               </View>
+              <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn} accessibilityLabel="Log Out">
+                <MaterialCommunityIcons name="logout" size={16} color="#DC2626" />
+                <Text style={styles.logoutText}>Log Out</Text>
+              </TouchableOpacity>
             </View>
 
             <View style={styles.header}>
@@ -293,7 +319,10 @@ const styles = StyleSheet.create({
   safe: { flex: 1 },
   flex: { flex: 1 },
   scroll: { paddingHorizontal: 20, paddingVertical: 14, gap: 14 },
-  progressContainer: { gap: 4, marginBottom: 4 },
+  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+  progressContainer: { flex: 1, gap: 4, marginRight: 16 },
+  logoutBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, backgroundColor: '#FEE2E2', borderWidth: 1, borderColor: '#FECACA' },
+  logoutText: { fontSize: 12, fontWeight: '700', fontFamily: FontFamily.bold, color: '#DC2626' },
   stepText: { fontSize: 12, fontWeight: '700', fontFamily: FontFamily.bold, color: '#F4C430' },
   barTrack: { height: 6, backgroundColor: '#E8E5DC', borderRadius: 3, overflow: 'hidden' },
   barFill: { height: '100%', backgroundColor: '#F4C430', borderRadius: 3 },
