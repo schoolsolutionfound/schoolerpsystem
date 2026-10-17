@@ -230,6 +230,10 @@ export default function PrincipalHomeScreen() {
           onNotificationsPress={() => setActiveTab('notices')}
           onProfilePress={() => router.push('/(principal)/profile')}
           onBackToDashboard={() => setActiveTab('dashboard')}
+          onSwitchToTeacher={() => {
+            useUserStore.getState().switchRole('teacher');
+            router.replace('/(teacher)/home');
+          }}
         />
 
         {/* Active View Container */}
