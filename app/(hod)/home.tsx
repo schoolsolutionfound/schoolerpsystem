@@ -248,6 +248,10 @@ export default function HODHomeScreen() {
           onNotificationsPress={() => setActiveTab('notices')}
           onProfilePress={() => router.push('/(hod)/profile')}
           onBackToDashboard={() => setActiveTab('dashboard')}
+          onSwitchToTeacher={() => {
+            useUserStore.getState().switchRole('teacher');
+            router.replace('/(teacher)/home');
+          }}
         />
 
         {/* View Switcher or Error Screen */}

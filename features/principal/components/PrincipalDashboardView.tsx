@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import {
   HomeroomSection,
   SchoolNotice,
   CounselingRecord,
+  CONCERN_LABELS,
 } from '../types/principal.types';
 
 interface PrincipalDashboardViewProps {
@@ -34,6 +35,75 @@ interface PrincipalDashboardViewProps {
   onSwitchToTeacherPortal?: () => void;
 }
 
+interface DropdownSectionProps {
+  title: string;
+  subtitle?: string;
+  icon: keyof typeof MaterialCommunityIcons.glyphMap;
+  iconColor: string;
+  iconBg: string;
+  badge?: string;
+  badgeColor?: string;
+  badgeBg?: string;
+  isOpen: boolean;
+  onToggle: () => void;
+  rightAction?: React.ReactNode;
+  children: React.ReactNode;
+}
+
+const DropdownSection: React.FC<DropdownSectionProps> = ({
+  title,
+  subtitle,
+  icon,
+  iconColor,
+  iconBg,
+  badge,
+  badgeColor = '#B45309',
+  badgeBg = '#FEF3C7',
+  isOpen,
+  onToggle,
+  rightAction,
+  children,
+}) => {
+  return (
+    <View style={styles.dropdownCard}>
+      <TouchableOpacity
+        style={styles.dropdownHeader}
+        onPress={onToggle}
+        activeOpacity={0.8}
+      >
+        <View style={[styles.dropdownIconBox, { backgroundColor: iconBg }]}>
+          <MaterialCommunityIcons name={icon} size={24} color={iconColor} />
+        </View>
+
+        <View style={styles.dropdownTitleWrap}>
+          <View style={styles.titleWithBadge}>
+            <Text style={styles.dropdownTitle}>{title}</Text>
+            {badge && (
+              <View style={[styles.dropdownBadgePill, { backgroundColor: badgeBg }]}>
+                <Text style={[styles.dropdownBadgeText, { color: badgeColor }]}>{badge}</Text>
+              </View>
+            )}
+          </View>
+          {subtitle ? <Text style={styles.dropdownSubtitle}>{subtitle}</Text> : null}
+        </View>
+
+        <View style={styles.dropdownRightWrap}>
+          {rightAction}
+          <View style={styles.chevronBox}>
+            <MaterialCommunityIcons
+              name={isOpen ? 'chevron-up' : 'chevron-down'}
+              size={22}
+              color="#4B5563"
+            />
+          </View>
+        </View>
+      </TouchableOpacity>
+
+      {isOpen && <View style={styles.dropdownContent}>{children}</View>}
+    </View>
+  );
+};
+
 export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
   kpis,
   homerooms,
@@ -49,6 +119,21 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
   onNavigateToTeacherAttendance,
   onSwitchToTeacherPortal,
 }) => {
+  // Dropdown states for each priority section
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    educator: true,
+    intelligence: true,
+    pulse: true,
+    homerooms: true,
+    counseling: false,
+    notices: false,
+    actions: true,
+  });
+
+  const toggleSection = (key: string) => {
+    setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
   const unassignedSections = homerooms.filter((h) => !h.homeroomTeacherId);
   const firstUnassigned = unassignedSections[0];
   const urgentCases = counseling.filter((c) => c.severity === 'high' && c.status !== 'resolved');
@@ -64,47 +149,34 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#D97706']} />}
       showsVerticalScrollIndicator={false}
     >
-      {/* 1-CLICK CAMPUS MASTER DOSSIER (All details in just 1 button press!) */}
-      {onOpenDossierModal && (
-        <TouchableOpacity
-          style={styles.masterDossierCard}
-          onPress={onOpenDossierModal}
-          activeOpacity={0.85}
-        >
-          <View style={styles.masterDossierLeft}>
-            <View style={styles.masterDossierIconWrap}>
-              <MaterialCommunityIcons name="lightning-bolt" size={26} color="#FFFFFF" />
-            </View>
-            <View style={styles.masterDossierTextWrap}>
-              <View style={styles.masterBadgeRow}>
-                <View style={styles.masterDossierBadge}>
-                  <Text style={styles.masterDossierBadgeText}>1-CLICK INTELLIGENCE</Text>
-                </View>
-                <Text style={styles.masterLiveText}>• REAL-TIME</Text>
-              </View>
-              <Text style={styles.masterDossierTitle}>Campus Master Dossier</Text>
-              <Text style={styles.masterDossierSub}>Get all institutional details in 1 single tap</Text>
-            </View>
-          </View>
-          <View style={styles.masterDossierArrowWrap}>
-            <MaterialCommunityIcons name="arrow-right-bold" size={20} color="#0F172A" />
-          </View>
-        </TouchableOpacity>
-      )}
-
-      {/* EDUCATOR & TEACHING ACCESS (Principals are educators & teachers too!) */}
-      <View style={styles.educatorHubCard}>
-        <View style={styles.educatorHeaderRow}>
-          <View style={styles.educatorTitleWrap}>
-            <View style={styles.educatorBadge}>
-              <MaterialCommunityIcons name="school" size={13} color="#047857" />
-              <Text style={styles.educatorBadgeText}>EDUCATOR PRIVILEGES</Text>
-            </View>
-            <Text style={styles.educatorCardTitle}>Teaching & Classroom Operations</Text>
-            <Text style={styles.educatorCardSub}>As an educator, manage your lectures, timetable, and attendance</Text>
-          </View>
-        </View>
-
+      {/* 1. EDUCATOR & TEACHING ACCESS (With Small Side Button) */}
+      <DropdownSection
+        title="Teaching & Classroom Hub"
+        subtitle="As an educator, manage your lectures & schedule"
+        icon="school"
+        iconColor="#047857"
+        iconBg="#ECFDF5"
+        badge="EDUCATOR"
+        badgeBg="#DCFCE7"
+        badgeColor="#15803D"
+        isOpen={openSections.educator}
+        onToggle={() => toggleSection('educator')}
+        rightAction={
+          onSwitchToTeacherPortal && (
+            <TouchableOpacity
+              style={styles.smallSideSwitchBtn}
+              onPress={(e) => {
+                e.stopPropagation?.();
+                onSwitchToTeacherPortal();
+              }}
+              activeOpacity={0.8}
+            >
+              <MaterialCommunityIcons name="account-convert" size={13} color="#047857" />
+              <Text style={styles.smallSideSwitchText}>Teacher</Text>
+            </TouchableOpacity>
+          )
+        }
+      >
         <View style={styles.educatorButtonsRow}>
           <TouchableOpacity
             style={[styles.largeEduBtn, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}
@@ -112,11 +184,11 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
             activeOpacity={0.8}
           >
             <View style={[styles.largeEduIcon, { backgroundColor: '#DBEAFE' }]}>
-              <MaterialCommunityIcons name="calendar-clock" size={22} color="#1D4ED8" />
+              <MaterialCommunityIcons name="calendar-clock" size={24} color="#1D4ED8" />
             </View>
             <View style={styles.largeEduTextWrap}>
               <Text style={[styles.largeEduTitle, { color: '#1E40AF' }]}>My Timetable</Text>
-              <Text style={styles.largeEduSub}>Teaching schedule</Text>
+              <Text style={styles.largeEduSub}>Lecture & teaching schedule</Text>
             </View>
           </TouchableOpacity>
 
@@ -126,73 +198,134 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
             activeOpacity={0.8}
           >
             <View style={[styles.largeEduIcon, { backgroundColor: '#DCFCE7' }]}>
-              <MaterialCommunityIcons name="clipboard-check" size={22} color="#15803D" />
+              <MaterialCommunityIcons name="clipboard-check" size={24} color="#15803D" />
             </View>
             <View style={styles.largeEduTextWrap}>
               <Text style={[styles.largeEduTitle, { color: '#166534' }]}>Take Attendance</Text>
-              <Text style={styles.largeEduSub}>Mark class roster</Text>
+              <Text style={styles.largeEduSub}>Mark class student roster</Text>
             </View>
           </TouchableOpacity>
         </View>
+      </DropdownSection>
 
-        <TouchableOpacity
-          style={styles.switchTeacherPortalBtn}
-          onPress={onSwitchToTeacherPortal}
-          activeOpacity={0.85}
-        >
-          <MaterialCommunityIcons name="account-convert" size={18} color="#FFFFFF" />
-          <Text style={styles.switchTeacherPortalText}>Switch to Classroom Teacher Portal</Text>
-          <MaterialCommunityIcons name="chevron-right" size={18} color="#FFFFFF" />
-        </TouchableOpacity>
-      </View>
-      {/* Alert Banners (Actionable) */}
-      {firstUnassigned && (
-        <TouchableOpacity
-          style={styles.alertCard}
-          onPress={() => onOpenAssignModal(firstUnassigned)}
-          activeOpacity={0.8}
-        >
-          <View style={styles.alertIconBox}>
-            <MaterialCommunityIcons name="alert-decagram" size={24} color="#D97706" />
-          </View>
-          <View style={styles.alertTextWrap}>
-            <Text style={styles.alertTitle}>
-              {unassignedSections.length > 1
-                ? `${unassignedSections.length} Classes Need Homeroom Mentors`
-                : 'Homeroom Attention Required'}
-            </Text>
-            <Text style={styles.alertBody}>
-              {unassignedSections.length > 1
-                ? `${firstUnassigned.name} and ${unassignedSections.length - 1} other section(s) have no assigned Class Teacher.`
-                : `${firstUnassigned.name} currently has no assigned Class Teacher.`}
-            </Text>
-          </View>
-          <View style={styles.alertActionBtn}>
-            <Text style={styles.alertActionText}>Assign Now</Text>
-            <MaterialCommunityIcons name="chevron-right" size={16} color="#B45309" />
-          </View>
-        </TouchableOpacity>
-      )}
+      {/* 2. CAMPUS MASTER INTELLIGENCE & KEY KPIS */}
+      <DropdownSection
+        title="Campus Master Intelligence"
+        subtitle="1-Click comprehensive institution dossier"
+        icon="lightning-bolt"
+        iconColor="#D97706"
+        iconBg="#FEF3C7"
+        badge="1-CLICK"
+        badgeBg="#FEF3C7"
+        badgeColor="#B45309"
+        isOpen={openSections.intelligence}
+        onToggle={() => toggleSection('intelligence')}
+      >
+        {/* 1-Click Master Dossier Launcher */}
+        {onOpenDossierModal && (
+          <TouchableOpacity
+            style={styles.masterDossierCard}
+            onPress={onOpenDossierModal}
+            activeOpacity={0.85}
+          >
+            <View style={styles.masterDossierLeft}>
+              <View style={styles.masterDossierIconWrap}>
+                <MaterialCommunityIcons name="lightning-bolt" size={26} color="#FFFFFF" />
+              </View>
+              <View style={styles.masterDossierTextWrap}>
+                <View style={styles.masterBadgeRow}>
+                  <View style={styles.masterDossierBadge}>
+                    <Text style={styles.masterDossierBadgeText}>1-CLICK INTELLIGENCE</Text>
+                  </View>
+                  <Text style={styles.masterLiveText}>• REAL-TIME</Text>
+                </View>
+                <Text style={styles.masterDossierTitle}>Open Campus Dossier</Text>
+                <Text style={styles.masterDossierSub}>Get all institutional details in 1 single tap</Text>
+              </View>
+            </View>
+            <View style={styles.masterDossierArrowWrap}>
+              <MaterialCommunityIcons name="arrow-right-bold" size={20} color="#0F172A" />
+            </View>
+          </TouchableOpacity>
+        )}
 
-      {/* Attendance & Period Coverage Pulse */}
-      <View style={styles.pulseCard}>
-        <View style={styles.pulseHeader}>
-          <View>
-            <Text style={styles.pulseTitle}>Today&apos;s Operational Pulse</Text>
-            <Text style={styles.pulseSub}>Live campus attendance & teacher deployment</Text>
-          </View>
-          <View style={styles.liveIndicator}>
-            <View style={styles.liveDot} />
-            <Text style={styles.liveText}>LIVE</Text>
-          </View>
+        {/* Big KPI Metric Boxes */}
+        <View style={styles.kpiGrid}>
+          <TouchableOpacity
+            style={[styles.kpiCard, { borderLeftColor: '#0284C7' }]}
+            onPress={() => onNavigateTab('homerooms')}
+            activeOpacity={0.8}
+          >
+            <View style={styles.kpiTop}>
+              <Text style={styles.kpiLabel}>ACTIVE CLASSES</Text>
+              <MaterialCommunityIcons name="google-classroom" size={22} color="#0284C7" />
+            </View>
+            <Text style={styles.kpiValue}>{kpis.activeSections}</Text>
+            <Text style={styles.kpiFoot}>Homeroom Sections</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.kpiCard, { borderLeftColor: '#16A34A' }]}
+            onPress={() => onNavigateTab('staff')}
+            activeOpacity={0.8}
+          >
+            <View style={styles.kpiTop}>
+              <Text style={styles.kpiLabel}>TOTAL FACULTY</Text>
+              <MaterialCommunityIcons name="badge-account-outline" size={22} color="#16A34A" />
+            </View>
+            <Text style={styles.kpiValue}>{kpis.totalFaculty}</Text>
+            <Text style={styles.kpiFoot}>Teachers & Staff</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.kpiCard, { borderLeftColor: '#9D174D' }]}
+            onPress={() => onNavigateTab('counseling')}
+            activeOpacity={0.8}
+          >
+            <View style={styles.kpiTop}>
+              <Text style={styles.kpiLabel}>GUIDANCE CASES</Text>
+              <MaterialCommunityIcons name="heart-pulse" size={22} color="#9D174D" />
+            </View>
+            <Text style={styles.kpiValue}>{kpis.counselingCasesActive}</Text>
+            <Text style={styles.kpiFoot}>
+              {urgentCases.length > 0 ? `⚠️ ${urgentCases.length} high priority` : 'Active pastoral cases'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.kpiCard, { borderLeftColor: '#D97706' }]}
+            onPress={() => onNavigateTab('notices')}
+            activeOpacity={0.8}
+          >
+            <View style={styles.kpiTop}>
+              <Text style={styles.kpiLabel}>CIRCULARS</Text>
+              <MaterialCommunityIcons name="bullhorn-outline" size={22} color="#D97706" />
+            </View>
+            <Text style={styles.kpiValue}>{notices.length}</Text>
+            <Text style={styles.kpiFoot}>Official Notices Live</Text>
+          </TouchableOpacity>
         </View>
+      </DropdownSection>
 
+      {/* 3. TODAY'S OPERATIONAL PULSE & ATTENDANCE */}
+      <DropdownSection
+        title="Today's Operational Pulse"
+        subtitle="Live student & faculty attendance tracking"
+        icon="chart-line"
+        iconColor="#0284C7"
+        iconBg="#E0F2FE"
+        badge={`${safeStudentPct}% ATTENDANCE`}
+        badgeBg="#E0F2FE"
+        badgeColor="#0284C7"
+        isOpen={openSections.pulse}
+        onToggle={() => toggleSection('pulse')}
+      >
         <View style={styles.barsContainer}>
           {/* Student Attendance Bar */}
           <View style={styles.barGroup}>
             <View style={styles.barHeader}>
               <View style={styles.barLabelRow}>
-                <MaterialCommunityIcons name="account-school" size={16} color="#0284C7" />
+                <MaterialCommunityIcons name="account-school" size={18} color="#0284C7" />
                 <Text style={styles.barLabel}>Student Attendance</Text>
               </View>
               <Text style={styles.barPercent}>{safeStudentPct}%</Text>
@@ -201,7 +334,7 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
               <View style={[styles.fill, { width: `${safeStudentPct}%`, backgroundColor: '#0284C7' }]} />
             </View>
             <Text style={styles.barCount}>
-              {kpis.presentStudents} present of {kpis.totalStudents} enrolled
+              {kpis.presentStudents} present of {kpis.totalStudents} enrolled students
             </Text>
           </View>
 
@@ -209,7 +342,7 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
           <View style={styles.barGroup}>
             <View style={styles.barHeader}>
               <View style={styles.barLabelRow}>
-                <MaterialCommunityIcons name="human-male-board" size={16} color="#16A34A" />
+                <MaterialCommunityIcons name="human-male-board" size={18} color="#16A34A" />
                 <Text style={styles.barLabel}>Faculty Attendance</Text>
               </View>
               <Text style={styles.barPercent}>{safeFacultyPct}%</Text>
@@ -218,7 +351,7 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
               <View style={[styles.fill, { width: `${safeFacultyPct}%`, backgroundColor: '#16A34A' }]} />
             </View>
             <Text style={styles.barCount}>
-              {kpis.presentFaculty} present of {kpis.totalFaculty} staff members
+              {kpis.presentFaculty} present of {kpis.totalFaculty} staff members on duty
             </Text>
           </View>
 
@@ -226,7 +359,7 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
           <View style={styles.barGroup}>
             <View style={styles.barHeader}>
               <View style={styles.barLabelRow}>
-                <MaterialCommunityIcons name="clock-check-outline" size={16} color="#D97706" />
+                <MaterialCommunityIcons name="clock-check-outline" size={18} color="#D97706" />
                 <Text style={styles.barLabel}>Class Period Coverage</Text>
               </View>
               <Text style={styles.barPercent}>{safePeriodPct}%</Text>
@@ -239,138 +372,154 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
             </Text>
           </View>
         </View>
-      </View>
+      </DropdownSection>
 
-      {/* KPI Cards Grid */}
-      <View style={styles.kpiGrid}>
-        <TouchableOpacity
-          style={[styles.kpiCard, { borderLeftColor: '#0284C7' }]}
-          onPress={() => onNavigateTab('homerooms')}
-          activeOpacity={0.8}
-        >
-          <View style={styles.kpiTop}>
-            <Text style={styles.kpiLabel}>ACTIVE CLASSES</Text>
-            <MaterialCommunityIcons name="google-classroom" size={20} color="#0284C7" />
-          </View>
-          <Text style={styles.kpiValue}>{kpis.activeSections}</Text>
-          <Text style={styles.kpiFoot}>Homeroom Sections</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.kpiCard, { borderLeftColor: '#16A34A' }]}
-          onPress={() => onNavigateTab('staff')}
-          activeOpacity={0.8}
-        >
-          <View style={styles.kpiTop}>
-            <Text style={styles.kpiLabel}>TOTAL FACULTY</Text>
-            <MaterialCommunityIcons name="badge-account-outline" size={20} color="#16A34A" />
-          </View>
-          <Text style={styles.kpiValue}>{kpis.totalFaculty}</Text>
-          <Text style={styles.kpiFoot}>Teachers & Counselors</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.kpiCard, { borderLeftColor: '#9D174D' }]}
-          onPress={() => onNavigateTab('counseling')}
-          activeOpacity={0.8}
-        >
-          <View style={styles.kpiTop}>
-            <Text style={styles.kpiLabel}>GUIDANCE CASES</Text>
-            <MaterialCommunityIcons name="heart-pulse" size={20} color="#9D174D" />
-          </View>
-          <Text style={styles.kpiValue}>{kpis.counselingCasesActive}</Text>
-          <Text style={styles.kpiFoot}>
-            {urgentCases.length > 0 ? `⚠️ ${urgentCases.length} high priority` : 'Active pastoral cases'}
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.kpiCard, { borderLeftColor: '#D97706' }]}
-          onPress={() => onNavigateTab('notices')}
-          activeOpacity={0.8}
-        >
-          <View style={styles.kpiTop}>
-            <Text style={styles.kpiLabel}>CIRCULARS</Text>
-            <MaterialCommunityIcons name="bullhorn-outline" size={20} color="#D97706" />
-          </View>
-          <Text style={styles.kpiValue}>{notices.length}</Text>
-          <Text style={styles.kpiFoot}>Official Notices Live</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Quick Executive Actions */}
-      <View style={styles.sectionWrap}>
-        <Text style={styles.sectionTitle}>EXECUTIVE ACTIONS</Text>
-        <View style={styles.actionRow}>
+      {/* 4. HOMEROOM & CLASSES STATUS */}
+      <DropdownSection
+        title="Classes & Homeroom Allocations"
+        subtitle={`${homerooms.length} sections (${unassignedSections.length} needing mentors)`}
+        icon="google-classroom"
+        iconColor="#D97706"
+        iconBg="#FFFBEB"
+        badge={unassignedSections.length > 0 ? `${unassignedSections.length} UNASSIGNED` : 'ALL ALLOCATED'}
+        badgeBg={unassignedSections.length > 0 ? '#FEE2E2' : '#DCFCE7'}
+        badgeColor={unassignedSections.length > 0 ? '#DC2626' : '#166534'}
+        isOpen={openSections.homerooms}
+        onToggle={() => toggleSection('homerooms')}
+      >
+        {firstUnassigned && (
           <TouchableOpacity
-            style={styles.actionTile}
-            onPress={() => onNavigateTab('homerooms')}
-            activeOpacity={0.7}
+            style={styles.alertCard}
+            onPress={() => onOpenAssignModal(firstUnassigned)}
+            activeOpacity={0.8}
           >
-            <View style={[styles.actionIconBox, { backgroundColor: '#E0F2FE' }]}>
-              <MaterialCommunityIcons name="account-tie" size={22} color="#0284C7" />
+            <View style={styles.alertIconBox}>
+              <MaterialCommunityIcons name="alert-decagram" size={24} color="#D97706" />
             </View>
-            <Text style={styles.actionTileTitle}>Homeroom Roster</Text>
-            <Text style={styles.actionTileSub}>Assign class teachers</Text>
+            <View style={styles.alertTextWrap}>
+              <Text style={styles.alertTitle}>
+                {unassignedSections.length > 1
+                  ? `${unassignedSections.length} Classes Need Homeroom Mentors`
+                  : 'Homeroom Attention Required'}
+              </Text>
+              <Text style={styles.alertBody}>
+                {unassignedSections.length > 1
+                  ? `${firstUnassigned.name} and ${unassignedSections.length - 1} other section(s) have no assigned Class Teacher.`
+                  : `${firstUnassigned.name} currently has no assigned Class Teacher.`}
+              </Text>
+            </View>
+            <View style={styles.alertActionBtn}>
+              <Text style={styles.alertActionText}>Assign</Text>
+              <MaterialCommunityIcons name="chevron-right" size={16} color="#B45309" />
+            </View>
           </TouchableOpacity>
+        )}
 
-          <TouchableOpacity
-            style={styles.actionTile}
-            onPress={() => onNavigateTab('staff')}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.actionIconBox, { backgroundColor: '#ECFDF5' }]}>
-              <MaterialCommunityIcons name="card-account-details-outline" size={22} color="#16A34A" />
+        <View style={styles.homeroomPreviewList}>
+          {homerooms.slice(0, 4).map((sec) => (
+            <View key={sec.id} style={styles.homeroomRow}>
+              <View style={styles.secBadge}>
+                <Text style={styles.secBadgeText}>{sec.name}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.homeroomTeacherName}>
+                  {sec.homeroomTeacherName || 'No Class Teacher Assigned'}
+                </Text>
+                <Text style={styles.homeroomMetaSub}>
+                  {sec.studentCount} enrolled • Room {sec.roomNumber || 'TBD'}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.assignSmallBtn}
+                onPress={() => onOpenAssignModal(sec)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.assignSmallText}>
+                  {sec.homeroomTeacherId ? 'Change' : 'Assign'}
+                </Text>
+              </TouchableOpacity>
             </View>
-            <Text style={styles.actionTileTitle}>Staff Directory</Text>
-            <Text style={styles.actionTileSub}>Designations & contact</Text>
-          </TouchableOpacity>
+          ))}
+          {homerooms.length > 4 && (
+            <TouchableOpacity style={styles.viewMoreRow} onPress={() => onNavigateTab('homerooms')}>
+              <Text style={styles.viewMoreText}>View all {homerooms.length} homeroom sections →</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </DropdownSection>
 
-          <TouchableOpacity
-            style={styles.actionTile}
-            onPress={onOpenNoticeModal}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.actionIconBox, { backgroundColor: '#FEF3C7' }]}>
-              <MaterialCommunityIcons name="bullhorn" size={22} color="#D97706" />
-            </View>
-            <Text style={styles.actionTileTitle}>Publish Circular</Text>
-            <Text style={styles.actionTileSub}>To campus or faculty</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.actionTile}
-            onPress={() => onNavigateTab('attendance')}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.actionIconBox, { backgroundColor: '#F3E8FF' }]}>
-              <MaterialCommunityIcons name="chart-box-outline" size={22} color="#7E22CE" />
-            </View>
-            <Text style={styles.actionTileTitle}>Attendance Deep-dive</Text>
-            <Text style={styles.actionTileSub}>Daily reports & logs</Text>
+      {/* 5. GUIDANCE & PASTORAL CARE */}
+      <DropdownSection
+        title="Guidance & Pastoral Care"
+        subtitle={`${counseling.length} student welfare records logged`}
+        icon="heart-pulse"
+        iconColor="#9D174D"
+        iconBg="#FCE7F3"
+        badge={urgentCases.length > 0 ? `${urgentCases.length} URGENT` : undefined}
+        badgeBg="#FEE2E2"
+        badgeColor="#991B1B"
+        isOpen={openSections.counseling}
+        onToggle={() => toggleSection('counseling')}
+      >
+        <View style={styles.counselingList}>
+          {counseling.length === 0 ? (
+            <Text style={styles.emptyText}>No pastoral welfare records on file.</Text>
+          ) : (
+            counseling.slice(0, 3).map((rec) => (
+              <View key={rec.id} style={styles.counselingCard}>
+                <View style={styles.counselingHeader}>
+                  <Text style={styles.counselingStudent}>{rec.studentName}</Text>
+                  <View
+                    style={[
+                      styles.severityPill,
+                      { backgroundColor: rec.severity === 'high' ? '#FEE2E2' : '#FEF3C7' },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.severityText,
+                        { color: rec.severity === 'high' ? '#991B1B' : '#92400E' },
+                      ]}
+                    >
+                      {rec.severity.toUpperCase()}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.counselingReason}>
+                  {rec.actionPlan || CONCERN_LABELS[rec.concernCategory] || 'Guidance session note'}
+                </Text>
+                <Text style={styles.counselingDate}>
+                  Logged by: {rec.counselorName} • {rec.date}
+                </Text>
+              </View>
+            ))
+          )}
+          <TouchableOpacity style={styles.viewMoreRow} onPress={() => onNavigateTab('counseling')}>
+            <Text style={styles.viewMoreText}>Manage all counseling records →</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </DropdownSection>
 
-      {/* Recent School Notices Snippet */}
-      <View style={styles.sectionWrap}>
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>ACTIVE CIRCULARS & NOTICES</Text>
-          <TouchableOpacity onPress={() => onNavigateTab('notices')}>
-            <Text style={styles.seeAllText}>View All ({notices.length})</Text>
-          </TouchableOpacity>
-        </View>
-
+      {/* 6. OFFICIAL CAMPUS CIRCULARS */}
+      <DropdownSection
+        title="Official Circulars & Circular Feed"
+        subtitle={`${notices.length} notices published to staff & parents`}
+        icon="bullhorn-outline"
+        iconColor="#D97706"
+        iconBg="#FEF3C7"
+        isOpen={openSections.notices}
+        onToggle={() => toggleSection('notices')}
+      >
         {notices.length === 0 ? (
           <View style={styles.emptyNoticeSnippet}>
-            <MaterialCommunityIcons name="bullhorn-outline" size={24} color="#9CA3AF" />
+            <MaterialCommunityIcons name="bullhorn-outline" size={28} color="#9CA3AF" />
             <Text style={styles.emptyNoticeText}>No circulars published yet</Text>
             <TouchableOpacity onPress={onOpenNoticeModal} activeOpacity={0.7}>
               <Text style={styles.createNoticeLink}>+ Draft School Circular</Text>
             </TouchableOpacity>
           </View>
         ) : (
-          notices.slice(0, 2).map((notice) => (
+          notices.slice(0, 3).map((notice) => (
             <View key={notice.id} style={styles.noticeSnippetCard}>
               <View style={styles.noticeSnippetHeader}>
                 <View style={styles.noticeAudiencePill}>
@@ -390,7 +539,72 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
             </View>
           ))
         )}
-      </View>
+        <TouchableOpacity style={styles.broadcastBtn} onPress={onOpenNoticeModal} activeOpacity={0.8}>
+          <MaterialCommunityIcons name="bullhorn" size={18} color="#FFFFFF" />
+          <Text style={styles.broadcastBtnText}>Publish New Circular</Text>
+        </TouchableOpacity>
+      </DropdownSection>
+
+      {/* 7. EXECUTIVE QUICK SHORTCUTS */}
+      <DropdownSection
+        title="Executive Shortcuts & Tools"
+        subtitle="Direct leadership navigation tiles"
+        icon="view-grid-plus-outline"
+        iconColor="#7E22CE"
+        iconBg="#F3E8FF"
+        isOpen={openSections.actions}
+        onToggle={() => toggleSection('actions')}
+      >
+        <View style={styles.actionGrid}>
+          <TouchableOpacity
+            style={styles.actionTile}
+            onPress={() => onNavigateTab('homerooms')}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.actionIconBox, { backgroundColor: '#E0F2FE' }]}>
+              <MaterialCommunityIcons name="account-tie" size={26} color="#0284C7" />
+            </View>
+            <Text style={styles.actionTileTitle}>Homeroom Roster</Text>
+            <Text style={styles.actionTileSub}>Assign class teachers</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.actionTile}
+            onPress={() => onNavigateTab('staff')}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.actionIconBox, { backgroundColor: '#ECFDF5' }]}>
+              <MaterialCommunityIcons name="card-account-details-outline" size={26} color="#16A34A" />
+            </View>
+            <Text style={styles.actionTileTitle}>Staff Directory</Text>
+            <Text style={styles.actionTileSub}>Faculty & contact</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.actionTile}
+            onPress={onOpenNoticeModal}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.actionIconBox, { backgroundColor: '#FEF3C7' }]}>
+              <MaterialCommunityIcons name="bullhorn" size={26} color="#D97706" />
+            </View>
+            <Text style={styles.actionTileTitle}>Publish Circular</Text>
+            <Text style={styles.actionTileSub}>Campus or faculty</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.actionTile}
+            onPress={() => onNavigateTab('attendance')}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.actionIconBox, { backgroundColor: '#F3E8FF' }]}>
+              <MaterialCommunityIcons name="chart-box-outline" size={26} color="#7E22CE" />
+            </View>
+            <Text style={styles.actionTileTitle}>Attendance Analytics</Text>
+            <Text style={styles.actionTileSub}>Deep-dive reports</Text>
+          </TouchableOpacity>
+        </View>
+      </DropdownSection>
     </ScrollView>
   );
 };
@@ -398,68 +612,156 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FFFEFE',
   },
   content: {
     padding: 16,
     gap: 16,
-    paddingBottom: 40,
+    paddingBottom: 48,
   },
-  alertCard: {
+
+  // Dropdown Card Architecture
+  dropdownCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    overflow: 'hidden',
+    shadowColor: '#171717',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  dropdownHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFBEB',
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-    borderRadius: BorderRadius.card,
-    padding: 12,
+    padding: 16,
     gap: 12,
   },
-  alertIconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#FEF3C7',
+  dropdownIconBox: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  alertTextWrap: {
+  dropdownTitleWrap: {
     flex: 1,
-  },
-  alertTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#92400E',
-    fontFamily: FontFamily.bold,
-  },
-  alertBody: {
-    fontSize: 12,
-    color: '#B45309',
-    fontFamily: FontFamily.regular,
-    marginTop: 1,
-  },
-  alertActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FEF3C7',
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 6,
     gap: 2,
   },
-  alertActionText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#92400E',
+  titleWithBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  dropdownTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#171717',
     fontFamily: FontFamily.bold,
   },
+  dropdownBadgePill: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  dropdownBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    fontFamily: FontFamily.bold,
+  },
+  dropdownSubtitle: {
+    fontSize: 12,
+    color: '#6B6B6B',
+    fontFamily: FontFamily.regular,
+  },
+  dropdownRightWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  chevronBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dropdownContent: {
+    padding: 16,
+    paddingTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+    gap: 14,
+  },
+
+  // Small Side Switch Button
+  smallSideSwitchBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 14,
+  },
+  smallSideSwitchText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#047857',
+    fontFamily: FontFamily.bold,
+  },
+
+  // Educator Action Buttons
+  educatorButtonsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  largeEduBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 12,
+  },
+  largeEduIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  largeEduTextWrap: {
+    flex: 1,
+  },
+  largeEduTitle: {
+    fontSize: 15,
+    fontFamily: FontFamily.bold,
+    fontWeight: '800',
+  },
+  largeEduSub: {
+    fontSize: 11,
+    color: '#64748B',
+    fontFamily: FontFamily.regular,
+    marginTop: 2,
+  },
+
+  // Master Dossier Banner
   masterDossierCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#0F172A',
     borderRadius: 18,
-    padding: 16,
+    padding: 18,
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.25,
@@ -475,8 +777,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   masterDossierIconWrap: {
-    width: 46,
-    height: 46,
+    width: 48,
+    height: 48,
     borderRadius: 14,
     backgroundColor: '#D97706',
     justifyContent: 'center',
@@ -509,182 +811,75 @@ const styles = StyleSheet.create({
     color: '#34D399',
   },
   masterDossierTitle: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '800',
-    fontFamily: FontFamily.extrabold,
+    fontFamily: FontFamily.bold,
     color: '#FFFFFF',
   },
   masterDossierSub: {
-    fontSize: 11,
+    fontSize: 12,
     color: '#94A3B8',
     fontFamily: FontFamily.regular,
   },
   masterDossierArrowWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: '#F8FAFC',
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 8,
   },
-  educatorHubCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+
+  // KPI Metrics Grid
+  kpiGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
   },
-  educatorHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  educatorTitleWrap: {
+  kpiCard: {
     flex: 1,
-    gap: 2,
-  },
-  educatorBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#ECFDF5',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-    marginBottom: 4,
-  },
-  educatorBadgeText: {
-    fontSize: 10,
-    fontFamily: FontFamily.bold,
-    fontWeight: '800',
-    color: '#047857',
-  },
-  educatorCardTitle: {
-    fontSize: 15,
-    fontFamily: FontFamily.extrabold,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  educatorCardSub: {
-    fontSize: 11,
-    color: '#64748B',
-    fontFamily: FontFamily.regular,
-  },
-  educatorButtonsRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  largeEduBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    gap: 10,
-  },
-  largeEduIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  largeEduTextWrap: {
-    flex: 1,
-  },
-  largeEduTitle: {
-    fontSize: 13,
-    fontFamily: FontFamily.bold,
-    fontWeight: '700',
-  },
-  largeEduSub: {
-    fontSize: 10,
-    color: '#64748B',
-    fontFamily: FontFamily.regular,
-    marginTop: 1,
-  },
-  switchTeacherPortalBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#1E293B',
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  switchTeacherPortalText: {
-    fontSize: 12,
-    fontFamily: FontFamily.bold,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  pulseCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.card,
+    minWidth: '46%',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 16,
     padding: 16,
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
+    borderLeftWidth: 4,
   },
-  pulseHeader: {
+  kpiTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
   },
-  pulseTitle: {
-    fontSize: 15,
+  kpiLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#6B6B6B',
+    fontFamily: FontFamily.bold,
+    letterSpacing: 0.5,
+  },
+  kpiValue: {
+    fontSize: 26,
     fontWeight: '800',
     color: '#171717',
-    fontFamily: FontFamily.extrabold,
+    fontFamily: FontFamily.bold,
+    marginTop: 4,
   },
-  pulseSub: {
+  kpiFoot: {
     fontSize: 12,
     color: '#6B6B6B',
     fontFamily: FontFamily.regular,
-    marginTop: 1,
+    marginTop: 2,
   },
-  liveIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#ECFDF5',
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-  },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#10B981',
-  },
-  liveText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#065F46',
-    fontFamily: FontFamily.bold,
-  },
+
+  // Pulse Progress Meters
   barsContainer: {
-    gap: 14,
+    gap: 16,
+    paddingVertical: 4,
   },
   barGroup: {
-    gap: 4,
+    gap: 6,
   },
   barHeader: {
     flexDirection: 'row',
@@ -697,143 +892,204 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   barLabel: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
     color: '#374151',
     fontFamily: FontFamily.bold,
   },
   barPercent: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: '800',
     color: '#171717',
-    fontFamily: FontFamily.extrabold,
+    fontFamily: FontFamily.bold,
   },
   track: {
-    height: 8,
+    height: 10,
     backgroundColor: '#F3F4F6',
-    borderRadius: 4,
+    borderRadius: 5,
     overflow: 'hidden',
   },
   fill: {
     height: '100%',
-    borderRadius: 4,
+    borderRadius: 5,
   },
   barCount: {
-    fontSize: 11,
+    fontSize: 12,
     color: '#6B6B6B',
     fontFamily: FontFamily.regular,
   },
-  kpiGrid: {
+
+  // Alert Card
+  alertCard: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  kpiCard: {
-    flex: 1,
-    minWidth: '46%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.card,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderLeftWidth: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  kpiTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: 16,
+    padding: 14,
+    gap: 12,
   },
-  kpiLabel: {
-    fontSize: 10,
+  alertIconBox: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#FEF3C7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  alertTextWrap: {
+    flex: 1,
+  },
+  alertTitle: {
+    fontSize: 14,
     fontWeight: '700',
-    color: '#6B6B6B',
+    color: '#92400E',
     fontFamily: FontFamily.bold,
-    letterSpacing: 0.5,
   },
-  kpiValue: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#171717',
-    fontFamily: FontFamily.extrabold,
-    marginTop: 4,
-  },
-  kpiFoot: {
-    fontSize: 11,
-    color: '#6B6B6B',
-    fontFamily: FontFamily.medium,
+  alertBody: {
+    fontSize: 12,
+    color: '#B45309',
+    fontFamily: FontFamily.regular,
     marginTop: 2,
   },
-  sectionWrap: {
+  alertActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 2,
+  },
+  alertActionText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#92400E',
+    fontFamily: FontFamily.bold,
+  },
+
+  // Homeroom Preview
+  homeroomPreviewList: {
+    gap: 8,
+  },
+  homeroomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
     gap: 10,
   },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  secBadge: {
+    backgroundColor: '#E0F2FE',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  secBadgeText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0369A1',
+    fontFamily: FontFamily.bold,
+  },
+  homeroomTeacherName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#171717',
+    fontFamily: FontFamily.bold,
+  },
+  homeroomMetaSub: {
+    fontSize: 11,
+    color: '#6B6B6B',
+    fontFamily: FontFamily.regular,
+    marginTop: 1,
+  },
+  assignSmallBtn: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  assignSmallText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#374151',
+    fontFamily: FontFamily.bold,
+  },
+  viewMoreRow: {
+    paddingVertical: 8,
     alignItems: 'center',
   },
-  sectionTitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#6B6B6B',
-    fontFamily: FontFamily.bold,
-    letterSpacing: 0.6,
-  },
-  seeAllText: {
-    fontSize: 12,
+  viewMoreText: {
+    fontSize: 13,
     fontWeight: '700',
     color: '#D97706',
     fontFamily: FontFamily.bold,
   },
-  actionRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
+
+  // Counseling List
+  counselingList: {
+    gap: 8,
   },
-  actionTile: {
-    flex: 1,
-    minWidth: '46%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
+  counselingCard: {
+    padding: 12,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    gap: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 2,
+    borderColor: '#F3F4F6',
+    gap: 4,
   },
-  actionIconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+  counselingHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 4,
   },
-  actionTileTitle: {
+  counselingStudent: {
     fontSize: 14,
-    fontWeight: '800',
-    color: '#0F172A',
+    fontWeight: '700',
+    color: '#171717',
     fontFamily: FontFamily.bold,
   },
-  actionTileSub: {
-    fontSize: 11,
-    color: '#64748B',
+  severityPill: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  severityText: {
+    fontSize: 9,
+    fontWeight: '800',
+    fontFamily: FontFamily.bold,
+  },
+  counselingReason: {
+    fontSize: 12,
+    color: '#4B5563',
     fontFamily: FontFamily.regular,
   },
+  counselingDate: {
+    fontSize: 11,
+    color: '#9CA3AF',
+    fontFamily: FontFamily.regular,
+  },
+  emptyText: {
+    fontSize: 13,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    paddingVertical: 12,
+    fontFamily: FontFamily.regular,
+  },
+
+  // Notices
   noticeSnippetCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.card,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 14,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#F3F4F6',
     gap: 6,
   },
   noticeSnippetHeader: {
@@ -842,7 +1098,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   noticeAudiencePill: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#E5E7EB',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
@@ -850,7 +1106,7 @@ const styles = StyleSheet.create({
   noticeAudienceText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#4B5563',
+    color: '#374151',
   },
   urgentPill: {
     backgroundColor: '#FEE2E2',
@@ -869,7 +1125,7 @@ const styles = StyleSheet.create({
     marginLeft: 'auto',
   },
   noticeSnippetTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
     color: '#171717',
     fontFamily: FontFamily.bold,
@@ -881,11 +1137,11 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.regular,
   },
   emptyNoticeSnippet: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.card,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 14,
     padding: 24,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#F3F4F6',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
@@ -896,9 +1152,61 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.medium,
   },
   createNoticeLink: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
     color: '#D97706',
     fontFamily: FontFamily.bold,
+  },
+  broadcastBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#1E293B',
+    borderRadius: BorderRadius.button,
+    paddingVertical: 14,
+    marginTop: 4,
+  },
+  broadcastBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    fontFamily: FontFamily.bold,
+  },
+
+  // Action Grid
+  actionGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  actionTile: {
+    flex: 1,
+    minWidth: '46%',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+    gap: 4,
+  },
+  actionIconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  actionTileTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0F172A',
+    fontFamily: FontFamily.bold,
+  },
+  actionTileSub: {
+    fontSize: 11,
+    color: '#64748B',
+    fontFamily: FontFamily.regular,
   },
 });

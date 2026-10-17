@@ -15,6 +15,7 @@ interface HODHeaderProps {
   onNotificationsPress: () => void;
   onProfilePress: () => void;
   onBackToDashboard?: () => void;
+  onSwitchToTeacher?: () => void;
 }
 
 export const HODHeader: React.FC<HODHeaderProps> = ({
@@ -28,6 +29,7 @@ export const HODHeader: React.FC<HODHeaderProps> = ({
   onNotificationsPress,
   onProfilePress,
   onBackToDashboard,
+  onSwitchToTeacher,
 }) => {
   const isSubTab = activeTab === 'attendance';
 
@@ -91,7 +93,22 @@ export const HODHeader: React.FC<HODHeaderProps> = ({
           </Text>
         </View>
 
-        <MaterialCommunityIcons name="chevron-right" size={22} color="#9CA3AF" />
+        <View style={styles.rightActionCol}>
+          {onSwitchToTeacher && (
+            <TouchableOpacity
+              style={styles.smallTeacherSwitchBtn}
+              onPress={(e) => {
+                e.stopPropagation?.();
+                onSwitchToTeacher();
+              }}
+              activeOpacity={0.75}
+            >
+              <MaterialCommunityIcons name="account-convert" size={14} color="#047857" />
+              <Text style={styles.smallTeacherSwitchText}>Teacher</Text>
+            </TouchableOpacity>
+          )}
+          <MaterialCommunityIcons name="chevron-right" size={20} color="#9CA3AF" />
+        </View>
       </TouchableOpacity>
     </View>
   );
@@ -233,5 +250,27 @@ const styles = StyleSheet.create({
     color: '#6B6B6B',
     marginTop: 1,
     fontFamily: FontFamily.poppins,
+  },
+  rightActionCol: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  smallTeacherSwitchBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 16,
+  },
+  smallTeacherSwitchText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#047857',
+    fontFamily: FontFamily.bold,
   },
 });

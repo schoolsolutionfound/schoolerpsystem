@@ -16,6 +16,7 @@ interface PrincipalHeaderProps {
   onNotificationsPress: () => void;
   onProfilePress: () => void;
   onBackToDashboard?: () => void;
+  onSwitchToTeacher?: () => void;
 }
 
 const getGreeting = (): string => {
@@ -36,6 +37,7 @@ export const PrincipalHeader: React.FC<PrincipalHeaderProps> = ({
   onNotificationsPress,
   onProfilePress,
   onBackToDashboard,
+  onSwitchToTeacher,
 }) => {
   const firstName = fullName.split(' ')[0] || 'Principal';
   const greeting = getGreeting();
@@ -96,7 +98,22 @@ export const PrincipalHeader: React.FC<PrincipalHeaderProps> = ({
           <Text style={styles.institutionText} numberOfLines={1}>{institutionName}</Text>
         </View>
 
-        <MaterialCommunityIcons name="chevron-right" size={22} color="#9CA3AF" />
+        <View style={styles.rightActionCol}>
+          {onSwitchToTeacher && (
+            <TouchableOpacity
+              style={styles.smallTeacherSwitchBtn}
+              onPress={(e) => {
+                e.stopPropagation?.();
+                onSwitchToTeacher();
+              }}
+              activeOpacity={0.75}
+            >
+              <MaterialCommunityIcons name="account-convert" size={14} color="#047857" />
+              <Text style={styles.smallTeacherSwitchText}>Teacher</Text>
+            </TouchableOpacity>
+          )}
+          <MaterialCommunityIcons name="chevron-right" size={20} color="#9CA3AF" />
+        </View>
       </TouchableOpacity>
     </View>
   );
@@ -240,5 +257,27 @@ const styles = StyleSheet.create({
     color: '#6B6B6B',
     fontFamily: FontFamily.regular,
     marginTop: 1,
+  },
+  rightActionCol: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  smallTeacherSwitchBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 16,
+  },
+  smallTeacherSwitchText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#047857',
+    fontFamily: FontFamily.bold,
   },
 });
