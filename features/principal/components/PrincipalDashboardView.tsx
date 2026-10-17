@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   RefreshControl,
+  TextInput,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
@@ -16,7 +17,6 @@ import {
   HomeroomSection,
   SchoolNotice,
   CounselingRecord,
-  CONCERN_LABELS,
 } from '../types/principal.types';
 
 interface PrincipalDashboardViewProps {
@@ -35,75 +35,6 @@ interface PrincipalDashboardViewProps {
   onSwitchToTeacherPortal?: () => void;
 }
 
-interface DropdownSectionProps {
-  title: string;
-  subtitle?: string;
-  icon: keyof typeof MaterialCommunityIcons.glyphMap;
-  iconColor: string;
-  iconBg: string;
-  badge?: string;
-  badgeColor?: string;
-  badgeBg?: string;
-  isOpen: boolean;
-  onToggle: () => void;
-  rightAction?: React.ReactNode;
-  children: React.ReactNode;
-}
-
-const DropdownSection: React.FC<DropdownSectionProps> = ({
-  title,
-  subtitle,
-  icon,
-  iconColor,
-  iconBg,
-  badge,
-  badgeColor = '#B45309',
-  badgeBg = '#FEF3C7',
-  isOpen,
-  onToggle,
-  rightAction,
-  children,
-}) => {
-  return (
-    <View style={styles.dropdownCard}>
-      <TouchableOpacity
-        style={styles.dropdownHeader}
-        onPress={onToggle}
-        activeOpacity={0.8}
-      >
-        <View style={[styles.dropdownIconBox, { backgroundColor: iconBg }]}>
-          <MaterialCommunityIcons name={icon} size={24} color={iconColor} />
-        </View>
-
-        <View style={styles.dropdownTitleWrap}>
-          <View style={styles.titleWithBadge}>
-            <Text style={styles.dropdownTitle}>{title}</Text>
-            {badge && (
-              <View style={[styles.dropdownBadgePill, { backgroundColor: badgeBg }]}>
-                <Text style={[styles.dropdownBadgeText, { color: badgeColor }]}>{badge}</Text>
-              </View>
-            )}
-          </View>
-          {subtitle ? <Text style={styles.dropdownSubtitle}>{subtitle}</Text> : null}
-        </View>
-
-        <View style={styles.dropdownRightWrap}>
-          {rightAction}
-          <View style={styles.chevronBox}>
-            <MaterialCommunityIcons
-              name={isOpen ? 'chevron-up' : 'chevron-down'}
-              size={22}
-              color="#4B5563"
-            />
-          </View>
-        </View>
-      </TouchableOpacity>
-
-      {isOpen && <View style={styles.dropdownContent}>{children}</View>}
-    </View>
-  );
-};
-
 export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
   kpis,
   homerooms,
@@ -119,28 +50,29 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
   onNavigateToTeacherAttendance,
   onSwitchToTeacherPortal,
 }) => {
-  // Dropdown states for each priority section
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
-    educator: true,
-    intelligence: true,
-    pulse: true,
-    homerooms: true,
-    counseling: false,
-    notices: false,
-    actions: true,
-  });
+  const [classSearch, setClassSearch] = useState('');
+  const [showAllClasses, setShowAllClasses] = useState(false);
 
-  const toggleSection = (key: string) => {
-    setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
+  // Filter classes based on search
+  const filteredHomerooms = useMemo(() => {
+    if (!classSearch.trim()) return homerooms;
+    const q = classSearch.toLowerCase().trim();
+    return homerooms.filter(
+      (h) =>
+        h.name.toLowerCase().includes(q) ||
+        (h.homeroomTeacherName && h.homeroomTeacherName.toLowerCase().includes(q)) ||
+        (h.roomNumber && h.roomNumber.toLowerCase().includes(q))
+    );
+  }, [homerooms, classSearch]);
 
-  const unassignedSections = homerooms.filter((h) => !h.homeroomTeacherId);
-  const firstUnassigned = unassignedSections[0];
-  const urgentCases = counseling.filter((c) => c.severity === 'high' && c.status !== 'resolved');
+  const displayedHomerooms = showAllClasses
+    ? filteredHomerooms
+    : filteredHomerooms.slice(0, 6);
 
+  // Safe KPI percentages
   const safeStudentPct = Math.min(100, Math.max(0, kpis.studentAttendancePct || 0));
   const safeFacultyPct = Math.min(100, Math.max(0, kpis.facultyAttendancePct || 0));
-  const safePeriodPct = Math.min(100, Math.max(0, kpis.periodCoveragePct || 0));
+  const urgentCases = counseling.filter((c) => c.severity === 'high' && c.status !== 'resolved');
 
   return (
     <ScrollView
@@ -149,462 +81,334 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#D97706']} />}
       showsVerticalScrollIndicator={false}
     >
-      {/* 1. EDUCATOR & TEACHING ACCESS (With Small Side Button) */}
-      <DropdownSection
-        title="Teaching & Classroom Hub"
-        subtitle="As an educator, manage your lectures & schedule"
-        icon="school"
-        iconColor="#047857"
-        iconBg="#ECFDF5"
-        badge="EDUCATOR"
-        badgeBg="#DCFCE7"
-        badgeColor="#15803D"
-        isOpen={openSections.educator}
-        onToggle={() => toggleSection('educator')}
-        rightAction={
-          onSwitchToTeacherPortal && (
+      {/* 1. EDUCATOR BANNER WITH COMPACT SWITCH BUTTON */}
+      <View style={styles.educatorBar}>
+        <View style={styles.educatorLeft}>
+          <View style={styles.educatorIconWrap}>
+            <MaterialCommunityIcons name="school" size={20} color="#047857" />
+          </View>
+          <View>
+            <Text style={styles.educatorTitle}>Educator Privileges</Text>
+            <Text style={styles.educatorSub}>Teach, schedule & take attendance</Text>
+          </View>
+        </View>
+
+        <View style={styles.educatorRightActions}>
+          {onSwitchToTeacherPortal && (
             <TouchableOpacity
-              style={styles.smallSideSwitchBtn}
-              onPress={(e) => {
-                e.stopPropagation?.();
-                onSwitchToTeacherPortal();
-              }}
+              style={styles.smallTeacherSwitchBtn}
+              onPress={onSwitchToTeacherPortal}
               activeOpacity={0.8}
             >
-              <MaterialCommunityIcons name="account-convert" size={13} color="#047857" />
-              <Text style={styles.smallSideSwitchText}>Teacher</Text>
-            </TouchableOpacity>
-          )
-        }
-      >
-        <View style={styles.educatorButtonsRow}>
-          <TouchableOpacity
-            style={[styles.largeEduBtn, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}
-            onPress={onNavigateToTeacherTimetable}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.largeEduIcon, { backgroundColor: '#DBEAFE' }]}>
-              <MaterialCommunityIcons name="calendar-clock" size={24} color="#1D4ED8" />
-            </View>
-            <View style={styles.largeEduTextWrap}>
-              <Text style={[styles.largeEduTitle, { color: '#1E40AF' }]}>My Timetable</Text>
-              <Text style={styles.largeEduSub}>Lecture & teaching schedule</Text>
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.largeEduBtn, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}
-            onPress={onNavigateToTeacherAttendance}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.largeEduIcon, { backgroundColor: '#DCFCE7' }]}>
-              <MaterialCommunityIcons name="clipboard-check" size={24} color="#15803D" />
-            </View>
-            <View style={styles.largeEduTextWrap}>
-              <Text style={[styles.largeEduTitle, { color: '#166534' }]}>Take Attendance</Text>
-              <Text style={styles.largeEduSub}>Mark class student roster</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-      </DropdownSection>
-
-      {/* 2. CAMPUS MASTER INTELLIGENCE & KEY KPIS */}
-      <DropdownSection
-        title="Campus Master Intelligence"
-        subtitle="1-Click comprehensive institution dossier"
-        icon="lightning-bolt"
-        iconColor="#D97706"
-        iconBg="#FEF3C7"
-        badge="1-CLICK"
-        badgeBg="#FEF3C7"
-        badgeColor="#B45309"
-        isOpen={openSections.intelligence}
-        onToggle={() => toggleSection('intelligence')}
-      >
-        {/* 1-Click Master Dossier Launcher */}
-        {onOpenDossierModal && (
-          <TouchableOpacity
-            style={styles.masterDossierCard}
-            onPress={onOpenDossierModal}
-            activeOpacity={0.85}
-          >
-            <View style={styles.masterDossierLeft}>
-              <View style={styles.masterDossierIconWrap}>
-                <MaterialCommunityIcons name="lightning-bolt" size={26} color="#FFFFFF" />
-              </View>
-              <View style={styles.masterDossierTextWrap}>
-                <View style={styles.masterBadgeRow}>
-                  <View style={styles.masterDossierBadge}>
-                    <Text style={styles.masterDossierBadgeText}>1-CLICK INTELLIGENCE</Text>
-                  </View>
-                  <Text style={styles.masterLiveText}>• REAL-TIME</Text>
-                </View>
-                <Text style={styles.masterDossierTitle}>Open Campus Dossier</Text>
-                <Text style={styles.masterDossierSub}>Get all institutional details in 1 single tap</Text>
-              </View>
-            </View>
-            <View style={styles.masterDossierArrowWrap}>
-              <MaterialCommunityIcons name="arrow-right-bold" size={20} color="#0F172A" />
-            </View>
-          </TouchableOpacity>
-        )}
-
-        {/* Big KPI Metric Boxes */}
-        <View style={styles.kpiGrid}>
-          <TouchableOpacity
-            style={[styles.kpiCard, { borderLeftColor: '#0284C7' }]}
-            onPress={() => onNavigateTab('homerooms')}
-            activeOpacity={0.8}
-          >
-            <View style={styles.kpiTop}>
-              <Text style={styles.kpiLabel}>ACTIVE CLASSES</Text>
-              <MaterialCommunityIcons name="google-classroom" size={22} color="#0284C7" />
-            </View>
-            <Text style={styles.kpiValue}>{kpis.activeSections}</Text>
-            <Text style={styles.kpiFoot}>Homeroom Sections</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.kpiCard, { borderLeftColor: '#16A34A' }]}
-            onPress={() => onNavigateTab('staff')}
-            activeOpacity={0.8}
-          >
-            <View style={styles.kpiTop}>
-              <Text style={styles.kpiLabel}>TOTAL FACULTY</Text>
-              <MaterialCommunityIcons name="badge-account-outline" size={22} color="#16A34A" />
-            </View>
-            <Text style={styles.kpiValue}>{kpis.totalFaculty}</Text>
-            <Text style={styles.kpiFoot}>Teachers & Staff</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.kpiCard, { borderLeftColor: '#9D174D' }]}
-            onPress={() => onNavigateTab('counseling')}
-            activeOpacity={0.8}
-          >
-            <View style={styles.kpiTop}>
-              <Text style={styles.kpiLabel}>GUIDANCE CASES</Text>
-              <MaterialCommunityIcons name="heart-pulse" size={22} color="#9D174D" />
-            </View>
-            <Text style={styles.kpiValue}>{kpis.counselingCasesActive}</Text>
-            <Text style={styles.kpiFoot}>
-              {urgentCases.length > 0 ? `⚠️ ${urgentCases.length} high priority` : 'Active pastoral cases'}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.kpiCard, { borderLeftColor: '#D97706' }]}
-            onPress={() => onNavigateTab('notices')}
-            activeOpacity={0.8}
-          >
-            <View style={styles.kpiTop}>
-              <Text style={styles.kpiLabel}>CIRCULARS</Text>
-              <MaterialCommunityIcons name="bullhorn-outline" size={22} color="#D97706" />
-            </View>
-            <Text style={styles.kpiValue}>{notices.length}</Text>
-            <Text style={styles.kpiFoot}>Official Notices Live</Text>
-          </TouchableOpacity>
-        </View>
-      </DropdownSection>
-
-      {/* 3. TODAY'S OPERATIONAL PULSE & ATTENDANCE */}
-      <DropdownSection
-        title="Today's Operational Pulse"
-        subtitle="Live student & faculty attendance tracking"
-        icon="chart-line"
-        iconColor="#0284C7"
-        iconBg="#E0F2FE"
-        badge={`${safeStudentPct}% ATTENDANCE`}
-        badgeBg="#E0F2FE"
-        badgeColor="#0284C7"
-        isOpen={openSections.pulse}
-        onToggle={() => toggleSection('pulse')}
-      >
-        <View style={styles.barsContainer}>
-          {/* Student Attendance Bar */}
-          <View style={styles.barGroup}>
-            <View style={styles.barHeader}>
-              <View style={styles.barLabelRow}>
-                <MaterialCommunityIcons name="account-school" size={18} color="#0284C7" />
-                <Text style={styles.barLabel}>Student Attendance</Text>
-              </View>
-              <Text style={styles.barPercent}>{safeStudentPct}%</Text>
-            </View>
-            <View style={styles.track}>
-              <View style={[styles.fill, { width: `${safeStudentPct}%`, backgroundColor: '#0284C7' }]} />
-            </View>
-            <Text style={styles.barCount}>
-              {kpis.presentStudents} present of {kpis.totalStudents} enrolled students
-            </Text>
-          </View>
-
-          {/* Faculty Attendance Bar */}
-          <View style={styles.barGroup}>
-            <View style={styles.barHeader}>
-              <View style={styles.barLabelRow}>
-                <MaterialCommunityIcons name="human-male-board" size={18} color="#16A34A" />
-                <Text style={styles.barLabel}>Faculty Attendance</Text>
-              </View>
-              <Text style={styles.barPercent}>{safeFacultyPct}%</Text>
-            </View>
-            <View style={styles.track}>
-              <View style={[styles.fill, { width: `${safeFacultyPct}%`, backgroundColor: '#16A34A' }]} />
-            </View>
-            <Text style={styles.barCount}>
-              {kpis.presentFaculty} present of {kpis.totalFaculty} staff members on duty
-            </Text>
-          </View>
-
-          {/* Period Coverage Bar */}
-          <View style={styles.barGroup}>
-            <View style={styles.barHeader}>
-              <View style={styles.barLabelRow}>
-                <MaterialCommunityIcons name="clock-check-outline" size={18} color="#D97706" />
-                <Text style={styles.barLabel}>Class Period Coverage</Text>
-              </View>
-              <Text style={styles.barPercent}>{safePeriodPct}%</Text>
-            </View>
-            <View style={styles.track}>
-              <View style={[styles.fill, { width: `${safePeriodPct}%`, backgroundColor: '#D97706' }]} />
-            </View>
-            <Text style={styles.barCount}>
-              All scheduled instructional blocks covered with substitutes deployed
-            </Text>
-          </View>
-        </View>
-      </DropdownSection>
-
-      {/* 4. HOMEROOM & CLASSES STATUS */}
-      <DropdownSection
-        title="Classes & Homeroom Allocations"
-        subtitle={`${homerooms.length} sections (${unassignedSections.length} needing mentors)`}
-        icon="google-classroom"
-        iconColor="#D97706"
-        iconBg="#FFFBEB"
-        badge={unassignedSections.length > 0 ? `${unassignedSections.length} UNASSIGNED` : 'ALL ALLOCATED'}
-        badgeBg={unassignedSections.length > 0 ? '#FEE2E2' : '#DCFCE7'}
-        badgeColor={unassignedSections.length > 0 ? '#DC2626' : '#166534'}
-        isOpen={openSections.homerooms}
-        onToggle={() => toggleSection('homerooms')}
-      >
-        {firstUnassigned && (
-          <TouchableOpacity
-            style={styles.alertCard}
-            onPress={() => onOpenAssignModal(firstUnassigned)}
-            activeOpacity={0.8}
-          >
-            <View style={styles.alertIconBox}>
-              <MaterialCommunityIcons name="alert-decagram" size={24} color="#D97706" />
-            </View>
-            <View style={styles.alertTextWrap}>
-              <Text style={styles.alertTitle}>
-                {unassignedSections.length > 1
-                  ? `${unassignedSections.length} Classes Need Homeroom Mentors`
-                  : 'Homeroom Attention Required'}
-              </Text>
-              <Text style={styles.alertBody}>
-                {unassignedSections.length > 1
-                  ? `${firstUnassigned.name} and ${unassignedSections.length - 1} other section(s) have no assigned Class Teacher.`
-                  : `${firstUnassigned.name} currently has no assigned Class Teacher.`}
-              </Text>
-            </View>
-            <View style={styles.alertActionBtn}>
-              <Text style={styles.alertActionText}>Assign</Text>
-              <MaterialCommunityIcons name="chevron-right" size={16} color="#B45309" />
-            </View>
-          </TouchableOpacity>
-        )}
-
-        <View style={styles.homeroomPreviewList}>
-          {homerooms.slice(0, 4).map((sec) => (
-            <View key={sec.id} style={styles.homeroomRow}>
-              <View style={styles.secBadge}>
-                <Text style={styles.secBadgeText}>{sec.name}</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.homeroomTeacherName}>
-                  {sec.homeroomTeacherName || 'No Class Teacher Assigned'}
-                </Text>
-                <Text style={styles.homeroomMetaSub}>
-                  {sec.studentCount} enrolled • Room {sec.roomNumber || 'TBD'}
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={styles.assignSmallBtn}
-                onPress={() => onOpenAssignModal(sec)}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.assignSmallText}>
-                  {sec.homeroomTeacherId ? 'Change' : 'Assign'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          ))}
-          {homerooms.length > 4 && (
-            <TouchableOpacity style={styles.viewMoreRow} onPress={() => onNavigateTab('homerooms')}>
-              <Text style={styles.viewMoreText}>View all {homerooms.length} homeroom sections →</Text>
+              <MaterialCommunityIcons name="account-convert" size={14} color="#FFFFFF" />
+              <Text style={styles.smallTeacherSwitchText}>Teacher Mode</Text>
             </TouchableOpacity>
           )}
         </View>
-      </DropdownSection>
+      </View>
 
-      {/* 5. GUIDANCE & PASTORAL CARE */}
-      <DropdownSection
-        title="Guidance & Pastoral Care"
-        subtitle={`${counseling.length} student welfare records logged`}
-        icon="heart-pulse"
-        iconColor="#9D174D"
-        iconBg="#FCE7F3"
-        badge={urgentCases.length > 0 ? `${urgentCases.length} URGENT` : undefined}
-        badgeBg="#FEE2E2"
-        badgeColor="#991B1B"
-        isOpen={openSections.counseling}
-        onToggle={() => toggleSection('counseling')}
-      >
-        <View style={styles.counselingList}>
-          {counseling.length === 0 ? (
-            <Text style={styles.emptyText}>No pastoral welfare records on file.</Text>
-          ) : (
-            counseling.slice(0, 3).map((rec) => (
-              <View key={rec.id} style={styles.counselingCard}>
-                <View style={styles.counselingHeader}>
-                  <Text style={styles.counselingStudent}>{rec.studentName}</Text>
-                  <View
-                    style={[
-                      styles.severityPill,
-                      { backgroundColor: rec.severity === 'high' ? '#FEE2E2' : '#FEF3C7' },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.severityText,
-                        { color: rec.severity === 'high' ? '#991B1B' : '#92400E' },
-                      ]}
-                    >
-                      {rec.severity.toUpperCase()}
+      {/* Teaching Shortcut Buttons */}
+      <View style={styles.teachingShortcutsRow}>
+        <TouchableOpacity
+          style={[styles.shortcutBtn, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}
+          onPress={onNavigateToTeacherTimetable}
+          activeOpacity={0.8}
+        >
+          <MaterialCommunityIcons name="calendar-clock" size={20} color="#1D4ED8" />
+          <Text style={[styles.shortcutBtnText, { color: '#1E40AF' }]}>My Timetable</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.shortcutBtn, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}
+          onPress={onNavigateToTeacherAttendance}
+          activeOpacity={0.8}
+        >
+          <MaterialCommunityIcons name="clipboard-check" size={20} color="#15803D" />
+          <Text style={[styles.shortcutBtnText, { color: '#166534' }]}>Take Attendance</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* 2. 1-CLICK CAMPUS DOSSIER BUTTON */}
+      {onOpenDossierModal && (
+        <TouchableOpacity
+          style={styles.dossierBanner}
+          onPress={onOpenDossierModal}
+          activeOpacity={0.85}
+        >
+          <View style={styles.dossierLeft}>
+            <View style={styles.dossierIconWrap}>
+              <MaterialCommunityIcons name="lightning-bolt" size={24} color="#FFFFFF" />
+            </View>
+            <View style={styles.dossierTextWrap}>
+              <View style={styles.dossierBadge}>
+                <Text style={styles.dossierBadgeText}>1-TAP INTELLIGENCE</Text>
+              </View>
+              <Text style={styles.dossierTitle}>Institutional Overview Dossier</Text>
+              <Text style={styles.dossierSub}>Press once to inspect all institution details</Text>
+            </View>
+          </View>
+          <MaterialCommunityIcons name="arrow-right-circle" size={28} color="#D97706" />
+        </TouchableOpacity>
+      )}
+
+      {/* 3. SIMPLIFIED 4-CARD METRIC GRID */}
+      <View style={styles.metricsGrid}>
+        <TouchableOpacity
+          style={[styles.metricCard, { borderLeftColor: '#0284C7' }]}
+          onPress={() => onNavigateTab('homerooms')}
+          activeOpacity={0.8}
+        >
+          <View style={styles.metricCardTop}>
+            <Text style={styles.metricLabel}>STUDENTS</Text>
+            <MaterialCommunityIcons name="account-school" size={20} color="#0284C7" />
+          </View>
+          <Text style={styles.metricVal}>{kpis.totalStudents.toLocaleString()}</Text>
+          <Text style={styles.metricSub}>{safeStudentPct}% Present Today</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.metricCard, { borderLeftColor: '#16A34A' }]}
+          onPress={() => onNavigateTab('staff')}
+          activeOpacity={0.8}
+        >
+          <View style={styles.metricCardTop}>
+            <Text style={styles.metricLabel}>FACULTY</Text>
+            <MaterialCommunityIcons name="human-male-board" size={20} color="#16A34A" />
+          </View>
+          <Text style={styles.metricVal}>{kpis.totalFaculty}</Text>
+          <Text style={styles.metricSub}>{safeFacultyPct}% On Duty</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.metricCard, { borderLeftColor: '#D97706' }]}
+          onPress={() => onNavigateTab('homerooms')}
+          activeOpacity={0.8}
+        >
+          <View style={styles.metricCardTop}>
+            <Text style={styles.metricLabel}>CLASSES</Text>
+            <MaterialCommunityIcons name="google-classroom" size={20} color="#D97706" />
+          </View>
+          <Text style={styles.metricVal}>{homerooms.length || kpis.activeSections}</Text>
+          <Text style={styles.metricSub}>Active Sections (40+ each)</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.metricCard, { borderLeftColor: '#9D174D' }]}
+          onPress={() => onNavigateTab('notices')}
+          activeOpacity={0.8}
+        >
+          <View style={styles.metricCardTop}>
+            <Text style={styles.metricLabel}>CIRCULARS</Text>
+            <MaterialCommunityIcons name="bullhorn-outline" size={20} color="#9D174D" />
+          </View>
+          <Text style={styles.metricVal}>{notices.length}</Text>
+          <Text style={styles.metricSub}>Official Notices</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* 4. CLASS-WISE STUDENT ATTENDANCE (PRIMARY FOCUS) */}
+      <View style={styles.classAttendanceSection}>
+        <View style={styles.sectionHeader}>
+          <View style={styles.sectionTitleRow}>
+            <View style={styles.sectionIconBox}>
+              <MaterialCommunityIcons name="clipboard-text-clock" size={22} color="#0284C7" />
+            </View>
+            <View>
+              <Text style={styles.sectionTitle}>Class-Wise Student Attendance</Text>
+              <Text style={styles.sectionSubtitle}>
+                Live breakdown per class • Minimum 40 students enrolled per section
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Search / Filter for Classes */}
+        <View style={styles.searchBarWrap}>
+          <MaterialCommunityIcons name="magnify" size={20} color="#9CA3AF" />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search class name, room, or teacher..."
+            placeholderTextColor="#9CA3AF"
+            value={classSearch}
+            onChangeText={setClassSearch}
+          />
+          {classSearch.length > 0 && (
+            <TouchableOpacity onPress={() => setClassSearch('')}>
+              <MaterialCommunityIcons name="close-circle" size={18} color="#9CA3AF" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Class-wise Attendance Cards */}
+        <View style={styles.classListWrap}>
+          {displayedHomerooms.map((sec) => {
+            const studentCount = sec.studentCount || 40;
+            const presentCount =
+              sec.presentCount !== undefined
+                ? sec.presentCount
+                : Math.round(studentCount * 0.92);
+            const absentCount = Math.max(0, studentCount - presentCount);
+            const attendancePct =
+              sec.attendanceRate !== undefined
+                ? Math.round(sec.attendanceRate)
+                : Math.round((presentCount / studentCount) * 100);
+
+            const isHigh = attendancePct >= 90;
+            const isMedium = attendancePct >= 75 && attendancePct < 90;
+            const statusColor = isHigh ? '#16A34A' : isMedium ? '#D97706' : '#DC2626';
+            const statusBg = isHigh ? '#DCFCE7' : isMedium ? '#FEF3C7' : '#FEE2E2';
+
+            return (
+              <View key={sec.id} style={styles.classAttendanceCard}>
+                <View style={styles.classCardHeader}>
+                  <View style={styles.classTitleWrap}>
+                    <View style={styles.classBadge}>
+                      <Text style={styles.classBadgeText}>{sec.name}</Text>
+                    </View>
+                    <Text style={styles.classRoomText}>
+                      Room: {sec.roomNumber || 'Main Block'}
+                    </Text>
+                  </View>
+
+                  <View style={[styles.pctBadge, { backgroundColor: statusBg }]}>
+                    <Text style={[styles.pctBadgeText, { color: statusColor }]}>
+                      {attendancePct}% Present
                     </Text>
                   </View>
                 </View>
-                <Text style={styles.counselingReason}>
-                  {rec.actionPlan || CONCERN_LABELS[rec.concernCategory] || 'Guidance session note'}
-                </Text>
-                <Text style={styles.counselingDate}>
-                  Logged by: {rec.counselorName} • {rec.date}
-                </Text>
-              </View>
-            ))
-          )}
-          <TouchableOpacity style={styles.viewMoreRow} onPress={() => onNavigateTab('counseling')}>
-            <Text style={styles.viewMoreText}>Manage all counseling records →</Text>
-          </TouchableOpacity>
-        </View>
-      </DropdownSection>
 
-      {/* 6. OFFICIAL CAMPUS CIRCULARS */}
-      <DropdownSection
-        title="Official Circulars & Circular Feed"
-        subtitle={`${notices.length} notices published to staff & parents`}
-        icon="bullhorn-outline"
-        iconColor="#D97706"
-        iconBg="#FEF3C7"
-        isOpen={openSections.notices}
-        onToggle={() => toggleSection('notices')}
-      >
-        {notices.length === 0 ? (
-          <View style={styles.emptyNoticeSnippet}>
-            <MaterialCommunityIcons name="bullhorn-outline" size={28} color="#9CA3AF" />
-            <Text style={styles.emptyNoticeText}>No circulars published yet</Text>
-            <TouchableOpacity onPress={onOpenNoticeModal} activeOpacity={0.7}>
-              <Text style={styles.createNoticeLink}>+ Draft School Circular</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          notices.slice(0, 3).map((notice) => (
-            <View key={notice.id} style={styles.noticeSnippetCard}>
-              <View style={styles.noticeSnippetHeader}>
-                <View style={styles.noticeAudiencePill}>
-                  <Text style={styles.noticeAudienceText}>{notice.targetAudience.toUpperCase()}</Text>
+                {/* Progress Bar */}
+                <View style={styles.progressTrack}>
+                  <View
+                    style={[
+                      styles.progressFill,
+                      { width: `${Math.min(100, attendancePct)}%`, backgroundColor: statusColor },
+                    ]}
+                  />
                 </View>
-                {notice.priority === 'urgent' && (
-                  <View style={styles.urgentPill}>
-                    <Text style={styles.urgentText}>URGENT</Text>
-                  </View>
-                )}
-                <Text style={styles.noticeDate}>{notice.publishedDate}</Text>
-              </View>
-              <Text style={styles.noticeSnippetTitle}>{notice.title}</Text>
-              <Text style={styles.noticeSnippetBody} numberOfLines={2}>
-                {notice.content}
-              </Text>
-            </View>
-          ))
-        )}
-        <TouchableOpacity style={styles.broadcastBtn} onPress={onOpenNoticeModal} activeOpacity={0.8}>
-          <MaterialCommunityIcons name="bullhorn" size={18} color="#FFFFFF" />
-          <Text style={styles.broadcastBtnText}>Publish New Circular</Text>
-        </TouchableOpacity>
-      </DropdownSection>
 
-      {/* 7. EXECUTIVE QUICK SHORTCUTS */}
-      <DropdownSection
-        title="Executive Shortcuts & Tools"
-        subtitle="Direct leadership navigation tiles"
-        icon="view-grid-plus-outline"
-        iconColor="#7E22CE"
-        iconBg="#F3E8FF"
-        isOpen={openSections.actions}
-        onToggle={() => toggleSection('actions')}
-      >
-        <View style={styles.actionGrid}>
+                {/* Bottom Details Row */}
+                <View style={styles.classCardFooter}>
+                  <View style={styles.countsRow}>
+                    <Text style={styles.enrolledText}>
+                      <Text style={styles.boldText}>{studentCount}</Text> Enrolled
+                    </Text>
+                    <Text style={styles.dotSeparator}>•</Text>
+                    <Text style={[styles.presentText, { color: '#16A34A' }]}>
+                      <Text style={styles.boldText}>{presentCount}</Text> Present
+                    </Text>
+                    <Text style={styles.dotSeparator}>•</Text>
+                    <Text style={[styles.absentText, { color: absentCount > 0 ? '#DC2626' : '#6B7280' }]}>
+                      <Text style={styles.boldText}>{absentCount}</Text> Absent
+                    </Text>
+                  </View>
+
+                  <View style={styles.teacherInfoRow}>
+                    <MaterialCommunityIcons name="account-tie" size={14} color="#6B7280" />
+                    <Text style={styles.teacherNameText} numberOfLines={1}>
+                      {sec.homeroomTeacherName || 'No Class Mentor'}
+                    </Text>
+                    {!sec.homeroomTeacherId && (
+                      <TouchableOpacity
+                        style={styles.quickAssignBtn}
+                        onPress={() => onOpenAssignModal(sec)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.quickAssignText}>Assign</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              </View>
+            );
+          })}
+
+          {displayedHomerooms.length === 0 && (
+            <View style={styles.emptyWrap}>
+              <MaterialCommunityIcons name="text-box-search-outline" size={36} color="#9CA3AF" />
+              <Text style={styles.emptyText}>No classes matched your search "{classSearch}"</Text>
+            </View>
+          )}
+
+          {/* Toggle View More Classes */}
+          {filteredHomerooms.length > 6 && (
+            <TouchableOpacity
+              style={styles.viewMoreBtn}
+              onPress={() => setShowAllClasses((prev) => !prev)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.viewMoreBtnText}>
+                {showAllClasses
+                  ? 'Show Fewer Classes'
+                  : `View All ${filteredHomerooms.length} Classes (Class-Wise Attendance)`}
+              </Text>
+              <MaterialCommunityIcons
+                name={showAllClasses ? 'chevron-up' : 'chevron-down'}
+                size={20}
+                color="#0284C7"
+              />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
+      {/* 5. QUICK DIRECTORY & ACTIONS (Clean 4-Button Grid) */}
+      <View style={styles.quickActionsSection}>
+        <Text style={styles.quickActionsTitle}>Executive Shortcuts</Text>
+        <View style={styles.actionsGrid}>
           <TouchableOpacity
-            style={styles.actionTile}
+            style={styles.actionGridBtn}
             onPress={() => onNavigateTab('homerooms')}
-            activeOpacity={0.7}
+            activeOpacity={0.8}
           >
             <View style={[styles.actionIconBox, { backgroundColor: '#E0F2FE' }]}>
-              <MaterialCommunityIcons name="account-tie" size={26} color="#0284C7" />
+              <MaterialCommunityIcons name="google-classroom" size={22} color="#0284C7" />
             </View>
-            <Text style={styles.actionTileTitle}>Homeroom Roster</Text>
-            <Text style={styles.actionTileSub}>Assign class teachers</Text>
+            <Text style={styles.actionBtnTitle}>All Classes</Text>
+            <Text style={styles.actionBtnSub}>{homerooms.length} Sections</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.actionTile}
+            style={styles.actionGridBtn}
             onPress={() => onNavigateTab('staff')}
-            activeOpacity={0.7}
+            activeOpacity={0.8}
           >
-            <View style={[styles.actionIconBox, { backgroundColor: '#ECFDF5' }]}>
-              <MaterialCommunityIcons name="card-account-details-outline" size={26} color="#16A34A" />
+            <View style={[styles.actionIconBox, { backgroundColor: '#DCFCE7' }]}>
+              <MaterialCommunityIcons name="account-group" size={22} color="#16A34A" />
             </View>
-            <Text style={styles.actionTileTitle}>Staff Directory</Text>
-            <Text style={styles.actionTileSub}>Faculty & contact</Text>
+            <Text style={styles.actionBtnTitle}>Faculty Roster</Text>
+            <Text style={styles.actionBtnSub}>{kpis.totalFaculty} Educators</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.actionTile}
+            style={styles.actionGridBtn}
             onPress={onOpenNoticeModal}
-            activeOpacity={0.7}
+            activeOpacity={0.8}
           >
             <View style={[styles.actionIconBox, { backgroundColor: '#FEF3C7' }]}>
-              <MaterialCommunityIcons name="bullhorn" size={26} color="#D97706" />
+              <MaterialCommunityIcons name="bullhorn-outline" size={22} color="#D97706" />
             </View>
-            <Text style={styles.actionTileTitle}>Publish Circular</Text>
-            <Text style={styles.actionTileSub}>Campus or faculty</Text>
+            <Text style={styles.actionBtnTitle}>New Circular</Text>
+            <Text style={styles.actionBtnSub}>Broadcast</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.actionTile}
-            onPress={() => onNavigateTab('attendance')}
-            activeOpacity={0.7}
+            style={styles.actionGridBtn}
+            onPress={() => onNavigateTab('counseling')}
+            activeOpacity={0.8}
           >
-            <View style={[styles.actionIconBox, { backgroundColor: '#F3E8FF' }]}>
-              <MaterialCommunityIcons name="chart-box-outline" size={26} color="#7E22CE" />
+            <View style={[styles.actionIconBox, { backgroundColor: '#FCE7F3' }]}>
+              <MaterialCommunityIcons name="heart-pulse" size={22} color="#BE185D" />
             </View>
-            <Text style={styles.actionTileTitle}>Attendance Analytics</Text>
-            <Text style={styles.actionTileSub}>Deep-dive reports</Text>
+            <Text style={styles.actionBtnTitle}>Guidance Care</Text>
+            <Text style={styles.actionBtnSub}>
+              {urgentCases.length > 0 ? `${urgentCases.length} urgent` : 'All quiet'}
+            </Text>
           </TouchableOpacity>
         </View>
-      </DropdownSection>
+      </View>
+
+      <View style={{ height: 40 }} />
     </ScrollView>
   );
 };
@@ -612,601 +416,440 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFEFE',
+    backgroundColor: '#F8FAFC',
   },
   content: {
-    padding: 16,
-    gap: 16,
-    paddingBottom: 48,
-  },
-
-  // Dropdown Card Architecture
-  dropdownCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#E8E5DC',
-    overflow: 'hidden',
-    shadowColor: '#171717',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  dropdownHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    gap: 12,
-  },
-  dropdownIconBox: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dropdownTitleWrap: {
-    flex: 1,
-    gap: 2,
-  },
-  titleWithBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flexWrap: 'wrap',
-  },
-  dropdownTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#171717',
-    fontFamily: FontFamily.bold,
-  },
-  dropdownBadgePill: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  dropdownBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-    fontFamily: FontFamily.bold,
-  },
-  dropdownSubtitle: {
-    fontSize: 12,
-    color: '#6B6B6B',
-    fontFamily: FontFamily.regular,
-  },
-  dropdownRightWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  chevronBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dropdownContent: {
-    padding: 16,
-    paddingTop: 4,
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 24,
     gap: 14,
   },
 
-  // Small Side Switch Button
-  smallSideSwitchBtn: {
+  // Educator Bar
+  educatorBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    justifyContent: 'space-between',
     backgroundColor: '#ECFDF5',
     borderWidth: 1,
     borderColor: '#A7F3D0',
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 14,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
-  smallSideSwitchText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#047857',
-    fontFamily: FontFamily.bold,
-  },
-
-  // Educator Action Buttons
-  educatorButtonsRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 8,
-  },
-  largeEduBtn: {
-    flex: 1,
+  educatorLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    gap: 12,
+    gap: 10,
+    flex: 1,
   },
-  largeEduIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
+  educatorIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#D1FAE5',
+    alignItems: 'center',
     justifyContent: 'center',
+  },
+  educatorTitle: {
+    fontFamily: FontFamily.bold,
+    fontSize: 14,
+    color: '#065F46',
+  },
+  educatorSub: {
+    fontFamily: FontFamily.regular,
+    fontSize: 12,
+    color: '#047857',
+  },
+  educatorRightActions: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
-  largeEduTextWrap: {
-    flex: 1,
+  smallTeacherSwitchBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#059669',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    elevation: 2,
+    shadowColor: '#059669',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
   },
-  largeEduTitle: {
-    fontSize: 15,
-    fontFamily: FontFamily.bold,
-    fontWeight: '800',
-  },
-  largeEduSub: {
-    fontSize: 11,
-    color: '#64748B',
-    fontFamily: FontFamily.regular,
-    marginTop: 2,
+  smallTeacherSwitchText: {
+    fontFamily: FontFamily.semibold,
+    fontSize: 12,
+    color: '#FFFFFF',
   },
 
-  // Master Dossier Banner
-  masterDossierCard: {
+  // Teaching Shortcuts Row
+  teachingShortcutsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  shortcutBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  shortcutBtnText: {
+    fontFamily: FontFamily.bold,
+    fontSize: 13,
+  },
+
+  // 1-Click Dossier Banner
+  dossierBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#0F172A',
-    borderRadius: 18,
-    padding: 18,
+    backgroundColor: '#1E293B',
+    borderRadius: 12,
+    padding: 14,
+    elevation: 3,
     shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 6 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 6,
-    borderWidth: 1,
-    borderColor: '#334155',
+    shadowRadius: 4,
   },
-  masterDossierLeft: {
+  dossierLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     flex: 1,
   },
-  masterDossierIconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
+  dossierIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#D97706',
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
   },
-  masterDossierTextWrap: {
+  dossierTextWrap: {
     flex: 1,
-    gap: 2,
   },
-  masterBadgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  masterDossierBadge: {
-    backgroundColor: '#FEF3C7',
-    paddingHorizontal: 6,
+  dossierBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(217, 119, 6, 0.25)',
+    paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,
+    marginBottom: 4,
   },
-  masterDossierBadgeText: {
-    fontSize: 9,
-    fontWeight: '800',
+  dossierBadgeText: {
     fontFamily: FontFamily.bold,
-    color: '#B45309',
-  },
-  masterLiveText: {
     fontSize: 10,
-    fontWeight: '700',
-    color: '#34D399',
+    color: '#FBBF24',
+    letterSpacing: 0.5,
   },
-  masterDossierTitle: {
-    fontSize: 17,
-    fontWeight: '800',
+  dossierTitle: {
     fontFamily: FontFamily.bold,
+    fontSize: 15,
     color: '#FFFFFF',
   },
-  masterDossierSub: {
+  dossierSub: {
+    fontFamily: FontFamily.regular,
     fontSize: 12,
     color: '#94A3B8',
-    fontFamily: FontFamily.regular,
   },
-  masterDossierArrowWrap: {
+
+  // Metrics Grid
+  metricsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  metricCard: {
+    width: '48.5%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderLeftWidth: 4,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+  },
+  metricCardTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  metricLabel: {
+    fontFamily: FontFamily.bold,
+    fontSize: 11,
+    color: '#64748B',
+    letterSpacing: 0.5,
+  },
+  metricVal: {
+    fontFamily: FontFamily.bold,
+    fontSize: 22,
+    color: '#0F172A',
+    marginBottom: 2,
+  },
+  metricSub: {
+    fontFamily: FontFamily.medium,
+    fontSize: 11,
+    color: '#64748B',
+  },
+
+  // Class Attendance Section
+  classAttendanceSection: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 14,
+    gap: 12,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  sectionIconBox: {
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#F8FAFC',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 8,
-  },
-
-  // KPI Metrics Grid
-  kpiGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  kpiCard: {
-    flex: 1,
-    minWidth: '46%',
-    backgroundColor: '#F9FAFB',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderLeftWidth: 4,
-  },
-  kpiTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  kpiLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#6B6B6B',
-    fontFamily: FontFamily.bold,
-    letterSpacing: 0.5,
-  },
-  kpiValue: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: '#171717',
-    fontFamily: FontFamily.bold,
-    marginTop: 4,
-  },
-  kpiFoot: {
-    fontSize: 12,
-    color: '#6B6B6B',
-    fontFamily: FontFamily.regular,
-    marginTop: 2,
-  },
-
-  // Pulse Progress Meters
-  barsContainer: {
-    gap: 16,
-    paddingVertical: 4,
-  },
-  barGroup: {
-    gap: 6,
-  },
-  barHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  barLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  barLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#374151',
-    fontFamily: FontFamily.bold,
-  },
-  barPercent: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#171717',
-    fontFamily: FontFamily.bold,
-  },
-  track: {
-    height: 10,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 5,
-    overflow: 'hidden',
-  },
-  fill: {
-    height: '100%',
-    borderRadius: 5,
-  },
-  barCount: {
-    fontSize: 12,
-    color: '#6B6B6B',
-    fontFamily: FontFamily.regular,
-  },
-
-  // Alert Card
-  alertCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFBEB',
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-    borderRadius: 16,
-    padding: 14,
-    gap: 12,
-  },
-  alertIconBox: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: '#E0F2FE',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  alertTextWrap: {
-    flex: 1,
-  },
-  alertTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#92400E',
+  sectionTitle: {
     fontFamily: FontFamily.bold,
+    fontSize: 16,
+    color: '#0F172A',
   },
-  alertBody: {
-    fontSize: 12,
-    color: '#B45309',
+  sectionSubtitle: {
     fontFamily: FontFamily.regular,
-    marginTop: 2,
-  },
-  alertActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FEF3C7',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    gap: 2,
-  },
-  alertActionText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#92400E',
-    fontFamily: FontFamily.bold,
+    color: '#64748B',
   },
 
-  // Homeroom Preview
-  homeroomPreviewList: {
+  // Search Bar
+  searchBarWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
-  homeroomRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    backgroundColor: '#F9FAFB',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
+  searchInput: {
+    flex: 1,
+    fontFamily: FontFamily.regular,
+    fontSize: 13,
+    color: '#0F172A',
+    padding: 0,
+  },
+
+  // Class List
+  classListWrap: {
     gap: 10,
   },
-  secBadge: {
-    backgroundColor: '#E0F2FE',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+  classAttendanceCard: {
+    backgroundColor: '#F8FAFC',
     borderRadius: 8,
-  },
-  secBadgeText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#0369A1',
-    fontFamily: FontFamily.bold,
-  },
-  homeroomTeacherName: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#171717',
-    fontFamily: FontFamily.bold,
-  },
-  homeroomMetaSub: {
-    fontSize: 11,
-    color: '#6B6B6B',
-    fontFamily: FontFamily.regular,
-    marginTop: 1,
-  },
-  assignSmallBtn: {
-    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#D1D5DB',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  assignSmallText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#374151',
-    fontFamily: FontFamily.bold,
-  },
-  viewMoreRow: {
-    paddingVertical: 8,
-    alignItems: 'center',
-  },
-  viewMoreText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#D97706',
-    fontFamily: FontFamily.bold,
-  },
-
-  // Counseling List
-  counselingList: {
+    borderColor: '#E2E8F0',
+    padding: 12,
     gap: 8,
   },
-  counselingCard: {
-    padding: 12,
-    backgroundColor: '#F9FAFB',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
-    gap: 4,
-  },
-  counselingHeader: {
+  classCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  counselingStudent: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#171717',
+  classTitleWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  classBadge: {
+    backgroundColor: '#0F172A',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  classBadgeText: {
     fontFamily: FontFamily.bold,
-  },
-  severityPill: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  severityText: {
-    fontSize: 9,
-    fontWeight: '800',
-    fontFamily: FontFamily.bold,
-  },
-  counselingReason: {
     fontSize: 12,
-    color: '#4B5563',
-    fontFamily: FontFamily.regular,
+    color: '#FFFFFF',
   },
-  counselingDate: {
-    fontSize: 11,
-    color: '#9CA3AF',
-    fontFamily: FontFamily.regular,
+  classRoomText: {
+    fontFamily: FontFamily.medium,
+    fontSize: 12,
+    color: '#64748B',
   },
-  emptyText: {
-    fontSize: 13,
-    color: '#9CA3AF',
-    textAlign: 'center',
-    paddingVertical: 12,
-    fontFamily: FontFamily.regular,
+  pctBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
   },
-
-  // Notices
-  noticeSnippetCard: {
-    backgroundColor: '#F9FAFB',
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
+  pctBadgeText: {
+    fontFamily: FontFamily.bold,
+    fontSize: 12,
+  },
+  progressTrack: {
+    height: 6,
+    backgroundColor: '#E2E8F0',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  classCardFooter: {
+    gap: 4,
+  },
+  countsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 6,
   },
-  noticeSnippetHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  noticeAudiencePill: {
-    backgroundColor: '#E5E7EB',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  noticeAudienceText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#374151',
-  },
-  urgentPill: {
-    backgroundColor: '#FEE2E2',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  urgentText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#DC2626',
-  },
-  noticeDate: {
-    fontSize: 11,
-    color: '#9CA3AF',
-    marginLeft: 'auto',
-  },
-  noticeSnippetTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#171717',
-    fontFamily: FontFamily.bold,
-  },
-  noticeSnippetBody: {
-    fontSize: 12,
-    color: '#4B5563',
-    lineHeight: 18,
+  enrolledText: {
     fontFamily: FontFamily.regular,
+    fontSize: 12,
+    color: '#475569',
   },
-  emptyNoticeSnippet: {
-    backgroundColor: '#F9FAFB',
-    borderRadius: 14,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  emptyNoticeText: {
-    fontSize: 13,
-    color: '#6B6B6B',
+  presentText: {
     fontFamily: FontFamily.medium,
+    fontSize: 12,
   },
-  createNoticeLink: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#D97706',
+  absentText: {
+    fontFamily: FontFamily.medium,
+    fontSize: 12,
+  },
+  boldText: {
     fontFamily: FontFamily.bold,
   },
-  broadcastBtn: {
+  dotSeparator: {
+    color: '#CBD5E1',
+    fontSize: 12,
+  },
+  teacherInfoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#1E293B',
-    borderRadius: BorderRadius.button,
-    paddingVertical: 14,
-    marginTop: 4,
+    gap: 4,
+    marginTop: 2,
   },
-  broadcastBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
+  teacherNameText: {
+    flex: 1,
+    fontFamily: FontFamily.regular,
+    fontSize: 11,
+    color: '#64748B',
+  },
+  quickAssignBtn: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  quickAssignText: {
     fontFamily: FontFamily.bold,
+    fontSize: 11,
+    color: '#B45309',
   },
 
-  // Action Grid
-  actionGrid: {
+  emptyWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 24,
+    gap: 8,
+  },
+  emptyText: {
+    fontFamily: FontFamily.medium,
+    fontSize: 13,
+    color: '#64748B',
+    textAlign: 'center',
+  },
+  viewMoreBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    backgroundColor: '#F0F9FF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+  },
+  viewMoreBtnText: {
+    fontFamily: FontFamily.semibold,
+    fontSize: 13,
+    color: '#0284C7',
+  },
+
+  // Quick Actions Section
+  quickActionsSection: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 14,
+    gap: 10,
+  },
+  quickActionsTitle: {
+    fontFamily: FontFamily.bold,
+    fontSize: 14,
+    color: '#0F172A',
+  },
+  actionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 10,
   },
-  actionTile: {
-    flex: 1,
-    minWidth: '46%',
-    backgroundColor: '#F9FAFB',
-    borderRadius: 16,
-    padding: 16,
+  actionGridBtn: {
+    width: '48.5%',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#F3F4F6',
+    borderColor: '#E2E8F0',
+    padding: 12,
+    alignItems: 'flex-start',
     gap: 4,
   },
   actionIconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
+    width: 34,
+    height: 34,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 6,
+    marginBottom: 4,
   },
-  actionTileTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#0F172A',
+  actionBtnTitle: {
     fontFamily: FontFamily.bold,
+    fontSize: 13,
+    color: '#0F172A',
   },
-  actionTileSub: {
+  actionBtnSub: {
+    fontFamily: FontFamily.regular,
     fontSize: 11,
     color: '#64748B',
-    fontFamily: FontFamily.regular,
   },
 });
