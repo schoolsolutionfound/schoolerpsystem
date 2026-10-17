@@ -12,7 +12,7 @@ function normalizeUserRole(rawRole: string | undefined): string {
   return r;
 }
 
-const VALID_ROLES = ['admin', 'principal', 'hod', 'teacher', 'student', 'parent', 'dev'];
+const VALID_ROLES = ['admin', 'principal', 'hod', 'teacher', 'student', 'parent', 'dev', 'accountant', 'librarian', 'driver', 'admission_officer'];
 
 export function useAppSync(userSession: User | null) {
   const setUserProfile = useUserStore((state) => state.setUserProfile);
