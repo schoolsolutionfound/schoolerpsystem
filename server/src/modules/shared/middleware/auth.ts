@@ -212,11 +212,11 @@ export async function requireTeacherOrAdmin(request: FastifyRequest, reply: Fast
   if (reply.sent) return;
 
   const role = normalizeRole(request.user?.role);
-  if (role !== 'admin' && role !== 'teacher' && role !== 'hod') {
+  if (role !== 'admin' && role !== 'teacher' && role !== 'hod' && role !== 'principal') {
     return reply.status(403).send({
       success: false,
       error: {
-        message: 'Access denied: Teacher or Administrator privileges required',
+        message: 'Access denied: Teacher, HOD, Principal, or Administrator privileges required',
         code: 'FORBIDDEN',
       },
     });

@@ -59,5 +59,13 @@ export function isRouteAllowedForRole(pathname: string, role?: string, roles?: s
 
   if (allRoles.length === 0 || allRoles.includes('loading')) return false;
 
+  // Principals and HODs are educators and teachers too — grant educator cross-access
+  if (pathGroup === '/(teacher)' && allRoles.some((r) => ['principal', 'hod', 'admin', 'teacher'].includes(r))) {
+    return true;
+  }
+  if (pathGroup === '/(hod)' && allRoles.some((r) => ['principal', 'admin', 'hod'].includes(r))) {
+    return true;
+  }
+
   return allRoles.some((r) => ROLE_GROUP[r] === pathGroup);
 }

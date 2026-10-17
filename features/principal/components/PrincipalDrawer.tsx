@@ -179,6 +179,36 @@ export const PrincipalDrawer: React.FC<PrincipalDrawerProps> = ({
               );
             })}
 
+            {/* Educator & Teaching Operations */}
+            <Text style={styles.sectionHeader}>EDUCATOR OPERATIONS</Text>
+            <TouchableOpacity
+              style={styles.navItem}
+              onPress={() => {
+                onClose();
+                router.push('/teacher-timetable');
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.navIconBox, { backgroundColor: '#EFF6FF' }]}>
+                <MaterialCommunityIcons name="calendar-clock" size={20} color="#1D4ED8" />
+              </View>
+              <Text style={styles.navItemText}>My Teaching Timetable</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.navItem}
+              onPress={() => {
+                onClose();
+                router.push('/teacher-attendance');
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.navIconBox, { backgroundColor: '#F0FDF4' }]}>
+                <MaterialCommunityIcons name="clipboard-check" size={20} color="#15803D" />
+              </View>
+              <Text style={styles.navItemText}>Take Class Attendance</Text>
+            </TouchableOpacity>
+
             {/* Role Switching */}
             {roles.length > 1 && (
               <View style={styles.switchRoleBlock}>

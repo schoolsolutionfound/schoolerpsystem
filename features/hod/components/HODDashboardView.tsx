@@ -29,6 +29,10 @@ interface HODDashboardViewProps {
   onOpenAssignModal: (course: DepartmentCourse) => void;
   onOpenEligibilityModal: (record: ExamEligibilityRecord) => void;
   onOpenNoticeModal: () => void;
+  onOpenDeptDossierModal?: () => void;
+  onNavigateToTeacherTimetable?: () => void;
+  onNavigateToTeacherAttendance?: () => void;
+  onSwitchToTeacherPortal?: () => void;
 }
 
 export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
@@ -42,6 +46,10 @@ export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
   onOpenAssignModal,
   onOpenEligibilityModal,
   onOpenNoticeModal,
+  onOpenDeptDossierModal,
+  onNavigateToTeacherTimetable,
+  onNavigateToTeacherAttendance,
+  onSwitchToTeacherPortal,
 }) => {
   const unassignedCourses = courses.filter((c) => !c.instructorId);
   const firstUnassigned = unassignedCourses[0];
@@ -58,6 +66,87 @@ export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
       }
       showsVerticalScrollIndicator={false}
     >
+      {/* 1-CLICK DEPARTMENT MASTER DOSSIER (All details in just 1 button press!) */}
+      {onOpenDeptDossierModal && (
+        <TouchableOpacity
+          style={styles.masterDossierCard}
+          onPress={onOpenDeptDossierModal}
+          activeOpacity={0.85}
+        >
+          <View style={styles.masterDossierLeft}>
+            <View style={styles.masterDossierIconWrap}>
+              <MaterialCommunityIcons name="lightning-bolt" size={26} color="#FFFFFF" />
+            </View>
+            <View style={styles.masterDossierTextWrap}>
+              <View style={styles.masterBadgeRow}>
+                <View style={styles.masterDossierBadge}>
+                  <Text style={styles.masterDossierBadgeText}>1-CLICK INTELLIGENCE</Text>
+                </View>
+                <Text style={styles.masterLiveText}>• REAL-TIME</Text>
+              </View>
+              <Text style={styles.masterDossierTitle}>Department Master Dossier</Text>
+              <Text style={styles.masterDossierSub}>Get all departmental details in 1 single tap</Text>
+            </View>
+          </View>
+          <View style={styles.masterDossierArrowWrap}>
+            <MaterialCommunityIcons name="arrow-right-bold" size={20} color="#0F172A" />
+          </View>
+        </TouchableOpacity>
+      )}
+
+      {/* EDUCATOR & TEACHING ACCESS (HODs are educators & teachers too!) */}
+      <View style={styles.educatorHubCard}>
+        <View style={styles.educatorHeaderRow}>
+          <View style={styles.educatorTitleWrap}>
+            <View style={styles.educatorBadge}>
+              <MaterialCommunityIcons name="school" size={13} color="#047857" />
+              <Text style={styles.educatorBadgeText}>EDUCATOR PRIVILEGES</Text>
+            </View>
+            <Text style={styles.educatorCardTitle}>Teaching & Classroom Operations</Text>
+            <Text style={styles.educatorCardSub}>As an educator, manage your lectures, timetable, and attendance</Text>
+          </View>
+        </View>
+
+        <View style={styles.educatorButtonsRow}>
+          <TouchableOpacity
+            style={[styles.largeEduBtn, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}
+            onPress={onNavigateToTeacherTimetable}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.largeEduIcon, { backgroundColor: '#DBEAFE' }]}>
+              <MaterialCommunityIcons name="calendar-clock" size={24} color="#1D4ED8" />
+            </View>
+            <View style={styles.largeEduTextWrap}>
+              <Text style={[styles.largeEduTitle, { color: '#1E40AF' }]}>My Timetable</Text>
+              <Text style={styles.largeEduSub}>Lecture schedule</Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.largeEduBtn, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}
+            onPress={onNavigateToTeacherAttendance}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.largeEduIcon, { backgroundColor: '#DCFCE7' }]}>
+              <MaterialCommunityIcons name="clipboard-check" size={24} color="#15803D" />
+            </View>
+            <View style={styles.largeEduTextWrap}>
+              <Text style={[styles.largeEduTitle, { color: '#166534' }]}>Take Attendance</Text>
+              <Text style={styles.largeEduSub}>Mark class roster</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity
+          style={styles.switchTeacherPortalBtn}
+          onPress={onSwitchToTeacherPortal}
+          activeOpacity={0.85}
+        >
+          <MaterialCommunityIcons name="account-convert" size={18} color="#FFFFFF" />
+          <Text style={styles.switchTeacherPortalText}>Switch to Classroom Teacher Portal</Text>
+          <MaterialCommunityIcons name="chevron-right" size={18} color="#FFFFFF" />
+        </TouchableOpacity>
+      </View>
       {/* Actionable Alert Banner: Unassigned Courses */}
       {firstUnassigned && (
         <TouchableOpacity
@@ -441,6 +530,180 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     gap: 16,
   },
+  masterDossierCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#0F172A',
+    borderRadius: 18,
+    padding: 16,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  masterDossierLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  masterDossierIconWrap: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: '#EA580C',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  masterDossierTextWrap: {
+    flex: 1,
+    gap: 2,
+  },
+  masterBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  masterDossierBadge: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  masterDossierBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    fontFamily: FontFamily.bold,
+    color: '#B45309',
+  },
+  masterLiveText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#34D399',
+  },
+  masterDossierTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    fontFamily: FontFamily.bold,
+    color: '#FFFFFF',
+  },
+  masterDossierSub: {
+    fontSize: 11,
+    color: '#94A3B8',
+    fontFamily: FontFamily.regular,
+  },
+  masterDossierArrowWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  educatorHubCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  educatorHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  educatorTitleWrap: {
+    flex: 1,
+    gap: 2,
+  },
+  educatorBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+    marginBottom: 4,
+  },
+  educatorBadgeText: {
+    fontSize: 10,
+    fontFamily: FontFamily.bold,
+    fontWeight: '800',
+    color: '#047857',
+  },
+  educatorCardTitle: {
+    fontSize: 15,
+    fontFamily: FontFamily.bold,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  educatorCardSub: {
+    fontSize: 11,
+    color: '#64748B',
+    fontFamily: FontFamily.regular,
+  },
+  educatorButtonsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  largeEduBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    gap: 10,
+  },
+  largeEduIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  largeEduTextWrap: {
+    flex: 1,
+  },
+  largeEduTitle: {
+    fontSize: 13,
+    fontFamily: FontFamily.bold,
+    fontWeight: '700',
+  },
+  largeEduSub: {
+    fontSize: 10,
+    color: '#64748B',
+    fontFamily: FontFamily.regular,
+    marginTop: 1,
+  },
+  switchTeacherPortalBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#1E293B',
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  switchTeacherPortalText: {
+    fontSize: 12,
+    fontFamily: FontFamily.bold,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
   alertCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -628,20 +891,26 @@ const styles = StyleSheet.create({
   quickActionBtn: {
     alignItems: 'center',
     flex: 1,
+    paddingVertical: 4,
   },
   actionIconBox: {
-    width: 46,
-    height: 46,
-    borderRadius: 12,
+    width: 52,
+    height: 52,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 6,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 2,
   },
   actionBtnText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
-    color: '#374151',
-    fontFamily: FontFamily.poppins,
+    color: '#1F2937',
+    fontFamily: FontFamily.bold,
   },
   sectionCard: {
     backgroundColor: '#FFFFFF',
