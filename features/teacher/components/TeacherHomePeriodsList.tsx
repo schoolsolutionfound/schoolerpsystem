@@ -151,14 +151,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  sectionHeaderTitle: { flex: 1, fontSize: 15, fontFamily: FontFamily.extrabold, color: '#171717' },
+  sectionHeaderTitle: { flex: 1, fontSize: 16, fontFamily: FontFamily.bold, color: '#171717' },
   countBadge: {
     backgroundColor: 'rgba(244, 196, 48, 0.15)',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
   },
-  countBadgeText: { fontSize: 11, fontWeight: '700', color: '#D4A418' },
+  countBadgeText: { fontSize: 11, fontFamily: FontFamily.bold, color: '#D4A418' },
   periodsListCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: BorderRadius.card,
@@ -185,12 +185,12 @@ const styles = StyleSheet.create({
   activePeriodBadge: {
     backgroundColor: '#F4C430',
   },
-  periodBadgeNum: { fontSize: 9, fontFamily: FontFamily.extrabold, color: '#F4C430' },
+  periodBadgeNum: { fontSize: 11, fontFamily: FontFamily.bold, color: '#F4C430' },
   periodBadgeNumActive: { color: '#FFFFFF' },
   timeWrap: { width: 70 },
   timeText: { fontSize: 12, fontFamily: FontFamily.semibold, color: '#171717' },
   timeTextActive: { color: '#F4C430' },
-  timeSubText: { fontSize: 10, fontFamily: FontFamily.regular, color: '#6B6B6B' },
+  timeSubText: { fontSize: 11, fontFamily: FontFamily.regular, color: '#6B6B6B' },
   iconSubjectWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
   subjectIconCircle: {
     width: 34,
@@ -203,8 +203,8 @@ const styles = StyleSheet.create({
   subjectIconCircleActive: {
     backgroundColor: '#F4C430',
   },
-  subjectName: { fontSize: 13, fontFamily: FontFamily.semibold, color: '#171717' },
-  roomName: { fontSize: 11, fontFamily: FontFamily.regular, color: '#6B6B6B' },
+  subjectName: { fontSize: 14, fontFamily: FontFamily.semibold, color: '#171717' },
+  roomName: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B6B6B' },
   markBtn: {
     backgroundColor: '#F4C430',
     paddingHorizontal: 10,
@@ -214,14 +214,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
   },
-  markBtnText: { fontSize: 11, fontWeight: '700', color: '#FFFFFF' },
+  markBtnText: { fontSize: 11, fontFamily: FontFamily.bold, color: '#FFFFFF' },
   nowChip: {
     backgroundColor: '#F4C430',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: BorderRadius.chip,
   },
-  nowChipText: { fontSize: 10, fontWeight: '700', color: '#FFFFFF' },
+  nowChipText: { fontSize: 11, fontFamily: FontFamily.bold, color: '#FFFFFF' },
   divider: { height: 1, backgroundColor: '#FFFEFE' },
   emptyCard: { padding: 24, alignItems: 'center', gap: 6 },
   emptyIconWrap: {
@@ -234,6 +234,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E8E5DC',
   },
-  emptyTitle: { fontSize: 14, fontWeight: '700', color: '#171717' },
-  emptySub: { fontSize: 12, color: '#6B6B6B', textAlign: 'center', lineHeight: 16 },
+  emptyTitle: { fontSize: 14, fontFamily: FontFamily.bold, color: '#171717' },
+  emptySub: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B6B6B', textAlign: 'center', lineHeight: 18 },
 });
