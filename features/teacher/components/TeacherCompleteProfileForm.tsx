@@ -141,9 +141,9 @@ const styles = StyleSheet.create({
     borderColor: '#E8E5DC',
     gap: 12,
   },
-  sectionHeaderTitle: { fontSize: 14, fontWeight: '700', fontFamily: FontFamily.bold, color: '#171717', marginBottom: 2 },
+  sectionHeaderTitle: { fontSize: 14, fontFamily: FontFamily.bold, color: '#171717', marginBottom: 2 },
   inputGroup: { gap: 4 },
-  inputLabel: { fontSize: 12, fontWeight: '600', fontFamily: FontFamily.semibold, color: '#6B6B6B' },
+  inputLabel: { fontSize: 12, fontFamily: FontFamily.semibold, color: '#6B6B6B' },
   readOnlyWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     height: 44,
   },
-  readOnlyText: { fontSize: 13, color: '#6B6B6B', fontWeight: '500', fontFamily: FontFamily.medium },
+  readOnlyText: { fontSize: 13, color: '#6B6B6B', fontFamily: FontFamily.medium },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
     height: 44,
   },
   iconPrefix: { marginRight: 8 },
-  input: { flex: 1, fontSize: 13, color: '#171717' },
+  input: { flex: 1, fontSize: 13, fontFamily: FontFamily.regular, color: '#171717' },
   photoUploadBox: {
     height: 90,
     backgroundColor: '#FFFDF7',
@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
     gap: 4,
     overflow: 'hidden',
   },
-  uploadText: { fontSize: 12, color: '#F4C430', fontWeight: '600', fontFamily: FontFamily.semibold },
+  uploadText: { fontSize: 12, color: '#F4C430', fontFamily: FontFamily.semibold },
   previewImage: { width: '100%', height: '100%', resizeMode: 'cover' },
   saveBtn: {
     backgroundColor: '#F4C430',
@@ -189,5 +189,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 4,
   },
-  saveBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700', fontFamily: FontFamily.bold },
+  saveBtnText: { color: '#FFFFFF', fontSize: 15, fontFamily: FontFamily.bold },
 });

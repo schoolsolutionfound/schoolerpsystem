@@ -469,7 +469,7 @@ const styles = StyleSheet.create({
     lineHeight: 21,
   },
   bold: {
-    fontWeight: '700',
+    fontFamily: FontFamily.bold,
     color: '#0F172A',
   },
   warningAlert: {
@@ -490,7 +490,6 @@ const styles = StyleSheet.create({
   listSectionTitle: {
     fontSize: 14,
     fontFamily: FontFamily.bold,
-    fontWeight: '700',
     color: '#0F172A',
     marginBottom: 4,
   },
@@ -519,7 +518,6 @@ const styles = StyleSheet.create({
   listItemTitle: {
     fontSize: 14,
     fontFamily: FontFamily.bold,
-    fontWeight: '700',
     color: '#1E293B',
   },
   listItemSub: {
@@ -541,7 +539,6 @@ const styles = StyleSheet.create({
   statusPillText: {
     fontSize: 11,
     fontFamily: FontFamily.bold,
-    fontWeight: '700',
     color: '#0369A1',
   },
   noticeItemCard: {
@@ -569,29 +566,29 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF3C7',
   },
   priorityBadgeText: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: FontFamily.bold,
-    fontWeight: '800',
     color: '#B91C1C',
   },
   noticeDate: {
     fontSize: 11,
+    fontFamily: FontFamily.regular,
     color: '#64748B',
   },
   noticeTitle: {
     fontSize: 14,
     fontFamily: FontFamily.bold,
-    fontWeight: '700',
     color: '#0F172A',
   },
   noticeBody: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: FontFamily.regular,
     color: '#475569',
-    lineHeight: 18,
+    lineHeight: 19,
   },
   noticeAuthor: {
     fontSize: 11,
+    fontFamily: FontFamily.medium,
     color: '#64748B',
     marginTop: 2,
   },
@@ -621,7 +618,6 @@ const styles = StyleSheet.create({
   copyBtnText: {
     fontSize: 14,
     fontFamily: FontFamily.bold,
-    fontWeight: '700',
     color: '#FFFFFF',
   },
   refreshBtn: {
@@ -639,7 +635,6 @@ const styles = StyleSheet.create({
   refreshBtnText: {
     fontSize: 14,
     fontFamily: FontFamily.bold,
-    fontWeight: '700',
     color: '#1E293B',
   },
 });

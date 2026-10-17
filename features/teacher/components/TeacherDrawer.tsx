@@ -19,6 +19,7 @@ import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../../firebaseConfig';
 import { useUserStore } from '../../../store/useUserStore';
+import { FontFamily } from '../../../constants/fonts';
 
 interface TeacherDrawerProps {
   visible: boolean;
@@ -309,7 +310,7 @@ backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.55)' },
   },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   brandLogo: { width: 34, height: 34 },
-  brandTitle: { fontSize: 14, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.3 },
+  brandTitle: { fontSize: 14, fontFamily: FontFamily.bold, color: '#FFFFFF', letterSpacing: 0.3 },
   closeBtn: {
     width: 32,
     height: 32,
@@ -347,16 +348,16 @@ backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.55)' },
     alignItems: 'center',
   },
   userTextWrap: { flex: 1 },
-  userName: { fontSize: 15, fontWeight: '800', color: '#FFFFFF' },
-  userEmail: { fontSize: 11, color: '#8A8A8A', marginTop: 1 },
-  userInstitution: { fontSize: 10, color: '#F4C430', fontWeight: '700', marginTop: 2 },
+  userName: { fontSize: 15, fontFamily: FontFamily.bold, color: '#FFFFFF' },
+  userEmail: { fontSize: 11, fontFamily: FontFamily.regular, color: '#8A8A8A', marginTop: 1 },
+  userInstitution: { fontSize: 11, color: '#F4C430', fontFamily: FontFamily.bold, marginTop: 2 },
 
   body: { flex: 1 },
   bodyContent: { paddingTop: 14, paddingHorizontal: 10, paddingBottom: 20 },
   sectionLabel: {
-    fontSize: 10,
-    color: '#6A6A6A',
-    fontWeight: '800',
+    fontSize: 11,
+    color: '#8A8A8A',
+    fontFamily: FontFamily.bold,
     letterSpacing: 1,
     paddingHorizontal: 10,
     marginBottom: 6,
@@ -386,8 +387,8 @@ backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.55)' },
     backgroundColor: 'rgba(244, 196, 48, 0.15)',
     borderColor: 'rgba(244, 196, 48, 0.3)',
   },
-  menuText: { flex: 1, fontSize: 14, fontWeight: '600', color: '#E5E5E5' },
-  menuTextActive: { color: '#F4C430', fontWeight: '700' },
+  menuText: { flex: 1, fontSize: 14, fontFamily: FontFamily.medium, color: '#E5E5E5' },
+  menuTextActive: { color: '#F4C430', fontFamily: FontFamily.bold },
 
   footer: {
     paddingHorizontal: 14,
@@ -408,6 +409,6 @@ backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.55)' },
     borderWidth: 1,
     borderColor: 'rgba(244, 196, 48, 0.3)',
   },
-  logoutText: { fontSize: 14, fontWeight: '800', color: '#F4C430', letterSpacing: 0.3 },
-  version: { fontSize: 10, color: '#5A5A5A', textAlign: 'center', marginTop: 10, letterSpacing: 0.5 },
+  logoutText: { fontSize: 14, fontFamily: FontFamily.bold, color: '#F4C430', letterSpacing: 0.3 },
+  version: { fontSize: 11, fontFamily: FontFamily.regular, color: '#5A5A5A', textAlign: 'center', marginTop: 10, letterSpacing: 0.5 },
 });

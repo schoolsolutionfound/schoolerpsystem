@@ -645,7 +645,6 @@ const styles = StyleSheet.create({
   },
   copyButtonPillText: {
     fontSize: 11,
-    fontWeight: '800',
     color: '#EA580C',
     fontFamily: FontFamily.bold,
   },
@@ -675,13 +674,11 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     fontSize: 12,
-    fontWeight: '600',
     color: '#6B7280',
     fontFamily: FontFamily.medium,
   },
   tabLabelActive: {
     color: '#EA580C',
-    fontWeight: '800',
     fontFamily: FontFamily.bold,
   },
   scrollBody: {
@@ -697,7 +694,6 @@ const styles = StyleSheet.create({
   },
   sectionHeader: {
     fontSize: 11,
-    fontWeight: '800',
     color: '#6B7280',
     letterSpacing: 0.8,
     fontFamily: FontFamily.bold,
@@ -763,7 +759,6 @@ const styles = StyleSheet.create({
   },
   meterVal: {
     fontSize: 14,
-    fontWeight: '800',
     color: '#EA580C',
     fontFamily: FontFamily.bold,
   },
@@ -797,43 +792,39 @@ const styles = StyleSheet.create({
   },
   itemCode: {
     fontSize: 11,
-    fontWeight: '800',
     color: '#EA580C',
     fontFamily: FontFamily.bold,
   },
   semPill: {
     backgroundColor: '#E5E7EB',
-    paddingHorizontal: 5,
-    paddingVertical: 1,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
     borderRadius: 4,
   },
   semPillText: {
-    fontSize: 9,
-    fontWeight: '700',
+    fontSize: 11,
     color: '#374151',
     fontFamily: FontFamily.medium,
   },
   itemTitle: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 14,
     color: '#111827',
     fontFamily: FontFamily.semibold,
   },
   itemSub: {
-    fontSize: 11,
+    fontSize: 12,
     color: '#6B7280',
     marginTop: 2,
     fontFamily: FontFamily.regular,
   },
   metaSub: {
-    fontSize: 10,
+    fontSize: 11,
     color: '#9CA3AF',
     marginTop: 1,
     fontFamily: FontFamily.regular,
   },
   progressText: {
     fontSize: 13,
-    fontWeight: '800',
     color: '#111827',
     fontFamily: FontFamily.bold,
   },
@@ -850,7 +841,7 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   hoursText: {
-    fontSize: 9,
+    fontSize: 11,
     color: '#9CA3AF',
     fontFamily: FontFamily.regular,
   },
@@ -860,25 +851,23 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   dutyBadgeText: {
-    fontSize: 9,
-    fontWeight: '800',
+    fontSize: 11,
     fontFamily: FontFamily.bold,
   },
   workloadText: {
-    fontSize: 10,
+    fontSize: 11,
     color: '#6B7280',
     marginTop: 3,
     fontFamily: FontFamily.regular,
   },
   detentionReason: {
-    fontSize: 10,
+    fontSize: 11,
     color: '#92400E',
     marginTop: 2,
     fontFamily: FontFamily.regular,
   },
   attendancePct: {
     fontSize: 15,
-    fontWeight: '800',
     fontFamily: FontFamily.bold,
   },
   statusBadge: {
@@ -888,8 +877,7 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   statusBadgeText: {
-    fontSize: 9,
-    fontWeight: '800',
+    fontSize: 11,
     fontFamily: FontFamily.bold,
   },
   memoCard: {
@@ -912,25 +900,23 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   priorityBadgeText: {
-    fontSize: 9,
-    fontWeight: '800',
+    fontSize: 11,
     fontFamily: FontFamily.bold,
   },
   memoDate: {
-    fontSize: 10,
+    fontSize: 11,
     color: '#9CA3AF',
     fontFamily: FontFamily.regular,
   },
   memoTitle: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 14,
     color: '#111827',
     fontFamily: FontFamily.semibold,
   },
   memoBody: {
-    fontSize: 11,
+    fontSize: 12,
     color: '#4B5563',
-    lineHeight: 16,
+    lineHeight: 18,
     fontFamily: FontFamily.regular,
   },
   footer: {
@@ -947,7 +933,6 @@ const styles = StyleSheet.create({
   },
   doneBtnText: {
     fontSize: 14,
-    fontWeight: '700',
     color: '#FFFFFF',
     fontFamily: FontFamily.semibold,
   },

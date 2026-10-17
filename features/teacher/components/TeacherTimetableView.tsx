@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, RefreshControl } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
+import { FontFamily } from '../../../constants/fonts';
 import { fetchTeacherTimetableApi } from '../../../api/academics';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -204,28 +205,28 @@ export const TeacherTimetableView: React.FC<TeacherTimetableViewProps> = ({ onOp
 const styles = StyleSheet.create({
   container: { flex: 1 },
   dateBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#E8E5DC' },
-  dateTitle: { fontSize: 15, fontWeight: '800', color: '#171717' },
-  dateSub: { fontSize: 11, color: '#6B6B6B', marginTop: 2 },
+  dateTitle: { fontSize: 16, fontFamily: FontFamily.bold, color: '#171717' },
+  dateSub: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B6B6B', marginTop: 2 },
   centerBox: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 60 },
   list: { padding: 16, gap: 10, paddingBottom: 40 },
   periodCard: {
     backgroundColor: '#FFFFFF', borderRadius: BorderRadius.card, borderWidth: 1, borderColor: '#E8E5DC',
     padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12,
   },
-  timeCol: { width: 52, gap: 2 },
-  timeStart: { fontSize: 14, fontWeight: '800', color: '#F4C430' },
-  timeEnd: { fontSize: 11, color: '#6B6B6B' },
+  timeCol: { width: 56, gap: 2 },
+  timeStart: { fontSize: 14, fontFamily: FontFamily.bold, color: '#F4C430' },
+  timeEnd: { fontSize: 11, fontFamily: FontFamily.regular, color: '#6B6B6B' },
   infoCol: { flex: 1 },
-  subject: { fontSize: 14, fontWeight: '700', color: '#171717' },
-  detail: { fontSize: 12, color: '#6B6B6B', marginTop: 2 },
+  subject: { fontSize: 14, fontFamily: FontFamily.semibold, color: '#171717' },
+  detail: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B6B6B', marginTop: 2 },
   markBtn: {
     backgroundColor: '#F4C430', borderRadius: BorderRadius.button, paddingHorizontal: 12, paddingVertical: 8,
     flexDirection: 'row', alignItems: 'center', gap: 4,
   },
-  markBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 12 },
+  markBtnText: { color: '#FFFFFF', fontFamily: FontFamily.bold, fontSize: 12 },
   emptyCard: { backgroundColor: '#FFFFFF', borderRadius: BorderRadius.card, padding: 30, alignItems: 'center', borderWidth: 1, borderColor: '#E8E5DC', margin: 16, marginTop: 40 },
-  emptyTitle: { fontSize: 15, fontWeight: '700', color: '#171717', marginTop: 8 },
-  emptySub: { fontSize: 12, color: '#6B6B6B', textAlign: 'center', marginTop: 4 },
+  emptyTitle: { fontSize: 15, fontFamily: FontFamily.bold, color: '#171717', marginTop: 8 },
+  emptySub: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B6B6B', textAlign: 'center', marginTop: 4 },
   viewRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingVertical: 10 },
   viewChip: {
     flexDirection: 'row',
@@ -239,20 +240,20 @@ const styles = StyleSheet.create({
     borderColor: '#E8E5DC',
   },
   viewChipActive: { backgroundColor: '#FFF4C7', borderColor: '#F4C430' },
-  viewChipText: { fontSize: 12, fontWeight: '700', color: '#6B6B6B' },
-  viewChipTextActive: { color: '#F4C430' },
+  viewChipText: { fontSize: 12, fontFamily: FontFamily.medium, color: '#6B6B6B' },
+  viewChipTextActive: { color: '#F4C430', fontFamily: FontFamily.bold },
   weekWrap: { padding: 16, paddingBottom: 40 },
   gridHeaderRow: { flexDirection: 'row' },
   gridRow: { flexDirection: 'row' },
   cell: { width: 88, minHeight: 52, justifyContent: 'center', alignItems: 'center', borderWidth: 0.5, borderColor: '#E8E5DC', backgroundColor: '#FFFFFF' },
   dayHeaderCell: { backgroundColor: '#FFF4C7' },
-  dayHeaderText: { fontSize: 12, fontWeight: '800', color: '#F4C430' },
+  dayHeaderText: { fontSize: 12, fontFamily: FontFamily.bold, color: '#F4C430' },
   periodCell: { backgroundColor: '#FFFDF7', width: 80, alignItems: 'flex-start', paddingLeft: 10 },
-  periodLabel: { fontSize: 11, fontWeight: '700', color: '#171717' },
-  periodTime: { fontSize: 10, color: '#6B6B6B', marginTop: 2 },
+  periodLabel: { fontSize: 11, fontFamily: FontFamily.bold, color: '#171717' },
+  periodTime: { fontSize: 11, fontFamily: FontFamily.regular, color: '#6B6B6B', marginTop: 2 },
   slotCell: { gap: 2, paddingHorizontal: 4 },
   slotCellFilled: { backgroundColor: '#FFF4C7' },
-  slotSubject: { fontSize: 11, fontWeight: '700', color: '#F4C430', textAlign: 'center' },
-  slotRoom: { fontSize: 9, color: '#6B6B6B' },
-  slotEmpty: { fontSize: 13, color: '#E8E5DC' },
+  slotSubject: { fontSize: 11, fontFamily: FontFamily.bold, color: '#F4C430', textAlign: 'center' },
+  slotRoom: { fontSize: 11, fontFamily: FontFamily.regular, color: '#6B6B6B' },
+  slotEmpty: { fontSize: 13, fontFamily: FontFamily.regular, color: '#E8E5DC' },
 });

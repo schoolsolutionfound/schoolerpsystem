@@ -240,12 +240,12 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 6,
   },
-  badgeText: { fontSize: 10, fontWeight: '700', color: '#D4A418' },
-  body: { fontSize: 13, color: '#171717', fontWeight: '600' },
+  badgeText: { fontSize: 11, fontFamily: FontFamily.bold, color: '#D4A418' },
+  body: { fontSize: 13, color: '#171717', fontFamily: FontFamily.medium },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  authorText: { fontSize: 11, color: '#D97706', fontWeight: '600' },
-  deptText: { fontSize: 11, color: '#6B6B6B' },
-  sub: { fontSize: 11, color: '#6B6B6B' },
+  authorText: { fontSize: 11, color: '#D97706', fontFamily: FontFamily.medium },
+  deptText: { fontSize: 11, color: '#6B6B6B', fontFamily: FontFamily.regular },
+  sub: { fontSize: 11, color: '#6B6B6B', fontFamily: FontFamily.regular },
 
   // Modal styles
   modalOverlay: {
@@ -341,10 +341,9 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   urgentText: {
-    fontSize: 9,
-    fontWeight: '800',
+    fontSize: 11,
     color: '#DC2626',
-    fontFamily: FontFamily.extrabold,
+    fontFamily: FontFamily.bold,
   },
   importantBadge: {
     backgroundColor: '#FEF3C7',
@@ -353,10 +352,9 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   importantText: {
-    fontSize: 9,
-    fontWeight: '800',
+    fontSize: 11,
     color: '#D97706',
-    fontFamily: FontFamily.extrabold,
+    fontFamily: FontFamily.bold,
   },
   deptBadge: {
     backgroundColor: '#EFF6FF',
@@ -367,8 +365,7 @@ const styles = StyleSheet.create({
     borderColor: '#BFDBFE',
   },
   deptBadgeText: {
-    fontSize: 9,
-    fontWeight: '700',
+    fontSize: 11,
     color: '#1D4ED8',
     fontFamily: FontFamily.bold,
   },
@@ -379,8 +376,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   campusBadgeText: {
-    fontSize: 9,
-    fontWeight: '700',
+    fontSize: 11,
     color: '#4B5563',
     fontFamily: FontFamily.bold,
   },
@@ -411,7 +407,6 @@ const styles = StyleSheet.create({
   authorBadgeText: {
     fontSize: 11,
     color: '#78716C',
-    fontWeight: '600',
     fontFamily: FontFamily.medium,
   },
 });
