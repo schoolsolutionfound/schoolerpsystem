@@ -712,13 +712,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   highlightTitle: {
-    fontSize: 13,
-    fontWeight: '800',
+    fontSize: 14,
+    color: '#111827',
     fontFamily: FontFamily.bold,
   },
   highlightSub: {
-    fontSize: 11,
-    marginTop: 2,
+    fontSize: 12,
     fontFamily: FontFamily.regular,
   },
   metricsGrid: {
@@ -735,13 +734,12 @@ const styles = StyleSheet.create({
     borderColor: '#F3F4F6',
   },
   metricNum: {
-    fontSize: 22,
-    fontWeight: '800',
+    fontSize: 24,
     color: '#111827',
     fontFamily: FontFamily.bold,
   },
   metricLabel: {
-    fontSize: 11,
+    fontSize: 12,
     color: '#6B7280',
     marginTop: 2,
     fontFamily: FontFamily.medium,
@@ -759,8 +757,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   meterTitle: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 14,
     color: '#111827',
     fontFamily: FontFamily.semibold,
   },

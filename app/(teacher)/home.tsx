@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F4C430',
   },
   tabLabel: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: FontFamily.medium,
     color: '#9CA3AF',
     marginTop: 4,
@@ -408,7 +408,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#171717',
   },
   centerLabel: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: FontFamily.medium,
     color: '#9CA3AF',
     marginTop: 5,

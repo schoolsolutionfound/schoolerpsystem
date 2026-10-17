@@ -347,20 +347,18 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   headerBadgeText: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: FontFamily.bold,
-    fontWeight: '800',
     color: '#B45309',
     letterSpacing: 0.5,
   },
   institutionTitle: {
-    fontSize: 20,
-    fontFamily: FontFamily.extrabold,
-    fontWeight: '800',
+    fontSize: 22,
+    fontFamily: FontFamily.bold,
     color: '#0F172A',
   },
   institutionSubtitle: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: FontFamily.regular,
     color: '#64748B',
     marginTop: 2,
@@ -403,8 +401,7 @@ const styles = StyleSheet.create({
   },
   tabBtnText: {
     fontSize: 12,
-    fontFamily: FontFamily.bold,
-    fontWeight: '700',
+    fontFamily: FontFamily.semibold,
     color: '#64748B',
   },
   tabBtnTextActive: {
@@ -441,19 +438,16 @@ const styles = StyleSheet.create({
   },
   kpiNumber: {
     fontSize: 26,
-    fontFamily: FontFamily.extrabold,
-    fontWeight: '800',
+    fontFamily: FontFamily.bold,
   },
   kpiTitle: {
-    fontSize: 13,
-    fontFamily: FontFamily.bold,
-    fontWeight: '700',
+    fontSize: 14,
+    fontFamily: FontFamily.semibold,
     color: '#334155',
   },
   kpiSub: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: FontFamily.medium,
-    fontWeight: '600',
   },
   narrativeCard: {
     backgroundColor: '#F8FAFC',
@@ -464,16 +458,15 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   narrativeTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontFamily: FontFamily.bold,
-    fontWeight: '700',
     color: '#1E293B',
   },
   narrativeBody: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: FontFamily.regular,
     color: '#475569',
-    lineHeight: 20,
+    lineHeight: 21,
   },
   bold: {
     fontWeight: '700',
