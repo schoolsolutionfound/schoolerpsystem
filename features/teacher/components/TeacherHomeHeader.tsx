@@ -34,12 +34,12 @@ export const TeacherHomeHeader: React.FC<TeacherHomeHeaderProps> = ({
   return (
     <View style={styles.container}>
       <View style={styles.topHeader}>
-        {/* Left: Menu + Kivouo */}
+        {/* Left: Menu + Kivquo */}
         <View style={styles.leftGroup}>
           <TouchableOpacity style={styles.iconBtn} onPress={onMenuPress} activeOpacity={0.7}>
             <Feather name="menu" size={22} color="#171717" />
           </TouchableOpacity>
-          <Text style={styles.brandTitle}>Kivouo</Text>
+          <Text style={styles.brandTitle}>Kivquo</Text>
         </View>
 
         {/* Right: Switch back to Principal/HOD + Notification Bell */}

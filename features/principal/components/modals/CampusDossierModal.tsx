@@ -95,7 +95,7 @@ ${notices.map((n, i) => `  ${i + 1}. [${n.priority.toUpperCase()}] ${n.title} (A
           <View style={styles.header}>
             <View style={styles.headerTitleWrap}>
               <View style={styles.headerBadge}>
-                <MaterialCommunityIcons name="lightning-bolt" size={16} color="#D97706" />
+                <MaterialCommunityIcons name="lightning-bolt" size={16} color="#F4C430" />
                 <Text style={styles.headerBadgeText}>1-CLICK EXECUTIVE INTELLIGENCE</Text>
               </View>
               <Text style={styles.institutionTitle} numberOfLines={1}>{institutionName}</Text>
@@ -130,7 +130,7 @@ ${notices.map((n, i) => `  ${i + 1}. [${n.priority.toUpperCase()}] ${n.title} (A
                 <MaterialCommunityIcons
                   name={t.icon}
                   size={16}
-                  color={activeTab === t.key ? '#FFFFFF' : '#6B7280'}
+                  color={activeTab === t.key ? '#F4C430' : '#6B7280'}
                 />
                 <Text style={[styles.tabBtnText, activeTab === t.key && styles.tabBtnTextActive]}>
                   {t.label}
@@ -145,42 +145,50 @@ ${notices.map((n, i) => `  ${i + 1}. [${n.priority.toUpperCase()}] ${n.title} (A
               <View style={styles.tabContent}>
                 {/* Master Metric Cards Grid */}
                 <View style={styles.kpiGrid}>
-                  <View style={[styles.kpiBox, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}>
+                  <View style={styles.kpiBox}>
                     <View style={styles.kpiTopRow}>
-                      <Text style={[styles.kpiNumber, { color: '#1D4ED8' }]}>{kpis.totalStudents}</Text>
-                      <MaterialCommunityIcons name="account-school" size={24} color="#2563EB" />
+                      <Text style={styles.kpiNumber}>{kpis.totalStudents}</Text>
+                      <View style={styles.kpiIconBox}>
+                        <MaterialCommunityIcons name="account-school" size={20} color="#F4C430" />
+                      </View>
                     </View>
                     <Text style={styles.kpiTitle}>Enrolled Students</Text>
-                    <Text style={[styles.kpiSub, { color: '#1E40AF' }]}>{kpis.presentStudents} Present Today ({safeStudentPct}%)</Text>
+                    <Text style={[styles.kpiSub, { color: '#16A34A' }]}>{kpis.presentStudents} Present Today ({safeStudentPct}%)</Text>
                   </View>
 
-                  <View style={[styles.kpiBox, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}>
+                  <View style={styles.kpiBox}>
                     <View style={styles.kpiTopRow}>
-                      <Text style={[styles.kpiNumber, { color: '#15803D' }]}>{kpis.totalFaculty}</Text>
-                      <MaterialCommunityIcons name="human-male-board" size={24} color="#16A34A" />
+                      <Text style={styles.kpiNumber}>{kpis.totalFaculty}</Text>
+                      <View style={styles.kpiIconBox}>
+                        <MaterialCommunityIcons name="human-male-board" size={20} color="#F4C430" />
+                      </View>
                     </View>
                     <Text style={styles.kpiTitle}>Total Faculty</Text>
-                    <Text style={[styles.kpiSub, { color: '#166534' }]}>{kpis.presentFaculty} On Duty ({safeFacultyPct}%)</Text>
+                    <Text style={[styles.kpiSub, { color: '#16A34A' }]}>{kpis.presentFaculty} On Duty ({safeFacultyPct}%)</Text>
                   </View>
 
-                  <View style={[styles.kpiBox, { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' }]}>
+                  <View style={styles.kpiBox}>
                     <View style={styles.kpiTopRow}>
-                      <Text style={[styles.kpiNumber, { color: '#B45309' }]}>{homerooms.length}</Text>
-                      <MaterialCommunityIcons name="google-classroom" size={24} color="#D97706" />
+                      <Text style={styles.kpiNumber}>{homerooms.length}</Text>
+                      <View style={styles.kpiIconBox}>
+                        <MaterialCommunityIcons name="google-classroom" size={20} color="#F4C430" />
+                      </View>
                     </View>
                     <Text style={styles.kpiTitle}>Homeroom Classes</Text>
-                    <Text style={[styles.kpiSub, { color: '#92400E' }]}>
+                    <Text style={[styles.kpiSub, { color: kpis.unassignedHomerooms > 0 ? '#DC2626' : '#4B5563' }]}>
                       {kpis.unassignedHomerooms > 0 ? `⚠️ ${kpis.unassignedHomerooms} without mentor` : '100% Mentors Assigned'}
                     </Text>
                   </View>
 
-                  <View style={[styles.kpiBox, { backgroundColor: '#FDF2F8', borderColor: '#FBCFE8' }]}>
+                  <View style={styles.kpiBox}>
                     <View style={styles.kpiTopRow}>
-                      <Text style={[styles.kpiNumber, { color: '#BE185D' }]}>{kpis.counselingCasesActive}</Text>
-                      <MaterialCommunityIcons name="heart-pulse" size={24} color="#DB2777" />
+                      <Text style={styles.kpiNumber}>{kpis.counselingCasesActive}</Text>
+                      <View style={styles.kpiIconBox}>
+                        <MaterialCommunityIcons name="heart-pulse" size={20} color="#F4C430" />
+                      </View>
                     </View>
                     <Text style={styles.kpiTitle}>Guidance Cases</Text>
-                    <Text style={[styles.kpiSub, { color: '#9D174D' }]}>
+                    <Text style={[styles.kpiSub, { color: urgentCases.length > 0 ? '#DC2626' : '#4B5563' }]}>
                       {urgentCases.length > 0 ? `⚠️ ${urgentCases.length} Urgent Priority` : 'All Cases Stable'}
                     </Text>
                   </View>
@@ -197,7 +205,7 @@ ${notices.map((n, i) => `  ${i + 1}. [${n.priority.toUpperCase()}] ${n.title} (A
                   </Text>
                   {kpis.unassignedHomerooms > 0 && (
                     <View style={styles.warningAlert}>
-                      <MaterialCommunityIcons name="alert-circle" size={18} color="#D97706" />
+                      <MaterialCommunityIcons name="alert-circle" size={18} color="#DC2626" />
                       <Text style={styles.warningText}>
                         Action Needed: {kpis.unassignedHomerooms} homeroom section(s) require Class Teacher assignment.
                       </Text>
@@ -213,7 +221,7 @@ ${notices.map((n, i) => `  ${i + 1}. [${n.priority.toUpperCase()}] ${n.title} (A
                 {homerooms.map((sec, idx) => (
                   <View key={sec.id || idx} style={styles.listItemCard}>
                     <View style={styles.listIconBox}>
-                      <MaterialCommunityIcons name="google-classroom" size={22} color="#0284C7" />
+                      <MaterialCommunityIcons name="google-classroom" size={20} color="#F4C430" />
                     </View>
                     <View style={styles.listTextWrap}>
                       <Text style={styles.listItemTitle}>{sec.name}</Text>
@@ -224,8 +232,10 @@ ${notices.map((n, i) => `  ${i + 1}. [${n.priority.toUpperCase()}] ${n.title} (A
                         Enrolled Students: {sec.studentCount} | Room: {sec.roomNumber || 'Room 304'}
                       </Text>
                     </View>
-                    <View style={styles.statusPill}>
-                      <Text style={styles.statusPillText}>{sec.attendanceRate}% Attendance</Text>
+                    <View style={[styles.statusPill, { backgroundColor: sec.attendanceRate >= 75 ? '#DCFCE7' : '#FEE2E2' }]}>
+                      <Text style={[styles.statusPillText, { color: sec.attendanceRate >= 75 ? '#166534' : '#DC2626' }]}>
+                        {sec.attendanceRate}% Attendance
+                      </Text>
                     </View>
                   </View>
                 ))}
@@ -237,16 +247,18 @@ ${notices.map((n, i) => `  ${i + 1}. [${n.priority.toUpperCase()}] ${n.title} (A
                 <Text style={styles.listSectionTitle}>Faculty Roster & Department Allocation</Text>
                 {staff.map((f, idx) => (
                   <View key={f.id || idx} style={styles.listItemCard}>
-                    <View style={[styles.listIconBox, { backgroundColor: '#DCFCE7' }]}>
-                      <MaterialCommunityIcons name="badge-account-outline" size={22} color="#15803D" />
+                    <View style={styles.listIconBox}>
+                      <MaterialCommunityIcons name="badge-account-outline" size={20} color="#F4C430" />
                     </View>
                     <View style={styles.listTextWrap}>
                       <Text style={styles.listItemTitle}>{f.fullName}</Text>
                       <Text style={styles.listItemSub}>{f.designation || 'Faculty Member'} — {f.department || 'General'}</Text>
                       <Text style={styles.listItemMeta}>{f.email || 'No email registered'}</Text>
                     </View>
-                    <View style={[styles.statusPill, { backgroundColor: '#DCFCE7' }]}>
-                      <Text style={[styles.statusPillText, { color: '#166534' }]}>{f.attendanceToday?.toUpperCase() || 'PRESENT'}</Text>
+                    <View style={[styles.statusPill, { backgroundColor: f.attendanceToday === 'absent' ? '#FEE2E2' : '#DCFCE7' }]}>
+                      <Text style={[styles.statusPillText, { color: f.attendanceToday === 'absent' ? '#DC2626' : '#166534' }]}>
+                        {f.attendanceToday?.toUpperCase() || 'PRESENT'}
+                      </Text>
                     </View>
                   </View>
                 ))}
@@ -260,7 +272,9 @@ ${notices.map((n, i) => `  ${i + 1}. [${n.priority.toUpperCase()}] ${n.title} (A
                   <View key={n.id || idx} style={styles.noticeItemCard}>
                     <View style={styles.noticeHeader}>
                       <View style={[styles.priorityBadge, n.priority === 'urgent' ? styles.urgentBadge : styles.normalBadge]}>
-                        <Text style={styles.priorityBadgeText}>{n.priority.toUpperCase()}</Text>
+                        <Text style={[styles.priorityBadgeText, n.priority !== 'urgent' && { color: '#F4C430' }]}>
+                          {n.priority.toUpperCase()}
+                        </Text>
                       </View>
                       <Text style={styles.noticeDate}>{n.publishedDate}</Text>
                     </View>
@@ -280,7 +294,7 @@ ${notices.map((n, i) => `  ${i + 1}. [${n.priority.toUpperCase()}] ${n.title} (A
               onPress={handleCopySummary}
               activeOpacity={0.8}
             >
-              <MaterialCommunityIcons name={copied ? 'check' : 'content-copy'} size={20} color="#FFFFFF" />
+              <MaterialCommunityIcons name={copied ? 'check' : 'content-copy'} size={20} color="#F4C430" />
               <Text style={styles.copyBtnText}>{copied ? 'Dossier Copied!' : 'Copy Executive Briefing'}</Text>
             </TouchableOpacity>
 
@@ -339,7 +353,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: '#111827',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
@@ -349,7 +363,7 @@ const styles = StyleSheet.create({
   headerBadgeText: {
     fontSize: 11,
     fontFamily: FontFamily.bold,
-    color: '#B45309',
+    color: '#F4C430',
     letterSpacing: 0.5,
   },
   institutionTitle: {
@@ -396,8 +410,8 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
   tabBtnActive: {
-    backgroundColor: '#0F172A',
-    borderColor: '#0F172A',
+    backgroundColor: '#111827',
+    borderColor: '#111827',
   },
   tabBtnText: {
     fontSize: 12,
@@ -405,7 +419,7 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   tabBtnTextActive: {
-    color: '#FFFFFF',
+    color: '#F4C430',
   },
   scroll: {
     flex: 1,
@@ -429,6 +443,8 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 14,
     borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
     gap: 4,
   },
   kpiTopRow: {
@@ -437,8 +453,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   kpiNumber: {
-    fontSize: 26,
+    fontSize: 24,
     fontFamily: FontFamily.bold,
+    color: '#111827',
+  },
+  kpiIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: '#111827',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   kpiTitle: {
     fontSize: 14,
@@ -504,10 +529,10 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   listIconBox: {
-    width: 42,
-    height: 42,
-    borderRadius: 10,
-    backgroundColor: '#E0F2FE',
+    width: 38,
+    height: 38,
+    borderRadius: 8,
+    backgroundColor: '#111827',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -563,7 +588,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEE2E2',
   },
   normalBadge: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: '#111827',
   },
   priorityBadgeText: {
     fontSize: 11,
@@ -604,12 +629,12 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 52,
     borderRadius: 12,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#111827',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    shadowColor: '#0F172A',
+    shadowColor: '#111827',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,

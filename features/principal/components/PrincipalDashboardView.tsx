@@ -99,7 +99,7 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#F59E0B']} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#F4C430']} />}
       showsVerticalScrollIndicator={false}
     >
       {/* 1. GREETING HEADER */}
@@ -118,10 +118,10 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
           activeOpacity={0.8}
         >
           <View style={styles.blackIconBox}>
-            <MaterialCommunityIcons name="book-open-outline" size={18} color="#F59E0B" />
+            <MaterialCommunityIcons name="book-open-outline" size={18} color="#F4C430" />
           </View>
           <View style={styles.topActionContent}>
-            <Text style={styles.topActionTitle} numberOfLines={1} adjustsFontSizeToFit>
+            <Text style={styles.topActionTitle} numberOfLines={1}>
               Educational Tools
             </Text>
             <Text style={styles.topActionSub} numberOfLines={2}>
@@ -137,10 +137,10 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
           activeOpacity={0.8}
         >
           <View style={styles.blackIconBox}>
-            <MaterialCommunityIcons name="calendar-clock" size={18} color="#F59E0B" />
+            <MaterialCommunityIcons name="calendar-clock" size={18} color="#F4C430" />
           </View>
           <View style={styles.topActionContent}>
-            <Text style={styles.topActionTitle} numberOfLines={1} adjustsFontSizeToFit>
+            <Text style={styles.topActionTitle} numberOfLines={1}>
               My Timetable
             </Text>
             <Text style={styles.topActionSub} numberOfLines={2}>
@@ -160,12 +160,12 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
           activeOpacity={0.8}
         >
           <View style={styles.blackIconBox}>
-            <MaterialCommunityIcons name="account-group" size={20} color="#F59E0B" />
+            <MaterialCommunityIcons name="account-group" size={20} color="#F4C430" />
           </View>
           <View style={styles.metricContent}>
             <Text style={styles.metricVal}>{kpis.totalStudents || 568}</Text>
-            <Text style={styles.metricLabel}>Students</Text>
-            <Text style={styles.metricSub}>{safeStudentPct}% Present Today</Text>
+            <Text style={styles.metricLabel} numberOfLines={1}>Students</Text>
+            <Text style={styles.metricSub} numberOfLines={1}>{safeStudentPct}% Present Today</Text>
           </View>
         </TouchableOpacity>
 
@@ -176,12 +176,12 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
           activeOpacity={0.8}
         >
           <View style={styles.blackIconBox}>
-            <MaterialCommunityIcons name="account" size={20} color="#F59E0B" />
+            <MaterialCommunityIcons name="account" size={20} color="#F4C430" />
           </View>
           <View style={styles.metricContent}>
             <Text style={styles.metricVal}>{kpis.totalFaculty || 4}</Text>
-            <Text style={styles.metricLabel}>Faculty</Text>
-            <Text style={styles.metricSub}>{safeFacultyPct}% On Duty</Text>
+            <Text style={styles.metricLabel} numberOfLines={1}>Faculty</Text>
+            <Text style={styles.metricSub} numberOfLines={1}>{safeFacultyPct}% On Duty</Text>
           </View>
         </TouchableOpacity>
 
@@ -192,12 +192,12 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
           activeOpacity={0.8}
         >
           <View style={styles.blackIconBox}>
-            <MaterialCommunityIcons name="book-open-outline" size={20} color="#F59E0B" />
+            <MaterialCommunityIcons name="book-open-outline" size={20} color="#F4C430" />
           </View>
           <View style={styles.metricContent}>
             <Text style={styles.metricVal}>{homerooms.length || kpis.activeSections || 46}</Text>
-            <Text style={styles.metricLabel}>Classes</Text>
-            <Text style={styles.metricSub}>Active Sections (40+ each)</Text>
+            <Text style={styles.metricLabel} numberOfLines={1}>Classes</Text>
+            <Text style={styles.metricSub} numberOfLines={1}>Active Sections (40+ each)</Text>
           </View>
         </TouchableOpacity>
 
@@ -208,12 +208,12 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
           activeOpacity={0.8}
         >
           <View style={styles.blackIconBox}>
-            <MaterialCommunityIcons name="file-document-outline" size={20} color="#F59E0B" />
+            <MaterialCommunityIcons name="file-document-outline" size={20} color="#F4C430" />
           </View>
           <View style={styles.metricContent}>
             <Text style={styles.metricVal}>{notices.length || 6}</Text>
-            <Text style={styles.metricLabel}>Circulars</Text>
-            <Text style={styles.metricSub}>Official Notices</Text>
+            <Text style={styles.metricLabel} numberOfLines={1}>Circulars</Text>
+            <Text style={styles.metricSub} numberOfLines={1}>Official Notices</Text>
           </View>
         </TouchableOpacity>
       </View>
@@ -223,7 +223,7 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
         {/* Section Header */}
         <View style={styles.classSectionHeader}>
           <View style={styles.blackSquareSm}>
-            <MaterialCommunityIcons name="chart-bar" size={20} color="#F59E0B" />
+            <MaterialCommunityIcons name="chart-bar" size={20} color="#F4C430" />
           </View>
           <View style={styles.classSectionHeaderTitles}>
             <Text style={styles.classSectionTitle}>Class-Wise Student Attendance</Text>
@@ -283,7 +283,7 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
                     <Text style={styles.assignPillText}>
                       {sec.homeroomTeacherName ? 'Assign' : 'Assign'}
                     </Text>
-                    <MaterialCommunityIcons name="chevron-right" size={16} color="#B45309" />
+                    <MaterialCommunityIcons name="chevron-right" size={14} color="#F4C430" />
                   </TouchableOpacity>
                 </View>
 
@@ -356,7 +356,7 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
             activeOpacity={0.8}
           >
             <View style={styles.blackIconBoxSm}>
-              <MaterialCommunityIcons name="book-open-outline" size={16} color="#F59E0B" />
+              <MaterialCommunityIcons name="book-open-outline" size={16} color="#F4C430" />
             </View>
             <View style={styles.quickCardText}>
               <Text style={styles.quickCardTitle} numberOfLines={1}>All Classes</Text>
@@ -372,7 +372,7 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
             activeOpacity={0.8}
           >
             <View style={styles.blackIconBoxSm}>
-              <MaterialCommunityIcons name="account-group" size={16} color="#F59E0B" />
+              <MaterialCommunityIcons name="account-group" size={16} color="#F4C430" />
             </View>
             <View style={styles.quickCardText}>
               <Text style={styles.quickCardTitle} numberOfLines={1}>Faculty Roster</Text>
@@ -388,7 +388,7 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
             activeOpacity={0.8}
           >
             <View style={styles.blackIconBoxSm}>
-              <MaterialCommunityIcons name="file-document-outline" size={16} color="#F59E0B" />
+              <MaterialCommunityIcons name="file-document-outline" size={16} color="#F4C430" />
             </View>
             <View style={styles.quickCardText}>
               <Text style={styles.quickCardTitle} numberOfLines={1}>New Circular</Text>
@@ -404,7 +404,7 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
             activeOpacity={0.8}
           >
             <View style={styles.blackIconBoxSm}>
-              <MaterialCommunityIcons name="heart-outline" size={16} color="#F59E0B" />
+              <MaterialCommunityIcons name="heart-outline" size={16} color="#F4C430" />
             </View>
             <View style={styles.quickCardText}>
               <Text style={styles.quickCardTitle} numberOfLines={1}>Guidance Care</Text>
@@ -491,7 +491,7 @@ const styles = StyleSheet.create({
   },
   topActionTitle: {
     fontFamily: FontFamily.bold,
-    fontSize: 12,
+    fontSize: 13,
     color: '#111827',
   },
   topActionSub: {
@@ -631,16 +631,16 @@ const styles = StyleSheet.create({
   assignPillBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
-    backgroundColor: '#FEF3C7',
+    gap: 4,
+    backgroundColor: '#111827',
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 5,
     borderRadius: 6,
   },
   assignPillText: {
     fontFamily: FontFamily.bold,
     fontSize: 12,
-    color: '#B45309',
+    color: '#F4C430',
   },
   classItemStats: {
     flexDirection: 'row',

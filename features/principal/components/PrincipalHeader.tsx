@@ -35,7 +35,7 @@ export const PrincipalHeader: React.FC<PrincipalHeaderProps> = ({
   return (
     <View style={styles.container}>
       <View style={styles.topHeader}>
-        {/* Left Group: Menu + Kivouo */}
+        {/* Left Group: Menu + Kivquo */}
         <View style={styles.leftGroup}>
           {isSubTab && onBackToDashboard ? (
             <TouchableOpacity style={styles.subBackBtn} onPress={onBackToDashboard} activeOpacity={0.7}>
@@ -47,7 +47,7 @@ export const PrincipalHeader: React.FC<PrincipalHeaderProps> = ({
               <Feather name="menu" size={22} color="#111827" />
             </TouchableOpacity>
           )}
-          <Text style={styles.brandTitle}>Kivouo</Text>
+          <Text style={styles.brandTitle}>Kivquo</Text>
         </View>
 
         {/* Right Group: Switch to Teacher + Bell + Avatar */}

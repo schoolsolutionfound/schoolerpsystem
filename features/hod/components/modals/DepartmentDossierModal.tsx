@@ -123,11 +123,11 @@ ${notices
             <View style={styles.titleWrap}>
               <View style={styles.badgeRow}>
                 <View style={styles.deptBadge}>
-                  <MaterialCommunityIcons name="domain" size={14} color="#EA580C" />
+                  <MaterialCommunityIcons name="domain" size={14} color="#F4C430" />
                   <Text style={styles.deptBadgeText}>{departmentName.toUpperCase()}</Text>
                 </View>
                 <View style={styles.oneClickBadge}>
-                  <MaterialCommunityIcons name="lightning-bolt" size={12} color="#D97706" />
+                  <MaterialCommunityIcons name="lightning-bolt" size={12} color="#F4C430" />
                   <Text style={styles.oneClickBadgeText}>1-CLICK MASTER DOSSIER</Text>
                 </View>
               </View>
@@ -153,7 +153,7 @@ ${notices
               <MaterialCommunityIcons
                 name={copied ? 'check-circle' : 'clipboard-text-multiple-outline'}
                 size={22}
-                color="#FFFFFF"
+                color="#F4C430"
               />
               <View>
                 <Text style={styles.copyBannerTitle}>
@@ -196,7 +196,7 @@ ${notices
                   <MaterialCommunityIcons
                     name={tab.icon as any}
                     size={16}
-                    color={active ? '#EA580C' : '#6B7280'}
+                    color={active ? '#F4C430' : '#6B7280'}
                   />
                   <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>
                     {tab.label}
@@ -212,13 +212,13 @@ ${notices
               <View style={styles.tabSection}>
                 {/* Critical Highlights */}
                 {unassignedCourses.length > 0 && (
-                  <View style={[styles.highlightBox, { backgroundColor: '#FFF7ED', borderColor: '#FFEDD5' }]}>
-                    <MaterialCommunityIcons name="alert" size={20} color="#EA580C" />
+                  <View style={[styles.highlightBox, { backgroundColor: '#FEF2F2', borderColor: '#FEE2E2' }]}>
+                    <MaterialCommunityIcons name="alert" size={20} color="#DC2626" />
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.highlightTitle, { color: '#9A3412' }]}>
+                      <Text style={[styles.highlightTitle, { color: '#991B1B' }]}>
                         {unassignedCourses.length} Unallocated Course(s)
                       </Text>
-                      <Text style={[styles.highlightSub, { color: '#C2410C' }]}>
+                      <Text style={[styles.highlightSub, { color: '#B91C1C' }]}>
                         {unassignedCourses.map((c) => c.code).join(', ')} require faculty assignment.
                       </Text>
                     </View>
@@ -248,24 +248,24 @@ ${notices
                   </View>
 
                   <View style={styles.metricCard}>
-                    <Text style={[styles.metricNum, { color: '#10B981' }]}>
+                    <Text style={[styles.metricNum, { color: '#16A34A' }]}>
                       {kpis.facultyOnDuty} / {kpis.totalFaculty}
                     </Text>
                     <Text style={styles.metricLabel}>Faculty On Duty</Text>
                   </View>
 
                   <View style={styles.metricCard}>
-                    <Text style={[styles.metricNum, { color: '#2563EB' }]}>{kpis.activeCourses}</Text>
+                    <Text style={[styles.metricNum, { color: '#111827' }]}>{kpis.activeCourses}</Text>
                     <Text style={styles.metricLabel}>Active Courses</Text>
                   </View>
 
                   <View style={styles.metricCard}>
-                    <Text style={[styles.metricNum, { color: '#9333EA' }]}>{kpis.practicalLabsCount}</Text>
+                    <Text style={[styles.metricNum, { color: '#111827' }]}>{kpis.practicalLabsCount}</Text>
                     <Text style={styles.metricLabel}>Practical Labs</Text>
                   </View>
 
                   <View style={styles.metricCard}>
-                    <Text style={[styles.metricNum, { color: '#EA580C' }]}>
+                    <Text style={[styles.metricNum, { color: '#111827' }]}>
                       {kpis.averageSyllabusProgress}%
                     </Text>
                     <Text style={styles.metricLabel}>Avg. Syllabus Pace</Text>
@@ -292,7 +292,7 @@ ${notices
                         styles.progressFill,
                         {
                           width: `${Math.min(100, kpis.averageSyllabusProgress)}%`,
-                          backgroundColor: '#EA580C',
+                          backgroundColor: '#F4C430',
                         },
                       ]}
                     />
@@ -307,7 +307,7 @@ ${notices
                 {courses.map((course) => (
                   <View key={course.id} style={styles.itemRow}>
                     <View style={styles.itemIconWrap}>
-                      <MaterialCommunityIcons name="book-open-outline" size={20} color="#EA580C" />
+                      <MaterialCommunityIcons name="book-open-outline" size={20} color="#F4C430" />
                     </View>
                     <View style={{ flex: 1 }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -318,7 +318,7 @@ ${notices
                       </View>
                       <Text style={styles.itemTitle}>{course.name}</Text>
                       <Text style={styles.itemSub}>
-                        Instructor: <Text style={{ fontWeight: '700', color: '#111827' }}>{course.instructorName || 'Unassigned'}</Text>
+                        Instructor: <Text style={{ fontFamily: FontFamily.bold, color: '#111827' }}>{course.instructorName || 'Unassigned'}</Text>
                       </Text>
                     </View>
                     <View style={{ alignItems: 'flex-end', width: 70 }}>
@@ -329,7 +329,7 @@ ${notices
                             styles.tinyProgressFill,
                             {
                               width: `${course.syllabusProgressPct}%`,
-                              backgroundColor: course.syllabusProgressPct >= 70 ? '#10B981' : '#F59E0B',
+                              backgroundColor: course.syllabusProgressPct >= 70 ? '#16A34A' : '#F4C430',
                             },
                           ]}
                         />
@@ -346,8 +346,8 @@ ${notices
                 <Text style={styles.sectionHeader}>DEPARTMENT FACULTY ROSTER</Text>
                 {faculty.map((member) => (
                   <View key={member.id} style={styles.itemRow}>
-                    <View style={[styles.itemIconWrap, { backgroundColor: '#ECFDF5' }]}>
-                      <MaterialCommunityIcons name="human-male-board" size={20} color="#059669" />
+                    <View style={styles.itemIconWrap}>
+                      <MaterialCommunityIcons name="human-male-board" size={20} color="#F4C430" />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.itemTitle}>{member.name}</Text>
@@ -544,35 +544,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#FFF7ED',
+    backgroundColor: '#111827',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
   },
   deptBadgeText: {
     fontSize: 10,
-    fontWeight: '800',
-    color: '#EA580C',
+    color: '#F4C430',
     fontFamily: FontFamily.bold,
   },
   oneClickBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: '#111827',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
   },
   oneClickBadgeText: {
     fontSize: 9,
-    fontWeight: '800',
-    color: '#B45309',
+    color: '#F4C430',
     fontFamily: FontFamily.bold,
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: '800',
     color: '#111827',
     fontFamily: FontFamily.bold,
   },
@@ -607,14 +604,14 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 12,
     marginBottom: 8,
-    backgroundColor: '#EA580C',
+    backgroundColor: '#111827',
     borderRadius: BorderRadius.card,
     padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     elevation: 3,
-    shadowColor: '#EA580C',
+    shadowColor: '#111827',
     shadowOpacity: 0.25,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 3 },
@@ -627,25 +624,24 @@ const styles = StyleSheet.create({
   },
   copyBannerTitle: {
     fontSize: 14,
-    fontWeight: '800',
     color: '#FFFFFF',
     fontFamily: FontFamily.bold,
   },
   copyBannerSub: {
     fontSize: 11,
-    color: '#FFEDD5',
+    color: '#9CA3AF',
     marginTop: 2,
     fontFamily: FontFamily.regular,
   },
   copyButtonPill: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F4C430',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
   },
   copyButtonPillText: {
     fontSize: 11,
-    color: '#EA580C',
+    color: '#111827',
     fontFamily: FontFamily.bold,
   },
   tabsRow: {
@@ -670,7 +666,7 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   tabItemActive: {
-    borderBottomColor: '#EA580C',
+    borderBottomColor: '#F4C430',
   },
   tabLabel: {
     fontSize: 12,
@@ -678,7 +674,7 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.medium,
   },
   tabLabelActive: {
-    color: '#EA580C',
+    color: '#F4C430',
     fontFamily: FontFamily.bold,
   },
   scrollBody: {
@@ -759,7 +755,7 @@ const styles = StyleSheet.create({
   },
   meterVal: {
     fontSize: 14,
-    color: '#EA580C',
+    color: '#111827',
     fontFamily: FontFamily.bold,
   },
   progressBar: {
@@ -786,13 +782,13 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 10,
-    backgroundColor: '#FFF7ED',
+    backgroundColor: '#111827',
     alignItems: 'center',
     justifyContent: 'center',
   },
   itemCode: {
     fontSize: 11,
-    color: '#EA580C',
+    color: '#111827',
     fontFamily: FontFamily.bold,
   },
   semPill: {
