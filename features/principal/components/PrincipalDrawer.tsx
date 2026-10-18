@@ -130,7 +130,7 @@ export const PrincipalDrawer: React.FC<PrincipalDrawerProps> = ({
           <View style={styles.drawerHeader}>
             <View style={styles.headerTop}>
               <View style={styles.avatarWrap}>
-                <MaterialCommunityIcons name="shield-crown" size={26} color="#D97706" />
+                <MaterialCommunityIcons name="shield-crown" size={26} color="#F4C430" />
               </View>
               <TouchableOpacity onPress={onClose} style={styles.closeIconBtn} activeOpacity={0.7}>
                 <Feather name="x" size={20} color="#6B6B6B" />
@@ -140,7 +140,7 @@ export const PrincipalDrawer: React.FC<PrincipalDrawerProps> = ({
             <Text style={styles.drawerName} numberOfLines={1}>{fullName}</Text>
             <Text style={styles.drawerEmail} numberOfLines={1}>{email}</Text>
             <View style={styles.campusBadge}>
-              <MaterialCommunityIcons name="office-building" size={13} color="#92400E" />
+              <MaterialCommunityIcons name="office-building" size={13} color="#F4C430" />
               <Text style={styles.campusBadgeText} numberOfLines={1}>{institutionName}</Text>
             </View>
           </View>
@@ -299,9 +299,9 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: '#FFF4C7',
     borderWidth: 1.5,
-    borderColor: '#F59E0B',
+    borderColor: '#F4C430',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -329,18 +329,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#FFFBEB',
+    backgroundColor: '#FFFDF7',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
     marginTop: 8,
     borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: '#E8E5DC',
   },
   campusBadgeText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#92400E',
+    color: '#171717',
     fontFamily: FontFamily.semibold,
     flex: 1,
   },
@@ -352,7 +352,7 @@ const styles = StyleSheet.create({
   sectionHeader: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#9CA3AF',
+    color: '#8A8A8A',
     fontFamily: FontFamily.bold,
     marginBottom: 8,
     marginLeft: 6,
@@ -368,7 +368,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   navItemActive: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: '#FFF4C7',
+    borderLeftWidth: 3,
+    borderLeftColor: '#F4C430',
   },
   navIconBox: {
     width: 34,
@@ -379,7 +381,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   navIconBoxActive: {
-    backgroundColor: '#D97706',
+    backgroundColor: '#1A1B1C',
   },
   navItemText: {
     fontSize: 13,
@@ -389,7 +391,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   navItemTextActive: {
-    color: '#92400E',
+    color: '#171717',
     fontWeight: '800',
     fontFamily: FontFamily.bold,
   },
@@ -408,7 +410,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingTop: 14,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: '#E8E5DC',
   },
   roleSwitchRow: {
     flexDirection: 'row',
@@ -419,7 +421,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   roleSwitchRowActive: {
-    backgroundColor: '#FFFBEB',
+    backgroundColor: '#FFF4C7',
   },
   roleSwitchText: {
     fontSize: 12,
@@ -428,8 +430,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   roleSwitchTextActive: {
-    color: '#92400E',
-    fontWeight: '700',
+    color: '#171717',
+    fontWeight: '800',
   },
   currentDot: {
     width: 6,
@@ -441,7 +443,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: '#E8E5DC',
   },
   logoutBtn: {
     flexDirection: 'row',

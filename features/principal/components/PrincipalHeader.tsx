@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: '#E8E5DC',
   },
   topHeader: {
     flexDirection: 'row',
@@ -132,17 +132,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#FFF4C7',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E8E5DC',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 14,
   },
   teacherSwitchText: {
-    fontFamily: FontFamily.semibold,
+    fontFamily: FontFamily.bold,
     fontSize: 11,
-    color: '#111827',
+    color: '#1A1B1C',
   },
   bellBtn: {
     width: 32,
@@ -174,13 +174,13 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     borderRadius: 15,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: '#FFF4C7',
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarInitial: {
     fontFamily: FontFamily.bold,
     fontSize: 12,
-    color: '#374151',
+    color: '#F4C430',
   },
 });

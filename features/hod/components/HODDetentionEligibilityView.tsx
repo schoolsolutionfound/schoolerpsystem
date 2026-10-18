@@ -49,11 +49,11 @@ export const HODDetentionEligibilityView: React.FC<HODDetentionEligibilityViewPr
   const getStatusBadge = (status: HallTicketStatus) => {
     switch (status) {
       case 'eligible':
-        return { label: 'Hall Ticket Cleared', bg: '#ECFDF5', text: '#059669', icon: 'check-circle' };
+        return { label: 'Hall Ticket Cleared', bg: '#16A34A18', text: '#16A34A', icon: 'check-circle' };
       case 'condonation_needed':
-        return { label: 'Condonation Review', bg: '#FFFBEB', text: '#D97706', icon: 'clock-alert-outline' };
+        return { label: 'Condonation Review', bg: '#F59E0B18', text: '#D97706', icon: 'clock-alert-outline' };
       case 'detained':
-        return { label: 'Detained from Exam', bg: '#FEF2F2', text: '#DC2626', icon: 'close-circle' };
+        return { label: 'Detained from Exam', bg: '#DC262618', text: '#DC2626', icon: 'close-circle' };
     }
   };
 
@@ -261,14 +261,16 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 8,
     backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E8E5DC',
   },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FFFDF7',
     borderRadius: BorderRadius.input,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E8E5DC',
     paddingHorizontal: 10,
     height: 40,
     gap: 8,
@@ -286,20 +288,20 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     gap: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: '#E8E5DC',
   },
   stripCard: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FFFDF7',
     borderRadius: BorderRadius.chip,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E8E5DC',
     paddingVertical: 8,
     alignItems: 'center',
   },
   stripCardSelected: {
-    borderColor: '#EA580C',
-    backgroundColor: '#FFF7ED',
+    borderColor: '#1A1B1C',
+    backgroundColor: '#1A1B1C',
   },
   stripValue: {
     fontSize: 16,
@@ -315,7 +317,7 @@ const styles = StyleSheet.create({
   filterBar: {
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: '#E8E5DC',
     paddingVertical: 8,
   },
   filterScroll: {
@@ -327,22 +329,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: BorderRadius.chip,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E8E5DC',
   },
   filterChipSelected: {
-    backgroundColor: '#FFF7ED',
-    borderColor: '#EA580C',
+    backgroundColor: '#1A1B1C',
+    borderColor: '#1A1B1C',
   },
   filterChipText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#4B5563',
+    color: '#6B6B6B',
     fontFamily: FontFamily.poppins,
   },
   filterChipTextSelected: {
-    color: '#EA580C',
+    color: '#F4C430',
     fontWeight: '800',
   },
   listContent: {
@@ -363,7 +365,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.card,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E8E5DC',
     gap: 12,
   },
   cardHeader: {
@@ -385,7 +387,7 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.poppins,
   },
   usnBadge: {
-    backgroundColor: '#FFEDD5',
+    backgroundColor: '#FFF4C7',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
@@ -393,7 +395,7 @@ const styles = StyleSheet.create({
   usnBadgeText: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#EA580C',
+    color: '#F4C430',
     fontFamily: FontFamily.poppins,
   },
   semText: {
@@ -417,8 +419,10 @@ const styles = StyleSheet.create({
   },
   metricsRow: {
     flexDirection: 'row',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FFFDF7',
     borderRadius: BorderRadius.chip,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
     padding: 10,
     gap: 8,
   },
@@ -441,7 +445,7 @@ const styles = StyleSheet.create({
   reasonCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#FFFBEB',
+    backgroundColor: '#F59E0B18',
     padding: 8,
     borderRadius: BorderRadius.chip,
     gap: 6,
@@ -449,14 +453,14 @@ const styles = StyleSheet.create({
   reasonText: {
     flex: 1,
     fontSize: 11,
-    color: '#92400E',
+    color: '#D97706',
     fontFamily: FontFamily.poppins,
     lineHeight: 16,
   },
   remarksCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#ECFDF5',
+    backgroundColor: '#16A34A18',
     padding: 8,
     borderRadius: BorderRadius.chip,
     gap: 6,
@@ -464,7 +468,7 @@ const styles = StyleSheet.create({
   remarksText: {
     flex: 1,
     fontSize: 11,
-    color: '#065F46',
+    color: '#16A34A',
     fontFamily: FontFamily.poppins,
     lineHeight: 16,
   },
@@ -475,15 +479,13 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     paddingHorizontal: 14,
     borderRadius: BorderRadius.button,
-    backgroundColor: '#FFF7ED',
-    borderWidth: 1,
-    borderColor: '#FED7AA',
+    backgroundColor: '#F4C430',
     gap: 6,
   },
   reviewBtnText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#EA580C',
+    fontWeight: '800',
+    color: '#1A1B1C',
     fontFamily: FontFamily.poppins,
   },
   emptyState: {

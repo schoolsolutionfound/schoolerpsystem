@@ -182,7 +182,7 @@ export const HODDrawer: React.FC<HODDrawerProps> = ({
                   <MaterialCommunityIcons
                     name={item.icon}
                     size={22}
-                    color={isActive ? '#EA580C' : '#4B5563'}
+                    color={isActive ? '#F4C430' : '#4B5563'}
                   />
                   <Text style={[styles.navItemText, isActive && styles.navItemTextActive]}>
                     {item.label}
@@ -347,10 +347,10 @@ const styles = StyleSheet.create({
   profileSummary: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF7ED',
+    backgroundColor: '#FFFDF7',
     borderRadius: BorderRadius.card,
     borderWidth: 1,
-    borderColor: '#FED7AA',
+    borderColor: '#E8E5DC',
     padding: 10,
     gap: 10,
     marginBottom: 14,
@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#EA580C',
+    backgroundColor: '#FFF4C7',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -372,7 +372,7 @@ const styles = StyleSheet.create({
   profileDept: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#C2410C',
+    color: '#F4C430',
     fontFamily: FontFamily.poppins,
   },
   profileInstitute: {
@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
   sectionHeader: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#9CA3AF',
+    color: '#8A8A8A',
     letterSpacing: 0.8,
     marginTop: 14,
     marginBottom: 6,
@@ -402,9 +402,9 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   navItemActive: {
-    backgroundColor: '#FFF7ED',
+    backgroundColor: '#FFF4C7',
     borderLeftWidth: 3,
-    borderLeftColor: '#EA580C',
+    borderLeftColor: '#F4C430',
   },
   navItemText: {
     flex: 1,
@@ -414,7 +414,7 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.poppins,
   },
   navItemTextActive: {
-    color: '#EA580C',
+    color: '#171717',
     fontWeight: '800',
   },
   navBadge: {
@@ -433,7 +433,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: '#E8E5DC',
   },
   roleGrid: {
     flexDirection: 'row',
@@ -448,12 +448,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#F3F4F6',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E8E5DC',
     gap: 4,
   },
   roleChipActive: {
-    backgroundColor: '#EA580C',
-    borderColor: '#EA580C',
+    backgroundColor: '#1A1B1C',
+    borderColor: '#1A1B1C',
   },
   roleChipText: {
     fontSize: 11,
@@ -462,7 +462,7 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.poppins,
   },
   roleChipTextActive: {
-    color: '#FFFFFF',
+    color: '#F4C430',
   },
   footer: {
     paddingTop: 12,
