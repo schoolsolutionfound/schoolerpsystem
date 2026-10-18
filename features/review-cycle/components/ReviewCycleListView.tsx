@@ -8,6 +8,7 @@ import {
   RefreshControl,
   ActivityIndicator,
   TextInput,
+  useWindowDimensions,
 } from 'react-native';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { FontFamily } from '../../../constants/fonts';
@@ -39,6 +40,11 @@ export const ReviewCycleListView: React.FC<ReviewCycleListViewProps> = ({
   department,
   reviewerName = 'Evaluator',
 }) => {
+  const { width: windowWidth } = useWindowDimensions();
+  const maxContentWidth = Math.min(windowWidth, 1200);
+  const isDesktop = windowWidth >= 768;
+  const cardGap = 12;
+  const cardWidth = isDesktop ? Math.floor((maxContentWidth - 32 - cardGap) / 2) : '100%';
   const [cycles, setCycles] = useState<ReviewCycle[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -265,9 +271,10 @@ export const ReviewCycleListView: React.FC<ReviewCycleListViewProps> = ({
                 <Text style={styles.emptySub}>Staff members assigned to this cycle will appear here for evaluation.</Text>
               </View>
             ) : (
-              evaluations.map((item) => (
-                <View key={item.id} style={styles.evalCard}>
-                  <View style={styles.evalCardHeader}>
+              <View style={styles.cardsGrid}>
+                {evaluations.map((item) => (
+                  <View key={item.id} style={[styles.evalCard, { width: cardWidth }]}>
+                    <View style={styles.evalCardHeader}>
                     <View style={styles.evalAvatar}>
                       <Text style={styles.evalAvatarText}>
                         {item.staffName.substring(0, 2).toUpperCase()}
@@ -319,18 +326,19 @@ export const ReviewCycleListView: React.FC<ReviewCycleListViewProps> = ({
                     </View>
                   ) : null}
 
-                  <TouchableOpacity
-                    style={styles.conductBtn}
-                    onPress={() => handleOpenEvaluation(item)}
-                    activeOpacity={0.7}
-                  >
-                    <MaterialCommunityIcons name="pencil-ruler" size={14} color="#111827" />
-                    <Text style={styles.conductBtnText}>
-                      {item.status === 'approved' ? 'Update Evaluation' : 'Evaluate Performance'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              ))
+                    <TouchableOpacity
+                      style={styles.conductBtn}
+                      onPress={() => handleOpenEvaluation(item)}
+                      activeOpacity={0.7}
+                    >
+                      <MaterialCommunityIcons name="pencil-ruler" size={14} color="#111827" />
+                      <Text style={styles.conductBtnText}>
+                        {item.status === 'approved' ? 'Update Evaluation' : 'Evaluate Performance'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
             )}
           </View>
         )}
@@ -343,17 +351,18 @@ export const ReviewCycleListView: React.FC<ReviewCycleListViewProps> = ({
         {loading ? (
           <ActivityIndicator size="large" color="#F4C430" style={{ marginTop: 24 }} />
         ) : (
-          filteredCycles.map((cycle) => {
-            const isSelected = selectedCycle?.id === cycle.id;
-            const pct = cycle.revieweesCount > 0 ? Math.round((cycle.completedCount / cycle.revieweesCount) * 100) : 0;
+          <View style={styles.cardsGrid}>
+            {filteredCycles.map((cycle) => {
+              const isSelected = selectedCycle?.id === cycle.id;
+              const pct = cycle.revieweesCount > 0 ? Math.round((cycle.completedCount / cycle.revieweesCount) * 100) : 0;
 
-            return (
-              <TouchableOpacity
-                key={cycle.id}
-                style={[styles.card, isSelected && styles.cardSelected]}
-                onPress={() => handleSelectCycle(cycle)}
-                activeOpacity={0.7}
-              >
+              return (
+                <TouchableOpacity
+                  key={cycle.id}
+                  style={[styles.card, { width: cardWidth }, isSelected && styles.cardSelected]}
+                  onPress={() => handleSelectCycle(cycle)}
+                  activeOpacity={0.7}
+                >
                 <View style={styles.cardTopRow}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.cycleTitle}>{cycle.title}</Text>
@@ -419,7 +428,8 @@ export const ReviewCycleListView: React.FC<ReviewCycleListViewProps> = ({
                 </View>
               </TouchableOpacity>
             );
-          })
+          })}
+        </View>
         )}
 
         {filteredCycles.length === 0 && !loading && (
@@ -462,6 +472,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E8E5DC',
     gap: 10,
+    maxWidth: 1200,
+    width: '100%',
+    alignSelf: 'center',
   },
   topRow: {
     flexDirection: 'row',
@@ -541,6 +554,14 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 12,
     paddingBottom: 40,
+    maxWidth: 1200,
+    width: '100%',
+    alignSelf: 'center',
+  },
+  cardsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
   },
 
   // Attendance Standard Hero Card
@@ -688,7 +709,7 @@ const styles = StyleSheet.create({
   evalAvatar: {
     width: 38,
     height: 38,
-    borderRadius: 19,
+    borderRadius: 8,
     backgroundColor: '#FFF4C7',
     alignItems: 'center',
     justifyContent: 'center',
@@ -711,7 +732,7 @@ const styles = StyleSheet.create({
   evalStatusPill: {
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 10,
+    borderRadius: 6,
   },
   evalStatusText: {
     fontSize: 10,
