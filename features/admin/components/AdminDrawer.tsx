@@ -16,6 +16,8 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
+import { useUserStore } from '../../../store/useUserStore';
+import { getHomeRouteForRole } from '../../shared/utils/routeGuards';
 
 interface AdminDrawerProps {
   visible: boolean;
@@ -24,8 +26,9 @@ interface AdminDrawerProps {
   onLogout: () => void;
 }
 
-const PRIMARY: { key: 'dashboard' | 'institution' | 'students' | 'teachers' | 'users' | 'academics' | 'profile'; label: string; icon: string }[] = [
+const PRIMARY: { key: 'dashboard' | 'admissions' | 'institution' | 'students' | 'teachers' | 'users' | 'academics' | 'profile'; label: string; icon: string }[] = [
   { key: 'dashboard', label: 'Dashboard', icon: 'view-dashboard-outline' },
+  { key: 'admissions', label: 'Admissions', icon: 'clipboard-text-clock-outline' },
   { key: 'institution', label: 'Institution', icon: 'office-building' },
   { key: 'students', label: 'Students', icon: 'account-school-outline' },
   { key: 'teachers', label: 'Teachers', icon: 'human-male-board' },
@@ -49,9 +52,19 @@ export const AdminDrawer: React.FC<AdminDrawerProps> = ({
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
 
+  const userRole = useUserStore((state) => state.userRole);
+  const roles = useUserStore((state) => state.roles || []);
+  const switchRole = useUserStore((state) => state.switchRole);
+
   const slideX = useRef(new Animated.Value(-width)).current;
   const fade = useRef(new Animated.Value(0)).current;
   const [mounted, setMounted] = useState(visible);
+
+  const handleSwitchRole = (targetRole: any) => {
+    switchRole(targetRole);
+    onClose();
+    setTimeout(() => router.replace(getHomeRouteForRole(targetRole) as any), 150);
+  };
 
   useEffect(() => {
     if (visible) {
@@ -90,7 +103,11 @@ export const AdminDrawer: React.FC<AdminDrawerProps> = ({
 
   const handleTabPress = (tab: typeof PRIMARY[number]['key']) => {
     onClose();
-    setTimeout(() => onNavigate(tab), 120);
+    if (tab === 'admissions') {
+      setTimeout(() => router.push('/(admin)/admissions' as any), 120);
+      return;
+    }
+    setTimeout(() => onNavigate(tab as any), 120);
   };
 
   const handleRoutePress = (route: string) => {
@@ -161,6 +178,36 @@ export const AdminDrawer: React.FC<AdminDrawerProps> = ({
                   <Feather name="chevron-right" size={16} color="#5A5A5A" />
                 </TouchableOpacity>
               ))}
+
+              {roles.length > 1 && (
+                <>
+                  <Text style={[styles.sectionLabel, { marginTop: 18 }]}>MY WORKSPACES</Text>
+                  {roles.map((r) => {
+                    const isActive = r === userRole;
+                    const roleLabel = r.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase());
+                    return (
+                      <TouchableOpacity
+                        key={r}
+                        style={[styles.menuItem, isActive && { backgroundColor: '#262728' }]}
+                        activeOpacity={0.7}
+                        onPress={() => handleSwitchRole(r)}
+                      >
+                        <View style={styles.menuIcon}>
+                          <MaterialCommunityIcons
+                            name={(r === 'admission_officer' ? 'account-plus-outline' : r === 'accountant' ? 'calculator-variant-outline' : 'shield-account-outline') as any}
+                            size={18}
+                            color={isActive ? '#0284C7' : '#9A9A9A'}
+                          />
+                        </View>
+                        <Text style={[styles.menuText, isActive && { color: '#0284C7', fontWeight: '700' }]}>
+                          {roleLabel} {isActive ? '(Active)' : ''}
+                        </Text>
+                        <Feather name="arrow-right" size={15} color={isActive ? '#0284C7' : '#5A5A5A'} />
+                      </TouchableOpacity>
+                    );
+                  })}
+                </>
+              )}
 
               <Text style={[styles.sectionLabel, { marginTop: 18 }]}>ACCOUNT</Text>
               {SECONDARY.map((item) => (

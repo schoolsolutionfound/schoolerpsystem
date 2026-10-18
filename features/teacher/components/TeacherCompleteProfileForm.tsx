@@ -6,7 +6,9 @@ import { FontFamily } from '../../../constants/fonts';
 
 interface TeacherCompleteProfileFormProps {
   fullName: string;
+  setFullName?: (val: string) => void;
   email: string;
+  setEmail?: (val: string) => void;
   phone: string;
   setPhone: (val: string) => void;
   employeeId: string;
@@ -21,7 +23,9 @@ interface TeacherCompleteProfileFormProps {
 
 export const TeacherCompleteProfileForm: React.FC<TeacherCompleteProfileFormProps> = ({
   fullName,
+  setFullName,
   email,
+  setEmail,
   phone,
   setPhone,
   employeeId,
@@ -40,18 +44,46 @@ export const TeacherCompleteProfileForm: React.FC<TeacherCompleteProfileFormProp
 
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>Name</Text>
-          <View style={styles.readOnlyWrapper}>
-            <Text style={styles.readOnlyText}>{fullName}</Text>
-            <MaterialCommunityIcons name="lock-outline" size={18} color="#6B6B6B" />
-          </View>
+          {fullName ? (
+            <View style={styles.readOnlyWrapper}>
+              <Text style={styles.readOnlyText}>{fullName}</Text>
+              <MaterialCommunityIcons name="lock-outline" size={18} color="#6B6B6B" />
+            </View>
+          ) : (
+            <View style={styles.inputWrapper}>
+              <MaterialCommunityIcons name="account-outline" size={18} color="#F4C430" style={styles.iconPrefix} />
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your full name"
+                placeholderTextColor="#6B6B6B"
+                value={fullName}
+                onChangeText={setFullName}
+              />
+            </View>
+          )}
         </View>
 
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>Email</Text>
-          <View style={styles.readOnlyWrapper}>
-            <Text style={styles.readOnlyText}>{email}</Text>
-            <MaterialCommunityIcons name="lock-outline" size={18} color="#6B6B6B" />
-          </View>
+          {email ? (
+            <View style={styles.readOnlyWrapper}>
+              <Text style={styles.readOnlyText}>{email}</Text>
+              <MaterialCommunityIcons name="lock-outline" size={18} color="#6B6B6B" />
+            </View>
+          ) : (
+            <View style={styles.inputWrapper}>
+              <MaterialCommunityIcons name="email-outline" size={18} color="#F4C430" style={styles.iconPrefix} />
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your email"
+                placeholderTextColor="#6B6B6B"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={email}
+                onChangeText={setEmail}
+              />
+            </View>
+          )}
         </View>
       </View>
 
@@ -141,9 +173,9 @@ const styles = StyleSheet.create({
     borderColor: '#E8E5DC',
     gap: 12,
   },
-  sectionHeaderTitle: { fontSize: 14, fontWeight: '700', fontFamily: FontFamily.bold, color: '#171717', marginBottom: 2 },
+  sectionHeaderTitle: { fontSize: 14, fontFamily: FontFamily.bold, color: '#171717', marginBottom: 2 },
   inputGroup: { gap: 4 },
-  inputLabel: { fontSize: 12, fontWeight: '600', fontFamily: FontFamily.semibold, color: '#6B6B6B' },
+  inputLabel: { fontSize: 12, fontFamily: FontFamily.semibold, color: '#6B6B6B' },
   readOnlyWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -155,7 +187,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     height: 44,
   },
-  readOnlyText: { fontSize: 13, color: '#6B6B6B', fontWeight: '500', fontFamily: FontFamily.medium },
+  readOnlyText: { fontSize: 13, color: '#6B6B6B', fontFamily: FontFamily.medium },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -167,7 +199,7 @@ const styles = StyleSheet.create({
     height: 44,
   },
   iconPrefix: { marginRight: 8 },
-  input: { flex: 1, fontSize: 13, color: '#171717' },
+  input: { flex: 1, fontSize: 13, fontFamily: FontFamily.regular, color: '#171717' },
   photoUploadBox: {
     height: 90,
     backgroundColor: '#FFFDF7',
@@ -180,7 +212,7 @@ const styles = StyleSheet.create({
     gap: 4,
     overflow: 'hidden',
   },
-  uploadText: { fontSize: 12, color: '#F4C430', fontWeight: '600', fontFamily: FontFamily.semibold },
+  uploadText: { fontSize: 12, color: '#F4C430', fontFamily: FontFamily.semibold },
   previewImage: { width: '100%', height: '100%', resizeMode: 'cover' },
   saveBtn: {
     backgroundColor: '#F4C430',
@@ -189,5 +221,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 4,
   },
-  saveBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700', fontFamily: FontFamily.bold },
+  saveBtnText: { color: '#FFFFFF', fontSize: 15, fontFamily: FontFamily.bold },
 });

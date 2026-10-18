@@ -60,3 +60,11 @@ PHASE1.md
 !README.md
 !developer-console/README.md
 !ARCHITECTURE.md
+
+# Temporary and dry-run scripts in server
+server/scripts/test-*.ts
+server/scripts/check-*.ts
+server/scripts/check-*.mjs
+server/scripts/probe-*.mjs
+server/scripts/reset-*.ts
+server/scripts/scratch/

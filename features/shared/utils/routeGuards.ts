@@ -11,6 +11,8 @@ const ROLE_ROUTES: Record<string, string> = {
   hod: '/(hod)/home',
   librarian: '/(librarian)/home',
   driver: '/(driver)/home',
+  admission_officer: '/(admin)/admissions',
+  'admission officer': '/(admin)/admissions',
 };
 
 const ROLE_GROUP: Record<string, string> = {
@@ -26,6 +28,8 @@ const ROLE_GROUP: Record<string, string> = {
   hod: '/(hod)',
   librarian: '/(librarian)',
   driver: '/(driver)',
+  admission_officer: '/(admin)',
+  'admission officer': '/(admin)',
 };
 
 const SHARED_ROUTES = [
@@ -35,6 +39,7 @@ const SHARED_ROUTES = [
 
 export function getHomeRouteForRole(role?: string): string {
   const norm = (role || '').toLowerCase().trim();
+  if (!norm || norm === 'loading') return '';
   return ROLE_ROUTES[norm] || '/auth';
 }
 
@@ -43,15 +48,31 @@ function extractGroup(pathname: string): string {
   return match ? `/${match[1]}` : '';
 }
 
-export function isRouteAllowedForRole(pathname: string, role?: string): boolean {
-  const norm = (role || '').toLowerCase().trim();
+export function isRouteAllowedForRole(pathname: string, role?: string, roles?: string[]): boolean {
   if (SHARED_ROUTES.includes(pathname)) return true;
-  if (!norm || norm === 'loading') return false;
-
-  const allowedGroup = ROLE_GROUP[norm];
-  if (!allowedGroup) return false;
-
   const pathGroup = extractGroup(pathname);
   if (!pathGroup) return true;
-  return pathGroup === allowedGroup;
+
+  const allRoles = Array.from(new Set([
+    ...(role ? [role.toLowerCase().trim()] : []),
+    ...(roles ? roles.map((r) => r.toLowerCase().trim()) : []),
+  ]));
+
+  if (allRoles.length === 0 || allRoles.includes('loading')) return false;
+
+  // Principals and HODs are educators and teachers too — grant educator cross-access
+  if (pathGroup === '/(teacher)' && allRoles.some((r) => ['principal', 'hod', 'admin', 'teacher'].includes(r))) {
+    return true;
+  }
+  if (pathGroup === '/(hod)' && allRoles.some((r) => ['principal', 'admin', 'hod'].includes(r))) {
+    return true;
+  }
+  if (pathGroup === '/(principal)' && allRoles.some((r) => ['principal', 'admin', 'institution admin'].includes(r))) {
+    return true;
+  }
+  if (pathGroup === '/(admin)' && allRoles.some((r) => ['admin', 'institution admin', 'principal'].includes(r))) {
+    return true;
+  }
+
+  return allRoles.some((r) => ROLE_GROUP[r] === pathGroup);
 }

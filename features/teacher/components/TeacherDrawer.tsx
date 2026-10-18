@@ -19,6 +19,7 @@ import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../../firebaseConfig';
 import { useUserStore } from '../../../store/useUserStore';
+import { FontFamily } from '../../../constants/fonts';
 
 interface TeacherDrawerProps {
   visible: boolean;
@@ -61,6 +62,8 @@ export const TeacherDrawer: React.FC<TeacherDrawerProps> = ({
 }) => {
   const router = useRouter();
   const resetUser = useUserStore((s) => s.resetUser);
+  const roles = useUserStore((s) => s.roles) || [];
+  const switchRole = useUserStore((s) => s.switchRole);
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
 
@@ -159,7 +162,7 @@ export const TeacherDrawer: React.FC<TeacherDrawerProps> = ({
                 </View>
               </View>
               <TouchableOpacity style={styles.closeBtn} onPress={onClose} hitSlop={10}>
-                <Feather name="x" size={20} color="#FFFFFF" />
+                <Feather name="x" size={20} color="#111827" />
               </TouchableOpacity>
             </View>
           </View>
@@ -187,27 +190,30 @@ export const TeacherDrawer: React.FC<TeacherDrawerProps> = ({
             showsVerticalScrollIndicator={false}
           >
             <Text style={styles.sectionLabel}>MAIN</Text>
-            {PRIMARY.map((item) => (
-              <TouchableOpacity
-                key={item.key}
-                style={[styles.menuItem, activeTab === item.key && styles.menuItemActive]}
-                activeOpacity={0.7}
-                onPress={() => {
-                  if (item.tab) switchTabAndClose(item.tab);
-                  else switchTabAndClose('home');
-                }}
-              >
-                <View style={[styles.menuIcon, activeTab === item.key && styles.menuIconActive]}>
-                  <MaterialCommunityIcons
-                    name={activeTab === item.key ? (item.iconFilled as any) : (item.icon as any)}
-                    size={18}
-                    color={activeTab === item.key ? '#F4C430' : '#9A9A9A'}
-                  />
-                </View>
-                <Text style={[styles.menuText, activeTab === item.key && styles.menuTextActive]}>{item.label}</Text>
-                <Feather name="chevron-right" size={16} color="#5A5A5A" />
-              </TouchableOpacity>
-            ))}
+            {PRIMARY.map((item) => {
+              const active = activeTab === item.key;
+              return (
+                <TouchableOpacity
+                  key={item.key}
+                  style={[styles.menuItem, active && styles.menuItemActive]}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    if (item.tab) switchTabAndClose(item.tab);
+                    else switchTabAndClose('home');
+                  }}
+                >
+                  <View style={[styles.menuIcon, active && styles.menuIconActive]}>
+                    <MaterialCommunityIcons
+                      name={active ? (item.iconFilled as any) : (item.icon as any)}
+                      size={18}
+                      color={active ? '#111827' : '#9A9A9A'}
+                    />
+                  </View>
+                  <Text style={[styles.menuText, active && styles.menuTextActive]}>{item.label}</Text>
+                  <Feather name="chevron-right" size={16} color={active ? '#111827' : '#5A5A5A'} />
+                </TouchableOpacity>
+              );
+            })}
 
             <Text style={[styles.sectionLabel, { marginTop: 18 }]}>ACCOUNT</Text>
             {SECONDARY.map((item) => (
@@ -228,6 +234,41 @@ export const TeacherDrawer: React.FC<TeacherDrawerProps> = ({
                 <Feather name="chevron-right" size={16} color="#5A5A5A" />
               </TouchableOpacity>
             ))}
+
+            <Text style={[styles.sectionLabel, { marginTop: 18 }]}>SWITCH PORTAL</Text>
+            <TouchableOpacity
+              style={styles.menuItem}
+              activeOpacity={0.7}
+              onPress={() => {
+                onClose();
+                switchRole('principal');
+                router.replace('/(principal)/home');
+              }}
+            >
+              <View style={[styles.menuIcon, { backgroundColor: '#262626' }]}>
+                <MaterialCommunityIcons name="shield-account-outline" size={18} color="#F4C430" />
+              </View>
+              <Text style={styles.menuText}>Principal Dashboard</Text>
+              <Feather name="chevron-right" size={16} color="#5A5A5A" />
+            </TouchableOpacity>
+
+            {roles.includes('hod') && (
+              <TouchableOpacity
+                style={styles.menuItem}
+                activeOpacity={0.7}
+                onPress={() => {
+                  onClose();
+                  switchRole('hod');
+                  router.replace('/(hod)/home');
+                }}
+              >
+                <View style={[styles.menuIcon, { backgroundColor: '#262626' }]}>
+                  <MaterialCommunityIcons name="domain" size={18} color="#FB923C" />
+                </View>
+                <Text style={styles.menuText}>HOD Dashboard</Text>
+                <Feather name="chevron-right" size={16} color="#5A5A5A" />
+              </TouchableOpacity>
+            )}
           </ScrollView>
 
           <View style={styles.footer}>
@@ -262,8 +303,8 @@ backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.55)' },
     paddingHorizontal: 18,
     paddingBottom: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#2A2B2C',
-    backgroundColor: '#141516',
+    borderBottomColor: '#E8E5DC',
+    backgroundColor: '#FFFFFF',
   },
   headerTopRow: {
     flexDirection: 'row',
@@ -272,14 +313,14 @@ backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.55)' },
   },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   brandLogo: { width: 34, height: 34 },
-  brandTitle: { fontSize: 14, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.3 },
+  brandTitle: { fontSize: 16, fontFamily: FontFamily.bold, color: '#111827', letterSpacing: 0.3 },
   closeBtn: {
     width: 32,
     height: 32,
     borderRadius: 6,
-    backgroundColor: '#232425',
+    backgroundColor: '#F3F4F6',
     borderWidth: 1,
-    borderColor: '#2A2B2C',
+    borderColor: '#E5E7EB',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -310,16 +351,16 @@ backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.55)' },
     alignItems: 'center',
   },
   userTextWrap: { flex: 1 },
-  userName: { fontSize: 15, fontWeight: '800', color: '#FFFFFF' },
-  userEmail: { fontSize: 11, color: '#8A8A8A', marginTop: 1 },
-  userInstitution: { fontSize: 10, color: '#F4C430', fontWeight: '700', marginTop: 2 },
+  userName: { fontSize: 15, fontFamily: FontFamily.bold, color: '#FFFFFF' },
+  userEmail: { fontSize: 11, fontFamily: FontFamily.regular, color: '#8A8A8A', marginTop: 1 },
+  userInstitution: { fontSize: 11, color: '#F4C430', fontFamily: FontFamily.bold, marginTop: 2 },
 
   body: { flex: 1 },
   bodyContent: { paddingTop: 14, paddingHorizontal: 10, paddingBottom: 20 },
   sectionLabel: {
-    fontSize: 10,
-    color: '#6A6A6A',
-    fontWeight: '800',
+    fontSize: 11,
+    color: '#8A8A8A',
+    fontFamily: FontFamily.bold,
     letterSpacing: 1,
     paddingHorizontal: 10,
     marginBottom: 6,
@@ -333,7 +374,7 @@ backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.55)' },
     borderRadius: 8,
   },
   menuItemActive: {
-    backgroundColor: 'rgba(244, 196, 48, 0.1)',
+    backgroundColor: '#F4C430',
   },
   menuIcon: {
     width: 32,
@@ -346,11 +387,11 @@ backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.55)' },
     justifyContent: 'center',
   },
   menuIconActive: {
-    backgroundColor: 'rgba(244, 196, 48, 0.15)',
-    borderColor: 'rgba(244, 196, 48, 0.3)',
+    backgroundColor: 'rgba(0, 0, 0, 0.08)',
+    borderColor: 'rgba(0, 0, 0, 0.12)',
   },
-  menuText: { flex: 1, fontSize: 14, fontWeight: '600', color: '#E5E5E5' },
-  menuTextActive: { color: '#F4C430', fontWeight: '700' },
+  menuText: { flex: 1, fontSize: 14, fontFamily: FontFamily.medium, color: '#E5E5E5' },
+  menuTextActive: { color: '#111827', fontFamily: FontFamily.bold },
 
   footer: {
     paddingHorizontal: 14,
@@ -371,6 +412,6 @@ backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.55)' },
     borderWidth: 1,
     borderColor: 'rgba(244, 196, 48, 0.3)',
   },
-  logoutText: { fontSize: 14, fontWeight: '800', color: '#F4C430', letterSpacing: 0.3 },
-  version: { fontSize: 10, color: '#5A5A5A', textAlign: 'center', marginTop: 10, letterSpacing: 0.5 },
+  logoutText: { fontSize: 14, fontFamily: FontFamily.bold, color: '#F4C430', letterSpacing: 0.3 },
+  version: { fontSize: 11, fontFamily: FontFamily.regular, color: '#5A5A5A', textAlign: 'center', marginTop: 10, letterSpacing: 0.5 },
 });

@@ -9,6 +9,10 @@ import { adminRoutes } from './modules/admin/admin.routes.js';
 import { academicsRoutes } from './modules/academics/academics.routes.js';
 import { institutionRoutes } from './modules/institutions/institution.routes.js';
 import { developerRoutes } from './modules/developer/developer.routes.js';
+import { admissionsRoutes } from './modules/admissions/admissions.routes.js';
+import { announcementsRoutes } from './modules/announcements/announcements.routes.js';
+import { counselingRoutes } from './modules/counseling/counseling.routes.js';
+import { hodRoutes } from './modules/hod/hod.routes.js';
 
 dotenv.config();
 
@@ -27,7 +31,32 @@ async function main() {
       .filter(Boolean);
 
     await fastify.register(cors, {
-      origin: allowedOrigins.length > 0 ? allowedOrigins : true,
+      origin: (origin, cb) => {
+        // Allow mobile apps, curl, server-to-server requests without Origin header
+        if (!origin) return cb(null, true);
+
+        // Always allow localhost and 127.0.0.1 on ANY port (8081, 19006, 5173, etc.)
+        if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+          return cb(null, true);
+        }
+
+        // Always allow local area network IPs (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
+        if (/^https?:\/\/(192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)(:\d+)?$/.test(origin)) {
+          return cb(null, true);
+        }
+
+        if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+          return cb(null, true);
+        }
+
+        // In development mode, allow origin to prevent blocking
+        if (process.env.NODE_ENV !== 'production') {
+          return cb(null, true);
+        }
+
+        return cb(new Error('Not allowed by CORS'), false);
+      },
+      credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     });
 
@@ -62,6 +91,10 @@ async function main() {
         await apiV1.register(academicsRoutes, { prefix: '/admin' });
         await apiV1.register(institutionRoutes, { prefix: '/institutions' });
         await apiV1.register(developerRoutes, { prefix: '/developer' });
+        await apiV1.register(admissionsRoutes, { prefix: '/admissions' });
+        await apiV1.register(announcementsRoutes, { prefix: '/announcements' });
+        await apiV1.register(counselingRoutes, { prefix: '/admin/counseling' });
+        await apiV1.register(hodRoutes, { prefix: '/admin/hod' });
       },
       { prefix: '/api/v1' }
     );

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, Image } from 'react-native';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
+import { FontFamily } from '../../../constants/fonts';
 
 interface DriverHomeHeaderProps {
   fullName: string;
@@ -30,13 +31,15 @@ export const DriverHomeHeader: React.FC<DriverHomeHeaderProps> = ({
   return (
     <View style={styles.container}>
       <View style={styles.topHeader}>
-        <TouchableOpacity style={styles.iconBtn} onPress={onMenuPress}>
-          <Feather name="menu" size={22} color="#171717" />
-        </TouchableOpacity>
+        {/* Left: Menu + Kivquo */}
+        <View style={styles.leftGroup}>
+          <TouchableOpacity style={styles.iconBtn} onPress={onMenuPress} activeOpacity={0.7}>
+            <Feather name="menu" size={22} color="#171717" />
+          </TouchableOpacity>
+          <Text style={styles.brandTitle}>Kivquo</Text>
+        </View>
 
-        <Image source={require('../../../assets/text-logo.png')} style={styles.logoImage} resizeMode="contain" />
-
-        <TouchableOpacity style={styles.iconBtn} onPress={onNotificationsPress}>
+        <TouchableOpacity style={styles.iconBtn} onPress={onNotificationsPress} activeOpacity={0.7}>
           <Feather name="bell" size={22} color="#171717" />
         </TouchableOpacity>
       </View>
@@ -72,9 +75,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 8,
   },
-  logoImage: {
-    height: 56,
-    width: 180,
+  leftGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  brandTitle: {
+    fontFamily: FontFamily.bold,
+    fontSize: 22,
+    color: '#111827',
+    letterSpacing: -0.4,
   },
   iconBtn: {
     width: 40,

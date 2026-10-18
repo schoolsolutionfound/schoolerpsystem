@@ -4,6 +4,8 @@ import { academicsRepository } from '../academics/academics.repository.js';
 import {
   dbFindUsersByInstitution,
   dbCountUsersByInstitution,
+  dbFindFacultyByInstitution,
+  dbCountFacultyByInstitution,
   dbCountClassSectionsByInstitution,
   dbCountSubjectsByInstitution,
   dbCountAttendanceSessionsByInstitution,
@@ -98,13 +100,14 @@ export interface CreateTeacherPayload {
   institutionCode: string;
 }
 
-const SCHOOL_ROLES = ['admin', 'principal', 'teacher', 'student', 'parent', 'accountant', 'librarian'] as const;
-const COLLEGE_ROLES = ['admin', 'hod', 'teacher', 'student', 'parent', 'accountant', 'librarian'] as const;
+const SCHOOL_ROLES = ['admin', 'principal', 'hod', 'teacher', 'student', 'parent', 'accountant', 'librarian', 'driver', 'admission_officer'] as const;
+const COLLEGE_ROLES = ['admin', 'principal', 'hod', 'teacher', 'student', 'parent', 'accountant', 'librarian', 'driver', 'admission_officer'] as const;
 
 export interface CreateUserPayload {
   fullName: string;
   email: string;
   role: string;
+  roles?: string[];
   phone?: string;
   parentPhone?: string;
   employeeId?: string;
@@ -117,6 +120,19 @@ export interface CreateUserPayload {
   institutionCode: string;
   institutionName?: string;
   institutionType?: 'school' | 'college';
+}
+
+export interface UpdateUserPayload {
+  fullName?: string;
+  email?: string;
+  role?: string;
+  roles?: string[];
+  phone?: string;
+  parentPhone?: string;
+  employeeId?: string;
+  rollNoOrUSN?: string;
+  department?: string;
+  title?: string;
 }
 
 export class AdminService {
@@ -561,11 +577,11 @@ export class AdminService {
     return { message: 'Document deleted successfully' };
   }
 
-  // --- Teacher Management ---
+  // --- Teacher / Faculty Management ---
   public async getTeachers(institutionCode: string, limit = 100, offset = 0) {
     const [items, total] = await Promise.all([
-      dbFindUsersByInstitution(institutionCode, 'teacher', { limit, offset }),
-      dbCountUsersByInstitution(institutionCode, 'teacher'),
+      dbFindFacultyByInstitution(institutionCode, { limit, offset }),
+      dbCountFacultyByInstitution(institutionCode),
     ]);
     return { data: items, total, limit, offset };
   }
@@ -682,6 +698,24 @@ export class AdminService {
       };
     }
 
+    let assignedRoles: string[] = [];
+    if (payload.roles && Array.isArray(payload.roles) && payload.roles.length > 0) {
+      for (const r of payload.roles) {
+        const nr = r.toLowerCase().trim();
+        if (!validRoles.includes(nr as any)) {
+          throw {
+            statusCode: 400,
+            code: 'INVALID_ROLE',
+            message: `"${nr}" is not valid for a ${instType} institution. Allowed: ${validRoles.join(', ')}`,
+          };
+        }
+        assignedRoles.push(nr);
+      }
+    } else {
+      assignedRoles = [normalizedRole];
+    }
+    const primaryRole = assignedRoles[0] || normalizedRole;
+
     const firebaseUid = await this.createFirebaseUser(payload.email, payload.password || 'TempPass123!', payload.fullName);
 
     const hasClassTriple = Boolean(
@@ -704,20 +738,95 @@ export class AdminService {
       firebaseUid,
       email: payload.email,
       fullName: payload.fullName,
-      role: normalizedRole,
+      role: primaryRole,
+      roles: assignedRoles,
       institutionCode: payload.institutionCode,
       institutionName: payload.institutionName || payload.institutionCode,
       institutionType: instType,
       title: payload.title || '',
       rollNoOrUSN: payload.rollNoOrUSN || '',
-      parentPhone: normalizedRole === 'student' ? (payload.parentPhone || '') : undefined,
+      parentPhone: primaryRole === 'student' ? (payload.parentPhone || '') : undefined,
       phone: payload.phone || '',
       mustChangePassword: true,
       profileCompleted: false,
       scope: JSON.stringify(scopeObj),
     });
 
+    if (isFirebaseAdminInitialized) {
+      try {
+        await admin.auth().setCustomUserClaims(firebaseUid, {
+          role: primaryRole,
+          roles: assignedRoles,
+          institutionCode: payload.institutionCode,
+        });
+        await admin.firestore().collection('users').doc(firebaseUid).set({
+          fullName: payload.fullName,
+          email: payload.email,
+          role: primaryRole,
+          userRole: primaryRole,
+          roles: assignedRoles,
+          institutionCode: payload.institutionCode,
+          institutionName: payload.institutionName || payload.institutionCode,
+          institutionType: instType,
+          mustChangePassword: true,
+          profileCompleted: false,
+          createdAt: new Date().toISOString(),
+        }, { merge: true });
+      } catch (fbErr: any) {
+        console.warn('[Admin Service] Failed to sync new user to Firebase:', fbErr.message);
+      }
+    }
+
     return createdUser;
+  }
+
+  public async updateUser(id: string, institutionCode: string, payload: UpdateUserPayload) {
+    const existing = await dbFindUserById(id);
+    if (!existing) {
+      throw { statusCode: 404, code: 'USER_NOT_FOUND', message: 'User not found.' };
+    }
+    if (existing.institutionCode && existing.institutionCode.toLowerCase() !== institutionCode.toLowerCase()) {
+      throw { statusCode: 403, code: 'FORBIDDEN', message: 'You cannot edit users outside your institution.' };
+    }
+
+    const inst = await institutionService.getInstitutions().then((list) =>
+      list.find((i) => i.institutionCode.toLowerCase() === institutionCode.toLowerCase())
+    );
+    const instType: 'school' | 'college' = (inst?.institutionType || 'school') as 'school' | 'college';
+    const validRoles = instType === 'college' ? COLLEGE_ROLES : SCHOOL_ROLES;
+
+    const updateFields: any = {};
+    if (payload.fullName) updateFields.fullName = payload.fullName.trim();
+    if (payload.phone !== undefined) updateFields.phone = payload.phone;
+    if (payload.parentPhone !== undefined) updateFields.parentPhone = payload.parentPhone;
+    if (payload.title !== undefined) updateFields.title = payload.title;
+    if (payload.rollNoOrUSN !== undefined) updateFields.rollNoOrUSN = payload.rollNoOrUSN;
+    if (payload.department !== undefined) updateFields.department = payload.department;
+
+    if (payload.roles && Array.isArray(payload.roles) && payload.roles.length > 0) {
+      const cleanedRoles: string[] = [];
+      for (const r of payload.roles) {
+        const nr = r.toLowerCase().trim();
+        if (!validRoles.includes(nr as any)) {
+          throw { statusCode: 400, code: 'INVALID_ROLE', message: `"${nr}" is not a valid role.` };
+        }
+        cleanedRoles.push(nr);
+      }
+      updateFields.roles = cleanedRoles;
+      updateFields.role = payload.role ? payload.role.toLowerCase().trim() : cleanedRoles[0];
+    } else if (payload.role) {
+      const normRole = payload.role.toLowerCase().trim();
+      if (!validRoles.includes(normRole as any)) {
+        throw { statusCode: 400, code: 'INVALID_ROLE', message: `"${normRole}" is not a valid role.` };
+      }
+      updateFields.role = normRole;
+      const currentRoles = existing.roles || [existing.role];
+      if (!currentRoles.includes(normRole)) {
+        updateFields.roles = [normRole, ...currentRoles];
+      }
+    }
+
+    return dbUpdateUser(id, updateFields);
   }
 
   // --- Legacy Single Feed & Bulk Feed ---

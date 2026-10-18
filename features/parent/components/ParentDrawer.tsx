@@ -32,6 +32,8 @@ interface ParentDrawerProps {
 
 const PRIMARY = [
   { key: 'home', label: 'Home', icon: 'home-outline', tab: 'home' as const },
+  { key: 'discover', label: 'Discover Schools', icon: 'compass-outline', tab: 'discover' as const },
+  { key: 'applications', label: 'My Applications', icon: 'file-document-edit-outline', tab: 'applications' as const },
   { key: 'attendance', label: "Child's Attendance", icon: 'book-outline', tab: 'attendance' as const },
   { key: 'homework', label: "Child's Homework", icon: 'book-plus-outline', tab: 'homework' as const },
   { key: 'marks', label: "Child's Marks", icon: 'certificate-outline', tab: 'marks' as const },
