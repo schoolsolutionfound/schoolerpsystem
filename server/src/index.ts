@@ -31,7 +31,32 @@ async function main() {
       .filter(Boolean);
 
     await fastify.register(cors, {
-      origin: allowedOrigins.length > 0 ? allowedOrigins : true,
+      origin: (origin, cb) => {
+        // Allow mobile apps, curl, server-to-server requests without Origin header
+        if (!origin) return cb(null, true);
+
+        // Always allow localhost and 127.0.0.1 on ANY port (8081, 19006, 5173, etc.)
+        if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+          return cb(null, true);
+        }
+
+        // Always allow local area network IPs (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
+        if (/^https?:\/\/(192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)(:\d+)?$/.test(origin)) {
+          return cb(null, true);
+        }
+
+        if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+          return cb(null, true);
+        }
+
+        // In development mode, allow origin to prevent blocking
+        if (process.env.NODE_ENV !== 'production') {
+          return cb(null, true);
+        }
+
+        return cb(new Error('Not allowed by CORS'), false);
+      },
+      credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     });
 

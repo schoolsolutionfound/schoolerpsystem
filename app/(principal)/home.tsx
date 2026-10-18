@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   Text,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { signOut } from 'firebase/auth';
@@ -20,33 +20,47 @@ import {
   PrincipalKPIs,
   HomeroomSection,
   PrincipalStaffMember,
-  CounselingRecord,
   SchoolNotice,
 } from '../../features/principal/types/principal.types';
 import {
   fetchPrincipalKPIsApi,
   fetchPrincipalHomeroomsApi,
   fetchPrincipalStaffDirectoryApi,
-  fetchCounselingRecordsApi,
   fetchSchoolNoticesApi,
   assignHomeroomTeacherApi,
-  createCounselingRecordApi,
-  updateCounselingStatusApi,
   createSchoolNoticeApi,
 } from '../../api/principal';
 import { PrincipalHeader } from '../../features/principal/components/PrincipalHeader';
 import { PrincipalDrawer } from '../../features/principal/components/PrincipalDrawer';
 import { PrincipalDashboardView } from '../../features/principal/components/PrincipalDashboardView';
+import { PrincipalFeeLedgerView } from '../../features/principal/components/PrincipalFeeLedgerView';
 import { PrincipalHomeroomsView } from '../../features/principal/components/PrincipalHomeroomsView';
 import { PrincipalStaffDirectoryView } from '../../features/principal/components/PrincipalStaffDirectoryView';
-import { PrincipalWelfareCounselingView } from '../../features/principal/components/PrincipalWelfareCounselingView';
 import { PrincipalNoticesView } from '../../features/principal/components/PrincipalNoticesView';
 import { AttendanceReportsView } from '../../features/shared/components/AttendanceReportsView';
 import { ReviewCycleListView } from '../../features/review-cycle';
 import { AssignHomeroomModal } from '../../features/principal/components/modals/AssignHomeroomModal';
-import { AddCounselingNoteModal } from '../../features/principal/components/modals/AddCounselingNoteModal';
 import { CreateNoticeModal } from '../../features/principal/components/modals/CreateNoticeModal';
-import { CampusDossierModal } from '../../features/principal/components/modals/CampusDossierModal';
+
+// ============================================================================
+// [OMITTED FEATURES - COMMENTED OUT FOR FUTURE ACTIVATION]
+// import { CounselingRecord } from '../../features/principal/types/principal.types';
+// import {
+//   fetchCounselingRecordsApi,
+//   createCounselingRecordApi,
+//   updateCounselingStatusApi,
+// } from '../../api/principal';
+// import { PrincipalWelfareCounselingView } from '../../features/principal/components/PrincipalWelfareCounselingView';
+// import { AddCounselingNoteModal } from '../../features/principal/components/modals/AddCounselingNoteModal';
+// import { CampusDossierModal } from '../../features/principal/components/modals/CampusDossierModal';
+// ============================================================================
+import { TeacherTimetableView } from '../../features/teacher/components/TeacherTimetableView';
+import { AttendanceMarkingView } from '../../features/teacher/components/AttendanceMarkingView';
+import { TeacherMarksView } from '../../features/teacher/components/TeacherMarksView';
+import { TeacherHomeworkView } from '../../features/teacher/components/TeacherHomeworkView';
+import { TeacherChatView } from '../../features/teacher/components/TeacherChatView';
+import { TeacherLocateStudentsView } from '../../features/teacher/components/TeacherLocateStudentsView';
+import { AdminTimetableView } from '../../features/admin/components/AdminTimetableView';
 
 const BOTTOM_TABS: {
   key: PrincipalTab;
@@ -55,16 +69,15 @@ const BOTTOM_TABS: {
   iconActive: keyof typeof MaterialCommunityIcons.glyphMap;
 }[] = [
   { key: 'dashboard', label: 'Dashboard', icon: 'home-outline', iconActive: 'home' },
-  { key: 'homerooms', label: 'Homeroom', icon: 'account-group-outline', iconActive: 'account-group' },
-  { key: 'staff', label: 'Faculty', icon: 'account-outline', iconActive: 'account' },
-  // Guidance & Counselor pending further research - commented out per user request
-  // { key: 'counseling', label: 'Guidance', icon: 'heart-outline', iconActive: 'heart' },
-  { key: 'reviews', label: 'Reviews', icon: 'clipboard-account-outline', iconActive: 'clipboard-account' },
-  { key: 'notices', label: 'Circulars', icon: 'bullhorn-outline', iconActive: 'bullhorn' },
+  { key: 'homerooms', label: 'Students', icon: 'account-group-outline', iconActive: 'account-group' },
+  { key: 'fees', label: 'Fee Ledger', icon: 'cash-multiple', iconActive: 'cash-multiple' },
+  { key: 'staff', label: 'Faculty', icon: 'account-tie-outline', iconActive: 'account-tie' },
+  { key: 'profile', label: 'Account', icon: 'account-outline', iconActive: 'account' },
 ];
 
 export default function PrincipalHomeScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   // User store selectors
   const fullName = useUserStore((state) => state.fullName) || 'Principal';
@@ -97,15 +110,13 @@ export default function PrincipalHomeScreen() {
   });
   const [homerooms, setHomerooms] = useState<HomeroomSection[]>([]);
   const [staffList, setStaffList] = useState<PrincipalStaffMember[]>([]);
-  const [counseling, setCounseling] = useState<CounselingRecord[]>([]);
   const [notices, setNotices] = useState<SchoolNotice[]>([]);
 
   // Modals state
   const [assignModalVisible, setAssignModalVisible] = useState(false);
   const [selectedSection, setSelectedSection] = useState<HomeroomSection | null>(null);
-  const [counselingModalVisible, setCounselingModalVisible] = useState(false);
   const [noticeModalVisible, setNoticeModalVisible] = useState(false);
-  const [dossierModalVisible, setDossierModalVisible] = useState(false);
+  const [activeSlot, setActiveSlot] = useState<{ slotId: string; subjectName: string } | null>(null);
 
   // Load all principal data
   const loadData = useCallback(async () => {
@@ -115,7 +126,6 @@ export default function PrincipalHomeScreen() {
         fetchPrincipalKPIsApi(),
         fetchPrincipalHomeroomsApi(),
         fetchPrincipalStaffDirectoryApi(),
-        fetchCounselingRecordsApi(),
         fetchSchoolNoticesApi(),
       ]);
 
@@ -123,8 +133,7 @@ export default function PrincipalHomeScreen() {
       if (results[0].status === 'fulfilled' && results[0].value) setKpis(results[0].value);
       if (results[1].status === 'fulfilled' && results[1].value) setHomerooms(results[1].value);
       if (results[2].status === 'fulfilled' && results[2].value) setStaffList(results[2].value);
-      if (results[3].status === 'fulfilled' && results[3].value) setCounseling(results[3].value);
-      if (results[4].status === 'fulfilled' && results[4].value) setNotices(results[4].value);
+      if (results[3].status === 'fulfilled' && results[3].value) setNotices(results[3].value);
     } catch (err: any) {
       if (!isMountedRef.current) return;
       console.warn('Principal data load error:', err);
@@ -173,33 +182,6 @@ export default function PrincipalHomeScreen() {
     }
   };
 
-  const handleCreateCounselingCase = async (record: Omit<CounselingRecord, 'id'>) => {
-    const created = await createCounselingRecordApi(record);
-    setCounseling((prev) => [created, ...prev]);
-    setKpis((prev) => ({
-      ...prev,
-      counselingCasesActive: prev.counselingCasesActive + 1,
-    }));
-    Alert.alert('Pastoral Record Saved', `Counseling case for ${record.studentName} logged.`);
-  };
-
-  const handleToggleCounselingStatus = async (
-    id: string,
-    currentStatus: CounselingRecord['status']
-  ) => {
-    const nextStatus =
-      currentStatus === 'active'
-        ? 'in_progress'
-        : currentStatus === 'in_progress'
-        ? 'resolved'
-        : 'active';
-
-    await updateCounselingStatusApi(id, nextStatus);
-    setCounseling((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, status: nextStatus } : c))
-    );
-  };
-
   const handlePublishNotice = async (
     notice: Omit<SchoolNotice, 'id' | 'publishedDate' | 'acknowledgedCount'>
   ) => {
@@ -233,10 +215,6 @@ export default function PrincipalHomeScreen() {
           onNotificationsPress={() => setActiveTab('notices')}
           onProfilePress={() => router.push('/(principal)/profile')}
           onBackToDashboard={() => setActiveTab('dashboard')}
-          onSwitchToTeacher={() => {
-            useUserStore.getState().switchRole('teacher');
-            router.replace('/(teacher)/home');
-          }}
         />
 
         {/* Active View Container */}
@@ -254,7 +232,7 @@ export default function PrincipalHomeScreen() {
           ) : loading ? (
             <View style={styles.loaderWrap}>
               <ActivityIndicator size="large" color="#D97706" />
-              <Text style={styles.loaderText}>Loading Principal Cockpit...</Text>
+              <Text style={styles.loaderText}>Loading Dashboard...</Text>
             </View>
           ) : (
             <>
@@ -263,8 +241,8 @@ export default function PrincipalHomeScreen() {
                   fullName={fullName}
                   kpis={kpis}
                   homerooms={homerooms}
+                  staffList={staffList}
                   notices={notices}
-                  counseling={counseling}
                   refreshing={refreshing}
                   onRefresh={handleRefresh}
                   onNavigateTab={(tab) => {
@@ -273,13 +251,15 @@ export default function PrincipalHomeScreen() {
                   }}
                   onOpenAssignModal={handleOpenAssignModal}
                   onOpenNoticeModal={() => setNoticeModalVisible(true)}
-                  onOpenDossierModal={() => setDossierModalVisible(true)}
-                  onNavigateToTeacherTimetable={() => router.push('/teacher-timetable')}
-                  onNavigateToTeacherAttendance={() => router.push('/teacher-attendance')}
-                  onSwitchToTeacherPortal={() => {
-                    useUserStore.getState().switchRole('teacher');
-                    router.replace('/(teacher)/home');
-                  }}
+                  onNavigateToTeacherTimetable={() => setActiveTab('schedule')}
+                  onNavigateToTeacherAttendance={() => setActiveTab('mark_attendance')}
+                />
+              )}
+
+              {activeTab === 'fees' && (
+                <PrincipalFeeLedgerView
+                  homerooms={homerooms}
+                  onBack={() => setActiveTab('dashboard')}
                 />
               )}
 
@@ -300,17 +280,6 @@ export default function PrincipalHomeScreen() {
                 />
               )}
 
-              {/* Guidance & Counselor pending further research - commented out */}
-              {/* {activeTab === 'counseling' && (
-                <PrincipalWelfareCounselingView
-                  records={counseling}
-                  refreshing={refreshing}
-                  onRefresh={handleRefresh}
-                  onOpenCreateModal={() => setCounselingModalVisible(true)}
-                  onToggleStatus={handleToggleCounselingStatus}
-                />
-              )} */}
-
               {activeTab === 'reviews' && (
                 <ReviewCycleListView
                   role="principal"
@@ -330,35 +299,117 @@ export default function PrincipalHomeScreen() {
               {activeTab === 'attendance' && (
                 <AttendanceReportsView mode="institution" />
               )}
+
+              {/* Institution Timetable Builder (Imported from Admin panel) */}
+              {activeTab === 'timetable' && (
+                <AdminTimetableView
+                  classSections={
+                    homerooms.length > 0
+                      ? homerooms
+                      : [
+                          { id: 'sec-cse-1', name: 'CSE B.Tech 1st Year · Sec A' },
+                          { id: 'sec-ece-1', name: 'ECE B.Tech 1st Year · Sec A' },
+                          { id: 'sec-mech-1', name: 'Mechanical B.Tech 1st Year · Sec A' },
+                          { id: 'sec-aiml-1', name: 'AIML B.Tech 1st Year · Sec A' },
+                          { id: 'sec-civil-1', name: 'Civil B.Tech 1st Year · Sec A' },
+                        ]
+                  }
+                />
+              )}
+
+              {/* Teaching & Classroom Operations (Unified In Drawer) */}
+              {activeTab === 'schedule' && (
+                <TeacherTimetableView
+                  onOpenAttendance={(slotId, subjectName) => {
+                    setActiveSlot({ slotId, subjectName });
+                    setActiveTab('mark_attendance');
+                  }}
+                />
+              )}
+
+              {activeTab === 'mark_attendance' && (
+                activeSlot ? (
+                  <AttendanceMarkingView
+                    slotId={activeSlot.slotId}
+                    subjectName={activeSlot.subjectName}
+                    onSaved={() => {
+                      setActiveSlot(null);
+                      loadData();
+                    }}
+                  />
+                ) : (
+                  <TeacherTimetableView
+                    onOpenAttendance={(slotId, subjectName) => {
+                      setActiveSlot({ slotId, subjectName });
+                    }}
+                  />
+                )
+              )}
+
+              {activeTab === 'marks' && (
+                <TeacherMarksView />
+              )}
+
+              {activeTab === 'homework' && (
+                <TeacherHomeworkView />
+              )}
+
+              {activeTab === 'chat' && (
+                <TeacherChatView />
+              )}
+
+              {activeTab === 'locate' && (
+                <TeacherLocateStudentsView />
+              )}
             </>
           )}
         </View>
 
-        {/* Bottom Tab Bar */}
-        <View style={styles.bottomBar}>
+        {/* Floating Oval Pill Bottom Tab Bar (True Oval Shape, Reduced sizes for high responsiveness) */}
+        <View
+          style={[
+            styles.ovalBottomBar,
+            { marginBottom: Math.max(insets.bottom, 10) },
+          ]}
+        >
           {BOTTOM_TABS.map((tab) => {
             const active = activeTab === tab.key;
             return (
               <TouchableOpacity
                 key={tab.key}
                 style={styles.tabBtn}
-                onPress={() => setActiveTab(tab.key)}
+                onPress={() => {
+                  if (tab.key === 'profile') {
+                    router.push('/(principal)/profile');
+                  } else {
+                    setActiveTab(tab.key);
+                  }
+                }}
                 activeOpacity={0.7}
               >
-                <MaterialCommunityIcons
-                  name={active ? tab.iconActive : tab.icon}
-                  size={24}
-                  color={active ? '#111827' : '#9CA3AF'}
-                />
-                <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>
+                {active ? (
+                  <View style={styles.activeIconCircle}>
+                    <MaterialCommunityIcons
+                      name={tab.iconActive}
+                      size={18}
+                      color="#000000"
+                    />
+                  </View>
+                ) : (
+                  <View style={styles.inactiveIconWrap}>
+                    <MaterialCommunityIcons
+                      name={tab.icon}
+                      size={20}
+                      color="#9CA3AF"
+                    />
+                  </View>
+                )}
+                <Text
+                  style={[styles.tabLabel, active && styles.tabLabelActive]}
+                  numberOfLines={1}
+                >
                   {tab.label}
                 </Text>
-                <View
-                  style={[
-                    styles.tabIndicator,
-                    { backgroundColor: active ? '#F4C430' : 'transparent' },
-                  ]}
-                />
               </TouchableOpacity>
             );
           })}
@@ -389,29 +440,26 @@ export default function PrincipalHomeScreen() {
         onAssign={handleConfirmAssign}
       />
 
-      <AddCounselingNoteModal
-        visible={counselingModalVisible}
-        onClose={() => setCounselingModalVisible(false)}
-        onSubmit={handleCreateCounselingCase}
-      />
-
       <CreateNoticeModal
         visible={noticeModalVisible}
         onClose={() => setNoticeModalVisible(false)}
         onSubmit={handlePublishNotice}
       />
 
-      <CampusDossierModal
-        visible={dossierModalVisible}
-        onClose={() => setDossierModalVisible(false)}
-        kpis={kpis}
-        homerooms={homerooms}
-        staff={staffList}
-        counseling={counseling}
-        notices={notices}
-        institutionName={institutionName}
-        onRefresh={loadData}
-      />
+      {/* ============================================================================ */}
+      {/* [OMITTED FEATURES - COMMENTED OUT FOR FUTURE ACTIVATION] */}
+      {/* <AddCounselingNoteModal */}
+      {/*   visible={counselingModalVisible} */}
+      {/*   onClose={() => setCounselingModalVisible(false)} */}
+      {/*   onSubmit={handleCreateCounselingCase} */}
+      {/* /> */}
+      {/* <CampusDossierModal */}
+      {/*   visible={dossierModalVisible} */}
+      {/*   kpis={kpis} */}
+      {/*   counseling={counseling} */}
+      {/*   onClose={() => setDossierModalVisible(false)} */}
+      {/* /> */}
+      {/* ============================================================================ */}
     </View>
   );
 }
@@ -476,35 +524,62 @@ const styles = StyleSheet.create({
     color: '#111827',
     fontFamily: FontFamily.semibold,
   },
-  bottomBar: {
+  ovalBottomBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
     backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E8E5DC',
-    paddingVertical: 8,
+    borderRadius: 36,
+    borderWidth: 1,
+    borderColor: '#EFEFEF',
+    paddingVertical: 6,
     paddingHorizontal: 8,
+    marginHorizontal: 12,
+    maxWidth: 620,
+    width: '94%',
+    alignSelf: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.10,
+    shadowRadius: 10,
+    elevation: 8,
   },
   tabBtn: {
     alignItems: 'center',
     justifyContent: 'center',
     flex: 1,
-    gap: 3,
+    paddingVertical: 2,
+    paddingHorizontal: 2,
+  },
+  activeIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#FFD026',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
+    shadowColor: '#FFD026',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  inactiveIconWrap: {
+    width: 38,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
   },
   tabLabel: {
-    fontSize: 11,
-    color: '#6B7280',
-    fontFamily: FontFamily.regular,
+    fontSize: 10,
+    color: '#9CA3AF',
+    fontFamily: FontFamily.medium,
+    textAlign: 'center',
   },
   tabLabelActive: {
     color: '#111827',
     fontFamily: FontFamily.bold,
-  },
-  tabIndicator: {
-    width: 24,
-    height: 3,
-    borderRadius: 2,
-    marginTop: 3,
   },
 });

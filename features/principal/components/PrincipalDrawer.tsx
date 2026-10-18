@@ -9,17 +9,16 @@ import {
   ScrollView,
   Animated,
   Easing,
-  Image,
   useWindowDimensions,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { useUserStore } from '../../../store/useUserStore';
-import { getHomeRouteForRole } from '../../shared/utils/routeGuards';
 import { PrincipalTab } from '../types/principal.types';
 import { FontFamily } from '../../../constants/fonts';
-import { BorderRadius } from '../../../constants/theme';
+import { YellowTheme } from '../../../constants/globalYellowStyles';
 
 interface PrincipalDrawerProps {
   visible: boolean;
@@ -29,21 +28,34 @@ interface PrincipalDrawerProps {
   onLogout: () => void;
 }
 
-const PRIMARY_NAV: {
+const MAIN_NAV: {
   key: PrincipalTab;
   label: string;
   icon: keyof typeof MaterialCommunityIcons.glyphMap;
   badge?: string;
 }[] = [
-  { key: 'dashboard', label: 'Executive Cockpit', icon: 'view-dashboard-outline' },
-  { key: 'homerooms', label: 'Homeroom & Classes', icon: 'google-classroom' },
-  { key: 'staff', label: 'Faculty & Staff Roster', icon: 'human-male-board' },
-  // Guidance & Counselor pending further research - commented out per user instruction
-  // { key: 'counseling', label: 'Guidance & Counseling', icon: 'heart-pulse' },
-  { key: 'reviews', label: 'Staff Review Cycles', icon: 'clipboard-account-outline' },
-  { key: 'notices', label: 'Campus Circulars', icon: 'bullhorn-outline' },
-  { key: 'attendance', label: 'Institution Attendance', icon: 'calendar-check-outline' },
-  { key: 'profile', label: 'Executive Settings', icon: 'cog-outline' },
+  { key: 'dashboard', label: 'Dashboard', icon: 'view-dashboard' },
+  { key: 'fees', label: 'Fee Ledger', icon: 'cash-multiple' },
+  { key: 'notices', label: 'Announcements', icon: 'bullhorn-outline' },
+  { key: 'homerooms', label: 'Students', icon: 'account-group-outline' },
+  { key: 'timetable', label: 'Timetable', icon: 'calendar-edit' },
+  { key: 'staff', label: 'Faculty', icon: 'account-group-outline' },
+  { key: 'attendance', label: 'Attendance', icon: 'chart-bar' },
+  { key: 'reviews', label: 'Reviews', icon: 'clipboard-text-outline' },
+];
+
+const TEACHING_NAV: {
+  key: PrincipalTab;
+  label: string;
+  icon: keyof typeof MaterialCommunityIcons.glyphMap;
+  badge?: string;
+}[] = [
+  { key: 'schedule', label: 'My Schedule', icon: 'calendar-clock' },
+  { key: 'mark_attendance', label: 'Mark Attendance', icon: 'clipboard-check-outline' },
+  { key: 'marks', label: 'Marks', icon: 'certificate-outline' },
+  { key: 'homework', label: 'Homework', icon: 'book-plus-outline' },
+  { key: 'chat', label: 'Chat', icon: 'message-text-outline' },
+  { key: 'locate', label: 'Locate Students', icon: 'map-marker-outline' },
 ];
 
 export const PrincipalDrawer: React.FC<PrincipalDrawerProps> = ({
@@ -58,33 +70,24 @@ export const PrincipalDrawer: React.FC<PrincipalDrawerProps> = ({
   const { width } = useWindowDimensions();
 
   const fullName = useUserStore((state) => state.fullName) || 'Principal';
-  const email = useUserStore((state) => state.email);
-  const institutionName = useUserStore((state) => state.institutionName) || 'My Institution';
-  const userRole = useUserStore((state) => state.userRole);
-  const roles = useUserStore((state) => state.roles || []);
-  const switchRole = useUserStore((state) => state.switchRole);
+  const email = useUserStore((state) => state.email) || 'librarian@school.com';
+  const institutionName = useUserStore((state) => state.institutionName) || 'SchoolHub Academy';
 
   const [slideX] = useState(() => new Animated.Value(-width));
   const [fade] = useState(() => new Animated.Value(0));
-
-  const handleSwitchRole = (targetRole: any) => {
-    switchRole(targetRole);
-    onClose();
-    setTimeout(() => router.replace(getHomeRouteForRole(targetRole) as any), 150);
-  };
 
   useEffect(() => {
     if (visible) {
       Animated.parallel([
         Animated.timing(slideX, {
           toValue: 0,
-          duration: 350,
+          duration: 320,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
         Animated.timing(fade, {
           toValue: 1,
-          duration: 300,
+          duration: 280,
           useNativeDriver: true,
         }),
       ]).start();
@@ -92,13 +95,13 @@ export const PrincipalDrawer: React.FC<PrincipalDrawerProps> = ({
       Animated.parallel([
         Animated.timing(slideX, {
           toValue: -width,
-          duration: 300,
+          duration: 260,
           easing: Easing.in(Easing.cubic),
           useNativeDriver: true,
         }),
         Animated.timing(fade, {
           toValue: 0,
-          duration: 250,
+          duration: 220,
           useNativeDriver: true,
         }),
       ]).start();
@@ -107,7 +110,51 @@ export const PrincipalDrawer: React.FC<PrincipalDrawerProps> = ({
 
   if (!visible) return null;
 
-  const drawerWidth = Math.min(width * 0.82, 340);
+  const drawerWidth = Math.min(width * 0.82, 330);
+
+  const renderNavItem = (
+    item: {
+      key: PrincipalTab;
+      label: string;
+      icon: keyof typeof MaterialCommunityIcons.glyphMap;
+      badge?: string;
+    }
+  ) => {
+    const active = activeTab === item.key;
+    return (
+      <TouchableOpacity
+        key={item.key}
+        style={[styles.navItem, active && styles.navItemActive]}
+        onPress={() => {
+          onNavigate(item.key);
+          onClose();
+        }}
+        activeOpacity={0.7}
+      >
+        <View style={[styles.navIconBox, active && styles.navIconBoxActive]}>
+          <MaterialCommunityIcons
+            name={item.icon}
+            size={18}
+            color={active ? YellowTheme.primaryYellow : '#D1D5DB'}
+          />
+        </View>
+        <Text style={[styles.navItemText, active && styles.navItemTextActive]} numberOfLines={1}>
+          {item.label}
+        </Text>
+        {item.badge && (
+          <View style={styles.badgePill}>
+            <Text style={styles.badgePillText}>{item.badge}</Text>
+          </View>
+        )}
+        <Feather
+          name="chevron-right"
+          size={16}
+          color={active ? YellowTheme.primaryYellow : YellowTheme.drawerChevron}
+          style={styles.navChevron}
+        />
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
@@ -117,158 +164,116 @@ export const PrincipalDrawer: React.FC<PrincipalDrawerProps> = ({
           <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         </Animated.View>
 
-        {/* Drawer Panel */}
+        {/* Dark Obsidian Drawer Panel with White Header */}
         <Animated.View
           style={[
             styles.panel,
             {
               width: drawerWidth,
-              paddingTop: Math.max(insets.top, 16),
-              paddingBottom: Math.max(insets.bottom, 16),
               transform: [{ translateX: slideX }],
             },
           ]}
         >
-          {/* Header Brand Section */}
-          <View style={styles.drawerHeader}>
+          {/* Header Brand Section: White Header with logo-transparent.png + Close X */}
+          <View style={[styles.drawerHeader, { paddingTop: Math.max(insets.top + 6, 16) }]}>
             <View style={styles.brandRow}>
-              <Image
-                source={require('../../../assets/text-logo.png')}
-                style={styles.logoImage}
-                resizeMode="contain"
-              />
-              <TouchableOpacity onPress={onClose} style={styles.closeIconBtn} activeOpacity={0.7}>
-                <Feather name="x" size={20} color="#6B6B6B" />
+              <View style={styles.logoRow}>
+                <Image
+                  source={require('../../../assets/logo-transparent.png')}
+                  style={styles.brandLogo}
+                  resizeMode="contain"
+                />
+                <Text style={styles.brandText}>KIVQUO</Text>
+              </View>
+              <TouchableOpacity onPress={onClose} style={styles.closeBtn} activeOpacity={0.7} hitSlop={10}>
+                <Feather name="x" size={18} color="#111827" />
               </TouchableOpacity>
-            </View>
-
-            {/* Executive Profile Card */}
-            <View style={styles.profileCard}>
-              <View style={styles.avatarWrap}>
-                <Text style={styles.avatarInitial}>
-                  {(fullName ? fullName.trim().charAt(0) : 'P').toUpperCase()}
-                </Text>
-              </View>
-              <View style={styles.profileMeta}>
-                <Text style={styles.drawerName} numberOfLines={1}>{fullName}</Text>
-                <Text style={styles.drawerRole}>Principal / Executive Head</Text>
-                <Text style={styles.drawerEmail} numberOfLines={1}>{email}</Text>
-              </View>
-            </View>
-
-            <View style={styles.campusBadge}>
-              <MaterialCommunityIcons name="office-building" size={13} color="#F4C430" />
-              <Text style={styles.campusBadgeText} numberOfLines={1}>{institutionName}</Text>
             </View>
           </View>
 
-          {/* Navigation Links */}
-          <ScrollView style={styles.navScroll} showsVerticalScrollIndicator={false}>
-            <Text style={styles.sectionHeader}>LEADERSHIP MODULES</Text>
-            {PRIMARY_NAV.map((item) => {
-              const active = activeTab === item.key;
-              return (
-                <TouchableOpacity
-                  key={item.key}
-                  style={[styles.navItem, active && styles.navItemActive]}
-                  onPress={() => {
-                    onNavigate(item.key);
-                    onClose();
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.navIconBox, active && styles.navIconBoxActive]}>
-                    <MaterialCommunityIcons
-                      name={item.icon}
-                      size={20}
-                      color={active ? '#111827' : '#4B5563'}
-                    />
-                  </View>
-                  <Text style={[styles.navItemText, active && styles.navItemTextActive]}>
-                    {item.label}
-                  </Text>
-                  {item.badge && (
-                    <View style={styles.badgePill}>
-                      <Text style={styles.badgePillText}>{item.badge}</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-
-            {/* Educator & Teaching Operations */}
-            <Text style={styles.sectionHeader}>EDUCATOR OPERATIONS</Text>
-            <TouchableOpacity
-              style={styles.navItem}
-              onPress={() => {
-                onClose();
-                router.push('/teacher-timetable');
-              }}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.navIconBox, { backgroundColor: '#EFF6FF' }]}>
-                <MaterialCommunityIcons name="calendar-clock" size={20} color="#1D4ED8" />
+          {/* Drawer Body Container (Dark obsidian - only header is white) */}
+          <View
+            style={[
+              styles.drawerBody,
+              { paddingBottom: Math.max(insets.bottom, 16) },
+            ]}
+          >
+            {/* Profile Section (Yellow Avatar + Name + Email + Institution) */}
+            <View style={styles.profileSection}>
+              <View style={styles.yellowAvatar}>
+                <MaterialCommunityIcons name="account" size={28} color="#000000" />
               </View>
-              <Text style={styles.navItemText}>Campus Timetable Builder</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.navItem}
-              onPress={() => {
-                onClose();
-                router.push('/teacher-attendance');
-              }}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.navIconBox, { backgroundColor: '#F0FDF4' }]}>
-                <MaterialCommunityIcons name="clipboard-check" size={20} color="#15803D" />
+              <View style={styles.profileInfo}>
+                <Text style={styles.profileName} numberOfLines={1}>{fullName}</Text>
+                <Text style={styles.profileEmail} numberOfLines={1}>{email}</Text>
+                <Text style={styles.profileInstitution} numberOfLines={1}>{institutionName}</Text>
               </View>
-              <Text style={styles.navItemText}>Take Class Attendance</Text>
-            </TouchableOpacity>
+            </View>
 
-            {/* Role Switching */}
-            {roles.length > 1 && (
-              <View style={styles.switchRoleBlock}>
-                <Text style={styles.sectionHeader}>SWITCH PORTAL</Text>
-                {roles.map((r) => {
-                  const isCurrent = r === userRole;
-                  return (
-                    <TouchableOpacity
-                      key={r}
-                      style={[styles.roleSwitchRow, isCurrent && styles.roleSwitchRowActive]}
-                      disabled={isCurrent}
-                      onPress={() => handleSwitchRole(r)}
-                      activeOpacity={0.7}
-                    >
-                      <MaterialCommunityIcons
-                        name="account-switch-outline"
-                        size={16}
-                        color={isCurrent ? '#D97706' : '#6B6B6B'}
-                      />
-                      <Text
-                        style={[
-                          styles.roleSwitchText,
-                          isCurrent && styles.roleSwitchTextActive,
-                        ]}
-                      >
-                        {r.toUpperCase()}
-                      </Text>
-                      {isCurrent && (
-                        <View style={styles.currentDot} />
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            )}
-          </ScrollView>
+            <View style={styles.headerDivider} />
 
-          {/* Bottom Logout Button */}
-          <View style={styles.drawerFooter}>
-            <TouchableOpacity style={styles.logoutBtn} onPress={onLogout} activeOpacity={0.7}>
-              <Feather name="log-out" size={18} color="#EF4444" />
-              <Text style={styles.logoutText}>Sign Out</Text>
-            </TouchableOpacity>
+            {/* Navigation Links Scrollable Area */}
+            <ScrollView style={styles.navScroll} showsVerticalScrollIndicator={false}>
+              {/* MAIN SECTION */}
+              <Text style={styles.sectionTitle}>MAIN</Text>
+              {MAIN_NAV.map(renderNavItem)}
+
+              {/* TEACHING OPERATIONS SECTION */}
+              <Text style={[styles.sectionTitle, { marginTop: 18 }]}>OPERATIONS</Text>
+              {TEACHING_NAV.map(renderNavItem)}
+
+              {/* ACCOUNT SECTION */}
+              <Text style={[styles.sectionTitle, { marginTop: 18 }]}>ACCOUNT</Text>
+              <TouchableOpacity
+                style={[styles.navItem, activeTab === 'profile' && styles.navItemActive]}
+                onPress={() => {
+                  onClose();
+                  onNavigate('profile');
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.navIconBox, activeTab === 'profile' && styles.navIconBoxActive]}>
+                  <MaterialCommunityIcons
+                    name="account-outline"
+                    size={18}
+                    color={activeTab === 'profile' ? YellowTheme.primaryYellow : '#D1D5DB'}
+                  />
+                </View>
+                <Text style={[styles.navItemText, activeTab === 'profile' && styles.navItemTextActive]}>
+                  Profile & Account
+                </Text>
+                <Feather
+                  name="chevron-right"
+                  size={16}
+                  color={activeTab === 'profile' ? YellowTheme.primaryYellow : YellowTheme.drawerChevron}
+                  style={styles.navChevron}
+                />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.navItem}
+                onPress={() => {
+                  onClose();
+                  router.push('/notifications');
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={styles.navIconBox}>
+                  <MaterialCommunityIcons name="bell-outline" size={18} color="#D1D5DB" />
+                </View>
+                <Text style={styles.navItemText}>Notifications</Text>
+                <Feather name="chevron-right" size={16} color={YellowTheme.drawerChevron} style={styles.navChevron} />
+              </TouchableOpacity>
+            </ScrollView>
+
+            {/* Bottom Logout Button + Version */}
+            <View style={styles.drawerFooter}>
+              <TouchableOpacity style={styles.logoutBtn} onPress={onLogout} activeOpacity={0.8}>
+                <MaterialCommunityIcons name="logout" size={18} color={YellowTheme.primaryYellow} />
+                <Text style={styles.logoutText}>Logout</Text>
+              </TouchableOpacity>
+              <Text style={styles.versionText}>v1.0 · School ERP</Text>
+            </View>
           </View>
         </Animated.View>
       </View>
@@ -287,216 +292,196 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
   },
+  // Solid Dark Obsidian Drawer Panel with White Header
   panel: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: YellowTheme.drawerBg,
     height: '100%',
     shadowColor: '#000',
     shadowOffset: { width: 4, height: 0 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 16,
-    borderTopRightRadius: 16,
-    borderBottomRightRadius: 16,
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 20,
+    overflow: 'hidden',
   },
   drawerHeader: {
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
     paddingBottom: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: '#E5E7EB',
   },
   brandRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 14,
   },
-  logoImage: {
-    width: 108,
-    height: 30,
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
-  closeIconBtn: {
+  brandLogo: {
+    width: 34,
+    height: 34,
+  },
+  brandText: {
+    fontFamily: FontFamily.extrabold,
+    fontSize: 18,
+    color: '#111827',
+    letterSpacing: 0.5,
+  },
+  closeBtn: {
     width: 32,
     height: 32,
     borderRadius: 8,
     backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  profileCard: {
+  drawerBody: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+
+  // Profile Card
+  profileSection: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#FFFDF7',
-    borderWidth: 1,
-    borderColor: '#E8E5DC',
-    borderRadius: 8,
-    padding: 10,
+    marginBottom: 16,
   },
-  avatarWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 8,
-    backgroundColor: '#1A1B1C',
+  yellowAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: YellowTheme.primaryYellow,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarInitial: {
+  profileInfo: {
+    flex: 1,
+  },
+  profileName: {
     fontFamily: FontFamily.bold,
     fontSize: 16,
-    color: '#F4C430',
+    color: '#FFFFFF',
+    letterSpacing: -0.2,
   },
-  profileMeta: {
-    flex: 1,
-  },
-  drawerName: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#171717',
-    fontFamily: FontFamily.bold,
-  },
-  drawerRole: {
-    fontSize: 10,
-    color: '#D97706',
-    fontFamily: FontFamily.semibold,
-    marginTop: 1,
-    letterSpacing: 0.3,
-  },
-  drawerEmail: {
-    fontSize: 11,
-    color: '#6B6B6B',
+  profileEmail: {
     fontFamily: FontFamily.regular,
+    fontSize: 12,
+    color: '#8A8A8A',
     marginTop: 1,
   },
-  campusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#FFFDF7',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: '#E8E5DC',
+  profileInstitution: {
+    fontFamily: FontFamily.bold,
+    fontSize: 12,
+    color: YellowTheme.primaryYellow,
+    marginTop: 2,
   },
-  campusBadgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#171717',
-    fontFamily: FontFamily.semibold,
-    flex: 1,
+  headerDivider: {
+    height: 1,
+    backgroundColor: '#262729',
+    marginBottom: 14,
   },
+
+  // Navigation Links
   navScroll: {
     flex: 1,
-    paddingHorizontal: 14,
-    paddingTop: 14,
   },
-  sectionHeader: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#8A8A8A',
+  sectionTitle: {
     fontFamily: FontFamily.bold,
-    marginBottom: 8,
-    marginLeft: 6,
-    letterSpacing: 0.5,
+    fontSize: 11,
+    color: YellowTheme.drawerSectionText,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginBottom: 10,
+    marginLeft: 4,
   },
   navItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    borderRadius: BorderRadius.button,
-    marginBottom: 4,
-    gap: 12,
+    paddingVertical: 9,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    marginBottom: 3,
   },
   navItemActive: {
-    backgroundColor: '#F4C430',
+    backgroundColor: YellowTheme.drawerActiveBg,
   },
   navIconBox: {
     width: 34,
     height: 34,
     borderRadius: 8,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: YellowTheme.drawerIconBadge,
+    borderWidth: 1,
+    borderColor: YellowTheme.drawerIconBadgeBorder,
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 12,
   },
   navIconBoxActive: {
-    backgroundColor: 'rgba(0, 0, 0, 0.08)',
+    backgroundColor: 'rgba(244, 196, 48, 0.15)',
+    borderColor: YellowTheme.primaryYellow,
   },
   navItemText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#374151',
-    fontFamily: FontFamily.semibold,
     flex: 1,
+    fontFamily: FontFamily.medium,
+    fontSize: 14,
+    color: YellowTheme.drawerItemText,
   },
   navItemTextActive: {
-    color: '#111827',
-    fontWeight: '800',
-    fontFamily: FontFamily.extrabold,
+    fontFamily: FontFamily.bold,
+    color: YellowTheme.primaryYellow,
+  },
+  navChevron: {
+    marginLeft: 6,
   },
   badgePill: {
-    backgroundColor: '#EF4444',
+    backgroundColor: YellowTheme.primaryYellow,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 10,
+    marginRight: 4,
   },
   badgePillText: {
+    fontFamily: FontFamily.bold,
     fontSize: 10,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    color: '#000000',
   },
-  switchRoleBlock: {
-    marginTop: 16,
-    paddingTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: '#E8E5DC',
-  },
-  roleSwitchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 6,
-  },
-  roleSwitchRowActive: {
-    backgroundColor: '#FFF4C7',
-  },
-  roleSwitchText: {
-    fontSize: 12,
-    color: '#6B6B6B',
-    fontFamily: FontFamily.medium,
-    flex: 1,
-  },
-  roleSwitchTextActive: {
-    color: '#171717',
-    fontWeight: '800',
-  },
-  currentDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#10B981',
-  },
+
+  // Bottom Footer Section
   drawerFooter: {
-    paddingHorizontal: 20,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#E8E5DC',
+    borderTopColor: '#222325',
   },
   logoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingVertical: 8,
+    justifyContent: 'center',
+    height: 46,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: YellowTheme.primaryYellow,
+    backgroundColor: '#1E1F21',
+    gap: 8,
   },
   logoutText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#EF4444',
     fontFamily: FontFamily.bold,
+    fontSize: 14,
+    color: YellowTheme.primaryYellow,
+  },
+  versionText: {
+    fontFamily: FontFamily.regular,
+    fontSize: 11,
+    color: '#5A5A5A',
+    textAlign: 'center',
+    marginTop: 10,
   },
 });

@@ -54,6 +54,7 @@ export interface PrincipalStaffMember {
 export interface HomeroomSection {
   id: string;
   name: string; // e.g. "Grade 5-A" or "Class 10-B"
+  department?: string;
   grade: string; // e.g. "5", "10"
   section: string; // e.g. "A", "B"
   roomNumber?: string;
@@ -109,6 +110,7 @@ export interface SchoolNotice {
   targetAudience: 'all' | 'teachers' | 'students' | 'parents' | 'staff';
   department?: string;
   publishedDate: string;
+  expiresAt?: string;
   author: string;
   acknowledgedCount?: number;
 }
@@ -128,10 +130,37 @@ export interface PrincipalKPIs {
 
 export type PrincipalTab =
   | 'dashboard'
+  | 'fees'
   | 'homerooms'
+  | 'timetable'
   | 'staff'
-  | 'counseling'
   | 'reviews'
   | 'notices'
   | 'attendance'
+  | 'schedule'
+  | 'mark_attendance'
+  | 'marks'
+  | 'homework'
+  | 'chat'
+  | 'locate'
   | 'profile';
+
+export interface StudentFeeRecord {
+  id: string;
+  classId?: string;
+  className?: string;
+  studentName: string;
+  rollNumber: string;
+  department: string;
+  year: string;
+  institution: string;
+  totalFee: number;
+  paidAmount: number;
+  dueAmount: number;
+  dueDate: string;
+  lastPaymentDate?: string;
+  status: 'due' | 'paid' | 'overdue';
+  contactPhone?: string;
+  guardianName?: string;
+}
+

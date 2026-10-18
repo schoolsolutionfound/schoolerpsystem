@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -6,31 +6,30 @@ import {
   TouchableOpacity,
   ScrollView,
   RefreshControl,
-  TextInput,
   useWindowDimensions,
 } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { FontFamily } from '../../../constants/fonts';
 import {
   PrincipalKPIs,
   PrincipalTab,
   HomeroomSection,
   SchoolNotice,
-  CounselingRecord,
+  PrincipalStaffMember,
 } from '../types/principal.types';
+import { MOCK_STUDENT_FEES } from '../constants/feeLedgerData';
 
 interface PrincipalDashboardViewProps {
   fullName?: string;
   kpis: PrincipalKPIs;
   homerooms: HomeroomSection[];
+  staffList?: PrincipalStaffMember[];
   notices: SchoolNotice[];
-  counseling: CounselingRecord[];
   refreshing: boolean;
   onRefresh: () => void;
   onNavigateTab: (tab: PrincipalTab) => void;
   onOpenAssignModal: (section: HomeroomSection) => void;
   onOpenNoticeModal: () => void;
-  onOpenDossierModal?: () => void;
   onNavigateToTeacherTimetable?: () => void;
   onNavigateToTeacherAttendance?: () => void;
   onSwitchToTeacherPortal?: () => void;
@@ -50,18 +49,165 @@ const getGreeting = (): string => {
   return 'Good Evening,';
 };
 
+
+
+const FALLBACK_DEPARTMENT_CLASSES: HomeroomSection[] = [
+  {
+    id: 'dyn-cse-1',
+    name: 'CSE B.Tech 1st Year · Sec A',
+    grade: '1st Year',
+    section: 'A',
+    roomNumber: 'Lab 101',
+    homeroomTeacherName: 'Dr. Emily Watson',
+    studentCount: 42,
+    presentCount: 40,
+    attendanceRate: 95.2,
+  },
+  {
+    id: 'dyn-cse-2',
+    name: 'CSE B.Tech 2nd Year · Sec B',
+    grade: '2nd Year',
+    section: 'B',
+    roomNumber: 'Lab 203',
+    homeroomTeacherName: 'Prof. David Vance',
+    studentCount: 40,
+    presentCount: 37,
+    attendanceRate: 92.5,
+  },
+  {
+    id: 'dyn-ece-1',
+    name: 'ECE B.Tech 1st Year · Sec A',
+    grade: '1st Year',
+    section: 'A',
+    roomNumber: 'Room 302',
+    homeroomTeacherName: 'Dr. Sarah Connor',
+    studentCount: 38,
+    presentCount: 35,
+    attendanceRate: 92.1,
+  },
+  {
+    id: 'dyn-ece-2',
+    name: 'ECE B.Tech 3rd Year · Sec A',
+    grade: '3rd Year',
+    section: 'A',
+    roomNumber: 'VLSI Lab',
+    homeroomTeacherName: 'Prof. Alan Turing',
+    studentCount: 36,
+    presentCount: 33,
+    attendanceRate: 91.7,
+  },
+  {
+    id: 'dyn-mech-1',
+    name: 'Mechanical Eng 2nd Year · Sec A',
+    grade: '2nd Year',
+    section: 'A',
+    roomNumber: 'Workshop B',
+    homeroomTeacherName: 'Dr. Henry Ford',
+    studentCount: 35,
+    presentCount: 31,
+    attendanceRate: 88.6,
+  },
+  {
+    id: 'dyn-civil-1',
+    name: 'Civil Eng 3rd Year · Sec A',
+    grade: '3rd Year',
+    section: 'A',
+    roomNumber: 'Survey Hall',
+    homeroomTeacherName: 'Prof. Marcus Bell',
+    studentCount: 34,
+    presentCount: 29,
+    attendanceRate: 85.3,
+  },
+  {
+    id: 'dyn-math-1',
+    name: 'Applied Sciences · Maths Honors',
+    grade: '1st Year',
+    section: 'A',
+    roomNumber: 'Auditorium 2',
+    homeroomTeacherName: 'Dr. S. Ramanujan',
+    studentCount: 45,
+    presentCount: 43,
+    attendanceRate: 95.6,
+  },
+];
+
+const FALLBACK_STAFF_MEMBERS: PrincipalStaffMember[] = [
+  {
+    id: 'st-01',
+    fullName: 'Dr. Emily Watson',
+    email: 'e.watson@institution.edu',
+    phone: '+91 98451 23456',
+    department: 'Computer Science',
+    designation: 'hod',
+    assignedClass: 'CSE 1st Year · Sec A',
+    attendanceToday: 'present',
+    experienceYears: 14,
+  },
+  {
+    id: 'st-02',
+    fullName: 'Prof. David Vance',
+    email: 'd.vance@institution.edu',
+    phone: '+91 98452 34567',
+    department: 'Electronics & Comm',
+    designation: 'subject_teacher',
+    assignedClass: 'ECE 2nd Year · Sec A',
+    attendanceToday: 'present',
+    experienceYears: 10,
+  },
+  {
+    id: 'st-03',
+    fullName: 'Dr. Henry Ford',
+    email: 'h.ford@institution.edu',
+    phone: '+91 98453 45678',
+    department: 'Mechanical Eng',
+    designation: 'homeroom_teacher',
+    assignedClass: 'Mechanical 2nd Year',
+    attendanceToday: 'present',
+    experienceYears: 12,
+  },
+  {
+    id: 'st-04',
+    fullName: 'Dr. Marie Curie',
+    email: 'm.curie@institution.edu',
+    phone: '+91 98454 56789',
+    department: 'Applied Sciences',
+    designation: 'subject_teacher',
+    assignedClass: 'Applied Physics Honors',
+    attendanceToday: 'on_leave',
+    experienceYears: 7,
+  },
+];
+
+// Department-wise Fee Analytics (Paid vs Unpaid)
+const DEPT_FEE_ANALYTICS_TERM = [
+  { label: 'CSE', fullName: 'Computer Science', paid: 385000, unpaid: 42000 },
+  { label: 'ECE', fullName: 'Electronics & Comm', paid: 290000, unpaid: 38000 },
+  { label: 'MECH', fullName: 'Mechanical Eng', paid: 215000, unpaid: 55000 },
+  { label: 'CIVIL', fullName: 'Civil Eng', paid: 180000, unpaid: 48000 },
+  { label: 'AIML', fullName: 'AI & Data Science', paid: 340000, unpaid: 28000 },
+  { label: 'APS', fullName: 'Applied Sciences', paid: 155000, unpaid: 35000 },
+];
+
+const DEPT_FEE_ANALYTICS_ANNUAL = [
+  { label: 'CSE', fullName: 'Computer Science', paid: 1420000, unpaid: 180000 },
+  { label: 'ECE', fullName: 'Electronics & Comm', paid: 1150000, unpaid: 145000 },
+  { label: 'MECH', fullName: 'Mechanical Eng', paid: 860000, unpaid: 195000 },
+  { label: 'CIVIL', fullName: 'Civil Eng', paid: 720000, unpaid: 160000 },
+  { label: 'AIML', fullName: 'AI & Data Science', paid: 1280000, unpaid: 110000 },
+  { label: 'APS', fullName: 'Applied Sciences', paid: 620000, unpaid: 125000 },
+];
+
 export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
   fullName = 'Muhammad Samran',
   kpis,
   homerooms,
+  staffList,
   notices,
-  counseling,
   refreshing,
   onRefresh,
   onNavigateTab,
   onOpenAssignModal,
   onOpenNoticeModal,
-  onOpenDossierModal,
   onNavigateToTeacherTimetable,
   onNavigateToTeacherAttendance,
   onSwitchToTeacherPortal,
@@ -69,6 +215,7 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
   const { width: windowWidth } = useWindowDimensions();
   const maxContentWidth = Math.min(windowWidth, 1200);
   const isTabletOrDesktop = maxContentWidth >= 768;
+  const isMobile = windowWidth < 480;
 
   const horizontalPadding = 16;
   const cardGap = 10;
@@ -80,47 +227,38 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
   const topActionWidth = Math.floor(
     (maxContentWidth - (horizontalPadding * 2) - cardGap) / 2
   );
-  const quickCardWidth = Math.max(130, Math.floor((maxContentWidth - 32 - 10) / 2.3));
 
-  const [classSearch, setClassSearch] = useState('');
-  const [classFilter, setClassFilter] = useState<'all' | 'high' | 'normal' | 'at_risk' | 'unassigned'>('all');
-  const [showAllClasses, setShowAllClasses] = useState(false);
+  // Dynamic fallback ensures zero blank space and consistent attendance summary
+  const rawHomerooms = homerooms && homerooms.length > 0 ? homerooms : FALLBACK_DEPARTMENT_CLASSES;
+  const activeStaffList = staffList && staffList.length > 0 ? staffList : FALLBACK_STAFF_MEMBERS;
 
-  // Filter classes based on search and selected attendance rate filter
-  const filteredHomerooms = useMemo(() => {
-    return homerooms.filter((h) => {
-      if (classSearch.trim()) {
-        const q = classSearch.toLowerCase().trim();
-        const matches =
-          h.name.toLowerCase().includes(q) ||
-          (h.homeroomTeacherName && h.homeroomTeacherName.toLowerCase().includes(q)) ||
-          (h.roomNumber && h.roomNumber.toLowerCase().includes(q));
-        if (!matches) return false;
-      }
-      const studentCount = h.studentCount || 40;
-      const presentCount =
-        h.presentCount !== undefined ? h.presentCount : Math.round(studentCount * 0.92);
-      const ratePct =
-        h.attendanceRate !== undefined && h.attendanceRate > 0
-          ? h.attendanceRate
-          : studentCount > 0
-          ? Math.round((presentCount / studentCount) * 100)
-          : 0;
+  // Dynamic stats calculated live from actual class records
+  const dynamicTotalEnrolled = useMemo(() => {
+    const sum = rawHomerooms.reduce((acc, h) => acc + (h.studentCount || 0), 0);
+    return sum > 0 ? sum : (kpis.totalStudents || 0);
+  }, [rawHomerooms, kpis.totalStudents]);
 
-      if (classFilter === 'high') return ratePct >= 90;
-      if (classFilter === 'normal') return ratePct >= 75 && ratePct < 90;
-      if (classFilter === 'at_risk') return ratePct < 75;
-      if (classFilter === 'unassigned') return !h.homeroomTeacherName;
-      return true;
-    });
-  }, [homerooms, classSearch, classFilter]);
+  const dynamicTotalPresent = useMemo(() => {
+    const sum = rawHomerooms.reduce((acc, h) => acc + (h.presentCount !== undefined ? h.presentCount : Math.round((h.studentCount || 0) * 0.92)), 0);
+    return sum > 0 ? sum : (kpis.presentStudents || 0);
+  }, [rawHomerooms, kpis.presentStudents]);
 
-  const displayedHomerooms = showAllClasses
-    ? filteredHomerooms
-    : filteredHomerooms.slice(0, 4);
+  const dynamicTotalAbsent = Math.max(0, dynamicTotalEnrolled - dynamicTotalPresent);
 
-  const safeStudentPct = Math.min(100, Math.max(0, kpis.studentAttendancePct || 90));
-  const safeFacultyPct = Math.min(100, Math.max(0, kpis.facultyAttendancePct || 100));
+  const dynamicAttendancePct = useMemo(() => {
+    if (dynamicTotalEnrolled > 0) {
+      return Math.round((dynamicTotalPresent / dynamicTotalEnrolled) * 100);
+    }
+    return kpis.studentAttendancePct || 0;
+  }, [dynamicTotalEnrolled, dynamicTotalPresent, kpis.studentAttendancePct]);
+
+  // Department-wise Fees Paid vs Unpaid Analytics State
+  const [chartPeriod, setChartPeriod] = useState<'term' | 'annual'>('term');
+  const [selectedBarIndex, setSelectedBarIndex] = useState<number | null>(0); // default to CSE highlight
+
+  const chartData = chartPeriod === 'term' ? DEPT_FEE_ANALYTICS_TERM : DEPT_FEE_ANALYTICS_ANNUAL;
+  const selectedBarInfo =
+    selectedBarIndex !== null && chartData[selectedBarIndex] ? chartData[selectedBarIndex] : null;
 
   return (
     <ScrollView
@@ -131,405 +269,182 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
     >
       {/* 1. GREETING HEADER */}
       <View style={styles.greetingSection}>
-        <Text style={styles.dateText}>{getFormattedDate()}</Text>
-        <Text style={styles.greetingText}>{getGreeting()}</Text>
-        <Text style={styles.userNameText}>{fullName}</Text>
-        <Text style={styles.subGreetingText}>Here's what's happening at your institution today.</Text>
+        <Text style={styles.userNameText}>Hello, {fullName}</Text>
       </View>
 
-      {/* 2. ATTENDANCE HERO SUMMARY (ATTENDANCE STANDARD THEME) */}
+      {/* 2. ATTENDANCE SUMMARY (Soft Lighter Fade, Circular Status Ring Gauge) */}
       <View style={styles.overallAttendanceCard}>
         <View style={styles.overallCardMain}>
-          <View style={styles.overallRingBox}>
-            <Text style={styles.overallRingVal}>{safeStudentPct}%</Text>
-            <Text style={styles.overallRingLabel}>ATTENDANCE</Text>
+          {/* Circular Status Ring Gauge */}
+          <View style={styles.circularGaugeBox}>
+            <View style={styles.circularGaugeOuter}>
+              <Text style={styles.circularGaugeVal}>{dynamicAttendancePct}%</Text>
+              <Text style={styles.circularGaugeLabel}>ATTENDANCE</Text>
+            </View>
           </View>
+
           <View style={styles.overallDivider} />
+
+          {/* Attendance Breakdown Stats */}
           <View style={styles.overallStatsRow}>
             <View style={styles.overallStatCol}>
-              <Text style={[styles.overallStatVal, { color: '#16A34A' }]}>
-                {kpis.presentStudents || Math.round((kpis.totalStudents || 568) * (safeStudentPct / 100))}
-              </Text>
+              <Text style={styles.overallStatVal}>{dynamicTotalPresent}</Text>
               <Text style={styles.overallStatLabel}>PRESENT</Text>
             </View>
             <View style={styles.overallStatDivider} />
             <View style={styles.overallStatCol}>
-              <Text style={[styles.overallStatVal, { color: '#DC2626' }]}>
-                {Math.max(0, (kpis.totalStudents || 568) - (kpis.presentStudents || Math.round((kpis.totalStudents || 568) * (safeStudentPct / 100))))}
-              </Text>
+              <Text style={styles.overallStatVal}>{dynamicTotalAbsent}</Text>
               <Text style={styles.overallStatLabel}>ABSENT</Text>
             </View>
             <View style={styles.overallStatDivider} />
             <View style={styles.overallStatCol}>
-              <Text style={[styles.overallStatVal, { color: '#FFFFFF' }]}>
-                {kpis.totalStudents || 568}
-              </Text>
+              <Text style={styles.overallStatVal}>{dynamicTotalEnrolled}</Text>
               <Text style={styles.overallStatLabel}>ENROLLED</Text>
             </View>
           </View>
         </View>
-        {/* Attendance Progress Track */}
-        <View style={styles.overallProgressTrack}>
-          <View style={[styles.overallProgressFill, { width: `${safeStudentPct}%` }]} />
-        </View>
       </View>
 
-      {/* 3. TOP 2 EDUCATIONAL & TIMETABLE ACTION CARDS */}
+      {/* Add Announcement Button (Below Attendance) */}
+      <View style={styles.announcementActionRow}>
+        <TouchableOpacity
+          style={styles.primaryCtaBtn}
+          onPress={onOpenNoticeModal}
+          activeOpacity={0.8}
+        >
+          <Feather name="plus" size={16} color="#000000" style={{ marginRight: 6 }} />
+          <Text style={styles.primaryCtaBtnText}>Add Announcement</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* 3. QUICK NAVIGATION CARDS */}
       <View style={styles.topActionsRow}>
         <TouchableOpacity
           style={[styles.topActionCard, { width: topActionWidth }]}
-          onPress={onOpenDossierModal || (() => onNavigateTab('homerooms'))}
+          onPress={() => onNavigateTab('homerooms')}
           activeOpacity={0.8}
         >
-          <View style={styles.blackIconBox}>
-            <MaterialCommunityIcons name="book-open-outline" size={18} color="#111827" />
-          </View>
           <View style={styles.topActionContent}>
-            <Text style={styles.topActionTitle} numberOfLines={1}>
-              Academics
-            </Text>
-            <Text style={styles.topActionSub} numberOfLines={1}>
-              Classes & tools
-            </Text>
+            <Text style={styles.topActionTitle} numberOfLines={1}>Classes</Text>
           </View>
+          <Feather name="arrow-right" size={16} color="#9CA3AF" />
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.topActionCard, { width: topActionWidth }]}
-          onPress={onNavigateToTeacherTimetable}
+          onPress={() => onNavigateTab('timetable')}
           activeOpacity={0.8}
         >
-          <View style={styles.blackIconBox}>
-            <MaterialCommunityIcons name="calendar-clock" size={18} color="#111827" />
-          </View>
           <View style={styles.topActionContent}>
-            <Text style={styles.topActionTitle} numberOfLines={1}>
-              Timetable
-            </Text>
-            <Text style={styles.topActionSub} numberOfLines={1}>
-              Today's schedule
-            </Text>
+            <Text style={styles.topActionTitle} numberOfLines={1}>Timetable</Text>
           </View>
+          <Feather name="arrow-right" size={16} color="#9CA3AF" />
         </TouchableOpacity>
       </View>
 
-      {/* 3. METRIC CARDS (2x2 on mobile, 4x1 on desktop) */}
-      <View style={styles.metricsGrid}>
-        {/* Card 1: Students */}
+      {/* Second Row: Faculty & Fee Dues */}
+      <View style={styles.topActionsRow}>
         <TouchableOpacity
-          style={[styles.metricCard, { width: metricColWidth }]}
-          onPress={() => onNavigateTab('homerooms')}
-          activeOpacity={0.8}
-        >
-          <View style={styles.blackIconBox}>
-            <MaterialCommunityIcons name="account-group" size={20} color="#111827" />
-          </View>
-          <View style={styles.metricContent}>
-            <Text style={styles.metricVal}>{kpis.totalStudents || 568}</Text>
-            <Text style={styles.metricLabel} numberOfLines={1}>Students</Text>
-            <Text style={styles.metricSub} numberOfLines={1}>{safeStudentPct}% Present</Text>
-          </View>
-        </TouchableOpacity>
-
-        {/* Card 2: Faculty */}
-        <TouchableOpacity
-          style={[styles.metricCard, { width: metricColWidth }]}
+          style={[styles.topActionCard, { width: topActionWidth }]}
           onPress={() => onNavigateTab('staff')}
           activeOpacity={0.8}
         >
-          <View style={styles.blackIconBox}>
-            <MaterialCommunityIcons name="account" size={20} color="#111827" />
+          <View style={styles.topActionContent}>
+            <Text style={styles.topActionTitle} numberOfLines={1}>Faculty</Text>
           </View>
-          <View style={styles.metricContent}>
-            <Text style={styles.metricVal}>{kpis.totalFaculty || 4}</Text>
-            <Text style={styles.metricLabel} numberOfLines={1}>Faculty</Text>
-            <Text style={styles.metricSub} numberOfLines={1}>{safeFacultyPct}% On Duty</Text>
-          </View>
+          <Feather name="arrow-right" size={16} color="#9CA3AF" />
         </TouchableOpacity>
 
-        {/* Card 3: Classes */}
         <TouchableOpacity
-          style={[styles.metricCard, { width: metricColWidth }]}
-          onPress={() => onNavigateTab('homerooms')}
+          style={[styles.topActionCard, { width: topActionWidth }]}
+          onPress={() => onNavigateTab('fees')}
           activeOpacity={0.8}
         >
-          <View style={styles.blackIconBox}>
-            <MaterialCommunityIcons name="book-open-outline" size={20} color="#111827" />
+          <View style={styles.topActionContent}>
+            <Text style={styles.topActionTitle} numberOfLines={1}>Fee Dues</Text>
           </View>
-          <View style={styles.metricContent}>
-            <Text style={styles.metricVal}>{homerooms.length || kpis.activeSections || 46}</Text>
-            <Text style={styles.metricLabel} numberOfLines={1}>Classes</Text>
-            <Text style={styles.metricSub} numberOfLines={1}>{homerooms.length || kpis.activeSections || 46} Sections</Text>
-          </View>
-        </TouchableOpacity>
-
-        {/* Card 4: Circulars */}
-        <TouchableOpacity
-          style={[styles.metricCard, { width: metricColWidth }]}
-          onPress={() => onNavigateTab('notices')}
-          activeOpacity={0.8}
-        >
-          <View style={styles.blackIconBox}>
-            <MaterialCommunityIcons name="file-document-outline" size={20} color="#111827" />
-          </View>
-          <View style={styles.metricContent}>
-            <Text style={styles.metricVal}>{notices.length || 6}</Text>
-            <Text style={styles.metricLabel} numberOfLines={1}>Circulars</Text>
-            <Text style={styles.metricSub} numberOfLines={1}>Official Notices</Text>
-          </View>
+          <Feather name="arrow-right" size={16} color="#9CA3AF" />
         </TouchableOpacity>
       </View>
 
-      {/* 4. CLASS-WISE STUDENT ATTENDANCE SECTION */}
-      <View style={styles.classSectionCard}>
-        {/* Section Header */}
-        <View style={styles.classSectionHeader}>
-          <View style={styles.blackSquareSm}>
-            <MaterialCommunityIcons name="chart-bar" size={20} color="#111827" />
-          </View>
-          <View style={styles.classSectionHeaderTitles}>
-            <Text style={styles.classSectionTitle}>Class-Wise Student Attendance</Text>
-            <Text style={styles.classSectionSubtitle}>Monitor attendance and manage classes easily.</Text>
-          </View>
+      {/* 4. FEES PAID & UNPAID ANALYTICS CHART (Matching Book Circulation aesthetics) */}
+      <View style={styles.feeAnalyticsCard}>
+        {/* Header */}
+        <View style={styles.feeAnalyticsHeader}>
+          <Text style={styles.feeAnalyticsTitle}>Fees Paid & Unpaid</Text>
+          <TouchableOpacity
+            style={styles.periodPillBtn}
+            onPress={() => {
+              setChartPeriod((prev: 'term' | 'annual') => (prev === 'term' ? 'annual' : 'term'));
+              setSelectedBarIndex(null);
+            }}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.periodPillText}>
+              {chartPeriod === 'term' ? 'This Term' : 'Annual'}
+            </Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Search Input */}
-        <View style={styles.searchBarWrap}>
-          <MaterialCommunityIcons name="magnify" size={18} color="#9CA3AF" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search class name, room, or teacher..."
-            placeholderTextColor="#9CA3AF"
-            value={classSearch}
-            onChangeText={setClassSearch}
-          />
-          {classSearch.length > 0 && (
-            <TouchableOpacity onPress={() => setClassSearch('')}>
-              <MaterialCommunityIcons name="close-circle" size={16} color="#9CA3AF" />
-            </TouchableOpacity>
-          )}
-        </View>
+        {/* Selected Day/Week Metric Tooltip Quick Bar */}
+        {selectedBarInfo && (
+          <View style={styles.chartTooltipRow}>
+            <Text style={styles.chartTooltipDay}>{selectedBarInfo.label}:</Text>
+            <Text style={styles.chartTooltipPaid}>₹{selectedBarInfo.paid.toLocaleString()} Paid</Text>
+            <Text style={styles.chartTooltipDot}>·</Text>
+            <Text style={styles.chartTooltipUnpaid}>₹{selectedBarInfo.unpaid.toLocaleString()} Unpaid</Text>
+          </View>
+        )}
 
-        {/* Class Attendance Filters Beside/Under Search */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.classFilterChipsScroll}
-        >
-          {(
-            [
-              { key: 'all' as const, label: `All Classes (${homerooms.length})` },
-              { key: 'high' as const, label: '≥90% High' },
-              { key: 'normal' as const, label: '75-89% Normal' },
-              { key: 'at_risk' as const, label: '<75% At-Risk' },
-              { key: 'unassigned' as const, label: 'Unassigned' },
-            ]
-          ).map((item) => {
-            const active = classFilter === item.key;
+        {/* Chart Bars Area */}
+        <View style={styles.chartContainer}>
+          {chartData.map((item, index) => {
+            const maxVal = Math.max(...chartData.map((d) => Math.max(d.paid, d.unpaid)));
+            const maxBarHeight = 85;
+            const paidHeight = Math.max(6, Math.round((item.paid / maxVal) * maxBarHeight));
+            const unpaidHeight = Math.max(6, Math.round((item.unpaid / maxVal) * maxBarHeight));
+            const isSelected = selectedBarIndex === index;
+
             return (
               <TouchableOpacity
-                key={item.key}
-                style={[styles.classFilterChip, active && styles.classFilterChipActive]}
-                onPress={() => setClassFilter(item.key)}
-                activeOpacity={0.7}
+                key={item.label}
+                style={[styles.dayColumn, isSelected && styles.dayColumnSelected]}
+                onPress={() => setSelectedBarIndex(isSelected ? null : index)}
+                activeOpacity={0.8}
               >
-                <Text style={[styles.classFilterChipText, active && styles.classFilterChipTextActive]}>
+                <View style={styles.barsPair}>
+                  <View style={[styles.paidBar, { height: paidHeight }]} />
+                  <View style={[styles.unpaidBar, { height: unpaidHeight }]} />
+                </View>
+                <Text style={[styles.dayLabel, isSelected && styles.dayLabelSelected]}>
                   {item.label}
                 </Text>
               </TouchableOpacity>
             );
           })}
-        </ScrollView>
-
-        {/* Class Items */}
-        <View style={styles.classList}>
-          {displayedHomerooms.map((sec, idx) => {
-            const studentCount = sec.studentCount || 40;
-            const presentCount =
-              sec.presentCount !== undefined
-                ? sec.presentCount
-                : Math.round(studentCount * 0.92);
-            const absentCount = Math.max(0, studentCount - presentCount);
-            const ratePct = sec.attendanceRate !== undefined && sec.attendanceRate > 0
-              ? sec.attendanceRate
-              : studentCount > 0 ? Math.round((presentCount / studentCount) * 100) : 0;
-            const rateColor = ratePct >= 90 ? '#16A34A' : ratePct >= 75 ? '#F59E0B' : '#DC2626';
-
-            return (
-              <View
-                key={sec.id}
-                style={[
-                  styles.classItem,
-                  idx < displayedHomerooms.length - 1 && styles.classItemBorder,
-                ]}
-              >
-                {/* Top Row: Title + Room & Rate Pill */}
-                <View style={styles.classItemTop}>
-                  <View style={styles.classItemTitleWrap}>
-                    <Text style={styles.classNameText}>{sec.name}</Text>
-                    <Text style={styles.classRoomText}>
-                      Room: {sec.roomNumber || 'Main Block'}{sec.homeroomTeacherName ? ` • ${sec.homeroomTeacherName}` : ''}
-                    </Text>
-                  </View>
-
-                  <View style={[styles.attendanceRatePill, { backgroundColor: `${rateColor}18` }]}>
-                    <MaterialCommunityIcons
-                      name={ratePct >= 90 ? 'check-circle' : ratePct >= 75 ? 'clock-alert' : 'close-circle'}
-                      size={12}
-                      color={rateColor}
-                    />
-                    <Text style={[styles.attendanceRatePillText, { color: rateColor }]}>{ratePct}%</Text>
-                  </View>
-                </View>
-
-                {/* Progress Bar (Attendance Standard) */}
-                <View style={styles.classProgressTrack}>
-                  <View
-                    style={[
-                      styles.classProgressFill,
-                      { width: `${Math.min(ratePct, 100)}%`, backgroundColor: rateColor },
-                    ]}
-                  />
-                </View>
-
-                {/* Bottom Row: Stats & Action */}
-                <View style={styles.classItemBottom}>
-                  <View style={styles.classItemStats}>
-                    <View style={styles.statChip}>
-                      <View style={[styles.statusDot, { backgroundColor: '#16A34A' }]} />
-                      <Text style={styles.statText}>{presentCount} Present</Text>
-                    </View>
-
-                    <View style={styles.statChip}>
-                      <View style={[styles.statusDot, { backgroundColor: '#DC2626' }]} />
-                      <Text style={styles.statText}>{absentCount} Absent</Text>
-                    </View>
-
-                    <View style={styles.statChip}>
-                      <Text style={styles.statSubText}>{studentCount} Enrolled</Text>
-                    </View>
-                  </View>
-
-                  <TouchableOpacity
-                    style={styles.assignPillBtn}
-                    onPress={() => onOpenAssignModal(sec)}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={styles.assignPillText}>
-                      {sec.homeroomTeacherName ? 'Teacher' : 'Assign'}
-                    </Text>
-                    <MaterialCommunityIcons name="chevron-right" size={13} color="#F4C430" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            );
-          })}
-
-          {displayedHomerooms.length === 0 && (
-            <View style={styles.emptyWrap}>
-              <MaterialCommunityIcons name="text-box-search-outline" size={32} color="#9CA3AF" />
-              <Text style={styles.emptyText}>No classes matched "{classSearch}"</Text>
-            </View>
-          )}
         </View>
 
-        {/* View All Classes Button */}
-        {filteredHomerooms.length > 0 && (
-          <TouchableOpacity
-            style={styles.viewAllFooter}
-            onPress={() => setShowAllClasses((prev) => !prev)}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.viewAllText}>
-              {showAllClasses
-                ? 'Show Fewer Classes'
-                : `View All ${filteredHomerooms.length} Classes`}
-            </Text>
-            <MaterialCommunityIcons
-              name={showAllClasses ? 'chevron-up' : 'chevron-right'}
-              size={18}
-              color="#111827"
-            />
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* 5. QUICK ACCESS SECTION */}
-      <View style={styles.quickAccessSection}>
-        <View style={styles.quickAccessHeader}>
-          <Text style={styles.quickAccessTitle}>Quick Access</Text>
-          <Text style={styles.quickAccessSubtitle}>Common tasks, always within reach.</Text>
+        {/* Legend */}
+        <View style={styles.legendRow}>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: '#FFD026' }]} />
+            <Text style={styles.legendText}>Paid</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: '#0F172A' }]} />
+            <Text style={styles.legendText}>Unpaid</Text>
+          </View>
         </View>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.quickAccessScroll}
+        {/* View Class-wise Ledger Link */}
+        <TouchableOpacity
+          style={styles.viewLedgerBtn}
+          onPress={() => onNavigateTab('fees')}
+          activeOpacity={0.8}
         >
-          {/* Card 1: All Classes */}
-          <TouchableOpacity
-            style={[styles.quickCard, { width: quickCardWidth }]}
-            onPress={() => onNavigateTab('homerooms')}
-            activeOpacity={0.8}
-          >
-            <View style={styles.blackIconBoxSm}>
-              <MaterialCommunityIcons name="book-open-outline" size={16} color="#F4C430" />
-            </View>
-            <View style={styles.quickCardText}>
-              <Text style={styles.quickCardTitle} numberOfLines={1}>All Classes</Text>
-              <Text style={styles.quickCardSub}>{homerooms.length} Sections</Text>
-            </View>
-            <MaterialCommunityIcons name="chevron-right" size={16} color="#9CA3AF" />
-          </TouchableOpacity>
-
-          {/* Card 2: Faculty Roster */}
-          <TouchableOpacity
-            style={[styles.quickCard, { width: quickCardWidth }]}
-            onPress={() => onNavigateTab('staff')}
-            activeOpacity={0.8}
-          >
-            <View style={styles.blackIconBoxSm}>
-              <MaterialCommunityIcons name="account-group" size={16} color="#F4C430" />
-            </View>
-            <View style={styles.quickCardText}>
-              <Text style={styles.quickCardTitle} numberOfLines={1}>Faculty Roster</Text>
-              <Text style={styles.quickCardSub}>{kpis.totalFaculty} Educators</Text>
-            </View>
-            <MaterialCommunityIcons name="chevron-right" size={16} color="#9CA3AF" />
-          </TouchableOpacity>
-
-          {/* Card 3: New Circular */}
-          <TouchableOpacity
-            style={[styles.quickCard, { width: quickCardWidth }]}
-            onPress={onOpenNoticeModal}
-            activeOpacity={0.8}
-          >
-            <View style={styles.blackIconBoxSm}>
-              <MaterialCommunityIcons name="file-document-outline" size={16} color="#F4C430" />
-            </View>
-            <View style={styles.quickCardText}>
-              <Text style={styles.quickCardTitle} numberOfLines={1}>New Circular</Text>
-              <Text style={styles.quickCardSub}>Create Notice</Text>
-            </View>
-            <MaterialCommunityIcons name="chevron-right" size={16} color="#9CA3AF" />
-          </TouchableOpacity>
-
-          {/* Card 4: Guidance Care */}
-          <TouchableOpacity
-            style={[styles.quickCard, { width: quickCardWidth }]}
-            onPress={() => onNavigateTab('counseling')}
-            activeOpacity={0.8}
-          >
-            <View style={styles.blackIconBoxSm}>
-              <MaterialCommunityIcons name="heart-outline" size={16} color="#F4C430" />
-            </View>
-            <View style={styles.quickCardText}>
-              <Text style={styles.quickCardTitle} numberOfLines={1}>Guidance Care</Text>
-              <Text style={styles.quickCardSub}>Student Support</Text>
-            </View>
-            <MaterialCommunityIcons name="chevron-right" size={16} color="#9CA3AF" />
-          </TouchableOpacity>
-        </ScrollView>
+          <Text style={styles.viewLedgerBtnText}>View Class-wise Fee Ledger</Text>
+          <Feather name="arrow-right" size={14} color="#B45309" />
+        </TouchableOpacity>
       </View>
 
       <View style={{ height: 32 }} />
@@ -540,7 +455,7 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFDF7',
+    backgroundColor: '#F9FAFB',
   },
   content: {
     paddingHorizontal: 16,
@@ -560,7 +475,7 @@ const styles = StyleSheet.create({
   dateText: {
     fontFamily: FontFamily.regular,
     fontSize: 13,
-    color: '#6B6B6B',
+    color: '#6B7280',
     marginBottom: 2,
   },
   greetingText: {
@@ -577,51 +492,107 @@ const styles = StyleSheet.create({
   subGreetingText: {
     fontFamily: FontFamily.regular,
     fontSize: 13,
-    color: '#6B6B6B',
-    marginTop: 3,
+    color: '#6B7280',
+    marginTop: 2,
+    marginBottom: 10,
+  },
+  pageTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  pageTitle: {
+    fontFamily: FontFamily.extrabold,
+    fontSize: 22,
+    color: '#000000',
+    letterSpacing: -0.3,
+  },
+  announcementActionRow: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 2,
+    marginBottom: 4,
+  },
+  primaryCtaBtn: {
+    width: '100%',
+    backgroundColor: '#F4C430',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  primaryCtaBtnText: {
+    fontFamily: FontFamily.bold,
+    fontSize: 14,
+    color: '#000000',
+    letterSpacing: -0.1,
   },
 
-  // 2. Attendance Hero Card (Attendance Standard Theme)
+  // 2. Attendance Summary Card (Lighter fade, circular status ring)
   overallAttendanceCard: {
-    backgroundColor: '#1A1B1C',
-    borderRadius: 12,
+    backgroundColor: '#FFFDF7',
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#2A2B2C',
+    borderColor: '#FEF3C7',
     padding: 16,
-    gap: 12,
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
+    elevation: 1,
   },
   overallCardMain: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  overallRingBox: {
-    alignItems: 'flex-start',
-    minWidth: 90,
+  circularGaugeBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  overallRingVal: {
-    fontFamily: FontFamily.bold,
-    fontSize: 32,
-    color: '#F4C430',
-    lineHeight: 36,
+  circularGaugeOuter: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    borderWidth: 4.5,
+    borderColor: '#F59E0B',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#F59E0B',
+    shadowOffset: { width: 0, height: 1.5 },
+    shadowOpacity: 0.12,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  overallRingLabel: {
+  circularGaugeVal: {
     fontFamily: FontFamily.bold,
-    fontSize: 9,
-    color: '#8A8A8A',
+    fontSize: 19,
+    color: '#111827',
+    lineHeight: 22,
+  },
+  circularGaugeLabel: {
+    fontFamily: FontFamily.bold,
+    fontSize: 7.5,
+    color: '#B45309',
     textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    letterSpacing: 0.6,
     marginTop: 2,
   },
   overallDivider: {
     width: 1,
-    height: 38,
-    backgroundColor: '#2A2B2C',
+    height: 44,
+    backgroundColor: 'rgba(180, 83, 9, 0.15)',
     marginHorizontal: 8,
   },
   overallStatsRow: {
@@ -637,11 +608,12 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.bold,
     fontSize: 16,
     lineHeight: 20,
+    color: '#111827',
   },
   overallStatLabel: {
     fontFamily: FontFamily.bold,
     fontSize: 9,
-    color: '#8A8A8A',
+    color: '#854D0E',
     textTransform: 'uppercase',
     letterSpacing: 0.6,
     marginTop: 2,
@@ -649,21 +621,47 @@ const styles = StyleSheet.create({
   overallStatDivider: {
     width: 1,
     height: 24,
-    backgroundColor: '#2A2B2C',
-  },
-  overallProgressTrack: {
-    height: 6,
-    backgroundColor: '#232425',
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  overallProgressFill: {
-    height: '100%',
-    backgroundColor: '#F4C430',
-    borderRadius: 3,
+    backgroundColor: 'rgba(180, 83, 9, 0.15)',
   },
 
-  // 3. Top Action Cards
+  // Common Section Styling
+  sectionContainer: {
+    gap: 10,
+    marginTop: 4,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+  },
+  sectionTitle: {
+    fontFamily: FontFamily.bold,
+    fontSize: 16,
+    color: '#111827',
+    letterSpacing: -0.2,
+  },
+  sectionSubtitle: {
+    fontFamily: FontFamily.regular,
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 1,
+  },
+  sectionHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    backgroundColor: '#F3F4F6',
+  },
+  sectionHeaderBtnText: {
+    fontFamily: FontFamily.medium,
+    fontSize: 12,
+    color: '#111827',
+  },
+
+  // 3. Quick Action Cards (Clean White Card, Subtle Border)
   topActionsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -672,342 +670,205 @@ const styles = StyleSheet.create({
   topActionCard: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E8E5DC',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 10,
-    gap: 8,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  blackIconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 8,
-    backgroundColor: '#FFF4C7',
-    borderWidth: 1,
-    borderColor: '#FDE68A',
+  topActionCardFull: {
+    width: '100%',
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
   },
   topActionContent: {
     flex: 1,
   },
   topActionTitle: {
     fontFamily: FontFamily.bold,
-    fontSize: 13,
-    color: '#111827',
-  },
-  topActionSub: {
-    fontFamily: FontFamily.regular,
-    fontSize: 11,
-    color: '#6B6B6B',
-    lineHeight: 14,
-    marginTop: 2,
-  },
-
-  // 3. Metrics Grid (2x2)
-  metricsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-  metricCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E8E5DC',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 10,
-    gap: 8,
-  },
-  metricContent: {
-    flex: 1,
-  },
-  metricVal: {
-    fontFamily: FontFamily.bold,
-    fontSize: 20,
-    color: '#111827',
-    lineHeight: 24,
-  },
-  metricLabel: {
-    fontFamily: FontFamily.bold,
-    fontSize: 13,
-    color: '#111827',
-  },
-  metricSub: {
-    fontFamily: FontFamily.regular,
-    fontSize: 11,
-    color: '#6B6B6B',
-    marginTop: 1,
-  },
-
-  // 4. Class-Wise Student Attendance Card
-  classSectionCard: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E8E5DC',
-    borderRadius: 12,
-    padding: 14,
-    gap: 10,
-  },
-  classSectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  blackSquareSm: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    backgroundColor: '#FFF4C7',
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  classSectionHeaderTitles: {
-    flex: 1,
-  },
-  classSectionTitle: {
-    fontFamily: FontFamily.bold,
-    fontSize: 15,
-    color: '#111827',
-  },
-  classSectionSubtitle: {
-    fontFamily: FontFamily.regular,
-    fontSize: 12,
-    color: '#6B6B6B',
-    marginTop: 1,
-  },
-  searchBarWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#E8E5DC',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontFamily: FontFamily.regular,
-    fontSize: 13,
-    color: '#111827',
-    padding: 0,
-  },
-  classFilterChipsScroll: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 2,
-  },
-  classFilterChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#E8E5DC',
-  },
-  classFilterChipActive: {
-    backgroundColor: '#1A1B1C',
-    borderColor: '#1A1B1C',
-  },
-  classFilterChipText: {
-    fontSize: 11,
-    fontFamily: FontFamily.semibold,
-    color: '#6B6B6B',
-  },
-  classFilterChipTextActive: {
-    color: '#F4C430',
-    fontFamily: FontFamily.bold,
-  },
-
-  // Class List Items
-  classList: {
-    gap: 10,
-  },
-  classItem: {
-    paddingVertical: 6,
-    gap: 6,
-  },
-  classItemBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#E8E5DC',
-    paddingBottom: 10,
-  },
-  classItemTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  classItemTitleWrap: {
-    flex: 1,
-  },
-  classNameText: {
-    fontFamily: FontFamily.bold,
     fontSize: 14,
     color: '#111827',
   },
-  classRoomText: {
-    fontFamily: FontFamily.regular,
-    fontSize: 12,
-    color: '#6B6B6B',
-    marginTop: 1,
-  },
-  assignPillBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#111827',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
-  },
-  assignPillText: {
-    fontFamily: FontFamily.bold,
-    fontSize: 12,
-    color: '#F4C430',
-  },
-  classItemStats: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  classProgressTrack: {
-    height: 5,
-    backgroundColor: '#F3F1EA',
-    borderRadius: 3,
-    overflow: 'hidden',
-    marginVertical: 4,
-  },
-  classProgressFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  classItemBottom: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 2,
-  },
-  attendanceRatePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  attendanceRatePillText: {
-    fontFamily: FontFamily.bold,
-    fontSize: 11,
-  },
-  statChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  statText: {
-    fontFamily: FontFamily.regular,
-    fontSize: 12,
-    color: '#6B6B6B',
-  },
-  statSubText: {
-    fontFamily: FontFamily.regular,
-    fontSize: 11,
-    color: '#9CA3AF',
-  },
 
-  emptyWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 20,
-    gap: 6,
-  },
-  emptyText: {
-    fontFamily: FontFamily.regular,
-    fontSize: 13,
-    color: '#6B6B6B',
-  },
 
-  viewAllFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#E8E5DC',
-  },
-  viewAllText: {
-    fontFamily: FontFamily.semibold,
-    fontSize: 13,
-    color: '#111827',
-  },
 
-  // 5. Quick Access
-  quickAccessSection: {
-    gap: 10,
-  },
-  quickAccessHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'baseline',
-  },
-  quickAccessTitle: {
-    fontFamily: FontFamily.bold,
-    fontSize: 15,
-    color: '#111827',
-  },
-  quickAccessSubtitle: {
-    fontFamily: FontFamily.regular,
-    fontSize: 12,
-    color: '#6B6B6B',
-  },
-  quickAccessScroll: {
-    gap: 10,
-    paddingRight: 16,
-  },
-  quickCard: {
+
+
+
+
+  // 4. Fees Paid & Unpaid Analytics Card
+  feeAnalyticsCard: {
     backgroundColor: '#FFFFFF',
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E8E5DC',
-    borderRadius: 12,
-    padding: 10,
-    gap: 6,
+    borderColor: '#E5E7EB',
+    padding: 20,
+    marginTop: 4,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  blackIconBoxSm: {
-    width: 32,
-    height: 32,
-    borderRadius: 6,
-    backgroundColor: '#111827',
+  feeAnalyticsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  feeAnalyticsTitle: {
+    fontFamily: FontFamily.bold,
+    fontSize: 18,
+    color: '#0F172A',
+    letterSpacing: -0.3,
+  },
+  periodPillBtn: {
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#FFFFFF',
+  },
+  periodPillText: {
+    fontFamily: FontFamily.medium,
+    fontSize: 12,
+    color: '#334155',
+  },
+  chartTooltipRow: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+    gap: 6,
+    alignSelf: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
-  quickCardText: {
-    gap: 2,
-    marginTop: 2,
-  },
-  quickCardTitle: {
+  chartTooltipDay: {
     fontFamily: FontFamily.bold,
     fontSize: 12,
-    color: '#111827',
+    color: '#0F172A',
   },
-  quickCardSub: {
-    fontFamily: FontFamily.regular,
-    fontSize: 10,
-    color: '#6B6B6B',
+  chartTooltipPaid: {
+    fontFamily: FontFamily.medium,
+    fontSize: 12,
+    color: '#B45309',
+  },
+  chartTooltipDot: {
+    color: '#94A3B8',
+    fontSize: 12,
+  },
+  chartTooltipUnpaid: {
+    fontFamily: FontFamily.medium,
+    fontSize: 12,
+    color: '#334155',
+  },
+  chartContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    height: 120,
+    paddingHorizontal: 6,
+  },
+  dayColumn: {
+    alignItems: 'center',
+    flex: 1,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  dayColumnSelected: {
+    backgroundColor: '#F1F5F9',
+  },
+  barsPair: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 4,
+    height: 90,
+    marginBottom: 8,
+  },
+  paidBar: {
+    width: 7,
+    backgroundColor: '#FFD026',
+    borderRadius: 4,
+  },
+  unpaidBar: {
+    width: 7,
+    backgroundColor: '#0F172A',
+    borderRadius: 4,
+  },
+  dayLabel: {
+    fontFamily: FontFamily.medium,
+    fontSize: 11,
+    color: '#64748B',
+  },
+  dayLabelSelected: {
+    fontFamily: FontFamily.bold,
+    color: '#0F172A',
+  },
+  legendRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 24,
+    marginTop: 20,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  legendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  legendText: {
+    fontFamily: FontFamily.medium,
+    fontSize: 13,
+    color: '#475569',
+  },
+  viewLedgerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    backgroundColor: '#FFFDF7',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FEF3C7',
+    marginTop: 14,
+  },
+  viewLedgerBtnText: {
+    fontFamily: FontFamily.bold,
+    fontSize: 13,
+    color: '#92400E',
   },
 });

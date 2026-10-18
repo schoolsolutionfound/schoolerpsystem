@@ -410,7 +410,7 @@ export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
                     <Text style={styles.assignPillText}>
                       {c.instructorName ? 'Faculty' : 'Assign'}
                     </Text>
-                    <MaterialCommunityIcons name="chevron-right" size={13} color="#F4C430" />
+                    <MaterialCommunityIcons name="chevron-right" size={13} color="#111827" />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -465,7 +465,7 @@ export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
             activeOpacity={0.8}
           >
             <View style={styles.blackIconBoxSm}>
-              <MaterialCommunityIcons name="book-open-outline" size={16} color="#F4C430" />
+              <MaterialCommunityIcons name="book-open-outline" size={16} color="#111827" />
             </View>
             <View style={styles.quickCardText}>
               <Text style={styles.quickCardTitle} numberOfLines={1}>All Courses</Text>
@@ -481,7 +481,7 @@ export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
             activeOpacity={0.8}
           >
             <View style={styles.blackIconBoxSm}>
-              <MaterialCommunityIcons name="account-group" size={16} color="#F4C430" />
+              <MaterialCommunityIcons name="account-group" size={16} color="#111827" />
             </View>
             <View style={styles.quickCardText}>
               <Text style={styles.quickCardTitle} numberOfLines={1}>Faculty Load</Text>
@@ -497,7 +497,7 @@ export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
             activeOpacity={0.8}
           >
             <View style={styles.blackIconBoxSm}>
-              <MaterialCommunityIcons name="file-document-outline" size={16} color="#F4C430" />
+              <MaterialCommunityIcons name="file-document-outline" size={16} color="#111827" />
             </View>
             <View style={styles.quickCardText}>
               <Text style={styles.quickCardTitle} numberOfLines={1}>Hall Tickets</Text>
@@ -513,7 +513,7 @@ export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
             activeOpacity={0.8}
           >
             <View style={styles.blackIconBoxSm}>
-              <MaterialCommunityIcons name="bullhorn-outline" size={16} color="#F4C430" />
+              <MaterialCommunityIcons name="bullhorn-outline" size={16} color="#111827" />
             </View>
             <View style={styles.quickCardText}>
               <Text style={styles.quickCardTitle} numberOfLines={1}>Dept Memo</Text>
@@ -676,9 +676,9 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 8,
-    backgroundColor: '#FFF4C7',
+    backgroundColor: '#F4C430',
     borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: '#EAB308',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -755,9 +755,9 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 8,
-    backgroundColor: '#FFF4C7',
+    backgroundColor: '#F4C430',
     borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: '#EAB308',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -808,8 +808,8 @@ const styles = StyleSheet.create({
     borderColor: '#E8E5DC',
   },
   classFilterChipActive: {
-    backgroundColor: '#1A1B1C',
-    borderColor: '#1A1B1C',
+    backgroundColor: '#F4C430',
+    borderColor: '#F4C430',
   },
   classFilterChipText: {
     fontSize: 11,
@@ -817,7 +817,7 @@ const styles = StyleSheet.create({
     color: '#6B6B6B',
   },
   classFilterChipTextActive: {
-    color: '#F4C430',
+    color: '#111827',
     fontFamily: FontFamily.bold,
   },
 
@@ -857,7 +857,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#111827',
+    backgroundColor: '#F4C430',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 6,
@@ -865,7 +865,7 @@ const styles = StyleSheet.create({
   assignPillText: {
     fontFamily: FontFamily.bold,
     fontSize: 12,
-    color: '#F4C430',
+    color: '#111827',
   },
   classItemStats: {
     flexDirection: 'row',
@@ -984,7 +984,9 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 6,
-    backgroundColor: '#111827',
+    backgroundColor: '#F4C430',
+    borderWidth: 1,
+    borderColor: '#EAB308',
     alignItems: 'center',
     justifyContent: 'center',
   },

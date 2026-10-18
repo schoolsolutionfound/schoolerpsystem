@@ -3,6 +3,12 @@ import { AppError } from '../utils/errorHandler';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 const getBaseUrl = (): string => {
+  // On web in PC browser, always connect to the matching hostname that served the web app
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.hostname) {
+    const webHost = window.location.hostname;
+    return `http://${webHost}:5000/api/v1`;
+  }
+
   // In development, dynamically connect to the active Metro host IP (handles mobile on Wi-Fi automatically)
   if (__DEV__) {
     const hostUri = Constants.expoConfig?.hostUri || (Constants as any).manifest2?.extra?.expoGo?.debuggerHost;
