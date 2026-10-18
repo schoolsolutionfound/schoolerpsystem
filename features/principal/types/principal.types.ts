@@ -131,6 +131,7 @@ export type PrincipalTab =
   | 'homerooms'
   | 'staff'
   | 'counseling'
+  | 'reviews'
   | 'notices'
   | 'attendance'
   | 'profile';

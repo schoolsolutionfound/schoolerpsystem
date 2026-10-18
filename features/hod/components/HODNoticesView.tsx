@@ -278,8 +278,10 @@ const styles = StyleSheet.create({
   },
   cardHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
     gap: 8,
+    flexWrap: 'wrap',
   },
   priorityBadge: {
     paddingHorizontal: 6,
@@ -312,6 +314,7 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     marginLeft: 'auto',
     fontFamily: FontFamily.poppins,
+    marginTop: 2,
   },
   memoTitle: {
     fontSize: 15,
@@ -332,11 +335,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
   },
   authorRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    flex: 1,
+    minWidth: 140,
   },
   authorText: {
     fontSize: 11,

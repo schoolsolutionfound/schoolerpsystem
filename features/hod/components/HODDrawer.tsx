@@ -38,6 +38,7 @@ const PRIMARY_NAV: {
   { key: 'dashboard', label: 'Department Overview', icon: 'view-dashboard-outline' },
   { key: 'courses', label: 'Courses & Syllabus', icon: 'book-open-page-variant' },
   { key: 'faculty', label: 'Faculty & Workload', icon: 'human-male-board' },
+  { key: 'reviews', label: 'Faculty Appraisals & Reviews', icon: 'clipboard-account-outline' },
   { key: 'eligibility', label: 'Exam Eligibility & Hall Tickets', icon: 'card-account-details-outline' },
   { key: 'notices', label: 'Department Memos', icon: 'bullhorn-outline' },
   { key: 'attendance', label: 'Daily Student Attendance', icon: 'calendar-check-outline' },
@@ -207,7 +208,7 @@ export const HODDrawer: React.FC<HODDrawerProps> = ({
               activeOpacity={0.7}
             >
               <MaterialCommunityIcons name="calendar-clock" size={22} color="#1D4ED8" />
-              <Text style={styles.navItemText}>My Teaching Timetable</Text>
+              <Text style={styles.navItemText}>Department Timetable Builder</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
