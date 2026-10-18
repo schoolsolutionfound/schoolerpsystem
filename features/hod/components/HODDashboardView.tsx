@@ -71,11 +71,20 @@ export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
   onSwitchToTeacherPortal,
 }) => {
   const { width: windowWidth } = useWindowDimensions();
+  const maxContentWidth = Math.min(windowWidth, 1200);
+  const isTabletOrDesktop = windowWidth >= 768;
+
   const horizontalPadding = 16;
   const cardGap = 10;
-  // Calculate exact 2-column card width dynamically based on screen width
-  const colWidth = Math.floor((windowWidth - (horizontalPadding * 2) - cardGap) / 2);
-  const quickCardWidth = Math.max(130, Math.floor((windowWidth - 32 - 10) / 2.3));
+  // 4 columns on tablet & desktop, 2 on mobile
+  const metricCols = isTabletOrDesktop ? 4 : 2;
+  const metricColWidth = Math.floor(
+    (maxContentWidth - (horizontalPadding * 2) - (cardGap * (metricCols - 1))) / metricCols
+  );
+  const topActionWidth = Math.floor(
+    (maxContentWidth - (horizontalPadding * 2) - cardGap) / 2
+  );
+  const quickCardWidth = Math.max(130, Math.floor((maxContentWidth - 32 - 10) / 2.3));
 
   const [courseSearch, setCourseSearch] = useState('');
   const [showAllCourses, setShowAllCourses] = useState(false);
@@ -156,7 +165,7 @@ export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
       {/* 3. TOP 2 EDUCATIONAL & TIMETABLE ACTION CARDS */}
       <View style={styles.topActionsRow}>
         <TouchableOpacity
-          style={[styles.topActionCard, { width: colWidth }]}
+          style={[styles.topActionCard, { width: topActionWidth }]}
           onPress={onOpenDeptDossierModal || (() => onNavigateTab('courses'))}
           activeOpacity={0.8}
         >
@@ -174,7 +183,7 @@ export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.topActionCard, { width: colWidth }]}
+          style={[styles.topActionCard, { width: topActionWidth }]}
           onPress={onNavigateToTeacherTimetable}
           activeOpacity={0.8}
         >
@@ -192,11 +201,11 @@ export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
         </TouchableOpacity>
       </View>
 
-      {/* 3. METRICS (2x2 GRID RESPONSIVE) */}
+      {/* 3. METRICS (2x2 on mobile, 4x1 on desktop) */}
       <View style={styles.metricsGrid}>
         {/* Card 1: Students */}
         <TouchableOpacity
-          style={[styles.metricCard, { width: colWidth }]}
+          style={[styles.metricCard, { width: metricColWidth }]}
           onPress={() => onNavigateTab('courses')}
           activeOpacity={0.8}
         >
@@ -212,7 +221,7 @@ export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
 
         {/* Card 2: Faculty */}
         <TouchableOpacity
-          style={[styles.metricCard, { width: colWidth }]}
+          style={[styles.metricCard, { width: metricColWidth }]}
           onPress={() => onNavigateTab('faculty')}
           activeOpacity={0.8}
         >
@@ -228,7 +237,7 @@ export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
 
         {/* Card 3: Classes / Courses */}
         <TouchableOpacity
-          style={[styles.metricCard, { width: colWidth }]}
+          style={[styles.metricCard, { width: metricColWidth }]}
           onPress={() => onNavigateTab('courses')}
           activeOpacity={0.8}
         >
@@ -244,7 +253,7 @@ export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
 
         {/* Card 4: Detentions */}
         <TouchableOpacity
-          style={[styles.metricCard, { width: colWidth }]}
+          style={[styles.metricCard, { width: metricColWidth }]}
           onPress={() => onNavigateTab('eligibility')}
           activeOpacity={0.8}
         >
@@ -490,6 +499,9 @@ const styles = StyleSheet.create({
     paddingTop: 14,
     paddingBottom: 24,
     gap: 14,
+    maxWidth: 1200,
+    width: '100%',
+    alignSelf: 'center',
   },
 
   // 1. Greeting
@@ -813,7 +825,7 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 12,
+    borderRadius: 6,
   },
   attendanceRatePillText: {
     fontFamily: FontFamily.bold,

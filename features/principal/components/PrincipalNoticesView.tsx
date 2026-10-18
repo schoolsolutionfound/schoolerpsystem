@@ -7,6 +7,7 @@ import {
   ScrollView,
   TextInput,
   RefreshControl,
+  useWindowDimensions,
 } from 'react-native';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
@@ -26,6 +27,12 @@ export const PrincipalNoticesView: React.FC<PrincipalNoticesViewProps> = ({
   onRefresh,
   onOpenCreateModal,
 }) => {
+  const { width: windowWidth } = useWindowDimensions();
+  const maxContentWidth = Math.min(windowWidth, 1200);
+  const isDesktop = windowWidth >= 768;
+  const cardGap = 12;
+  const cardWidth = isDesktop ? Math.floor((maxContentWidth - 32 - cardGap) / 2) : '100%';
+
   const [search, setSearch] = useState('');
   const [audienceFilter, setAudienceFilter] = useState<'all' | 'teachers' | 'parents' | 'students' | 'urgent'>('all');
 
@@ -120,7 +127,7 @@ export const PrincipalNoticesView: React.FC<PrincipalNoticesViewProps> = ({
           const isImportant = notice.priority === 'important';
 
           return (
-            <View key={notice.id} style={styles.card}>
+            <View key={notice.id} style={[styles.card, { width: cardWidth }]}>
               <View style={styles.cardTop}>
                 <View style={styles.badgeRow}>
                   {/* Audience Badge */}
@@ -218,6 +225,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E8E5DC',
     gap: 12,
+    maxWidth: 1200,
+    width: '100%',
+    alignSelf: 'center',
   },
   topActionRow: {
     flexDirection: 'row',
@@ -307,8 +317,13 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 16,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 12,
     paddingBottom: 40,
+    maxWidth: 1200,
+    width: '100%',
+    alignSelf: 'center',
   },
   card: {
     backgroundColor: '#FFFFFF',

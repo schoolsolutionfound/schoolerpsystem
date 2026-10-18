@@ -7,6 +7,7 @@ import {
   ScrollView,
   TextInput,
   RefreshControl,
+  useWindowDimensions,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
@@ -26,6 +27,12 @@ export const HODNoticesView: React.FC<HODNoticesViewProps> = ({
   onRefresh,
   onOpenCreateModal,
 }) => {
+  const { width: windowWidth } = useWindowDimensions();
+  const maxContentWidth = Math.min(windowWidth, 1200);
+  const isDesktop = windowWidth >= 768;
+  const cardGap = 12;
+  const cardWidth = isDesktop ? Math.floor((maxContentWidth - 32 - cardGap) / 2) : '100%';
+
   const [search, setSearch] = useState('');
   const [selectedAudience, setSelectedAudience] = useState<DepartmentNotice['targetAudience'] | 'all'>('all');
 
@@ -125,12 +132,13 @@ export const HODNoticesView: React.FC<HODNoticesViewProps> = ({
           </Text>
         </View>
 
-        {filteredNotices.map((n) => {
-          const pStyle = getPriorityStyle(n.priority);
+        <View style={styles.memosGrid}>
+          {filteredNotices.map((n) => {
+            const pStyle = getPriorityStyle(n.priority);
 
-          return (
-            <View key={n.id} style={styles.memoCard}>
-              <View style={styles.cardHeader}>
+            return (
+              <View key={n.id} style={[styles.memoCard, { width: cardWidth }]}>
+                <View style={styles.cardHeader}>
                 <View style={[styles.priorityBadge, { backgroundColor: pStyle.bg, borderColor: pStyle.border }]}>
                   <Text style={[styles.priorityBadgeText, { color: pStyle.text }]}>
                     {n.priority.toUpperCase()}
@@ -155,11 +163,11 @@ export const HODNoticesView: React.FC<HODNoticesViewProps> = ({
                     {n.authorName} • <Text style={{ color: '#6B6B6B' }}>{n.authorRole}</Text>
                   </Text>
                 </View>
-                <Text style={styles.deptSub}>{n.department}</Text>
+                </View>
               </View>
-            </View>
-          );
-        })}
+            );
+          })}
+        </View>
 
         {filteredNotices.length === 0 && (
           <View style={styles.emptyState}>
@@ -188,6 +196,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E8E5DC',
     gap: 10,
+    maxWidth: 1200,
+    width: '100%',
+    alignSelf: 'center',
   },
   searchBox: {
     flex: 1,
@@ -227,6 +238,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E8E5DC',
     paddingVertical: 8,
+    maxWidth: 1200,
+    width: '100%',
+    alignSelf: 'center',
   },
   filterScroll: {
     paddingHorizontal: 16,
@@ -259,6 +273,14 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 40,
     gap: 14,
+    maxWidth: 1200,
+    width: '100%',
+    alignSelf: 'center',
+  },
+  memosGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
   },
   summaryBar: {
     marginBottom: 4,

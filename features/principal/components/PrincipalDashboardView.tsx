@@ -67,11 +67,20 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
   onSwitchToTeacherPortal,
 }) => {
   const { width: windowWidth } = useWindowDimensions();
+  const maxContentWidth = Math.min(windowWidth, 1200);
+  const isTabletOrDesktop = maxContentWidth >= 768;
+
   const horizontalPadding = 16;
   const cardGap = 10;
-  // Calculate exact 2-column card width dynamically based on screen width
-  const colWidth = Math.floor((windowWidth - (horizontalPadding * 2) - cardGap) / 2);
-  const quickCardWidth = Math.max(130, Math.floor((windowWidth - 32 - 10) / 2.3));
+  // 4 columns on tablet & desktop, 2 on mobile
+  const metricCols = isTabletOrDesktop ? 4 : 2;
+  const metricColWidth = Math.floor(
+    (maxContentWidth - (horizontalPadding * 2) - (cardGap * (metricCols - 1))) / metricCols
+  );
+  const topActionWidth = Math.floor(
+    (maxContentWidth - (horizontalPadding * 2) - cardGap) / 2
+  );
+  const quickCardWidth = Math.max(130, Math.floor((maxContentWidth - 32 - 10) / 2.3));
 
   const [classSearch, setClassSearch] = useState('');
   const [showAllClasses, setShowAllClasses] = useState(false);
@@ -150,7 +159,7 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
       {/* 3. TOP 2 EDUCATIONAL & TIMETABLE ACTION CARDS */}
       <View style={styles.topActionsRow}>
         <TouchableOpacity
-          style={[styles.topActionCard, { width: colWidth }]}
+          style={[styles.topActionCard, { width: topActionWidth }]}
           onPress={onOpenDossierModal || (() => onNavigateTab('homerooms'))}
           activeOpacity={0.8}
         >
@@ -168,7 +177,7 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.topActionCard, { width: colWidth }]}
+          style={[styles.topActionCard, { width: topActionWidth }]}
           onPress={onNavigateToTeacherTimetable}
           activeOpacity={0.8}
         >
@@ -186,11 +195,11 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
         </TouchableOpacity>
       </View>
 
-      {/* 3. METRIC CARDS (2x2 GRID RESPONSIVE) */}
+      {/* 3. METRIC CARDS (2x2 on mobile, 4x1 on desktop) */}
       <View style={styles.metricsGrid}>
         {/* Card 1: Students */}
         <TouchableOpacity
-          style={[styles.metricCard, { width: colWidth }]}
+          style={[styles.metricCard, { width: metricColWidth }]}
           onPress={() => onNavigateTab('homerooms')}
           activeOpacity={0.8}
         >
@@ -206,7 +215,7 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
 
         {/* Card 2: Faculty */}
         <TouchableOpacity
-          style={[styles.metricCard, { width: colWidth }]}
+          style={[styles.metricCard, { width: metricColWidth }]}
           onPress={() => onNavigateTab('staff')}
           activeOpacity={0.8}
         >
@@ -222,7 +231,7 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
 
         {/* Card 3: Classes */}
         <TouchableOpacity
-          style={[styles.metricCard, { width: colWidth }]}
+          style={[styles.metricCard, { width: metricColWidth }]}
           onPress={() => onNavigateTab('homerooms')}
           activeOpacity={0.8}
         >
@@ -238,7 +247,7 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
 
         {/* Card 4: Circulars */}
         <TouchableOpacity
-          style={[styles.metricCard, { width: colWidth }]}
+          style={[styles.metricCard, { width: metricColWidth }]}
           onPress={() => onNavigateTab('notices')}
           activeOpacity={0.8}
         >
@@ -489,6 +498,9 @@ const styles = StyleSheet.create({
     paddingTop: 14,
     paddingBottom: 24,
     gap: 14,
+    maxWidth: 1200,
+    width: '100%',
+    alignSelf: 'center',
   },
 
   // 1. Greeting

@@ -7,6 +7,7 @@ import {
   ScrollView,
   TextInput,
   RefreshControl,
+  useWindowDimensions,
 } from 'react-native';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
@@ -46,6 +47,12 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
   onRefresh,
   onAssignTeacher,
 }) => {
+  const { width: windowWidth } = useWindowDimensions();
+  const maxContentWidth = Math.min(windowWidth, 1200);
+  const isDesktop = windowWidth >= 768;
+  const cardGap = 12;
+  const cardWidth = isDesktop ? Math.floor((maxContentWidth - 32 - cardGap) / 2) : '100%';
+
   const [search, setSearch] = useState('');
   const [wingFilter, setWingFilter] = useState<WingFilterType>('all');
 
@@ -214,7 +221,7 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
             const isRateGood = rate >= 92;
 
             return (
-              <View key={sec.id} style={styles.card}>
+              <View key={sec.id} style={[styles.card, { width: cardWidth }]}>
                 {/* Responsive Header Row */}
                 <View style={styles.cardHeader}>
                   <View style={styles.headerTags}>
@@ -324,6 +331,9 @@ const styles = StyleSheet.create({
   },
   mainScrollContent: {
     paddingBottom: 40,
+    maxWidth: 1200,
+    width: '100%',
+    alignSelf: 'center',
   },
 
   // Obsidian Hero Card (Attendance Style)
@@ -513,6 +523,8 @@ const styles = StyleSheet.create({
   cardsContainer: {
     paddingHorizontal: 16,
     paddingTop: 4,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 12,
   },
   card: {

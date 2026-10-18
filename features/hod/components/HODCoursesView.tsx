@@ -7,6 +7,7 @@ import {
   ScrollView,
   TextInput,
   RefreshControl,
+  useWindowDimensions,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
@@ -26,6 +27,12 @@ export const HODCoursesView: React.FC<HODCoursesViewProps> = ({
   onRefresh,
   onAssignCourse,
 }) => {
+  const { width: windowWidth } = useWindowDimensions();
+  const maxContentWidth = Math.min(windowWidth, 1200);
+  const isDesktop = windowWidth >= 768;
+  const cardGap = 12;
+  const cardWidth = isDesktop ? Math.floor((maxContentWidth - 32 - cardGap) / 2) : '100%';
+
   const [search, setSearch] = useState('');
   const [selectedSemester, setSelectedSemester] = useState<string>('all');
   const [selectedType, setSelectedType] = useState<CourseType | 'all'>('all');
@@ -140,12 +147,13 @@ export const HODCoursesView: React.FC<HODCoursesViewProps> = ({
           </Text>
         </View>
 
-        {filteredCourses.map((c) => {
-          const typeColor = getTypeColor(c.type);
+        <View style={styles.coursesGrid}>
+          {filteredCourses.map((c) => {
+            const typeColor = getTypeColor(c.type);
 
-          return (
-            <View key={c.id} style={styles.courseCard}>
-              {/* Card Header */}
+            return (
+              <View key={c.id} style={[styles.courseCard, { width: cardWidth }]}>
+                {/* Card Header */}
               <View style={styles.cardTopRow}>
                 <View style={styles.codeGroup}>
                   <Text style={styles.courseCode}>{c.code}</Text>
@@ -237,6 +245,7 @@ export const HODCoursesView: React.FC<HODCoursesViewProps> = ({
             </View>
           );
         })}
+      </View>
 
         {filteredCourses.length === 0 && (
           <View style={styles.emptyState}>
@@ -262,6 +271,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E8E5DC',
+    maxWidth: 1200,
+    width: '100%',
+    alignSelf: 'center',
   },
   searchBox: {
     flexDirection: 'row',
@@ -285,6 +297,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E8E5DC',
     paddingVertical: 8,
+    maxWidth: 1200,
+    width: '100%',
+    alignSelf: 'center',
   },
   filterScroll: {
     paddingHorizontal: 16,
@@ -323,6 +338,14 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 40,
     gap: 14,
+    maxWidth: 1200,
+    width: '100%',
+    alignSelf: 'center',
+  },
+  coursesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
   },
   summaryBar: {
     marginBottom: 4,
