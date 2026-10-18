@@ -41,6 +41,7 @@ import { HODFacultyWorkloadView } from '../../features/hod/components/HODFaculty
 import { HODDetentionEligibilityView } from '../../features/hod/components/HODDetentionEligibilityView';
 import { HODNoticesView } from '../../features/hod/components/HODNoticesView';
 import { AttendanceReportsView } from '../../features/shared/components/AttendanceReportsView';
+import { ReviewCycleListView } from '../../features/review-cycle';
 import { AssignCourseInstructorModal } from '../../features/hod/components/modals/AssignCourseInstructorModal';
 import { ReviewHallTicketModal } from '../../features/hod/components/modals/ReviewHallTicketModal';
 import { CreateDeptNoticeModal } from '../../features/hod/components/modals/CreateDeptNoticeModal';
@@ -55,7 +56,7 @@ const BOTTOM_TABS: {
   { key: 'dashboard', label: 'Dashboard', icon: 'home-outline', iconActive: 'home' },
   { key: 'courses', label: 'Courses', icon: 'book-open-outline', iconActive: 'book-open' },
   { key: 'faculty', label: 'Faculty', icon: 'account-outline', iconActive: 'account' },
-  { key: 'eligibility', label: 'Detentions', icon: 'card-account-details-outline', iconActive: 'card-account-details' },
+  { key: 'reviews', label: 'Reviews', icon: 'clipboard-account-outline', iconActive: 'clipboard-account' },
   { key: 'notices', label: 'Memos', icon: 'bullhorn-outline', iconActive: 'bullhorn' },
 ];
 
@@ -314,6 +315,14 @@ export default function HODHomeScreen() {
               faculty={faculty}
               refreshing={refreshing}
               onRefresh={handleRefresh}
+            />
+          )}
+
+          {activeTab === 'reviews' && (
+            <ReviewCycleListView
+              role="hod"
+              department={department}
+              reviewerName={fullName}
             />
           )}
 

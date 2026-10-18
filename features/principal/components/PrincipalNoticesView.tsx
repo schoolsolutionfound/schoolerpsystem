@@ -298,12 +298,15 @@ const styles = StyleSheet.create({
   cardTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    gap: 8,
   },
   badgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    flexWrap: 'wrap',
+    flex: 1,
   },
   audienceBadge: {
     backgroundColor: '#F3F4F6',
@@ -359,6 +362,8 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#8A8A8A',
     fontFamily: FontFamily.regular,
+    marginTop: 2,
+    flexShrink: 0,
   },
   noticeTitle: {
     fontSize: 15,
@@ -381,11 +386,15 @@ const styles = StyleSheet.create({
     borderTopColor: '#E8E5DC',
     paddingTop: 8,
     marginTop: 4,
+    flexWrap: 'wrap',
+    gap: 8,
   },
   authorRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
+    flex: 1,
+    minWidth: 140,
   },
   authorText: {
     fontSize: 11,

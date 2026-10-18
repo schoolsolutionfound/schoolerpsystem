@@ -2,8 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Modal } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
+import { FontFamily } from '../../../constants/fonts';
+import { useUserStore } from '../../../store/useUserStore';
 import {
   fetchMyClassSectionApi,
+  fetchClassSectionsApi,
   fetchClassTimetableApi,
   createTimetableApi,
   fetchSubjectsApi,
@@ -23,6 +26,11 @@ export const ClassTeacherTimetableBuilder: React.FC<ClassTeacherTimetableBuilder
   classSectionId,
   classSectionName,
 }) => {
+  const userRole = useUserStore((state) => state.userRole);
+  const userDepartment = useUserStore((state) => state.department);
+  const isAuthority = userRole === 'hod' || userRole === 'principal' || userRole === 'admin';
+
+  const [availableSections, setAvailableSections] = useState<any[]>([]);
   const [classSection, setClassSection] = useState<any>(null);
   const [periods, setPeriods] = useState<any[]>([]);
   const [subjects, setSubjects] = useState<any[]>([]);
@@ -35,12 +43,44 @@ export const ClassTeacherTimetableBuilder: React.FC<ClassTeacherTimetableBuilder
   const [picker, setPicker] = useState<{ key: string; options: { id: string; label: string }[] } | null>(null);
   const [view, setView] = useState<'grid' | 'list'>('grid');
 
+  const loadTimetableForSection = useCallback(async (sec: any) => {
+    if (!sec?.id) return;
+    try {
+      const tt = await fetchClassTimetableApi(sec.id).catch(() => null);
+      setExisting(tt?.slots || []);
+      const g: Record<string, string> = {};
+      for (const s of tt?.slots || []) {
+        g[`${s.dayOfWeek}:${s.period?.id || s.periodId}`] = s.subject?.id || s.subjectId;
+      }
+      setGrid(g);
+    } catch {
+      setGrid({});
+    }
+  }, []);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
       let cls: any = null;
+      let sectionsList: any[] = [];
+
       if (classSectionId) {
         cls = { id: classSectionId, name: classSectionName || 'Class' };
+      } else if (isAuthority) {
+        // HOD sets timetable for whole dept; in absence of HOD, Principal sets for whole campus
+        const allSections = await fetchClassSectionsApi().catch(() => []);
+        if (Array.isArray(allSections) && allSections.length > 0) {
+          if (userRole === 'hod' && userDepartment) {
+            const deptSections = allSections.filter((s: any) =>
+              s.department?.toLowerCase() === userDepartment.toLowerCase()
+            );
+            sectionsList = deptSections.length > 0 ? deptSections : allSections;
+          } else {
+            sectionsList = allSections;
+          }
+          setAvailableSections(sectionsList);
+          cls = sectionsList[0];
+        }
       } else {
         cls = await fetchMyClassSectionApi().catch(() => null);
       }
@@ -56,20 +96,19 @@ export const ClassTeacherTimetableBuilder: React.FC<ClassTeacherTimetableBuilder
       setAssignments(Array.isArray(assignmentsRes) ? assignmentsRes : []);
 
       if (cls) {
-        const tt = await fetchClassTimetableApi(cls.id).catch(() => null);
-        setExisting(tt?.slots || []);
-        const g: Record<string, string> = {};
-        for (const s of tt?.slots || []) {
-          g[`${s.dayOfWeek}:${s.period?.id || s.periodId}`] = s.subject?.id || s.subjectId;
-        }
-        setGrid(g);
+        await loadTimetableForSection(cls);
       }
     } catch (err: any) {
       Alert.alert('Error', err.message);
     } finally {
       setLoading(false);
     }
-  }, [classSectionId, classSectionName]);
+  }, [classSectionId, classSectionName, isAuthority, userRole, userDepartment, loadTimetableForSection]);
+
+  const handleSelectSection = async (sec: any) => {
+    setClassSection(sec);
+    await loadTimetableForSection(sec);
+  };
 
   useEffect(() => {
     load();
@@ -143,6 +182,54 @@ export const ClassTeacherTimetableBuilder: React.FC<ClassTeacherTimetableBuilder
 
   return (
     <View style={styles.container}>
+      {/* Authority Banner for HOD and Principal */}
+      {isAuthority && availableSections.length > 0 && (
+        <View style={styles.authorityCard}>
+          <View style={styles.authorityHeader}>
+            <View style={styles.authorityIconBox}>
+              <MaterialCommunityIcons
+                name={userRole === 'hod' ? 'account-tie-voice' : 'shield-crown'}
+                size={18}
+                color="#F4C430"
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.authorityTitle}>
+                {userRole === 'hod'
+                  ? `Department Timetable Authority (${userDepartment || 'Dept'})`
+                  : userRole === 'principal'
+                  ? 'Campus Timetable Authority (Principal)'
+                  : 'Academic Timetable Authority'}
+              </Text>
+              <Text style={styles.authoritySub}>
+                {userRole === 'hod'
+                  ? 'HOD has full authority to configure weekly schedules for all departmental classes.'
+                  : 'Principal holds primary scheduling authority across all classes and cohorts.'}
+              </Text>
+            </View>
+          </View>
+
+          <Text style={styles.pickerLabel}>SELECT CLASS / SECTION TO CONFIGURE:</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sectionChipsRow}>
+            {availableSections.map((sec) => {
+              const active = classSection?.id === sec.id;
+              return (
+                <TouchableOpacity
+                  key={sec.id}
+                  style={[styles.sectionChip, active && styles.sectionChipActive]}
+                  onPress={() => handleSelectSection(sec)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.sectionChipText, active && styles.sectionChipTextActive]}>
+                    {sec.name}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
+
       <View style={styles.header}>
         <Text style={styles.title}>{classSection.name} — Weekly Timetable</Text>
         <Text style={styles.sub}>Tap a cell to assign a subject. Only subjects with a subject teacher appear.</Text>
@@ -362,4 +449,73 @@ const styles = StyleSheet.create({
   optionRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12 },
   optionText: { fontSize: 14, color: '#171717', flex: 1 },
   hint: { fontSize: 12, color: '#6B6B6B', lineHeight: 17 },
+  authorityCard: {
+    backgroundColor: '#1A1B1C',
+    margin: 16,
+    marginBottom: 8,
+    borderRadius: BorderRadius.card,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#2A2B2D',
+  },
+  authorityHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  authorityIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(244, 196, 48, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  authorityTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FFFDF7',
+    fontFamily: FontFamily.bold,
+  },
+  authoritySub: {
+    fontSize: 11,
+    color: '#9CA3AF',
+    marginTop: 2,
+    fontFamily: FontFamily.regular,
+  },
+  pickerLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    color: '#F4C430',
+    marginBottom: 8,
+    fontFamily: FontFamily.semibold,
+  },
+  sectionChipsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingVertical: 2,
+  },
+  sectionChip: {
+    backgroundColor: '#2A2B2D',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#3D3E40',
+  },
+  sectionChipActive: {
+    backgroundColor: '#F4C430',
+    borderColor: '#F4C430',
+  },
+  sectionChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#E5E7EB',
+  },
+  sectionChipTextActive: {
+    color: '#1A1B1C',
+    fontWeight: '800',
+  },
 });

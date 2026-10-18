@@ -91,6 +91,7 @@ export type HODTab =
   | 'dashboard'
   | 'courses'
   | 'faculty'
+  | 'reviews'
   | 'eligibility'
   | 'notices'
   | 'attendance';

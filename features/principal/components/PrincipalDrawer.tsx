@@ -37,7 +37,9 @@ const PRIMARY_NAV: {
   { key: 'dashboard', label: 'Executive Cockpit', icon: 'view-dashboard-outline' },
   { key: 'homerooms', label: 'Homeroom & Classes', icon: 'google-classroom' },
   { key: 'staff', label: 'Faculty & Staff Roster', icon: 'human-male-board' },
-  { key: 'counseling', label: 'Guidance & Counseling', icon: 'heart-pulse' },
+  // Guidance & Counselor pending further research - commented out per user instruction
+  // { key: 'counseling', label: 'Guidance & Counseling', icon: 'heart-pulse' },
+  { key: 'reviews', label: 'Staff Review Cycles', icon: 'clipboard-account-outline' },
   { key: 'notices', label: 'Campus Circulars', icon: 'bullhorn-outline' },
   { key: 'attendance', label: 'Institution Attendance', icon: 'calendar-check-outline' },
   { key: 'profile', label: 'Executive Settings', icon: 'cog-outline' },
@@ -192,7 +194,7 @@ export const PrincipalDrawer: React.FC<PrincipalDrawerProps> = ({
               <View style={[styles.navIconBox, { backgroundColor: '#EFF6FF' }]}>
                 <MaterialCommunityIcons name="calendar-clock" size={20} color="#1D4ED8" />
               </View>
-              <Text style={styles.navItemText}>My Teaching Timetable</Text>
+              <Text style={styles.navItemText}>Campus Timetable Builder</Text>
             </TouchableOpacity>
 
             <TouchableOpacity

@@ -42,6 +42,7 @@ import { PrincipalStaffDirectoryView } from '../../features/principal/components
 import { PrincipalWelfareCounselingView } from '../../features/principal/components/PrincipalWelfareCounselingView';
 import { PrincipalNoticesView } from '../../features/principal/components/PrincipalNoticesView';
 import { AttendanceReportsView } from '../../features/shared/components/AttendanceReportsView';
+import { ReviewCycleListView } from '../../features/review-cycle';
 import { AssignHomeroomModal } from '../../features/principal/components/modals/AssignHomeroomModal';
 import { AddCounselingNoteModal } from '../../features/principal/components/modals/AddCounselingNoteModal';
 import { CreateNoticeModal } from '../../features/principal/components/modals/CreateNoticeModal';
@@ -56,7 +57,9 @@ const BOTTOM_TABS: {
   { key: 'dashboard', label: 'Dashboard', icon: 'home-outline', iconActive: 'home' },
   { key: 'homerooms', label: 'Homeroom', icon: 'account-group-outline', iconActive: 'account-group' },
   { key: 'staff', label: 'Faculty', icon: 'account-outline', iconActive: 'account' },
-  { key: 'counseling', label: 'Guidance', icon: 'heart-outline', iconActive: 'heart' },
+  // Guidance & Counselor pending further research - commented out per user request
+  // { key: 'counseling', label: 'Guidance', icon: 'heart-outline', iconActive: 'heart' },
+  { key: 'reviews', label: 'Reviews', icon: 'clipboard-account-outline', iconActive: 'clipboard-account' },
   { key: 'notices', label: 'Circulars', icon: 'bullhorn-outline', iconActive: 'bullhorn' },
 ];
 
@@ -297,13 +300,21 @@ export default function PrincipalHomeScreen() {
                 />
               )}
 
-              {activeTab === 'counseling' && (
+              {/* Guidance & Counselor pending further research - commented out */}
+              {/* {activeTab === 'counseling' && (
                 <PrincipalWelfareCounselingView
                   records={counseling}
                   refreshing={refreshing}
                   onRefresh={handleRefresh}
                   onOpenCreateModal={() => setCounselingModalVisible(true)}
                   onToggleStatus={handleToggleCounselingStatus}
+                />
+              )} */}
+
+              {activeTab === 'reviews' && (
+                <ReviewCycleListView
+                  role="principal"
+                  reviewerName={fullName}
                 />
               )}
 
