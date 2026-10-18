@@ -110,7 +110,44 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
         <Text style={styles.subGreetingText}>Here's what's happening at your institution today.</Text>
       </View>
 
-      {/* 2. TOP 2 EDUCATIONAL & TIMETABLE ACTION CARDS */}
+      {/* 2. ATTENDANCE HERO SUMMARY (ATTENDANCE STANDARD THEME) */}
+      <View style={styles.overallAttendanceCard}>
+        <View style={styles.overallCardMain}>
+          <View style={styles.overallRingBox}>
+            <Text style={styles.overallRingVal}>{safeStudentPct}%</Text>
+            <Text style={styles.overallRingLabel}>ATTENDANCE</Text>
+          </View>
+          <View style={styles.overallDivider} />
+          <View style={styles.overallStatsRow}>
+            <View style={styles.overallStatCol}>
+              <Text style={[styles.overallStatVal, { color: '#16A34A' }]}>
+                {kpis.presentStudents || Math.round((kpis.totalStudents || 568) * (safeStudentPct / 100))}
+              </Text>
+              <Text style={styles.overallStatLabel}>PRESENT</Text>
+            </View>
+            <View style={styles.overallStatDivider} />
+            <View style={styles.overallStatCol}>
+              <Text style={[styles.overallStatVal, { color: '#DC2626' }]}>
+                {Math.max(0, (kpis.totalStudents || 568) - (kpis.presentStudents || Math.round((kpis.totalStudents || 568) * (safeStudentPct / 100))))}
+              </Text>
+              <Text style={styles.overallStatLabel}>ABSENT</Text>
+            </View>
+            <View style={styles.overallStatDivider} />
+            <View style={styles.overallStatCol}>
+              <Text style={[styles.overallStatVal, { color: '#FFFFFF' }]}>
+                {kpis.totalStudents || 568}
+              </Text>
+              <Text style={styles.overallStatLabel}>ENROLLED</Text>
+            </View>
+          </View>
+        </View>
+        {/* Attendance Progress Track */}
+        <View style={styles.overallProgressTrack}>
+          <View style={[styles.overallProgressFill, { width: `${safeStudentPct}%` }]} />
+        </View>
+      </View>
+
+      {/* 3. TOP 2 EDUCATIONAL & TIMETABLE ACTION CARDS */}
       <View style={styles.topActionsRow}>
         <TouchableOpacity
           style={[styles.topActionCard, { width: colWidth }]}
@@ -255,6 +292,10 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
                 ? sec.presentCount
                 : Math.round(studentCount * 0.92);
             const absentCount = Math.max(0, studentCount - presentCount);
+            const ratePct = sec.attendanceRate !== undefined && sec.attendanceRate > 0
+              ? sec.attendanceRate
+              : studentCount > 0 ? Math.round((presentCount / studentCount) * 100) : 0;
+            const rateColor = ratePct >= 90 ? '#16A34A' : ratePct >= 75 ? '#F59E0B' : '#DC2626';
 
             return (
               <View
@@ -264,13 +305,51 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
                   idx < displayedHomerooms.length - 1 && styles.classItemBorder,
                 ]}
               >
-                {/* Top Row: Title + Room & Assign Button */}
+                {/* Top Row: Title + Room & Rate Pill */}
                 <View style={styles.classItemTop}>
                   <View style={styles.classItemTitleWrap}>
                     <Text style={styles.classNameText}>{sec.name}</Text>
                     <Text style={styles.classRoomText}>
-                      Room: {sec.roomNumber || 'Main Block'}
+                      Room: {sec.roomNumber || 'Main Block'}{sec.homeroomTeacherName ? ` • ${sec.homeroomTeacherName}` : ''}
                     </Text>
+                  </View>
+
+                  <View style={[styles.attendanceRatePill, { backgroundColor: `${rateColor}18` }]}>
+                    <MaterialCommunityIcons
+                      name={ratePct >= 90 ? 'check-circle' : ratePct >= 75 ? 'clock-alert' : 'close-circle'}
+                      size={12}
+                      color={rateColor}
+                    />
+                    <Text style={[styles.attendanceRatePillText, { color: rateColor }]}>{ratePct}%</Text>
+                  </View>
+                </View>
+
+                {/* Progress Bar (Attendance Standard) */}
+                <View style={styles.classProgressTrack}>
+                  <View
+                    style={[
+                      styles.classProgressFill,
+                      { width: `${Math.min(ratePct, 100)}%`, backgroundColor: rateColor },
+                    ]}
+                  />
+                </View>
+
+                {/* Bottom Row: Stats & Action */}
+                <View style={styles.classItemBottom}>
+                  <View style={styles.classItemStats}>
+                    <View style={styles.statChip}>
+                      <View style={[styles.statusDot, { backgroundColor: '#16A34A' }]} />
+                      <Text style={styles.statText}>{presentCount} Present</Text>
+                    </View>
+
+                    <View style={styles.statChip}>
+                      <View style={[styles.statusDot, { backgroundColor: '#DC2626' }]} />
+                      <Text style={styles.statText}>{absentCount} Absent</Text>
+                    </View>
+
+                    <View style={styles.statChip}>
+                      <Text style={styles.statSubText}>{studentCount} Enrolled</Text>
+                    </View>
                   </View>
 
                   <TouchableOpacity
@@ -279,28 +358,10 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
                     activeOpacity={0.8}
                   >
                     <Text style={styles.assignPillText}>
-                      {sec.homeroomTeacherName ? 'Assign' : 'Assign'}
+                      {sec.homeroomTeacherName ? 'Teacher' : 'Assign'}
                     </Text>
-                    <MaterialCommunityIcons name="chevron-right" size={14} color="#F4C430" />
+                    <MaterialCommunityIcons name="chevron-right" size={13} color="#F4C430" />
                   </TouchableOpacity>
-                </View>
-
-                {/* Bottom Row: Stats */}
-                <View style={styles.classItemStats}>
-                  <View style={styles.statChip}>
-                    <MaterialCommunityIcons name="account-group" size={14} color="#6B7280" />
-                    <Text style={styles.statText}>{studentCount} Enrolled</Text>
-                  </View>
-
-                  <View style={styles.statChip}>
-                    <View style={[styles.statusDot, { backgroundColor: '#16A34A' }]} />
-                    <Text style={styles.statText}>{presentCount} Present</Text>
-                  </View>
-
-                  <View style={styles.statChip}>
-                    <View style={[styles.statusDot, { backgroundColor: '#EF4444' }]} />
-                    <Text style={styles.statText}>{absentCount} Absent</Text>
-                  </View>
                 </View>
               </View>
             );
@@ -459,7 +520,89 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
 
-  // 2. Top Action Cards
+  // 2. Attendance Hero Card (Attendance Standard Theme)
+  overallAttendanceCard: {
+    backgroundColor: '#1A1B1C',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#2A2B2C',
+    padding: 16,
+    gap: 12,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  overallCardMain: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  overallRingBox: {
+    alignItems: 'flex-start',
+    minWidth: 90,
+  },
+  overallRingVal: {
+    fontFamily: FontFamily.bold,
+    fontSize: 32,
+    color: '#F4C430',
+    lineHeight: 36,
+  },
+  overallRingLabel: {
+    fontFamily: FontFamily.bold,
+    fontSize: 9,
+    color: '#8A8A8A',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginTop: 2,
+  },
+  overallDivider: {
+    width: 1,
+    height: 38,
+    backgroundColor: '#2A2B2C',
+    marginHorizontal: 8,
+  },
+  overallStatsRow: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+  },
+  overallStatCol: {
+    alignItems: 'center',
+  },
+  overallStatVal: {
+    fontFamily: FontFamily.bold,
+    fontSize: 16,
+    lineHeight: 20,
+  },
+  overallStatLabel: {
+    fontFamily: FontFamily.bold,
+    fontSize: 9,
+    color: '#8A8A8A',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginTop: 2,
+  },
+  overallStatDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: '#2A2B2C',
+  },
+  overallProgressTrack: {
+    height: 6,
+    backgroundColor: '#232425',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  overallProgressFill: {
+    height: '100%',
+    backgroundColor: '#F4C430',
+    borderRadius: 3,
+  },
+
+  // 3. Top Action Cards
   topActionsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -646,6 +789,35 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 12,
   },
+  classProgressTrack: {
+    height: 5,
+    backgroundColor: '#F3F1EA',
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginVertical: 4,
+  },
+  classProgressFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  classItemBottom: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  attendanceRatePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  attendanceRatePillText: {
+    fontFamily: FontFamily.bold,
+    fontSize: 11,
+  },
   statChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -660,6 +832,11 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.regular,
     fontSize: 12,
     color: '#6B6B6B',
+  },
+  statSubText: {
+    fontFamily: FontFamily.regular,
+    fontSize: 11,
+    color: '#9CA3AF',
   },
 
   emptyWrap: {

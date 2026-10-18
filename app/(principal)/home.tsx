@@ -345,7 +345,7 @@ export default function PrincipalHomeScreen() {
                 <View
                   style={[
                     styles.tabIndicator,
-                    { backgroundColor: active ? '#F59E0B' : 'transparent' },
+                    { backgroundColor: active ? '#F4C430' : 'transparent' },
                   ]}
                 />
               </TouchableOpacity>
@@ -408,14 +408,14 @@ export default function PrincipalHomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FFFDF7',
   },
   safe: {
     flex: 1,
   },
   content: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FFFDF7',
   },
   loaderWrap: {
     flex: 1,
@@ -452,14 +452,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#D97706',
+    backgroundColor: '#F4C430',
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: BorderRadius.button,
   },
   retryText: {
     fontSize: 14,
-    color: '#FFFFFF',
+    color: '#111827',
     fontFamily: FontFamily.semibold,
   },
   bottomBar: {
@@ -468,7 +468,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: '#E8E5DC',
     paddingVertical: 8,
     paddingHorizontal: 8,
   },

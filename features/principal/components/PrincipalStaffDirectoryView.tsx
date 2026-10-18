@@ -262,7 +262,7 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FFFDF7',
   },
   searchBarWrap: {
     backgroundColor: '#FFFFFF',
@@ -270,13 +270,13 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: '#E8E5DC',
     gap: 10,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FFFDF7',
     borderWidth: 1,
     borderColor: '#E8E5DC',
     borderRadius: BorderRadius.input,
@@ -297,33 +297,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: BorderRadius.chip,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E8E5DC',
     marginRight: 8,
   },
   filterChipActive: {
-    backgroundColor: '#16A34A',
-    borderColor: '#16A34A',
+    backgroundColor: '#1A1B1C',
+    borderColor: '#1A1B1C',
   },
   filterChipText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#4B5563',
+    color: '#6B6B6B',
     fontFamily: FontFamily.semibold,
   },
   filterChipTextActive: {
-    color: '#FFFFFF',
+    color: '#F4C430',
   },
   glanceStrip: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
     backgroundColor: '#FFFFFF',
-    paddingVertical: 8,
+    paddingVertical: 10,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: '#E8E5DC',
   },
   glanceItem: {
     flexDirection: 'row',
@@ -337,7 +337,7 @@ const styles = StyleSheet.create({
   },
   glanceText: {
     fontSize: 12,
-    color: '#4B5563',
+    color: '#6B6B6B',
     fontFamily: FontFamily.regular,
   },
   glanceBold: {
@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
   glanceDivider: {
     width: 1,
     height: 16,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: '#E8E5DC',
   },
   list: {
     flex: 1,
@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: BorderRadius.card,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E8E5DC',
     padding: 12,
     gap: 10,
     shadowColor: '#000',
@@ -380,7 +380,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#FFF4C7',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -388,7 +388,7 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#374151',
+    color: '#F4C430',
     fontFamily: FontFamily.extrabold,
   },
   statusDot: {
@@ -431,9 +431,9 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FFFDF7',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E8E5DC',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -442,14 +442,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderTopWidth: 1,
-    borderTopColor: '#F9FAFB',
+    borderTopColor: '#E8E5DC',
     paddingTop: 8,
   },
   homeroomPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: '#16A34A18',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 4,
@@ -457,7 +457,7 @@ const styles = StyleSheet.create({
   homeroomPillText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#166534',
+    color: '#16A34A',
     fontFamily: FontFamily.bold,
   },
   deptPill: {
@@ -471,12 +471,12 @@ const styles = StyleSheet.create({
   },
   deptPillText: {
     fontSize: 11,
-    color: '#4B5563',
+    color: '#6B6B6B',
     fontFamily: FontFamily.medium,
   },
   expText: {
     fontSize: 11,
-    color: '#9CA3AF',
+    color: '#8A8A8A',
     fontFamily: FontFamily.regular,
   },
   emptyWrap: {

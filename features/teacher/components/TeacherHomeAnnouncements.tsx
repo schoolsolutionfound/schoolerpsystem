@@ -316,10 +316,10 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.bold,
   },
   noticeCard: {
-    backgroundColor: '#FAFAF9',
+    backgroundColor: '#FFFFFF',
     borderRadius: BorderRadius.card,
     borderWidth: 1,
-    borderColor: '#E7E5E4',
+    borderColor: '#E8E5DC',
     padding: 14,
     gap: 8,
   },

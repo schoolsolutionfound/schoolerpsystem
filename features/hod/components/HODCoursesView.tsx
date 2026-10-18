@@ -260,14 +260,16 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 8,
     backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E8E5DC',
   },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FFFDF7',
     borderRadius: BorderRadius.input,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E8E5DC',
     paddingHorizontal: 10,
     height: 40,
     gap: 8,
@@ -281,7 +283,7 @@ const styles = StyleSheet.create({
   filterBar: {
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: '#E8E5DC',
     paddingVertical: 8,
   },
   filterScroll: {
@@ -293,28 +295,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: BorderRadius.chip,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E8E5DC',
   },
   filterChipSelected: {
-    backgroundColor: '#FFF7ED',
-    borderColor: '#EA580C',
+    backgroundColor: '#1A1B1C',
+    borderColor: '#1A1B1C',
   },
   filterChipText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#4B5563',
+    color: '#6B6B6B',
     fontFamily: FontFamily.poppins,
   },
   filterChipTextSelected: {
-    color: '#EA580C',
+    color: '#F4C430',
     fontWeight: '800',
   },
   filterDivider: {
     width: 1,
     height: 20,
-    backgroundColor: '#D1D5DB',
+    backgroundColor: '#E8E5DC',
     marginHorizontal: 4,
   },
   listContent: {
@@ -335,7 +337,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.card,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E8E5DC',
     gap: 10,
   },
   cardTopRow: {
@@ -351,7 +353,7 @@ const styles = StyleSheet.create({
   courseCode: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#EA580C',
+    color: '#F4C430',
     fontFamily: FontFamily.poppins,
   },
   typeBadge: {
@@ -374,7 +376,7 @@ const styles = StyleSheet.create({
   semesterText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#4B5563',
+    color: '#171717',
     fontFamily: FontFamily.poppins,
   },
   courseName: {
@@ -409,16 +411,16 @@ const styles = StyleSheet.create({
   rankBadgeText: {
     fontSize: 9,
     fontWeight: '700',
-    color: '#4B5563',
+    color: '#6B6B6B',
     textTransform: 'capitalize',
     fontFamily: FontFamily.poppins,
   },
   progressSection: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FFFDF7',
     borderRadius: BorderRadius.chip,
     padding: 10,
     borderWidth: 1,
-    borderColor: '#F3F4F6',
+    borderColor: '#E8E5DC',
     gap: 6,
   },
   progressHeader: {
@@ -440,7 +442,7 @@ const styles = StyleSheet.create({
   },
   progressTrack: {
     height: 6,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: '#F3F1EA',
     borderRadius: 3,
     overflow: 'hidden',
   },
@@ -473,19 +475,17 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     paddingHorizontal: 14,
     borderRadius: BorderRadius.button,
-    backgroundColor: '#FFF7ED',
-    borderWidth: 1,
-    borderColor: '#FED7AA',
+    backgroundColor: '#F4C430',
     gap: 6,
   },
   assignBtnWarning: {
-    backgroundColor: '#EA580C',
-    borderColor: '#EA580C',
+    backgroundColor: '#DC2626',
+    borderColor: '#DC2626',
   },
   assignBtnText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#EA580C',
+    fontWeight: '800',
+    color: '#1A1B1C',
     fontFamily: FontFamily.poppins,
   },
   emptyState: {

@@ -366,7 +366,7 @@ export default function HODHomeScreen() {
                 <View
                   style={[
                     styles.tabIndicator,
-                    { backgroundColor: isSelected ? '#F59E0B' : 'transparent' },
+                    { backgroundColor: isSelected ? '#F4C430' : 'transparent' },
                   ]}
                 />
               </TouchableOpacity>
@@ -436,7 +436,7 @@ export default function HODHomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FFFDF7',
   },
   safe: {
     flex: 1,
@@ -451,10 +451,11 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 14,
     color: '#6B6B6B',
-    fontFamily: FontFamily.poppins,
+    fontFamily: FontFamily.regular,
   },
   body: {
     flex: 1,
+    backgroundColor: '#FFFDF7',
   },
   errorContainer: {
     flex: 1,
@@ -465,13 +466,14 @@ const styles = StyleSheet.create({
   },
   errorTitle: {
     fontSize: 18,
-    fontWeight: '700',
+    fontFamily: FontFamily.bold,
     color: '#111827',
     textAlign: 'center',
   },
   errorSubtitle: {
     fontSize: 14,
     color: '#6B7280',
+    fontFamily: FontFamily.regular,
     textAlign: 'center',
     marginBottom: 8,
   },
@@ -479,21 +481,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#EA580C',
+    backgroundColor: '#F4C430',
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: BorderRadius.button,
   },
   retryText: {
-    color: '#FFFFFF',
+    color: '#111827',
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: FontFamily.semibold,
   },
   bottomBar: {
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: '#E8E5DC',
     paddingVertical: 6,
     paddingHorizontal: 8,
     shadowColor: '#000',

@@ -127,6 +127,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: BorderRadius.card,
     padding: 18,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
   },
   header: {
     flexDirection: 'row',

@@ -288,14 +288,16 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 8,
     backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E8E5DC',
   },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FFFDF7',
     borderRadius: BorderRadius.input,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E8E5DC',
     paddingHorizontal: 10,
     height: 40,
     gap: 8,
@@ -309,7 +311,7 @@ const styles = StyleSheet.create({
   filterBar: {
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: '#E8E5DC',
     paddingVertical: 8,
   },
   filterScroll: {
@@ -321,22 +323,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: BorderRadius.chip,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E8E5DC',
   },
   filterChipSelected: {
-    backgroundColor: '#FFF7ED',
-    borderColor: '#EA580C',
+    backgroundColor: '#1A1B1C',
+    borderColor: '#1A1B1C',
   },
   filterChipText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#4B5563',
+    color: '#6B6B6B',
     fontFamily: FontFamily.poppins,
   },
   filterChipTextSelected: {
-    color: '#EA580C',
+    color: '#F4C430',
     fontWeight: '800',
   },
   listContent: {
@@ -357,7 +359,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.card,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E8E5DC',
     gap: 12,
   },
   cardHeader: {
@@ -369,14 +371,14 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#EA580C',
+    backgroundColor: '#FFF4C7',
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: '#F4C430',
     fontFamily: FontFamily.poppins,
   },
   nameRow: {
@@ -419,12 +421,12 @@ const styles = StyleSheet.create({
   rankText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#C2410C',
+    color: '#F4C430',
     fontFamily: FontFamily.poppins,
   },
   dotSeparator: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: '#8A8A8A',
   },
   empIdText: {
     fontSize: 11,
@@ -438,8 +440,10 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.poppins,
   },
   workloadBox: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FFFDF7',
     borderRadius: BorderRadius.chip,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
     padding: 10,
     gap: 6,
   },
@@ -450,7 +454,7 @@ const styles = StyleSheet.create({
   },
   workloadTitle: {
     fontSize: 11,
-    color: '#4B5563',
+    color: '#6B6B6B',
     fontWeight: '600',
     fontFamily: FontFamily.poppins,
   },
@@ -462,7 +466,7 @@ const styles = StyleSheet.create({
   },
   workloadTrack: {
     height: 6,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: '#F3F1EA',
     borderRadius: 3,
     overflow: 'hidden',
   },
@@ -485,7 +489,7 @@ const styles = StyleSheet.create({
   courseChip: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E8E5DC',
     borderRadius: 4,
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -493,12 +497,12 @@ const styles = StyleSheet.create({
   courseChipText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#374151',
+    color: '#171717',
     fontFamily: FontFamily.poppins,
   },
   noCoursesText: {
     fontSize: 10,
-    color: '#9CA3AF',
+    color: '#8A8A8A',
     fontFamily: FontFamily.poppins,
   },
   cardFooter: {
@@ -506,6 +510,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: '#E8E5DC',
   },
   cabinWrap: {
     flexDirection: 'row',
@@ -525,7 +531,9 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#FFFDF7',
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
     alignItems: 'center',
     justifyContent: 'center',
   },
