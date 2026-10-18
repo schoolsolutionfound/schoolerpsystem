@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, Animated, Dimensions, StatusBar, Image } from '
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { onAuthStateChanged } from 'firebase/auth';
-import LottieView from 'lottie-react-native';
 import { auth } from '../firebaseConfig';
 import { useUserStore } from '../store/useUserStore';
 import { getHomeRouteForRole } from '../features/shared/utils/routeGuards';
