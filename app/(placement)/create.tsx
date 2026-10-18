@@ -11,15 +11,17 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useNavigation } from 'expo-router';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { createDrive } from '../../api/placement';
 import { FontFamily } from '../../constants/fonts';
 import { BorderRadius } from '../../constants/theme';
+import { safeGoBack } from '../../features/shared/utils/safeNavigation';
 
 export default function CreatePlacementDriveScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const [loading, setLoading] = useState(false);
 
   const [form, setForm] = useState({
@@ -85,9 +87,14 @@ export default function CreatePlacementDriveScreen() {
         rounds,
       });
 
-      Alert.alert('Drive Published', 'Placement drive has been successfully created and published.', [
-        { text: 'View Drives', onPress: () => router.back() },
-      ]);
+      if (Platform.OS === 'web') {
+        window.alert('Placement drive has been successfully created and published.');
+        router.replace('/(placement)/drives');
+      } else {
+        Alert.alert('Drive Published', 'Placement drive has been successfully created and published.', [
+          { text: 'View Drives', onPress: () => router.replace('/(placement)/drives') },
+        ]);
+      }
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Failed to create drive.');
     } finally {
@@ -95,11 +102,15 @@ export default function CreatePlacementDriveScreen() {
     }
   };
 
+  const handleBack = () => {
+    safeGoBack(navigation, '/home');
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.backBtn} onPress={handleBack} activeOpacity={0.7}>
           <Feather name="x" size={20} color="#171717" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Create Placement Drive</Text>

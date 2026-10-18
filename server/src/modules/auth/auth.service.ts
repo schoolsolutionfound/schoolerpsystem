@@ -1,6 +1,7 @@
 import { authRepository, IAuthRepository } from './auth.repository.js';
 import { admin, isFirebaseAdminInitialized } from '../shared/config/firebase.js';
 import { AuthenticatedUser } from '../shared/middleware/auth.js';
+import { setCachedAuth } from '../shared/middleware/authCache.js';
 import { institutionService } from '../institutions/institution.service.js';
 import { dbFindStudentByUsnInInstitution, db } from '../shared/db/index.js';
 import { placementMembers } from '../shared/db/schema.js';
@@ -39,7 +40,9 @@ export class AuthService {
     } catch {}
 
     let placementAccess: 'head' | 'member' | null = null;
-    if (db && user.institutionCode && user.role !== 'student' && user.role !== 'parent') {
+    if (user.role === 'placement_officer' || user.role === 'admin') {
+      placementAccess = 'head';
+    } else if (db && user.institutionCode && user.role !== 'student' && user.role !== 'parent') {
       try {
         const membership = await db.query.placementMembers.findFirst({
           where: and(
@@ -52,6 +55,8 @@ export class AuthService {
         console.warn('[Auth Service] Failed to fetch placement access:', err);
       }
     }
+
+    setCachedAuth(user.firebaseUid, user.role, user.institutionCode || '', placementAccess);
 
     return {
       id: user.id,

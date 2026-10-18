@@ -8,7 +8,7 @@ import {
   RefreshControl,
   Image,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useNavigation } from 'expo-router';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { listDrives, getStudentApplications, PlacementDrive, DriveApplication } from '../../../api/placement';
@@ -16,11 +16,13 @@ import { FontFamily } from '../../../constants/fonts';
 import { BorderRadius } from '../../../constants/theme';
 import { ShimmerProvider } from '../../../features/student/components/ShimmerSkeleton';
 import { PlacementDriveCardSkeleton } from '../../../features/placement/components/PlacementSkeleton';
+import { safeGoBack } from '../../../features/shared/utils/safeNavigation';
 
 type FilterType = 'all' | 'eligible' | 'applied';
 
 export default function PlacementFeedScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const [drives, setDrives] = useState<PlacementDrive[]>([]);
   const [applications, setApplications] = useState<DriveApplication[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,11 +67,15 @@ export default function PlacementFeedScreen() {
     });
   }, [drives, applications, filter]);
 
+  const handleBack = () => {
+    safeGoBack(navigation, '/home');
+  };
+
   if (loading && !refreshing) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
             <Feather name="arrow-left" size={22} color="#171717" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Campus Placements</Text>
@@ -95,7 +101,7 @@ export default function PlacementFeedScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.backBtn} onPress={handleBack} activeOpacity={0.7}>
           <Feather name="arrow-left" size={22} color="#171717" />
         </TouchableOpacity>
         <View style={{ flex: 1, marginHorizontal: 8 }}>
@@ -127,22 +133,23 @@ export default function PlacementFeedScreen() {
       >
         {/* Dark Summary Banner */}
         <View style={styles.overallCard}>
-          <View style={styles.ring}>
-            <Text style={styles.ringValue}>{drives.length}</Text>
-            <Text style={styles.ringLabel}>Drives Open</Text>
+          <View style={styles.heroSection}>
+            <Text style={styles.heroValue}>{drives.length}</Text>
+            <Text style={styles.heroLabel} numberOfLines={1}>Drives Open</Text>
           </View>
-          <View style={styles.overallStats}>
+          <View style={styles.cardDivider} />
+          <View style={styles.statsSection}>
             <View style={styles.statCol}>
               <Text style={[styles.statValue, { color: '#F4C430' }]}>{eligibleCount}</Text>
-              <Text style={styles.statLabel}>Eligible</Text>
+              <Text style={styles.statLabel} numberOfLines={1} adjustsFontSizeToFit>Eligible</Text>
             </View>
             <View style={styles.statCol}>
               <Text style={[styles.statValue, { color: '#FFFFFF' }]}>{appliedCount}</Text>
-              <Text style={styles.statLabel}>Applied</Text>
+              <Text style={styles.statLabel} numberOfLines={1} adjustsFontSizeToFit>Applied</Text>
             </View>
             <View style={styles.statCol}>
               <Text style={[styles.statValue, { color: '#16A34A' }]}>{shortlistedCount}</Text>
-              <Text style={styles.statLabel}>Progressed</Text>
+              <Text style={styles.statLabel} numberOfLines={1} adjustsFontSizeToFit>Progressed</Text>
             </View>
           </View>
         </View>
@@ -341,33 +348,56 @@ const styles = StyleSheet.create({
   overallCard: {
     backgroundColor: '#1A1B1C',
     borderRadius: BorderRadius.card,
-    padding: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#2A2B2C',
   },
-  ring: { alignItems: 'center' },
-  ringValue: { fontSize: 30, fontWeight: '900', color: '#F4C430' },
-  ringLabel: {
-    fontSize: 10,
-    color: '#8A8A8A',
-    marginTop: 2,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    fontWeight: '700',
+  heroSection: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 84,
+    paddingHorizontal: 4,
   },
-  overallStats: { flexDirection: 'row', gap: 18 },
-  statCol: { alignItems: 'center' },
-  statValue: { fontSize: 18, fontWeight: '800' },
-  statLabel: {
-    fontSize: 10,
+  heroValue: { fontSize: 28, fontWeight: '900', color: '#F4C430', lineHeight: 32 },
+  heroLabel: {
+    fontSize: 9.5,
     color: '#8A8A8A',
     marginTop: 2,
     textTransform: 'uppercase',
-    letterSpacing: 0.6,
+    letterSpacing: 0.4,
     fontWeight: '700',
+    textAlign: 'center',
+  },
+  cardDivider: {
+    width: 1,
+    height: 38,
+    backgroundColor: '#2D2E30',
+    marginHorizontal: 4,
+  },
+  statsSection: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    alignItems: 'center',
+  },
+  statCol: {
+    flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: 2,
+    minWidth: 0,
+  },
+  statValue: { fontSize: 18, fontWeight: '800', lineHeight: 22 },
+  statLabel: {
+    fontSize: 9,
+    color: '#8A8A8A',
+    marginTop: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+    fontWeight: '700',
+    textAlign: 'center',
   },
 
   // Filter Row

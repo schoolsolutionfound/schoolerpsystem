@@ -1,4 +1,4 @@
-import { eq, and, sql, or } from 'drizzle-orm';
+import { eq, and, sql, or, inArray } from 'drizzle-orm';
 import { db, dbFindStudentClassSectionId, dbFindUserByIdOrUid } from '../shared/db/index.js';
 import {
   placementMembers,
@@ -147,12 +147,26 @@ export class PlacementService {
       where: eq(studentPlacementProfiles.userId, user.id),
     });
 
+    const dbPayload: any = { ...payload };
+    if (payload.cgpa !== undefined) {
+      dbPayload.cgpa = payload.cgpa !== null ? String(payload.cgpa) : null;
+    }
+    if (payload.tenthPercent !== undefined) {
+      dbPayload.tenthPercent = payload.tenthPercent !== null ? String(payload.tenthPercent) : null;
+    }
+    if (payload.twelfthOrDiplomaPercent !== undefined) {
+      dbPayload.twelfthOrDiplomaPercent = payload.twelfthOrDiplomaPercent !== null ? String(payload.twelfthOrDiplomaPercent) : null;
+    }
+    if (payload.activeBacklogs !== undefined) {
+      dbPayload.activeBacklogs = Number(payload.activeBacklogs);
+    }
+
     let updated;
     if (existing) {
       const results = await db
         .update(studentPlacementProfiles)
         .set({
-          ...payload,
+          ...dbPayload,
           updatedAt: new Date(),
         })
         .where(eq(studentPlacementProfiles.userId, user.id))
@@ -165,7 +179,7 @@ export class PlacementService {
           userId: user.id,
           fullName: user.fullName || '',
           email: user.email,
-          ...payload,
+          ...dbPayload,
         })
         .returning();
       updated = results[0];
@@ -491,8 +505,12 @@ export class PlacementService {
     const applications = await db.query.driveApplications.findMany({
       where: eq(driveApplications.driveId, driveId),
       orderBy: (apps, { desc }) => [desc(apps.appliedAt)],
-      with: {
-        student: {
+    });
+
+    const studentIds = Array.from(new Set(applications.map((a) => a.studentId))).filter(Boolean);
+    const studentUsers = studentIds.length > 0
+      ? await db.query.users.findMany({
+          where: inArray(users.id, studentIds),
           columns: {
             id: true,
             fullName: true,
@@ -502,13 +520,23 @@ export class PlacementService {
             tenthPercentage: true,
             twelfthPercentage: true,
           },
-        },
-      },
-    });
+        })
+      : [];
+
+    const studentProfiles = studentIds.length > 0
+      ? await db.query.studentPlacementProfiles.findMany({
+          where: inArray(studentPlacementProfiles.userId, studentIds),
+        })
+      : [];
+
+    const userMap = new Map(studentUsers.map((u) => [u.id, u]));
+    const profileMap = new Map(studentProfiles.map((p) => [p.userId, p]));
 
     // Enrich with branch and year
     const enriched = await Promise.all(
       applications.map(async (app) => {
+        const u = userMap.get(app.studentId);
+        const p = profileMap.get(app.studentId);
         let branch = 'N/A';
         let year = 'N/A';
         try {
@@ -528,7 +556,13 @@ export class PlacementService {
         return {
           ...app,
           student: {
-            ...(app.student as any || {}),
+            id: app.studentId,
+            fullName: u?.fullName || (app.profileSnapshot as any)?.fullName || 'Student',
+            email: u?.email || (app.profileSnapshot as any)?.email || '',
+            phone: u?.phone || (app.profileSnapshot as any)?.phone || '',
+            profilePicUrl: u?.profilePicUrl || '',
+            tenthPercentage: p?.tenthPercent ? String(p.tenthPercent) : (u?.tenthPercentage || ''),
+            twelfthPercentage: p?.twelfthOrDiplomaPercent ? String(p.twelfthOrDiplomaPercent) : (u?.twelfthPercentage || ''),
             branch,
             year,
           },
@@ -609,26 +643,30 @@ export class PlacementService {
     
     const members = await db.query.placementMembers.findMany({
       where: eq(placementMembers.institutionCode, user.institutionCode || ''),
-      with: {
-        user: {
-          columns: {
-            id: true,
-            fullName: true,
-            email: true,
-            role: true,
-            profilePicUrl: true,
-          }
-        }
-      }
     });
     
-    return members.map(m => {
-      const u = m.user as any;
+    if (members.length === 0) return [];
+
+    const userIds = members.map((m) => m.userId);
+    const userList = await db.query.users.findMany({
+      where: inArray(users.id, userIds),
+      columns: {
+        id: true,
+        fullName: true,
+        email: true,
+        role: true,
+        profilePicUrl: true,
+      },
+    });
+    const userMap = new Map(userList.map((u) => [u.id, u]));
+
+    return members.map((m) => {
+      const u = userMap.get(m.userId);
       return {
         id: u?.id || m.userId,
-        fullName: u?.fullName || 'Member',
+        fullName: u?.fullName || 'Placement Officer',
         email: u?.email || '',
-        role: u?.role || 'staff',
+        role: u?.role || 'placement_officer',
         profilePic: u?.profilePicUrl || '',
         accessLevel: m.accessLevel,
         addedAt: m.createdAt,
@@ -717,13 +755,17 @@ export class PlacementService {
 
     const instCode = currentUser.institutionCode || '';
 
-    const [drives, apps, members, studentsCount] = await Promise.all([
-      db.query.placementDrives.findMany({
-        where: eq(placementDrives.institutionCode, instCode),
-      }),
-      db.query.driveApplications.findMany({
-        where: sql`${driveApplications.driveId} IN (SELECT id FROM ${placementDrives} WHERE ${placementDrives.institutionCode} = ${instCode})`,
-      }),
+    const drives = await db.query.placementDrives.findMany({
+      where: eq(placementDrives.institutionCode, instCode),
+    });
+
+    const driveIds = drives.map((d) => d.id);
+    const [apps, members, studentsCount] = await Promise.all([
+      driveIds.length > 0
+        ? db.query.driveApplications.findMany({
+            where: inArray(driveApplications.driveId, driveIds),
+          })
+        : Promise.resolve([]),
       db.query.placementMembers.findMany({
         where: eq(placementMembers.institutionCode, instCode),
       }),

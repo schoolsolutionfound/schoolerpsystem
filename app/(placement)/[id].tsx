@@ -8,7 +8,7 @@ import {
   Alert,
   RefreshControl,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Linking from 'expo-linking';
@@ -23,9 +23,11 @@ import { FontFamily } from '../../constants/fonts';
 import { BorderRadius } from '../../constants/theme';
 import { ShimmerProvider } from '../../features/student/components/ShimmerSkeleton';
 import { PlacementStudentsSkeleton } from '../../features/placement/components/PlacementSkeleton';
+import { safeGoBack } from '../../features/shared/utils/safeNavigation';
 
 export default function PlacementAdminApplicantsScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const [drive, setDrive] = useState<PlacementDrive | null>(null);
@@ -146,14 +148,18 @@ export default function PlacementAdminApplicantsScreen() {
     return s;
   }, [applications]);
 
+  const handleBack = () => {
+    safeGoBack(navigation, '/home');
+  };
+
   if (loading && !refreshing) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
             <Feather name="arrow-left" size={22} color="#171717" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Hiring Pipeline</Text>
+          <Text style={styles.headerTitle}>Drive Applicants</Text>
           <View style={{ width: 36 }} />
         </View>
         <ScrollView contentContainerStyle={styles.scroll}>
@@ -169,7 +175,7 @@ export default function PlacementAdminApplicantsScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.backBtn} onPress={handleBack} activeOpacity={0.7}>
           <Feather name="arrow-left" size={22} color="#171717" />
         </TouchableOpacity>
         <View style={{ flex: 1, marginHorizontal: 8 }}>
@@ -180,9 +186,31 @@ export default function PlacementAdminApplicantsScreen() {
             {drive?.companyName || 'Placement Drive'}
           </Text>
         </View>
-        <View style={styles.driveBadge}>
-          <Text style={styles.driveBadgeText}>{drive?.status?.toUpperCase() || 'DRIVE'}</Text>
-        </View>
+        {drive?.status && (
+          <View
+            style={[
+              styles.statusTag,
+              drive.status === 'published'
+                ? styles.tagPublished
+                : drive.status === 'draft'
+                ? styles.tagDraft
+                : styles.tagClosed,
+            ]}
+          >
+            <Text
+              style={[
+                styles.statusTagText,
+                drive.status === 'published'
+                  ? styles.tagTextPublished
+                  : drive.status === 'draft'
+                  ? styles.tagTextDraft
+                  : styles.tagTextClosed,
+              ]}
+            >
+              {drive.status === 'published' ? 'Published' : drive.status === 'draft' ? 'Draft' : 'Closed'}
+            </Text>
+          </View>
+        )}
       </View>
 
       <ScrollView
@@ -200,22 +228,23 @@ export default function PlacementAdminApplicantsScreen() {
       >
         {/* Dark Pipeline Overview Card */}
         <View style={styles.overallCard}>
-          <View style={styles.ring}>
-            <Text style={styles.ringValue}>{stats.total}</Text>
-            <Text style={styles.ringLabel}>Total Applicants</Text>
+          <View style={styles.heroSection}>
+            <Text style={styles.heroValue}>{stats.total}</Text>
+            <Text style={styles.heroLabel} numberOfLines={1}>Applicants</Text>
           </View>
-          <View style={styles.overallStats}>
+          <View style={styles.cardDivider} />
+          <View style={styles.statsSection}>
             <View style={styles.statCol}>
               <Text style={[styles.statValue, { color: '#FFFFFF' }]}>{stats.applied}</Text>
-              <Text style={styles.statLabel}>Applied</Text>
+              <Text style={styles.statLabel} numberOfLines={1} adjustsFontSizeToFit>Applied</Text>
             </View>
             <View style={styles.statCol}>
               <Text style={[styles.statValue, { color: '#F4C430' }]}>{stats.shortlisted}</Text>
-              <Text style={styles.statLabel}>Shortlisted</Text>
+              <Text style={styles.statLabel} numberOfLines={1} adjustsFontSizeToFit>Shortlist</Text>
             </View>
             <View style={styles.statCol}>
               <Text style={[styles.statValue, { color: '#16A34A' }]}>{stats.hired}</Text>
-              <Text style={styles.statLabel}>Hired</Text>
+              <Text style={styles.statLabel} numberOfLines={1} adjustsFontSizeToFit>Hired</Text>
             </View>
           </View>
         </View>
@@ -427,15 +456,54 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 16, fontWeight: '800', color: '#171717', fontFamily: FontFamily.bold },
   headerSub: { fontSize: 11, color: '#6B6B6B', marginTop: 1, fontFamily: FontFamily.regular },
-  driveBadge: {
-    backgroundColor: '#FFF4C7',
+  statusTag: {
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 3.5,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#F4C430',
   },
-  driveBadgeText: { fontSize: 9, fontWeight: '800', color: '#1A1B1C' },
+  tagPublished: {
+    backgroundColor: '#F0FDF4',
+    borderColor: '#BBF7D0',
+  },
+  tagDraft: {
+    backgroundColor: '#FFFBEB',
+    borderColor: '#FDE68A',
+  },
+  tagClosed: {
+    backgroundColor: '#F9FAFB',
+    borderColor: '#E5E7EB',
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  dotPublished: {
+    backgroundColor: '#16A34A',
+  },
+  dotDraft: {
+    backgroundColor: '#D97706',
+  },
+  dotClosed: {
+    backgroundColor: '#6B7280',
+  },
+  statusTagText: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.1,
+  },
+  tagTextPublished: {
+    color: '#15803D',
+  },
+  tagTextDraft: {
+    color: '#B45309',
+  },
+  tagTextClosed: {
+    color: '#4B5563',
+  },
 
   scroll: { padding: 14, paddingBottom: 60, gap: 12 },
 
@@ -443,33 +511,56 @@ const styles = StyleSheet.create({
   overallCard: {
     backgroundColor: '#1A1B1C',
     borderRadius: BorderRadius.card,
-    padding: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#2A2B2C',
   },
-  ring: { alignItems: 'center' },
-  ringValue: { fontSize: 30, fontWeight: '900', color: '#F4C430' },
-  ringLabel: {
-    fontSize: 10,
-    color: '#8A8A8A',
-    marginTop: 2,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    fontWeight: '700',
+  heroSection: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 84,
+    paddingHorizontal: 4,
   },
-  overallStats: { flexDirection: 'row', gap: 18 },
-  statCol: { alignItems: 'center' },
-  statValue: { fontSize: 18, fontWeight: '800' },
-  statLabel: {
-    fontSize: 10,
+  heroValue: { fontSize: 28, fontWeight: '900', color: '#F4C430', lineHeight: 32 },
+  heroLabel: {
+    fontSize: 9.5,
     color: '#8A8A8A',
     marginTop: 2,
     textTransform: 'uppercase',
-    letterSpacing: 0.6,
+    letterSpacing: 0.4,
     fontWeight: '700',
+    textAlign: 'center',
+  },
+  cardDivider: {
+    width: 1,
+    height: 38,
+    backgroundColor: '#2D2E30',
+    marginHorizontal: 4,
+  },
+  statsSection: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    alignItems: 'center',
+  },
+  statCol: {
+    flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: 2,
+    minWidth: 0,
+  },
+  statValue: { fontSize: 18, fontWeight: '800', lineHeight: 22 },
+  statLabel: {
+    fontSize: 9,
+    color: '#8A8A8A',
+    marginTop: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+    fontWeight: '700',
+    textAlign: 'center',
   },
 
   // Filters

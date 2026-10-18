@@ -66,6 +66,7 @@ export default function PlacementHomeScreen() {
           onMenuPress={() => setDrawerOpen(true)}
           onNotificationsPress={() => router.push('/notifications')}
           onProfilePress={() => setActiveTab('profile')}
+          showGreeting={activeTab !== 'profile'}
         />
 
         {/* Tab Content View */}

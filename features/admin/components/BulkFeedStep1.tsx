@@ -1,8 +1,10 @@
 import React from 'react';
 import { View, StyleSheet, Text, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useNavigation } from 'expo-router';
 import { BorderRadius } from '../../../constants/theme';
 import { FontFamily } from '../../../constants/fonts';
+import { safeGoBack } from '../../shared/utils/safeNavigation';
 
 export interface BulkFeedStep1Props {
   router: any;
@@ -43,10 +45,14 @@ export const BulkFeedStep1: React.FC<BulkFeedStep1Props> = ({
   setIndividualRole,
   onNextStep,
 }) => {
+  const navigation = useNavigation();
   return (
     <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
       <View style={styles.topHeader}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity
+          onPress={() => safeGoBack(navigation, '/(admin)/home')}
+          style={styles.backBtn}
+        >
           <MaterialCommunityIcons name="chevron-left" size={24} color="#171717" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Bulk Feed Users</Text>

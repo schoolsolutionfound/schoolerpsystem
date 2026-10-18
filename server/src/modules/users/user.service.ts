@@ -44,7 +44,9 @@ export class UserService {
     }
 
     let placementAccess: 'head' | 'member' | null = null;
-    if (db && user.institutionCode && user.role !== 'student' && user.role !== 'parent') {
+    if (user.role === 'placement_officer' || user.role === 'admin') {
+      placementAccess = 'head';
+    } else if (db && user.institutionCode && user.role !== 'student' && user.role !== 'parent') {
       try {
         const membership = await db.query.placementMembers.findFirst({
           where: and(

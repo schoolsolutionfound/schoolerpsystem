@@ -34,7 +34,7 @@ const PRIMARY = [
   { key: 'drives', label: 'Placement Drives', icon: 'briefcase-outline', iconFilled: 'briefcase', tab: 'drives' as const },
   { key: 'students', label: 'Students Directory', icon: 'account-group-outline', iconFilled: 'account-group', tab: 'students' as const },
   { key: 'team', label: 'Placement Team', icon: 'account-multiple-outline', iconFilled: 'account-multiple', tab: 'team' as const },
-  { key: 'profile', label: 'Officer Profile', icon: 'account-circle-outline', iconFilled: 'account-circle', tab: 'profile' as const },
+  { key: 'profile', label: 'Profile', icon: 'account-circle-outline', iconFilled: 'account-circle', tab: 'profile' as const },
 ];
 
 export const PlacementDrawer: React.FC<PlacementDrawerProps> = ({
@@ -49,8 +49,6 @@ export const PlacementDrawer: React.FC<PlacementDrawerProps> = ({
 }) => {
   const router = useRouter();
   const resetUser = useUserStore((s) => s.resetUser);
-  const userRole = useUserStore((s) => s.userRole);
-  const placementAccess = useUserStore((s) => s.placementAccess);
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
 
@@ -116,9 +114,6 @@ export const PlacementDrawer: React.FC<PlacementDrawerProps> = ({
     }, 120);
   };
 
-  const firstName = fullName.split(' ')[0];
-  const roleLabel = placementAccess === 'head' ? 'Placement Head' : 'Placement Member';
-
   return (
     <Modal
       visible={mounted}
@@ -171,10 +166,7 @@ export const PlacementDrawer: React.FC<PlacementDrawerProps> = ({
                 )}
               </View>
               <View style={styles.userTextWrap}>
-                <Text style={styles.userName}>{firstName}</Text>
-                <View style={styles.roleBadge}>
-                  <Text style={styles.roleBadgeText}>{roleLabel}</Text>
-                </View>
+                <Text style={styles.userName} numberOfLines={1}>{fullName}</Text>
                 {institutionName ? (
                   <Text style={styles.userInstitution} numberOfLines={1}>{institutionName}</Text>
                 ) : null}
@@ -201,27 +193,14 @@ export const PlacementDrawer: React.FC<PlacementDrawerProps> = ({
                       <MaterialCommunityIcons
                         name={isActive ? (item.iconFilled as any) : (item.icon as any)}
                         size={18}
-                        color={isActive ? '#F4C430' : '#9A9A9A'}
+                        color={isActive ? '#1A1B1C' : '#9A9A9A'}
                       />
                     </View>
                     <Text style={[styles.menuText, isActive && styles.menuTextActive]}>{item.label}</Text>
-                    <Feather name="chevron-right" size={16} color={isActive ? '#F4C430' : '#5A5A5A'} />
+                    <Feather name="chevron-right" size={16} color={isActive ? '#1A1B1C' : '#5A5A5A'} />
                   </TouchableOpacity>
                 );
               })}
-
-              <Text style={[styles.sectionLabel, { marginTop: 18 }]}>ACTIONS</Text>
-              <TouchableOpacity
-                style={styles.menuItem}
-                activeOpacity={0.7}
-                onPress={() => navigateAndClose('/(placement)/create')}
-              >
-                <View style={[styles.menuIcon, { backgroundColor: 'rgba(244, 196, 48, 0.15)', borderColor: 'rgba(244, 196, 48, 0.3)' }]}>
-                  <MaterialCommunityIcons name="plus-circle" size={18} color="#F4C430" />
-                </View>
-                <Text style={[styles.menuText, { color: '#F4C430', fontWeight: '700' }]}>Create New Drive</Text>
-                <Feather name="chevron-right" size={16} color="#F4C430" />
-              </TouchableOpacity>
 
               <Text style={[styles.sectionLabel, { marginTop: 18 }]}>ACCOUNT</Text>
               <TouchableOpacity
@@ -247,27 +226,6 @@ export const PlacementDrawer: React.FC<PlacementDrawerProps> = ({
                 <Text style={styles.menuText}>Change Password</Text>
                 <Feather name="chevron-right" size={16} color="#5A5A5A" />
               </TouchableOpacity>
-
-              {userRole && userRole !== 'student' && (
-                <TouchableOpacity
-                  style={[styles.menuItem, { marginTop: 6 }]}
-                  activeOpacity={0.7}
-                  onPress={() => {
-                    onClose();
-                    setTimeout(() => {
-                      if (userRole === 'teacher') router.push('/(teacher)/home');
-                      else if (userRole === 'admin') router.push('/(admin)/home');
-                      else if (userRole === 'hod') router.push('/(hod)/home');
-                    }, 120);
-                  }}
-                >
-                  <View style={styles.menuIcon}>
-                    <MaterialCommunityIcons name="arrow-left-circle-outline" size={18} color="#9A9A9A" />
-                  </View>
-                  <Text style={styles.menuText}>Back to {userRole.toUpperCase()}</Text>
-                  <Feather name="chevron-right" size={16} color="#5A5A5A" />
-                </TouchableOpacity>
-              )}
             </ScrollView>
 
             {/* Footer with Logout */}
@@ -380,7 +338,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   menuItemActive: {
-    backgroundColor: 'rgba(244, 196, 48, 0.1)',
+    backgroundColor: '#F4C430',
   },
   menuIcon: {
     width: 32,
@@ -393,11 +351,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   menuIconActive: {
-    backgroundColor: 'rgba(244, 196, 48, 0.15)',
-    borderColor: 'rgba(244, 196, 48, 0.3)',
+    backgroundColor: 'rgba(0, 0, 0, 0.08)',
+    borderColor: 'rgba(0, 0, 0, 0.12)',
   },
   menuText: { flex: 1, fontSize: 14, fontWeight: '600', color: '#E5E5E5' },
-  menuTextActive: { color: '#F4C430', fontWeight: '700' },
+  menuTextActive: {
+    color: '#1A1B1C',
+    fontWeight: '800',
+  },
   footer: {
     paddingHorizontal: 14,
     paddingTop: 12,

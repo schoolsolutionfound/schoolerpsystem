@@ -1,11 +1,9 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { authenticate } from '../shared/middleware/auth.js';
 import { db } from '../shared/db/index.js';
-import { placementMembers } from '../shared/db/schema.js';
+import { users, placementMembers, institutions } from '../shared/db/schema.js';
 import { eq, and } from 'drizzle-orm';
 import { getCachedAuth, setCachedAuth } from '../shared/middleware/authCache.js';
-import { dbFindUserByIdOrUid } from '../shared/db/index.js';
-import { institutions } from '../shared/db/schema.js';
 
 export async function requireCollege(request: FastifyRequest, reply: FastifyReply) {
   await authenticate(request, reply);
@@ -54,15 +52,19 @@ export async function requirePlacementAccess(request: FastifyRequest, reply: Fas
 
   if (accessLevel === undefined && db) {
     try {
-      const dbUser = await db.query.users.findFirst({ where: eq(require('../shared/db/schema.js').users.firebaseUid, user.uid) });
+      const dbUser = await db.query.users.findFirst({ where: eq(users.firebaseUid, user.uid) });
       if (dbUser) {
-        const membership = await db.query.placementMembers.findFirst({
-          where: and(
-            eq(placementMembers.institutionCode, user.institutionCode),
-            eq(placementMembers.userId, dbUser.id)
-          ),
-        });
-        accessLevel = membership ? membership.accessLevel : null;
+        if (dbUser.role === 'placement_officer' || dbUser.role === 'admin') {
+          accessLevel = 'head';
+        } else {
+          const membership = await db.query.placementMembers.findFirst({
+            where: and(
+              eq(placementMembers.institutionCode, user.institutionCode),
+              eq(placementMembers.userId, dbUser.id)
+            ),
+          });
+          accessLevel = membership ? membership.accessLevel : null;
+        }
         setCachedAuth(user.uid, user.role || '', user.institutionCode, accessLevel);
       }
     } catch (error) {
@@ -98,15 +100,19 @@ export async function requirePlacementHead(request: FastifyRequest, reply: Fasti
 
   if (accessLevel === undefined && db) {
     try {
-      const dbUser = await db.query.users.findFirst({ where: eq(require('../shared/db/schema.js').users.firebaseUid, user.uid) });
+      const dbUser = await db.query.users.findFirst({ where: eq(users.firebaseUid, user.uid) });
       if (dbUser) {
-        const membership = await db.query.placementMembers.findFirst({
-          where: and(
-            eq(placementMembers.institutionCode, user.institutionCode),
-            eq(placementMembers.userId, dbUser.id)
-          ),
-        });
-        accessLevel = membership ? membership.accessLevel : null;
+        if (dbUser.role === 'placement_officer' || dbUser.role === 'admin') {
+          accessLevel = 'head';
+        } else {
+          const membership = await db.query.placementMembers.findFirst({
+            where: and(
+              eq(placementMembers.institutionCode, user.institutionCode),
+              eq(placementMembers.userId, dbUser.id)
+            ),
+          });
+          accessLevel = membership ? membership.accessLevel : null;
+        }
         setCachedAuth(user.uid, user.role || '', user.institutionCode, accessLevel);
       }
     } catch (error) {

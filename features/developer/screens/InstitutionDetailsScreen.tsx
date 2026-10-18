@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useNavigation } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Colors, BorderRadius } from '../../../constants/theme';
 import { AppLayout } from '../../shared/components/AppLayout';
+import { safeGoBack } from '../../shared/utils/safeNavigation';
 import { AppCard } from '../../shared/components/AppCard';
 import { AppBadge } from '../../shared/components/AppBadge';
 import { LoadingView } from '../../shared/components/LoadingView';
@@ -27,6 +28,7 @@ type TabType =
 
 export function InstitutionDetailsScreen({ id }: InstitutionDetailsScreenProps) {
   const router = useRouter();
+  const navigation = useNavigation();
   const [activeTab, setActiveTab] = useState<TabType>('overview');
 
   const { data: institution, isLoading, isError, error, refetch } = useInstitutionDetailsQuery(id);
@@ -45,7 +47,10 @@ export function InstitutionDetailsScreen({ id }: InstitutionDetailsScreenProps) 
   return (
     <AppLayout>
       <View style={styles.topNav}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => safeGoBack(navigation, '/(developer)/home')}
+        >
           <MaterialCommunityIcons name="arrow-left" size={20} color={Colors.light.text} />
           <Text style={styles.backText}>Back to Dashboard</Text>
         </TouchableOpacity>

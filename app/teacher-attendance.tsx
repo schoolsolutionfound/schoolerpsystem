@@ -2,19 +2,29 @@ import React, { useState } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useNavigation } from 'expo-router';
 import { TeacherTimetableView } from '../features/teacher/components/TeacherTimetableView';
 import { AttendanceMarkingView } from '../features/teacher/components/AttendanceMarkingView';
+import { safeGoBack } from '../features/shared/utils/safeNavigation';
 
 export default function TeacherAttendanceScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const [activeSlot, setActiveSlot] = useState<{ slotId: string; subjectName: string } | null>(null);
+
+  const handleBack = () => {
+    if (activeSlot) {
+      setActiveSlot(null);
+    } else {
+      safeGoBack(navigation, '/(teacher)/home');
+    }
+  };
 
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => (activeSlot ? setActiveSlot(null) : router.back())}>
+          <TouchableOpacity onPress={handleBack}>
             <MaterialCommunityIcons name="arrow-left" size={24} color="#171717" />
           </TouchableOpacity>
           <Text style={styles.title}>{activeSlot ? 'Mark Attendance' : 'My Periods'}</Text>

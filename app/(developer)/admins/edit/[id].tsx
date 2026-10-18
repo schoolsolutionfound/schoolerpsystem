@@ -8,7 +8,7 @@ import {
   SafeAreaView,
   Alert,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   useAdminsQuery,
@@ -20,6 +20,7 @@ import { AppButton } from '../../../../features/shared/components/AppButton';
 import { LoadingView } from '../../../../features/shared/components/LoadingView';
 import { ErrorState } from '../../../../features/shared/components/ErrorState';
 import { Colors, BorderRadius } from '../../../../constants/theme';
+import { safeGoBack } from '../../../../features/shared/utils/safeNavigation';
 
 const TITLE_PRESETS = ['Principal', 'Vice Principal', 'HOD', 'Coordinator', 'Academic Dean', 'Custom'];
 
@@ -50,6 +51,7 @@ const PERMISSION_GROUPS = [
 
 export default function EditInstitutionAdminScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: admins = [], isLoading: adminsLoading, isError: adminsError } = useAdminsQuery();
   const { data: institutions = [] } = useInstitutionsQuery();
@@ -136,7 +138,7 @@ export default function EditInstitutionAdminScreen() {
     try {
       await updateAdminMutation.mutateAsync({ id: id!, payload });
       Alert.alert('Success', `Admin "${fullName}" updated successfully!`, [
-        { text: 'OK', onPress: () => router.back() },
+        { text: 'OK', onPress: () => safeGoBack(navigation, '/(developer)/home') },
       ]);
     } catch (err: any) {
       setErrorMsg(err?.message || 'Failed to update institution admin.');
@@ -157,7 +159,7 @@ export default function EditInstitutionAdminScreen() {
         <ErrorState
           title="Admin Not Found"
           message="Could not load admin details. The admin may have been removed."
-          onRetry={() => router.back()}
+          onRetry={() => safeGoBack(navigation, '/(developer)/home')}
         />
       </SafeAreaView>
     );
@@ -166,7 +168,7 @@ export default function EditInstitutionAdminScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backButton} onPress={() => safeGoBack(navigation, '/(developer)/home')}>
           <MaterialCommunityIcons name="arrow-left" size={24} color={Colors.light.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Edit Institution Admin</Text>

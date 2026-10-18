@@ -1,11 +1,20 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useUserStore } from '../../store/useUserStore';
+import { getHomeRouteForRole } from '../../features/shared/utils/routeGuards';
 
 export default function AccountantHomeScreen() {
   const router = useRouter();
+  const userRole = useUserStore((state) => state.userRole);
+
+  useEffect(() => {
+    if (userRole && userRole !== 'accountant' && userRole !== 'loading') {
+      router.replace(getHomeRouteForRole(userRole) as any);
+    }
+  }, [userRole, router]);
 
   return (
     <View style={styles.container}>

@@ -11,19 +11,25 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useNavigation } from 'expo-router';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getPlacementProfile, updatePlacementProfile, PlacementProfile } from '../../../api/placement';
 import { FontFamily } from '../../../constants/fonts';
 import { BorderRadius } from '../../../constants/theme';
+import { safeGoBack } from '../../../features/shared/utils/safeNavigation';
 
 export default function PlacementProfileScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const [profile, setProfile] = useState<PlacementProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  const [cgpa, setCgpa] = useState('');
+  const [activeBacklogs, setActiveBacklogs] = useState('0');
+  const [tenthPercent, setTenthPercent] = useState('');
+  const [twelfthPercent, setTwelfthPercent] = useState('');
   const [resumeUrl, setResumeUrl] = useState('');
   const [portfolioUrl, setPortfolioUrl] = useState('');
   const [linkedinUrl, setLinkedinUrl] = useState('');
@@ -38,6 +44,10 @@ export default function PlacementProfileScreen() {
     try {
       const data = await getPlacementProfile();
       setProfile(data);
+      setCgpa(data.cgpa !== null && data.cgpa !== undefined ? String(data.cgpa) : '');
+      setActiveBacklogs(String(data.activeBacklogs ?? 0));
+      setTenthPercent(data.tenthPercent !== null && data.tenthPercent !== undefined ? String(data.tenthPercent) : '');
+      setTwelfthPercent(data.twelfthOrDiplomaPercent !== null && data.twelfthOrDiplomaPercent !== undefined ? String(data.twelfthOrDiplomaPercent) : '');
       setResumeUrl(data.resumeUrl || '');
       setPortfolioUrl(data.portfolioUrl || '');
       setLinkedinUrl(data.linkedinUrl || '');
@@ -54,6 +64,10 @@ export default function PlacementProfileScreen() {
     try {
       setSaving(true);
       await updatePlacementProfile({
+        cgpa: cgpa.trim() ? parseFloat(cgpa.trim()) : null,
+        activeBacklogs: activeBacklogs.trim() ? parseInt(activeBacklogs.trim(), 10) : 0,
+        tenthPercent: tenthPercent.trim() ? parseFloat(tenthPercent.trim()) : null,
+        twelfthOrDiplomaPercent: twelfthPercent.trim() ? parseFloat(twelfthPercent.trim()) : null,
         resumeUrl: resumeUrl.trim(),
         portfolioUrl: portfolioUrl.trim(),
         linkedinUrl: linkedinUrl.trim(),
@@ -61,12 +75,16 @@ export default function PlacementProfileScreen() {
         leetcodeUrl: leetcodeUrl.trim(),
       });
       Alert.alert('Profile Saved', 'Your placement profile has been updated successfully!');
-      router.back();
+      handleBack();
     } catch (err: any) {
       Alert.alert('Save Failed', err?.message || 'Could not update placement profile.');
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleBack = () => {
+    safeGoBack(navigation, '/(student)/placement');
   };
 
   if (loading) {
@@ -85,7 +103,7 @@ export default function PlacementProfileScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.backBtn} onPress={handleBack} activeOpacity={0.7}>
           <Feather name="arrow-left" size={22} color="#171717" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Placement Profile</Text>
@@ -97,8 +115,8 @@ export default function PlacementProfileScreen() {
         style={{ flex: 1 }}
       >
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-          {/* Institutional Academic Card */}
-          <Text style={styles.sectionHeader}>ACADEMIC RECORD (INSTITUTIONAL)</Text>
+          {/* Academic Record Card */}
+          <Text style={styles.sectionHeader}>ACADEMIC RECORD</Text>
           <View style={styles.card}>
             <View style={styles.readOnlyGrid}>
               <View style={styles.gridItem}>
@@ -109,33 +127,58 @@ export default function PlacementProfileScreen() {
                 <Text style={styles.itemLabel}>Academic Year</Text>
                 <Text style={styles.itemVal}>{profile.year || 'Current'}</Text>
               </View>
-              <View style={styles.gridItem}>
-                <Text style={styles.itemLabel}>College CGPA</Text>
-                <Text style={[styles.itemVal, { color: '#F4C430' }]}>
-                  {profile.cgpa !== null && profile.cgpa !== undefined ? profile.cgpa : 'N/A'}
-                </Text>
+            </View>
+
+            <View style={styles.inputRow}>
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.label}>College CGPA *</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g. 8.75"
+                  placeholderTextColor="#9A9A9A"
+                  value={cgpa}
+                  onChangeText={setCgpa}
+                  keyboardType="decimal-pad"
+                />
               </View>
-              <View style={styles.gridItem}>
-                <Text style={styles.itemLabel}>Active Backlogs</Text>
-                <Text style={[styles.itemVal, { color: profile.activeBacklogs > 0 ? '#DC2626' : '#16A34A' }]}>
-                  {profile.activeBacklogs}
-                </Text>
-              </View>
-              <View style={styles.gridItem}>
-                <Text style={styles.itemLabel}>10th Percentage</Text>
-                <Text style={styles.itemVal}>{profile.tenthPercent ? `${profile.tenthPercent}%` : 'N/A'}</Text>
-              </View>
-              <View style={styles.gridItem}>
-                <Text style={styles.itemLabel}>12th / Diploma %</Text>
-                <Text style={styles.itemVal}>{profile.twelfthOrDiplomaPercent ? `${profile.twelfthOrDiplomaPercent}%` : 'N/A'}</Text>
+
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.label}>Active Backlogs *</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="0"
+                  placeholderTextColor="#9A9A9A"
+                  value={activeBacklogs}
+                  onChangeText={setActiveBacklogs}
+                  keyboardType="number-pad"
+                />
               </View>
             </View>
 
-            <View style={styles.hintBox}>
-              <MaterialCommunityIcons name="information-outline" size={14} color="#6B6B6B" />
-              <Text style={styles.hintText}>
-                Academic records are synchronized from your college administration records. Contact your placement cell if corrections are needed.
-              </Text>
+            <View style={styles.inputRow}>
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.label}>10th Percentage (%)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g. 85.0"
+                  placeholderTextColor="#9A9A9A"
+                  value={tenthPercent}
+                  onChangeText={setTenthPercent}
+                  keyboardType="decimal-pad"
+                />
+              </View>
+
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.label}>12th / Diploma (%)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g. 88.5"
+                  placeholderTextColor="#9A9A9A"
+                  value={twelfthPercent}
+                  onChangeText={setTwelfthPercent}
+                  keyboardType="decimal-pad"
+                />
+              </View>
             </View>
           </View>
 
@@ -297,6 +340,7 @@ const styles = StyleSheet.create({
   },
   hintText: { fontSize: 11, color: '#6B6B6B', flex: 1, lineHeight: 15 },
 
+  inputRow: { flexDirection: 'row', gap: 12 },
   inputGroup: { gap: 6 },
   label: { fontSize: 12, fontWeight: '700', color: '#4B5563' },
   input: {

@@ -99,7 +99,7 @@ export interface CreateTeacherPayload {
 }
 
 const SCHOOL_ROLES = ['admin', 'principal', 'teacher', 'student', 'parent', 'accountant', 'librarian'] as const;
-const COLLEGE_ROLES = ['admin', 'hod', 'teacher', 'student', 'parent', 'accountant', 'librarian'] as const;
+const COLLEGE_ROLES = ['admin', 'hod', 'teacher', 'placement_officer', 'student', 'parent', 'accountant', 'librarian'] as const;
 
 export interface CreateUserPayload {
   fullName: string;
@@ -716,6 +716,21 @@ export class AdminService {
       profileCompleted: false,
       scope: JSON.stringify(scopeObj),
     });
+
+    if (normalizedRole === 'placement_officer' && db) {
+      try {
+        const { placementMembers } = await import('../shared/db/schema.js');
+        await db.insert(placementMembers).values({
+          id: `pm_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+          institutionCode: payload.institutionCode,
+          userId: createdUser.id,
+          accessLevel: 'head',
+          grantedBy: 'admin',
+        });
+      } catch (err: any) {
+        console.warn('[Admin createUser] placement_members auto-record warning:', err?.message);
+      }
+    }
 
     return createdUser;
   }

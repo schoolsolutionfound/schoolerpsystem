@@ -28,8 +28,18 @@ async function main() {
       .filter(Boolean);
 
     await fastify.register(cors, {
-      origin: allowedOrigins.length > 0 ? allowedOrigins : true,
+      origin: (origin, cb) => {
+        if (!origin) return cb(null, true);
+        if (allowedOrigins.includes(origin)) return cb(null, true);
+        if (process.env.NODE_ENV !== 'production') {
+          if (/^http:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+)(:\d+)?$/.test(origin)) {
+            return cb(null, true);
+          }
+        }
+        cb(null, false);
+      },
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     });
 
     await fastify.register(rateLimit, {

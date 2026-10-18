@@ -203,11 +203,11 @@ export const TeacherDrawer: React.FC<TeacherDrawerProps> = ({
                   <MaterialCommunityIcons
                     name={activeTab === item.key ? (item.iconFilled as any) : (item.icon as any)}
                     size={18}
-                    color={activeTab === item.key ? '#F4C430' : '#9A9A9A'}
+                    color={activeTab === item.key ? '#1A1B1C' : '#9A9A9A'}
                   />
                 </View>
                 <Text style={[styles.menuText, activeTab === item.key && styles.menuTextActive]}>{item.label}</Text>
-                <Feather name="chevron-right" size={16} color="#5A5A5A" />
+                <Feather name="chevron-right" size={16} color={activeTab === item.key ? '#1A1B1C' : '#5A5A5A'} />
               </TouchableOpacity>
             ))}
 
@@ -349,7 +349,7 @@ backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.55)' },
     borderRadius: 8,
   },
   menuItemActive: {
-    backgroundColor: 'rgba(244, 196, 48, 0.1)',
+    backgroundColor: '#F4C430',
   },
   menuIcon: {
     width: 32,
@@ -362,11 +362,14 @@ backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.55)' },
     justifyContent: 'center',
   },
   menuIconActive: {
-    backgroundColor: 'rgba(244, 196, 48, 0.15)',
-    borderColor: 'rgba(244, 196, 48, 0.3)',
+    backgroundColor: 'rgba(0, 0, 0, 0.08)',
+    borderColor: 'rgba(0, 0, 0, 0.12)',
   },
   menuText: { flex: 1, fontSize: 14, fontWeight: '600', color: '#E5E5E5' },
-  menuTextActive: { color: '#F4C430', fontWeight: '700' },
+  menuTextActive: {
+    color: '#1A1B1C',
+    fontWeight: '800',
+  },
 
   footer: {
     paddingHorizontal: 14,

@@ -2,17 +2,23 @@ import React from 'react';
 import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useNavigation } from 'expo-router';
 import { ClassTeacherTimetableBuilder } from '../features/teacher/components/ClassTeacherTimetableBuilder';
+import { safeGoBack } from '../features/shared/utils/safeNavigation';
 
 export default function TeacherTimetableScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
+
+  const handleBack = () => {
+    safeGoBack(navigation, '/(teacher)/home');
+  };
 
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
+          <TouchableOpacity onPress={handleBack}>
             <MaterialCommunityIcons name="arrow-left" size={24} color="#171717" />
           </TouchableOpacity>
           <Text style={styles.title}>Build Timetable</Text>

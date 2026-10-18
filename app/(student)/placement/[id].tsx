@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Text, Image, Alert, ActivityIndicator } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -13,9 +13,11 @@ import {
 } from '../../../api/placement';
 import { FontFamily } from '../../../constants/fonts';
 import { BorderRadius } from '../../../constants/theme';
+import { safeGoBack } from '../../../features/shared/utils/safeNavigation';
 
 export default function DriveDetailsScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const [drive, setDrive] = useState<PlacementDrive | null>(null);
@@ -53,12 +55,16 @@ export default function DriveDetailsScreen() {
     );
   }
 
+  const handleBack = () => {
+    safeGoBack(navigation, '/(student)/placement');
+  };
+
   if (!drive) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Placement drive not found</Text>
-          <TouchableOpacity style={styles.backHomeBtn} onPress={() => router.back()}>
+          <TouchableOpacity style={styles.backHomeBtn} onPress={handleBack}>
             <Text style={styles.backHomeBtnText}>Go Back</Text>
           </TouchableOpacity>
         </View>
@@ -126,7 +132,7 @@ export default function DriveDetailsScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.backBtn} onPress={handleBack} activeOpacity={0.7}>
           <Feather name="arrow-left" size={22} color="#171717" />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>{drive.companyName}</Text>

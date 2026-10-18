@@ -16,6 +16,7 @@ import { StudentHomeworkView } from '../../features/student/components/StudentHo
 import { StudentDrawer } from '../../features/student/components/StudentDrawer';
 import { StudentBusTrackingView } from '../../features/student/components/StudentBusTrackingView';
 import { StudentHomeFeeSummary } from '../../features/student/components/StudentHomeFeeSummary';
+import { StudentHomePlacementCard } from '../../features/student/components/StudentHomePlacementCard';
 import { ShimmerProvider } from '../../features/student/components/ShimmerSkeleton';
 import { FontFamily } from '../../constants/fonts';
 
@@ -159,6 +160,7 @@ export default function HomeScreen() {
               refreshControl={refreshControl}
             >
               <StudentHomeAttendanceCard loading={attendanceLoading || slotsLoading} overall={overall} currentSlot={currentSlot} />
+              <StudentHomePlacementCard />
               <StudentHomeAnnouncements />
               <StudentHomePeriodsList loading={slotsLoading} slots={todaySlots} />
             </ScrollView>

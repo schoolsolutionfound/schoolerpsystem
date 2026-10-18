@@ -58,18 +58,19 @@ export function PlacementDashboardView() {
     >
       {/* Dark Hero Metric Banner */}
       <View style={styles.heroCard}>
-        <View>
+        <View style={styles.heroPrimary}>
           <Text style={styles.heroRate}>{placementRate}%</Text>
-          <Text style={styles.heroLabel}>Hiring Conversion Rate</Text>
+          <Text style={styles.heroLabel} numberOfLines={1}>Conversion Rate</Text>
         </View>
+        <View style={styles.heroDivider} />
         <View style={styles.heroStats}>
           <View style={styles.heroStatItem}>
             <Text style={[styles.heroStatVal, { color: '#16A34A' }]}>{hiredCount}</Text>
-            <Text style={styles.heroStatLbl}>Placed</Text>
+            <Text style={styles.heroStatLbl} numberOfLines={1} adjustsFontSizeToFit>Placed</Text>
           </View>
           <View style={styles.heroStatItem}>
             <Text style={[styles.heroStatVal, { color: '#F4C430' }]}>{stats?.activeDrives ?? 0}</Text>
-            <Text style={styles.heroStatLbl}>Active</Text>
+            <Text style={styles.heroStatLbl} numberOfLines={1} adjustsFontSizeToFit>Active</Text>
           </View>
         </View>
       </View>
@@ -147,23 +148,36 @@ const styles = StyleSheet.create({
   heroCard: {
     backgroundColor: '#1A1B1C',
     borderRadius: BorderRadius.card,
-    padding: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#2A2B2C',
   },
-  heroRate: { fontSize: 32, fontWeight: '900', color: '#F4C430' },
-  heroLabel: { fontSize: 10, color: '#8A8A8A', fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 2 },
-  heroStats: { flexDirection: 'row', gap: 16 },
-  heroStatItem: { alignItems: 'center' },
-  heroStatVal: { fontSize: 18, fontWeight: '800' },
-  heroStatLbl: { fontSize: 10, color: '#8A8A8A', fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 2 },
+  heroPrimary: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 84,
+    paddingHorizontal: 4,
+  },
+  heroDivider: {
+    width: 1,
+    height: 38,
+    backgroundColor: '#2D2E30',
+    marginHorizontal: 4,
+  },
+  heroRate: { fontSize: 28, fontWeight: '900', color: '#F4C430', lineHeight: 32 },
+  heroLabel: { fontSize: 9.5, color: '#8A8A8A', fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 2, textAlign: 'center' },
+  heroStats: { flex: 1, flexDirection: 'row', justifyContent: 'space-evenly', alignItems: 'center' },
+  heroStatItem: { flex: 1, alignItems: 'center', minWidth: 0, paddingHorizontal: 2 },
+  heroStatVal: { fontSize: 18, fontWeight: '800', lineHeight: 22 },
+  heroStatLbl: { fontSize: 9.5, color: '#8A8A8A', fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 2, textAlign: 'center' },
 
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   gridCard: {
-    width: '48%',
+    flexBasis: '47%',
+    flexGrow: 1,
     backgroundColor: '#FFFFFF',
     borderRadius: BorderRadius.card,
     borderWidth: 1,

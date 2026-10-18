@@ -79,9 +79,10 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
     try {
       const dbUser = await dbFindByUid(firebaseUid);
       if (dbUser) {
-        dbUserRole = dbUser.role || tokenRole || '';
+        dbUserRole = dbUser.role || tokenRole;
         institutionCode = dbUser.institutionCode || '';
-        setCachedAuth(firebaseUid, dbUserRole, institutionCode);
+        const placementAccess = (dbUser.role === 'placement_officer' || dbUser.role === 'admin') ? 'head' : null;
+        setCachedAuth(firebaseUid, dbUserRole, institutionCode, placementAccess);
       }
     } catch (err: any) {
       console.warn('[Auth Middleware Warning] PostgreSQL user lookup failed:', err.message);

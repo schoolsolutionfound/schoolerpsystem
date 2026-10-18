@@ -110,18 +110,19 @@ export function PlacementStudentsView() {
       >
         {/* Dark Summary Banner */}
         <View style={styles.summaryCard}>
-          <View>
+          <View style={styles.summaryPrimary}>
             <Text style={styles.summaryBigNum}>{totalStudents}</Text>
-            <Text style={styles.summaryLabel}>Total Candidates</Text>
+            <Text style={styles.summaryLabel} numberOfLines={1}>Candidates</Text>
           </View>
+          <View style={styles.cardDivider} />
           <View style={styles.summaryStatsRow}>
             <View style={styles.summaryStatItem}>
               <Text style={[styles.statNum, { color: '#16A34A' }]}>{withResume}</Text>
-              <Text style={styles.statLabel}>With Resume</Text>
+              <Text style={styles.statLabel} numberOfLines={1} adjustsFontSizeToFit>With Resume</Text>
             </View>
             <View style={styles.summaryStatItem}>
               <Text style={[styles.statNum, { color: '#F4C430' }]}>{zeroBacklogs}</Text>
-              <Text style={styles.statLabel}>No Backlogs</Text>
+              <Text style={styles.statLabel} numberOfLines={1} adjustsFontSizeToFit>No Backlogs</Text>
             </View>
           </View>
         </View>
@@ -207,10 +208,10 @@ export function PlacementStudentsView() {
                     </View>
                   </View>
 
-                  {/* CGPA Badge */}
-                  <View style={[styles.cgpaBadge, { borderColor: `${cgpaColor}40`, backgroundColor: `${cgpaColor}12` }]}>
-                    <Text style={[styles.cgpaLabel, { color: cgpaColor }]}>CGPA</Text>
-                    <Text style={[styles.cgpaValue, { color: cgpaColor }]}>{cgpa}</Text>
+                  {/* CGPA Spec Badge */}
+                  <View style={styles.cgpaBadge}>
+                    <Text style={styles.cgpaLabel}>CGPA</Text>
+                    <Text style={styles.cgpaValue}>{cgpa}</Text>
                   </View>
                 </View>
 
@@ -221,17 +222,22 @@ export function PlacementStudentsView() {
                   <View style={styles.badgesRow}>
                     <View
                       style={[
-                        styles.backlogChip,
-                        { backgroundColor: hasBacklogs ? '#FEF2F2' : '#F0FDF4' },
+                        styles.backlogTag,
+                        hasBacklogs ? styles.backlogTagAlert : styles.backlogTagClear,
                       ]}
                     >
+                      <MaterialCommunityIcons
+                        name={hasBacklogs ? 'alert-circle-outline' : 'shield-check-outline'}
+                        size={13}
+                        color={hasBacklogs ? '#DC2626' : '#4B4B4B'}
+                      />
                       <Text
                         style={[
                           styles.backlogText,
-                          { color: hasBacklogs ? '#DC2626' : '#16A34A' },
+                          hasBacklogs && styles.backlogTextAlert,
                         ]}
                       >
-                        {hasBacklogs ? `${st.activeBacklogs} Backlogs` : '0 Backlogs'}
+                        {hasBacklogs ? `${st.activeBacklogs} Active Backlog${st.activeBacklogs > 1 ? 's' : ''}` : 'Zero Backlogs'}
                       </Text>
                     </View>
                   </View>
@@ -268,32 +274,56 @@ const styles = StyleSheet.create({
   summaryCard: {
     backgroundColor: '#1A1B1C',
     borderRadius: BorderRadius.card,
-    padding: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#2A2B2C',
   },
-  summaryBigNum: { fontSize: 30, fontWeight: '900', color: '#F4C430' },
-  summaryLabel: {
-    fontSize: 10,
-    color: '#8A8A8A',
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    marginTop: 2,
+  summaryPrimary: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 84,
+    paddingHorizontal: 4,
   },
-  summaryStatsRow: { flexDirection: 'row', gap: 18 },
-  summaryStatItem: { alignItems: 'center' },
-  statNum: { fontSize: 18, fontWeight: '800' },
-  statLabel: {
-    fontSize: 10,
+  summaryBigNum: { fontSize: 28, fontWeight: '900', color: '#F4C430', lineHeight: 32 },
+  summaryLabel: {
+    fontSize: 9.5,
     color: '#8A8A8A',
     fontWeight: '700',
     textTransform: 'uppercase',
-    letterSpacing: 0.6,
+    letterSpacing: 0.4,
     marginTop: 2,
+    textAlign: 'center',
+  },
+  cardDivider: {
+    width: 1,
+    height: 38,
+    backgroundColor: '#2D2E30',
+    marginHorizontal: 4,
+  },
+  summaryStatsRow: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    alignItems: 'center',
+  },
+  summaryStatItem: {
+    flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: 2,
+    minWidth: 0,
+  },
+  statNum: { fontSize: 18, fontWeight: '800', lineHeight: 22 },
+  statLabel: {
+    fontSize: 9,
+    color: '#8A8A8A',
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+    marginTop: 2,
+    textAlign: 'center',
   },
 
   // Search
@@ -360,14 +390,28 @@ const styles = StyleSheet.create({
   yearText: { fontSize: 11, color: '#8A8A8A' },
 
   cgpaBadge: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
+    gap: 5,
+    backgroundColor: '#F7F6F2',
     borderWidth: 1,
+    borderColor: '#E8E5DC',
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 6,
   },
-  cgpaLabel: { fontSize: 9, fontWeight: '800', textTransform: 'uppercase' },
-  cgpaValue: { fontSize: 14, fontWeight: '900', marginTop: 1 },
+  cgpaLabel: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#787878',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  cgpaValue: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#1A1B1C',
+  },
 
   divider: { height: 1, backgroundColor: '#F3F1EA', marginVertical: 10 },
 
@@ -377,20 +421,42 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   badgesRow: { flexDirection: 'row', gap: 6 },
-  backlogChip: {
+  backlogTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
+    borderWidth: 1,
   },
-  backlogText: { fontSize: 11, fontWeight: '800' },
+  backlogTagClear: {
+    backgroundColor: '#F7F6F2',
+    borderColor: '#E8E5DC',
+  },
+  backlogTagAlert: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FECACA',
+  },
+  backlogText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#4B4B4B',
+  },
+  backlogTextAlert: {
+    color: '#DC2626',
+    fontWeight: '800',
+  },
 
   resumeBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
     backgroundColor: '#FFF4C7',
+    borderWidth: 1,
+    borderColor: '#F4C430',
     paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingVertical: 4.5,
     borderRadius: 6,
   },
   resumeBtnText: { fontSize: 11, fontWeight: '800', color: '#1A1B1C' },

@@ -19,6 +19,26 @@ export const UpdateProfileSchema = z.object({
   linkedinUrl: urlOrEmpty,
   githubUrl: urlOrEmpty,
   leetcodeUrl: urlOrEmpty,
+  cgpa: z
+    .union([z.number(), z.string()])
+    .transform((val) => (val === '' || val === null ? null : typeof val === 'string' ? parseFloat(val) : val))
+    .optional()
+    .nullable(),
+  activeBacklogs: z
+    .union([z.number(), z.string()])
+    .transform((val) => (val === '' || val === null ? 0 : typeof val === 'string' ? parseInt(val, 10) : val))
+    .optional()
+    .default(0),
+  tenthPercent: z
+    .union([z.number(), z.string()])
+    .transform((val) => (val === '' || val === null ? null : typeof val === 'string' ? parseFloat(val) : val))
+    .optional()
+    .nullable(),
+  twelfthOrDiplomaPercent: z
+    .union([z.number(), z.string()])
+    .transform((val) => (val === '' || val === null ? null : typeof val === 'string' ? parseFloat(val) : val))
+    .optional()
+    .nullable(),
   otherLinks: z
     .array(
       z.object({

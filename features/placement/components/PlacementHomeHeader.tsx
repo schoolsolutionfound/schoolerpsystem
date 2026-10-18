@@ -11,6 +11,7 @@ interface PlacementHomeHeaderProps {
   onMenuPress: () => void;
   onNotificationsPress: () => void;
   onProfilePress: () => void;
+  showGreeting?: boolean;
 }
 
 const getGreeting = (): string => {
@@ -28,13 +29,12 @@ export const PlacementHomeHeader: React.FC<PlacementHomeHeaderProps> = ({
   onMenuPress,
   onNotificationsPress,
   onProfilePress,
+  showGreeting = true,
 }) => {
-  const firstName = fullName?.split(' ')[0] || 'Officer';
   const greeting = getGreeting();
-  const roleLabel = accessLevel === 'head' ? 'Placement Head' : 'Placement Cell';
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, !showGreeting && styles.containerCompact]}>
       {/* Top action row */}
       <View style={styles.topHeader}>
         <TouchableOpacity style={styles.iconBtn} onPress={onMenuPress} activeOpacity={0.7}>
@@ -54,38 +54,37 @@ export const PlacementHomeHeader: React.FC<PlacementHomeHeaderProps> = ({
       </View>
 
       {/* Greeting card */}
-      <TouchableOpacity
-        style={styles.userGreetingRow}
-        onPress={onProfilePress}
-        activeOpacity={0.7}
-      >
-        <View style={styles.avatarWrap}>
-          {profilePic ? (
-            <Image source={{ uri: profilePic }} style={styles.avatarImage} />
-          ) : (
-            <View style={styles.avatarPlaceholder}>
-              <MaterialCommunityIcons name="briefcase-account" size={28} color="#1A1B1C" />
-            </View>
-          )}
-        </View>
-
-        <View style={styles.greetingTextWrap}>
-          <Text style={styles.greetingText}>{greeting},</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Text style={styles.userNameText}>{firstName}</Text>
-            <View style={styles.roleChip}>
-              <Text style={styles.roleChipText}>{roleLabel}</Text>
-            </View>
+      {showGreeting && (
+        <TouchableOpacity
+          style={styles.userGreetingRow}
+          onPress={onProfilePress}
+          activeOpacity={0.7}
+        >
+          <View style={styles.avatarWrap}>
+            {profilePic ? (
+              <Image source={{ uri: profilePic }} style={styles.avatarImage} />
+            ) : (
+              <View style={styles.avatarPlaceholder}>
+                <MaterialCommunityIcons name="briefcase-account" size={28} color="#1A1B1C" />
+              </View>
+            )}
           </View>
-          {institutionName ? (
-            <Text style={styles.institutionText} numberOfLines={1}>
-              {institutionName}
-            </Text>
-          ) : null}
-        </View>
 
-        <MaterialCommunityIcons name="chevron-right" size={20} color="#6B6B6B" />
-      </TouchableOpacity>
+          <View style={styles.greetingTextWrap}>
+            <Text style={styles.greetingText}>{greeting},</Text>
+            <Text style={styles.userNameText} numberOfLines={1}>
+              {fullName || 'Placement Officer'}
+            </Text>
+            {institutionName ? (
+              <Text style={styles.institutionText} numberOfLines={1}>
+                {institutionName}
+              </Text>
+            ) : null}
+          </View>
+
+          <MaterialCommunityIcons name="chevron-right" size={20} color="#6B6B6B" />
+        </TouchableOpacity>
+      )}
     </View>
   );
 };
@@ -97,6 +96,10 @@ const styles = StyleSheet.create({
     borderBottomColor: '#E8E5DC',
     paddingBottom: 14,
     gap: 4,
+  },
+  containerCompact: {
+    paddingBottom: 4,
+    gap: 0,
   },
   topHeader: {
     flexDirection: 'row',

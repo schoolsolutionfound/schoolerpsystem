@@ -110,22 +110,19 @@ export function PlacementTeamView() {
       >
         {/* Dark Team Overview Card */}
         <View style={styles.overallCard}>
-          <View style={styles.ring}>
-            <Text style={styles.ringValue}>{members.length}</Text>
-            <Text style={styles.ringLabel}>Team Officers</Text>
+          <View style={styles.heroSection}>
+            <Text style={styles.heroValue}>{members.length}</Text>
+            <Text style={styles.heroLabel} numberOfLines={1}>Team Officers</Text>
           </View>
-          <View style={styles.overallStats}>
+          <View style={styles.cardDivider} />
+          <View style={styles.statsSection}>
             <View style={styles.statCol}>
               <Text style={[styles.statValue, { color: '#F4C430' }]}>{headCount}</Text>
-              <Text style={styles.statLabel}>Lead / Head</Text>
+              <Text style={styles.statLabel} numberOfLines={1} adjustsFontSizeToFit>Lead / Head</Text>
             </View>
             <View style={styles.statCol}>
               <Text style={[styles.statValue, { color: '#FFFFFF' }]}>{memberCount}</Text>
-              <Text style={styles.statLabel}>Members</Text>
-            </View>
-            <View style={styles.statCol}>
-              <Text style={[styles.statValue, { color: '#16A34A' }]}>{eligibleUsers.length}</Text>
-              <Text style={styles.statLabel}>Staff Pool</Text>
+              <Text style={styles.statLabel} numberOfLines={1} adjustsFontSizeToFit>Members</Text>
             </View>
           </View>
         </View>
@@ -201,11 +198,11 @@ export function PlacementTeamView() {
         )}
 
         {/* Current Placement Team Members */}
-        <Text style={styles.sectionTitle}>Current Placement Cell Officers</Text>
+        <Text style={styles.sectionTitle}>Current Placement Team & Coordinators</Text>
         {members.length === 0 ? (
           <View style={styles.emptyCard}>
             <MaterialCommunityIcons name="account-group-outline" size={40} color="#6B6B6B" />
-            <Text style={styles.emptyTitle}>No Placement Officers Assigned</Text>
+            <Text style={styles.emptyTitle}>No Placement Coordinators Assigned</Text>
             <Text style={styles.emptySub}>
               Use the button above to assign staff members to the placement cell.
             </Text>
@@ -231,7 +228,7 @@ export function PlacementTeamView() {
 
                 <View style={[styles.roleChip, isHead && styles.headChip]}>
                   <Text style={[styles.roleChipText, isHead && styles.headChipText]}>
-                    {isHead ? 'Placement Head' : 'Placement Member'}
+                    {isHead ? 'Placement Head' : 'Placement Coordinator'}
                   </Text>
                 </View>
               </View>
@@ -252,33 +249,65 @@ const styles = StyleSheet.create({
   overallCard: {
     backgroundColor: '#1A1B1C',
     borderRadius: BorderRadius.card,
-    padding: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#2A2B2C',
   },
-  ring: { alignItems: 'center' },
-  ringValue: { fontSize: 32, fontWeight: '900', color: '#F4C430' },
-  ringLabel: {
-    fontSize: 10,
-    color: '#8A8A8A',
-    marginTop: 2,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    fontWeight: '700',
+  heroSection: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 84,
+    paddingHorizontal: 4,
   },
-  overallStats: { flexDirection: 'row', gap: 18 },
-  statCol: { alignItems: 'center' },
-  statValue: { fontSize: 18, fontWeight: '800' },
-  statLabel: {
-    fontSize: 10,
+  heroValue: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: '#F4C430',
+    lineHeight: 32,
+  },
+  heroLabel: {
+    fontSize: 9.5,
     color: '#8A8A8A',
     marginTop: 2,
     textTransform: 'uppercase',
-    letterSpacing: 0.6,
+    letterSpacing: 0.4,
     fontWeight: '700',
+    textAlign: 'center',
+  },
+  cardDivider: {
+    width: 1,
+    height: 38,
+    backgroundColor: '#2D2E30',
+    marginHorizontal: 4,
+  },
+  statsSection: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    alignItems: 'center',
+  },
+  statCol: {
+    flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: 2,
+    minWidth: 0,
+  },
+  statValue: {
+    fontSize: 18,
+    fontWeight: '800',
+    lineHeight: 22,
+  },
+  statLabel: {
+    fontSize: 9,
+    color: '#8A8A8A',
+    marginTop: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+    fontWeight: '700',
+    textAlign: 'center',
   },
 
   // Add Toggle Button

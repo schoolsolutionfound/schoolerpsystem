@@ -8,13 +8,14 @@ import {
   SafeAreaView,
   Alert,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useNavigation } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useInstitutionsQuery, useCreateAdminMutation } from '../../../features/developer/hooks/useDeveloperQueries';
 import { CreateAdminSchema, ROLES } from '../../../features/developer/validation/admin.schema';
 import { AppInput } from '../../../features/shared/components/AppInput';
 import { AppButton } from '../../../features/shared/components/AppButton';
 import { Colors, BorderRadius } from '../../../constants/theme';
+import { safeGoBack } from '../../../features/shared/utils/safeNavigation';
 
 const TITLE_PRESETS = ['Principal', 'Vice Principal', 'HOD', 'Coordinator', 'Academic Dean', 'Custom'];
 
@@ -45,6 +46,7 @@ const PERMISSION_GROUPS = [
 
 export default function CreateInstitutionAdminScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const { data: institutions = [] } = useInstitutionsQuery();
   const createAdminMutation = useCreateAdminMutation();
 
@@ -118,7 +120,7 @@ export default function CreateInstitutionAdminScreen() {
     try {
       await createAdminMutation.mutateAsync(payload);
       Alert.alert('Success', `Admin "${fullName}" created successfully!`, [
-        { text: 'OK', onPress: () => router.back() },
+        { text: 'OK', onPress: () => safeGoBack(navigation, '/(developer)/home') },
       ]);
     } catch (err: any) {
       setErrorMsg(err?.message || 'Failed to create institution admin.');
@@ -129,7 +131,7 @@ export default function CreateInstitutionAdminScreen() {
     <SafeAreaView style={styles.container}>
       {/* Navigation Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backButton} onPress={() => safeGoBack(navigation, '/(developer)/home')}>
           <MaterialCommunityIcons name="arrow-left" size={24} color={Colors.light.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Create Institution Admin</Text>
