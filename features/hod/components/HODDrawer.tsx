@@ -183,7 +183,7 @@ export const HODDrawer: React.FC<HODDrawerProps> = ({
                   <MaterialCommunityIcons
                     name={item.icon}
                     size={22}
-                    color={isActive ? '#F4C430' : '#4B5563'}
+                    color={isActive ? '#111827' : '#4B5563'}
                   />
                   <Text style={[styles.navItemText, isActive && styles.navItemTextActive]}>
                     {item.label}
@@ -403,9 +403,7 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   navItemActive: {
-    backgroundColor: '#FFF4C7',
-    borderLeftWidth: 3,
-    borderLeftColor: '#F4C430',
+    backgroundColor: '#F4C430',
   },
   navItemText: {
     flex: 1,
@@ -415,7 +413,7 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.poppins,
   },
   navItemTextActive: {
-    color: '#171717',
+    color: '#111827',
     fontWeight: '800',
   },
   navBadge: {

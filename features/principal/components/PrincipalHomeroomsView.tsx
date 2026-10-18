@@ -8,7 +8,7 @@ import {
   TextInput,
   RefreshControl,
 } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
 import { FontFamily } from '../../../constants/fonts';
 import { HomeroomSection } from '../types/principal.types';
@@ -49,7 +49,10 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
   const [search, setSearch] = useState('');
   const [wingFilter, setWingFilter] = useState<WingFilterType>('all');
 
+  const totalSections = homerooms.length;
   const unassignedCount = homerooms.filter((h) => !h.homeroomTeacherId).length;
+  const assignedCount = totalSections - unassignedCount;
+  const coveragePct = totalSections > 0 ? Math.round((assignedCount / totalSections) * 100) : 100;
 
   const filteredHomerooms = homerooms.filter((sec) => {
     const q = search.toLowerCase();
@@ -68,172 +71,233 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
 
   return (
     <View style={styles.container}>
-      {/* Top Search & Filter Bar */}
-      <View style={styles.searchBarWrap}>
-        <View style={styles.searchBar}>
-          <MaterialCommunityIcons name="magnify" size={20} color="#9CA3AF" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search class, class teacher, or room..."
-            placeholderTextColor="#9CA3AF"
-            value={search}
-            onChangeText={setSearch}
-          />
-          {search ? (
-            <TouchableOpacity onPress={() => setSearch('')}>
-              <MaterialCommunityIcons name="close-circle" size={18} color="#9CA3AF" />
-            </TouchableOpacity>
-          ) : null}
-        </View>
-
-        {/* Wing Filters */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
-          {(
-            [
-              { key: 'all' as const, label: `All Sections (${homerooms.length})` },
-              ...(unassignedCount > 0
-                ? [{ key: 'unassigned' as const, label: `⚠️ Unassigned (${unassignedCount})` }]
-                : []),
-              { key: 'primary' as const, label: 'Primary (Gr 1-5)' },
-              { key: 'middle' as const, label: 'Middle (Gr 6-8)' },
-              { key: 'secondary' as const, label: 'Secondary (Gr 9-12)' },
-              { key: 'unclassified' as const, label: 'Unclassified' },
-            ]
-          ).map((item) => {
-            const active = wingFilter === item.key;
-            const isUnassignedChip = item.key === 'unassigned';
-            return (
-              <TouchableOpacity
-                key={item.key}
-                style={[
-                  styles.filterChip,
-                  active && styles.filterChipActive,
-                  isUnassignedChip && !active && styles.filterChipWarn,
-                  isUnassignedChip && active && styles.filterChipWarnActive,
-                ]}
-                onPress={() => setWingFilter(item.key)}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[
-                    styles.filterChipText,
-                    active && styles.filterChipTextActive,
-                    isUnassignedChip && !active && styles.filterChipWarnText,
-                  ]}
-                >
-                  {item.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </View>
-
-      {/* Unassigned Warning Strip */}
-      {unassignedCount > 0 && (
-        <View style={styles.warnStrip}>
-          <MaterialCommunityIcons name="alert-circle-outline" size={18} color="#B45309" />
-          <Text style={styles.warnStripText}>
-            {unassignedCount} section{unassignedCount > 1 ? 's do' : ' does'} not have an assigned Homeroom Teacher.
-          </Text>
-        </View>
-      )}
-
-      {/* Section Cards List */}
       <ScrollView
-        style={styles.list}
-        contentContainerStyle={styles.listContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#0284C7']} />}
+        style={styles.mainScroll}
+        contentContainerStyle={styles.mainScrollContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#F4C430']} />}
         showsVerticalScrollIndicator={false}
       >
-        {filteredHomerooms.map((sec) => {
-          const hasTeacher = !!sec.homeroomTeacherId;
-          const rate = sec.attendanceRate || 0;
-          const isRateGood = rate >= 92;
+        {/* Attendance-Theme Obsidian Hero Card */}
+        <View style={styles.heroCard}>
+          <View style={styles.heroHeader}>
+            <View style={styles.heroBadge}>
+              <MaterialCommunityIcons name="google-classroom" size={15} color="#F4C430" />
+              <Text style={styles.heroBadgeText}>HOMEROOM & CLASS MANAGEMENT</Text>
+            </View>
+            <View style={styles.coveragePill}>
+              <Text style={styles.coveragePillText}>{coveragePct}% Assigned</Text>
+            </View>
+          </View>
 
-          return (
-            <View key={sec.id} style={styles.card}>
-              <View style={styles.cardHeader}>
-                <View style={styles.headerLeft}>
-                  <View style={styles.gradeBadge}>
-                    <Text style={styles.gradeBadgeText}>{sec.name}</Text>
-                  </View>
-                  <Text style={styles.roomText}>{sec.roomNumber || 'Room N/A'}</Text>
-                </View>
+          <View style={styles.heroMetricsRow}>
+            <View style={styles.heroMetric}>
+              <Text style={styles.heroMetricValue}>{totalSections}</Text>
+              <Text style={styles.heroMetricLabel}>Total Cohorts</Text>
+            </View>
+            <View style={styles.heroDivider} />
+            <View style={styles.heroMetric}>
+              <Text style={[styles.heroMetricValue, { color: '#10B981' }]}>{assignedCount}</Text>
+              <Text style={styles.heroMetricLabel}>Staff Assigned</Text>
+            </View>
+            <View style={styles.heroDivider} />
+            <View style={styles.heroMetric}>
+              <Text style={[styles.heroMetricValue, unassignedCount > 0 && { color: '#F4C430' }]}>
+                {unassignedCount}
+              </Text>
+              <Text style={styles.heroMetricLabel}>Unassigned</Text>
+            </View>
+          </View>
 
-                {/* Live Attendance Tag */}
-                <View style={[styles.rateBadge, isRateGood ? styles.rateBadgeGood : styles.rateBadgeLow]}>
-                  <MaterialCommunityIcons
-                    name={isRateGood ? 'check-circle' : 'alert-circle'}
-                    size={13}
-                    color={isRateGood ? '#166534' : '#991B1B'}
-                  />
-                  <Text style={[styles.rateBadgeText, isRateGood ? styles.rateTextGood : styles.rateTextLow]}>
-                    {rate.toFixed(1)}% Attendance
-                  </Text>
-                </View>
-              </View>
+          {/* Coverage Bar */}
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressBar, { width: `${coveragePct}%` }]} />
+          </View>
+        </View>
 
-              {/* Class Teacher Info */}
-              <View style={styles.teacherBlock}>
-                <View style={styles.teacherIconBox}>
-                  <MaterialCommunityIcons
-                    name={hasTeacher ? 'account-tie' : 'account-question'}
-                    size={22}
-                    color={hasTeacher ? '#0284C7' : '#EF4444'}
-                  />
-                </View>
-                <View style={styles.teacherMeta}>
-                  <Text style={styles.teacherRoleLabel}>CLASS / HOMEROOM TEACHER</Text>
-                  <Text style={[styles.teacherName, !hasTeacher && styles.teacherNameMissing]}>
-                    {hasTeacher ? sec.homeroomTeacherName : 'Unassigned (Needs Action)'}
-                  </Text>
-                </View>
+        {/* Search & Wing Filter Section */}
+        <View style={styles.searchBlock}>
+          <View style={styles.searchBar}>
+            <MaterialCommunityIcons name="magnify" size={20} color="#9CA3AF" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search cohort, teacher, or room..."
+              placeholderTextColor="#9CA3AF"
+              value={search}
+              onChangeText={setSearch}
+            />
+            {search ? (
+              <TouchableOpacity onPress={() => setSearch('')}>
+                <MaterialCommunityIcons name="close-circle" size={18} color="#9CA3AF" />
+              </TouchableOpacity>
+            ) : null}
+          </View>
+
+          {/* Wing Filter Chips */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
+            {(
+              [
+                { key: 'all' as const, label: `All Sections (${totalSections})` },
+                ...(unassignedCount > 0
+                  ? [{ key: 'unassigned' as const, label: `⚠️ Unassigned (${unassignedCount})` }]
+                  : []),
+                { key: 'primary' as const, label: 'Primary (Gr 1-5)' },
+                { key: 'middle' as const, label: 'Middle (Gr 6-8)' },
+                { key: 'secondary' as const, label: 'Secondary (Gr 9-12)' },
+                { key: 'unclassified' as const, label: 'Unclassified' },
+              ]
+            ).map((item) => {
+              const active = wingFilter === item.key;
+              const isUnassignedChip = item.key === 'unassigned';
+              return (
                 <TouchableOpacity
-                  style={[styles.assignBtn, !hasTeacher && styles.assignBtnUrgent]}
-                  onPress={() => onAssignTeacher(sec)}
+                  key={item.key}
+                  style={[
+                    styles.filterChip,
+                    active && styles.filterChipActive,
+                    isUnassignedChip && !active && styles.filterChipWarn,
+                    isUnassignedChip && active && styles.filterChipWarnActive,
+                  ]}
+                  onPress={() => setWingFilter(item.key)}
                   activeOpacity={0.7}
                 >
-                  <Text style={[styles.assignBtnText, !hasTeacher && styles.assignBtnTextUrgent]}>
-                    {hasTeacher ? 'Reassign' : 'Assign Teacher'}
+                  <Text
+                    style={[
+                      styles.filterChipText,
+                      active && styles.filterChipTextActive,
+                      isUnassignedChip && !active && styles.filterChipWarnText,
+                    ]}
+                  >
+                    {item.label}
                   </Text>
                 </TouchableOpacity>
-              </View>
+              );
+            })}
+          </ScrollView>
+        </View>
 
-              {/* Cohort Stats Footer */}
-              <View style={styles.cardFooter}>
-                <View style={styles.statItem}>
-                  <Text style={styles.statValue}>
-                    {sec.presentCount} / {sec.studentCount}
-                  </Text>
-                  <Text style={styles.statLabel}>Students Present</Text>
-                </View>
-
-                <View style={styles.divider} />
-
-                <View style={styles.statItem}>
-                  <Text style={styles.statValue}>{sec.classRepName || 'Not Appointed'}</Text>
-                  <Text style={styles.statLabel}>Class Representative</Text>
-                </View>
-
-                <View style={styles.divider} />
-
-                <View style={styles.statItem}>
-                  <Text style={styles.statValue}>Roll-Call Done</Text>
-                  <Text style={styles.statLabel}>Morning Status</Text>
-                </View>
-              </View>
+        {/* Unassigned Advisory Banner if needed */}
+        {unassignedCount > 0 && wingFilter !== 'unassigned' && (
+          <TouchableOpacity
+            style={styles.advisoryBanner}
+            onPress={() => setWingFilter('unassigned')}
+            activeOpacity={0.8}
+          >
+            <View style={styles.advisoryIconWrap}>
+              <MaterialCommunityIcons name="alert" size={16} color="#D97706" />
             </View>
-          );
-        })}
-
-        {filteredHomerooms.length === 0 && (
-          <View style={styles.emptyWrap}>
-            <MaterialCommunityIcons name="google-classroom" size={48} color="#D1D5DB" />
-            <Text style={styles.emptyTitle}>No matching classes found</Text>
-            <Text style={styles.emptySub}>Adjust search filters to view classes</Text>
-          </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.advisoryTitle}>Action Required</Text>
+              <Text style={styles.advisoryText}>
+                {unassignedCount} section{unassignedCount > 1 ? 's do' : ' does'} not have an assigned Homeroom Teacher. Tap to review.
+              </Text>
+            </View>
+            <Feather name="chevron-right" size={18} color="#D97706" />
+          </TouchableOpacity>
         )}
+
+        {/* Cards Roster */}
+        <View style={styles.cardsContainer}>
+          {filteredHomerooms.map((sec) => {
+            const hasTeacher = !!sec.homeroomTeacherId;
+            const rate = sec.attendanceRate || 0;
+            const isRateGood = rate >= 92;
+
+            return (
+              <View key={sec.id} style={styles.card}>
+                {/* Responsive Header Row */}
+                <View style={styles.cardHeader}>
+                  <View style={styles.headerTags}>
+                    <View style={styles.gradeBadge}>
+                      <Text style={styles.gradeBadgeText}>{sec.name}</Text>
+                    </View>
+                    <View style={styles.roomBadge}>
+                      <MaterialCommunityIcons name="door" size={13} color="#6B6B6B" />
+                      <Text style={styles.roomText}>{sec.roomNumber || 'Room N/A'}</Text>
+                    </View>
+                  </View>
+
+                  {/* Attendance Rate Pill */}
+                  <View style={[styles.rateBadge, isRateGood ? styles.rateBadgeGood : styles.rateBadgeLow]}>
+                    <MaterialCommunityIcons
+                      name={isRateGood ? 'check-circle' : 'alert-circle'}
+                      size={13}
+                      color={isRateGood ? '#15803D' : '#D97706'}
+                    />
+                    <Text style={[styles.rateBadgeText, isRateGood ? styles.rateTextGood : styles.rateTextLow]}>
+                      {rate.toFixed(1)}% Present
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Class Teacher Info Inset */}
+                <View style={[styles.teacherBlock, !hasTeacher && styles.teacherBlockUnassigned]}>
+                  <View style={[styles.teacherIconBox, !hasTeacher && styles.teacherIconBoxUnassigned]}>
+                    <MaterialCommunityIcons
+                      name={hasTeacher ? 'account-tie' : 'account-alert-outline'}
+                      size={20}
+                      color={hasTeacher ? '#1A1B1C' : '#D97706'}
+                    />
+                  </View>
+
+                  <View style={styles.teacherMeta}>
+                    <Text style={styles.teacherRoleLabel}>HOMEROOM / CLASS TEACHER</Text>
+                    <Text style={[styles.teacherName, !hasTeacher && styles.teacherNameMissing]}>
+                      {hasTeacher ? sec.homeroomTeacherName : 'Unassigned (Action Required)'}
+                    </Text>
+                  </View>
+
+                  <TouchableOpacity
+                    style={[styles.assignBtn, !hasTeacher && styles.assignBtnUrgent]}
+                    onPress={() => onAssignTeacher(sec)}
+                    activeOpacity={0.8}
+                  >
+                    {!hasTeacher && <Feather name="plus" size={13} color="#F4C430" style={{ marginRight: 2 }} />}
+                    <Text style={[styles.assignBtnText, !hasTeacher && styles.assignBtnTextUrgent]}>
+                      {hasTeacher ? 'Reassign' : 'Assign Teacher'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Cohort Stats Footer */}
+                <View style={styles.cardFooter}>
+                  <View style={styles.statItem}>
+                    <Text style={styles.statValue}>
+                      {sec.presentCount} <Text style={styles.statValueSub}>/ {sec.studentCount}</Text>
+                    </Text>
+                    <Text style={styles.statLabel}>Students Present</Text>
+                  </View>
+
+                  <View style={styles.statDivider} />
+
+                  <View style={styles.statItem}>
+                    <Text style={[styles.statValue, !sec.classRepName && styles.statValueEmpty]} numberOfLines={1}>
+                      {sec.classRepName || 'Not Appointed'}
+                    </Text>
+                    <Text style={styles.statLabel}>Class Rep</Text>
+                  </View>
+
+                  <View style={styles.statDivider} />
+
+                  <View style={styles.statItem}>
+                    <View style={styles.statusPill}>
+                      <View style={styles.statusDot} />
+                      <Text style={styles.statusPillText}>Roll-Call Done</Text>
+                    </View>
+                    <Text style={styles.statLabel}>Morning Status</Text>
+                  </View>
+                </View>
+              </View>
+            );
+          })}
+
+          {filteredHomerooms.length === 0 && (
+            <View style={styles.emptyWrap}>
+              <MaterialCommunityIcons name="google-classroom" size={48} color="#D1D5DB" />
+              <Text style={styles.emptyTitle}>No matching classes found</Text>
+              <Text style={styles.emptySub}>Adjust search filters to view cohorts</Text>
+            </View>
+          )}
+        </View>
       </ScrollView>
     </View>
   );
@@ -244,13 +308,99 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFDF7',
   },
-  searchBarWrap: {
-    backgroundColor: '#FFFDF7',
+  mainScroll: {
+    flex: 1,
+  },
+  mainScrollContent: {
+    paddingBottom: 40,
+  },
+
+  // Obsidian Hero Card (Attendance Style)
+  heroCard: {
+    backgroundColor: '#1A1B1C',
+    marginHorizontal: 16,
+    marginTop: 14,
+    marginBottom: 8,
+    borderRadius: BorderRadius.card,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#2A2B2D',
+  },
+  heroHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  heroBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  heroBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    color: '#F4C430',
+    fontFamily: FontFamily.bold,
+  },
+  coveragePill: {
+    backgroundColor: 'rgba(244, 196, 48, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(244, 196, 48, 0.3)',
+  },
+  coveragePillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#F4C430',
+    fontFamily: FontFamily.semibold,
+  },
+  heroMetricsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  heroMetric: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  heroMetricValue: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#FFFDF7',
+    fontFamily: FontFamily.extrabold,
+  },
+  heroMetricLabel: {
+    fontSize: 10,
+    color: '#9CA3AF',
+    fontFamily: FontFamily.medium,
+    marginTop: 2,
+  },
+  heroDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: '#2A2B2D',
+  },
+  progressTrack: {
+    height: 6,
+    backgroundColor: '#2A2B2D',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressBar: {
+    height: '100%',
+    backgroundColor: '#F4C430',
+    borderRadius: 3,
+  },
+
+  // Search & Filters
+  searchBlock: {
     paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E8E5DC',
+    paddingVertical: 8,
     gap: 10,
   },
   searchBar: {
@@ -260,8 +410,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E8E5DC',
     borderRadius: BorderRadius.input,
-    paddingHorizontal: 10,
-    height: 40,
+    paddingHorizontal: 12,
+    height: 42,
     gap: 8,
   },
   searchInput: {
@@ -272,6 +422,8 @@ const styles = StyleSheet.create({
   },
   filterScroll: {
     flexDirection: 'row',
+    gap: 8,
+    paddingVertical: 2,
   },
   filterChip: {
     paddingHorizontal: 12,
@@ -280,22 +432,22 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E8E5DC',
-    marginRight: 8,
+    marginRight: 6,
   },
   filterChipActive: {
-    backgroundColor: '#111827',
-    borderColor: '#111827',
+    backgroundColor: '#1A1B1C',
+    borderColor: '#1A1B1C',
   },
   filterChipWarn: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#FECACA',
+    backgroundColor: 'rgba(244, 196, 48, 0.12)',
+    borderColor: 'rgba(244, 196, 48, 0.4)',
   },
   filterChipWarnActive: {
-    backgroundColor: '#DC2626',
-    borderColor: '#DC2626',
+    backgroundColor: '#D97706',
+    borderColor: '#D97706',
   },
   filterChipWarnText: {
-    color: '#92400E',
+    color: '#B45309',
     fontWeight: '700',
   },
   filterChipText: {
@@ -305,31 +457,49 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.semibold,
   },
   filterChipTextActive: {
-    color: '#FFFFFF',
+    color: '#F4C430',
   },
-  warnStrip: {
+
+  // Advisory Banner
+  advisoryBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#FFFBEB',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#FDE68A',
+    gap: 10,
+    backgroundColor: 'rgba(244, 196, 48, 0.14)',
+    marginHorizontal: 16,
+    marginBottom: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: BorderRadius.card,
+    borderWidth: 1,
+    borderColor: 'rgba(244, 196, 48, 0.35)',
   },
-  warnStripText: {
+  advisoryIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(217, 119, 6, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  advisoryTitle: {
     fontSize: 12,
-    color: '#B45309',
-    fontFamily: FontFamily.medium,
-    flex: 1,
+    fontWeight: '700',
+    color: '#92400E',
+    fontFamily: FontFamily.bold,
   },
-  list: {
-    flex: 1,
+  advisoryText: {
+    fontSize: 11,
+    color: '#78350F',
+    fontFamily: FontFamily.regular,
+    marginTop: 1,
   },
-  listContent: {
-    padding: 16,
+
+  // Cards List
+  cardsContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 4,
     gap: 12,
-    paddingBottom: 40,
   },
   card: {
     backgroundColor: '#FFFFFF',
@@ -341,35 +511,46 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowRadius: 3,
+    elevation: 2,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
   },
-  headerLeft: {
+  headerTags: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    flexWrap: 'wrap',
+    gap: 8,
+    flex: 1,
   },
   gradeBadge: {
-    backgroundColor: '#111827',
+    backgroundColor: '#1A1B1C',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#111827',
   },
   gradeBadgeText: {
     fontSize: 13,
     color: '#F4C430',
     fontFamily: FontFamily.bold,
   },
+  roomBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
   roomText: {
-    fontSize: 12,
-    color: '#6B6B6B',
+    fontSize: 11,
+    color: '#4B5563',
     fontFamily: FontFamily.medium,
   },
   rateBadge: {
@@ -377,25 +558,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingVertical: 4,
     borderRadius: 12,
   },
   rateBadgeGood: {
     backgroundColor: 'rgba(22, 163, 74, 0.12)',
   },
   rateBadgeLow: {
-    backgroundColor: 'rgba(220, 38, 38, 0.12)',
+    backgroundColor: 'rgba(217, 119, 6, 0.12)',
   },
   rateBadgeText: {
     fontSize: 11,
     fontFamily: FontFamily.bold,
   },
   rateTextGood: {
-    color: '#16A34A',
+    color: '#15803D',
   },
   rateTextLow: {
-    color: '#DC2626',
+    color: '#B45309',
   },
+
+  // Teacher Inset Box
   teacherBlock: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -405,6 +588,10 @@ const styles = StyleSheet.create({
     borderColor: '#E8E5DC',
     padding: 10,
     gap: 10,
+  },
+  teacherBlockUnassigned: {
+    backgroundColor: 'rgba(244, 196, 48, 0.06)',
+    borderColor: 'rgba(244, 196, 48, 0.3)',
   },
   teacherIconBox: {
     width: 36,
@@ -416,12 +603,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  teacherIconBoxUnassigned: {
+    backgroundColor: 'rgba(244, 196, 48, 0.15)',
+    borderColor: 'rgba(244, 196, 48, 0.4)',
+  },
   teacherMeta: {
     flex: 1,
   },
   teacherRoleLabel: {
-    fontSize: 10,
-    color: '#9CA3AF',
+    fontSize: 9,
+    color: '#8A8A8A',
     fontFamily: FontFamily.bold,
     letterSpacing: 0.5,
   },
@@ -432,25 +623,34 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   teacherNameMissing: {
-    color: '#DC2626',
+    color: '#B45309',
+    fontFamily: FontFamily.bold,
   },
   assignBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
-    backgroundColor: '#111827',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
   },
   assignBtnUrgent: {
-    backgroundColor: '#DC2626',
+    backgroundColor: '#1A1B1C',
+    borderWidth: 1,
+    borderColor: '#F4C430',
   },
   assignBtnText: {
     fontSize: 11,
-    color: '#F4C430',
+    color: '#374151',
     fontFamily: FontFamily.bold,
   },
   assignBtnTextUrgent: {
-    color: '#FFFFFF',
+    color: '#F4C430',
   },
+
+  // Footer Stats
   cardFooter: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -469,17 +669,44 @@ const styles = StyleSheet.create({
     color: '#171717',
     fontFamily: FontFamily.bold,
   },
+  statValueSub: {
+    fontSize: 10,
+    fontWeight: '500',
+    color: '#9CA3AF',
+  },
+  statValueEmpty: {
+    color: '#9CA3AF',
+    fontStyle: 'italic',
+  },
   statLabel: {
     fontSize: 10,
-    color: '#9CA3AF',
+    color: '#8A8A8A',
     fontFamily: FontFamily.regular,
-    marginTop: 1,
+    marginTop: 2,
   },
-  divider: {
+  statDivider: {
     width: 1,
     height: 22,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#E8E5DC',
   },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10B981',
+  },
+  statusPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#15803D',
+    fontFamily: FontFamily.bold,
+  },
+
   emptyWrap: {
     alignItems: 'center',
     paddingTop: 60,
