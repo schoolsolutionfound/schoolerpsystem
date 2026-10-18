@@ -6,7 +6,9 @@ import { FontFamily } from '../../../constants/fonts';
 
 interface AdminCompleteProfileFormProps {
   fullName: string;
+  setFullName?: (val: string) => void;
   email: string;
+  setEmail?: (val: string) => void;
   phone: string;
   setPhone: (val: string) => void;
   designation: string;
@@ -19,7 +21,9 @@ interface AdminCompleteProfileFormProps {
 
 export const AdminCompleteProfileForm: React.FC<AdminCompleteProfileFormProps> = ({
   fullName,
+  setFullName,
   email,
+  setEmail,
   phone,
   setPhone,
   designation,
@@ -36,18 +40,46 @@ export const AdminCompleteProfileForm: React.FC<AdminCompleteProfileFormProps> =
 
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>Name</Text>
-          <View style={styles.readOnlyWrapper}>
-            <Text style={styles.readOnlyText}>{fullName}</Text>
-            <MaterialCommunityIcons name="lock-outline" size={18} color="#6B6B6B" />
-          </View>
+          {fullName ? (
+            <View style={styles.readOnlyWrapper}>
+              <Text style={styles.readOnlyText}>{fullName}</Text>
+              <MaterialCommunityIcons name="lock-outline" size={18} color="#6B6B6B" />
+            </View>
+          ) : (
+            <View style={styles.inputWrapper}>
+              <MaterialCommunityIcons name="account-outline" size={18} color="#F4C430" style={styles.iconPrefix} />
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your full name"
+                placeholderTextColor="#6B6B6B"
+                value={fullName}
+                onChangeText={setFullName}
+              />
+            </View>
+          )}
         </View>
 
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>Email</Text>
-          <View style={styles.readOnlyWrapper}>
-            <Text style={styles.readOnlyText}>{email}</Text>
-            <MaterialCommunityIcons name="lock-outline" size={18} color="#6B6B6B" />
-          </View>
+          {email ? (
+            <View style={styles.readOnlyWrapper}>
+              <Text style={styles.readOnlyText}>{email}</Text>
+              <MaterialCommunityIcons name="lock-outline" size={18} color="#6B6B6B" />
+            </View>
+          ) : (
+            <View style={styles.inputWrapper}>
+              <MaterialCommunityIcons name="email-outline" size={18} color="#F4C430" style={styles.iconPrefix} />
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your email"
+                placeholderTextColor="#6B6B6B"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
+          )}
         </View>
       </View>
 

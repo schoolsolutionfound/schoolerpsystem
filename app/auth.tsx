@@ -7,7 +7,12 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { LoginForm } from '../features/auth/components/LoginForm';
 import { FontFamily } from '../constants/fonts';
 
+import { useRouter } from 'expo-router';
+import { useUserStore } from '../store/useUserStore';
+import { getHomeRouteForRole } from '../features/shared/utils/routeGuards';
+
 export default function AuthScreen() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -33,7 +38,34 @@ export default function AuthScreen() {
 
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCred = await signInWithEmailAndPassword(auth, email.trim(), password);
+      // Immediately force refresh token claims to avoid stale cached roles
+      const tokenResult = await userCred.user.getIdTokenResult(true);
+      const rawRole = (tokenResult.claims.role as string || '').toLowerCase().trim();
+      const roles = Array.isArray(tokenResult.claims.roles) && (tokenResult.claims.roles as string[]).length > 0
+        ? (tokenResult.claims.roles as string[])
+        : (rawRole ? [rawRole] : ['student']);
+      const finalRole = rawRole || 'student';
+      const instCode = (tokenResult.claims.institutionCode as string) || '';
+      const defaultName = finalRole === 'principal' ? 'Principal Sterling' : (userCred.user.displayName || userCred.user.email?.split('@')[0] || '');
+
+      useUserStore.getState().setUserProfile({
+        email: userCred.user.email || '',
+        fullName: userCred.user.displayName || defaultName,
+        userRole: finalRole as any,
+        roles,
+        institutionCode: instCode,
+        institutionId: instCode,
+        profileCompleted: true,
+        mustChangePassword: false,
+        isEmailVerified: true,
+      });
+      useUserStore.getState().setIsProfileSynced(true);
+
+      const targetRoute = getHomeRouteForRole(finalRole);
+      if (targetRoute && targetRoute !== '/auth') {
+        router.replace(targetRoute as any);
+      }
     } catch (e: any) {
       const msg = e.code === 'auth/user-not-found'
         ? 'No account found with this email.'

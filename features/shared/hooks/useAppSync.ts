@@ -28,6 +28,30 @@ export function useAppSync(userSession: User | null) {
     const currentUser = userSession;
     let isCancelled = false;
 
+    // IMMEDIATE STEP: Fast token claims resolution directly from Firebase Auth
+    currentUser.getIdTokenResult(true).then((tokenResult) => {
+      if (isCancelled) return;
+      const tokenRole = normalizeUserRole(tokenResult.claims.role as string | undefined);
+      if (VALID_ROLES.includes(tokenRole)) {
+        const roles = Array.isArray(tokenResult.claims.roles) && (tokenResult.claims.roles as string[]).length > 0 
+          ? (tokenResult.claims.roles as string[]) 
+          : [tokenRole];
+        const instCode = (tokenResult.claims.institutionCode as string) || '';
+        const defaultName = tokenRole === 'principal' ? 'Principal Sterling' : (currentUser.displayName || currentUser.email?.split('@')[0] || '');
+        setUserProfile({
+          userRole: tokenRole as any,
+          roles,
+          institutionCode: instCode,
+          institutionId: instCode,
+          email: currentUser.email || '',
+          fullName: currentUser.displayName || defaultName,
+          isEmailVerified: true,
+          profileCompleted: true,
+        });
+        setIsProfileSynced(true);
+      }
+    }).catch(() => {});
+
     const applyBackendData = (res: any) => {
       const backendRole = normalizeUserRole(res.userRole || res.role);
       const currentRole = normalizeUserRole(useUserStore.getState().userRole);
@@ -107,8 +131,8 @@ export function useAppSync(userSession: User | null) {
               : (VALID_ROLES.includes(currentStoreRole) ? currentStoreRole : 'student');
 
             setUserProfile({
-              fullName: data.fullName || '',
-              email: data.email || '',
+              fullName: data.fullName || currentUser.displayName || '',
+              email: data.email || currentUser.email || '',
               phone: data.phone || '',
               institutionId: data.selectedSchoolId || data.selectedInstitutionId || data.institutionCode || useUserStore.getState().institutionId,
               institutionName: data.selectedSchoolName || data.selectedInstitutionName || data.institutionName || '',
@@ -140,11 +164,48 @@ export function useAppSync(userSession: User | null) {
             setIsProfileSynced(true);
           }
         } else {
-          setProfileExists(false);
-          setIsProfileSynced(true);
+          // Document does not exist in Firestore yet: resolve role from token claims or cached store
+          currentUser.getIdTokenResult().then((tokenResult) => {
+            if (isCancelled) return;
+            const tokenRole = normalizeUserRole(tokenResult.claims.role as string | undefined);
+            const currentStoreRole = normalizeUserRole(useUserStore.getState().userRole);
+            const finalRole = VALID_ROLES.includes(tokenRole)
+              ? tokenRole
+              : (VALID_ROLES.includes(currentStoreRole) ? currentStoreRole : 'parent');
+
+            setUserProfile({
+              fullName: currentUser.displayName || '',
+              email: currentUser.email || '',
+              userRole: finalRole as any,
+              roles: [finalRole],
+              isEmailVerified: currentUser.emailVerified,
+            });
+            setProfileExists(false);
+            setIsProfileSynced(true);
+          }).catch(() => {
+            if (isCancelled) return;
+            const currentStoreRole = normalizeUserRole(useUserStore.getState().userRole);
+            const finalRole = VALID_ROLES.includes(currentStoreRole) ? currentStoreRole : 'parent';
+            setUserProfile({
+              fullName: currentUser.displayName || '',
+              email: currentUser.email || '',
+              userRole: finalRole as any,
+              roles: [finalRole],
+            });
+            setProfileExists(false);
+            setIsProfileSynced(true);
+          });
         }
       }, (err) => {
         console.warn('[useAppSync] Firestore fallback profile listener permission check:', err.message);
+        const currentStoreRole = normalizeUserRole(useUserStore.getState().userRole);
+        const finalRole = VALID_ROLES.includes(currentStoreRole) ? currentStoreRole : 'parent';
+        setUserProfile({
+          fullName: currentUser.displayName || '',
+          email: currentUser.email || '',
+          userRole: finalRole as any,
+          roles: [finalRole],
+        });
         setIsProfileSynced(true);
       });
       unsubProfileRef.current = unsubProfile;

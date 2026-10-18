@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, Text, Modal, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, StyleSheet, Text, Modal, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Alert, TouchableOpacity, StatusBar } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { signOut } from 'firebase/auth';
-import { auth } from '../firebaseConfig';
+import { signOut, updateProfile } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+import { auth, db } from '../firebaseConfig';
 import * as ImagePicker from 'expo-image-picker';
 import { useUserStore } from '../store/useUserStore';
 import { completeProfileApi } from '../api/users';
@@ -25,15 +26,30 @@ import { DriverCompleteProfileForm } from '../features/driver/components/DriverC
 
 export default function CompleteProfileScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const topPadding = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0) + 8;
+
   const [syncing, setSyncing] = useState(false);
   const syncResolved = useRef(false);
 
   const resetUser = useUserStore((state) => state.resetUser);
-  const fullName = useUserStore((state) => state.fullName) || '';
-  const email = useUserStore((state) => state.email) || '';
+  const storeFullName = useUserStore((state) => state.fullName) || '';
+  const storeEmail = useUserStore((state) => state.email) || '';
   const userRole = useUserStore((state) => state.userRole) || 'student';
   const rollNoOrUSN = useUserStore((state) => state.rollNoOrUSN) || '';
   const institutionType = useUserStore((state) => state.institutionType) || 'college';
+
+  const [fullName, setFullName] = useState(storeFullName || auth.currentUser?.displayName || '');
+  const [email, setEmail] = useState(storeEmail || auth.currentUser?.email || '');
+
+  useEffect(() => {
+    if (!fullName && (storeFullName || auth.currentUser?.displayName)) {
+      setFullName(storeFullName || auth.currentUser?.displayName || '');
+    }
+    if (!email && (storeEmail || auth.currentUser?.email)) {
+      setEmail(storeEmail || auth.currentUser?.email || '');
+    }
+  }, [storeFullName, storeEmail]);
 
   const isStudent = userRole === 'student';
 
@@ -76,7 +92,7 @@ export default function CompleteProfileScreen() {
     return () => { unsub(); clearTimeout(timeout); };
   }, []);
 
-  const nameParts = fullName.split(' ');
+  const nameParts = fullName.trim().split(' ');
   const firstName = nameParts[0] || '';
   const lastName = nameParts.slice(1).join(' ') || '';
 
@@ -157,6 +173,8 @@ export default function CompleteProfileScreen() {
       const payload: any = {
         profilePicUrl: uploadedPicUrl || undefined,
         institutionType,
+        fullName: fullName.trim() || undefined,
+        email: email.trim() || undefined,
       };
 
       payload.phone = phone.trim() || undefined;
@@ -175,9 +193,47 @@ export default function CompleteProfileScreen() {
         payload.designation = designation.trim() || undefined;
       }
 
-      await completeProfileApi(payload);
+      let apiSuccess = false;
+      try {
+        await completeProfileApi(payload);
+        apiSuccess = true;
+      } catch (apiErr: any) {
+        console.log('[CompleteProfile] Fastify API unreachable, using direct Firestore sync:', apiErr?.message || apiErr);
+      }
+
+      // If user provided/edited full name, update Firebase Auth display name
+      if (fullName.trim() && auth.currentUser) {
+        try {
+          await updateProfile(auth.currentUser, { displayName: fullName.trim() });
+        } catch (authErr) {
+          console.log('[CompleteProfile] Error updating Firebase display name:', authErr);
+        }
+      }
+
+      // Save directly to Firestore for offline/local Wi-Fi resilience
+      const uid = auth.currentUser?.uid;
+      if (uid) {
+        try {
+          const userDocRef = doc(db, 'users', uid);
+          await setDoc(userDocRef, {
+            ...payload,
+            fullName: fullName.trim(),
+            email: email.trim(),
+            profilePic: uploadedPicUrl || undefined,
+            profileCompleted: true,
+            updatedAt: new Date().toISOString(),
+          }, { merge: true });
+        } catch (fsErr) {
+          console.log('[CompleteProfile] Direct Firestore update error:', fsErr);
+          if (!apiSuccess) {
+            throw fsErr;
+          }
+        }
+      }
 
       const profileUpdate: any = {
+        fullName: fullName.trim(),
+        email: email.trim(),
         profilePic: uploadedPicUrl,
         profileCompleted: true,
       };
@@ -238,8 +294,16 @@ export default function CompleteProfileScreen() {
     }
 
     const formProps = {
-      fullName, email, phone, setPhone: setPhone as (val: string) => void,
-      profilePicUri, onPickImage: pickImage, loading, onSubmit: handleSaveProfile,
+      fullName,
+      setFullName,
+      email,
+      setEmail,
+      phone,
+      setPhone: setPhone as (val: string) => void,
+      profilePicUri,
+      onPickImage: pickImage,
+      loading,
+      onSubmit: handleSaveProfile,
     };
 
     switch (userRole) {
@@ -266,8 +330,8 @@ export default function CompleteProfileScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <SafeAreaView style={styles.safe}>
+    <View style={[styles.container, { paddingTop: topPadding }]}>
+      <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.flex}>
           <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
             <View style={styles.topRow}>

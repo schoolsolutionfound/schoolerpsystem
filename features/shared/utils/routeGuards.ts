@@ -39,6 +39,7 @@ const SHARED_ROUTES = [
 
 export function getHomeRouteForRole(role?: string): string {
   const norm = (role || '').toLowerCase().trim();
+  if (!norm || norm === 'loading') return '';
   return ROLE_ROUTES[norm] || '/auth';
 }
 
@@ -64,6 +65,12 @@ export function isRouteAllowedForRole(pathname: string, role?: string, roles?: s
     return true;
   }
   if (pathGroup === '/(hod)' && allRoles.some((r) => ['principal', 'admin', 'hod'].includes(r))) {
+    return true;
+  }
+  if (pathGroup === '/(principal)' && allRoles.some((r) => ['principal', 'admin', 'institution admin'].includes(r))) {
+    return true;
+  }
+  if (pathGroup === '/(admin)' && allRoles.some((r) => ['admin', 'institution admin', 'principal'].includes(r))) {
     return true;
   }
 

@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { admin, isFirebaseAdminInitialized } from '../config/firebase.js';
-import { dbFindByUid } from '../db/index.js';
+import { dbFindByUid, dbFindByEmail, dbUpsertUser } from '../db/index.js';
 import { getCachedAuth, setCachedAuth } from './authCache.js';
 
 export interface AuthenticatedUser {
@@ -97,7 +97,56 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
     }
   }
 
-  if (!dbUserRole) {
+  // Fallback 1: Look up by email in PostgreSQL if UID differed or was pre-created
+  if (!dbUserRole && email) {
+    try {
+      const userByEmail = await dbFindByEmail(email);
+      if (userByEmail) {
+        dbUserRole = userByEmail.role || tokenRole || '';
+        institutionCode = userByEmail.institutionCode || '';
+        let scope: any = userByEmail.scope;
+        if (typeof scope === 'string') {
+          try { scope = JSON.parse(scope); } catch { scope = {}; }
+        }
+        department = (userByEmail as any).department || scope?.department || scope?.dept || '';
+        
+        // Link this user's authoritative Firebase UID so subsequent lookups are fast
+        try {
+          await dbUpsertUser({
+            ...userByEmail,
+            firebaseUid,
+          });
+        } catch {}
+
+        setCachedAuth(firebaseUid, dbUserRole, institutionCode, department);
+      }
+    } catch (err: any) {
+      console.warn('[Auth Middleware Warning] PostgreSQL email lookup failed:', err.message);
+    }
+  }
+
+  // Fallback 2: Check Firestore if initialized
+  if (!dbUserRole && isFirebaseAdminInitialized) {
+    try {
+      const fsDoc = await admin.firestore().collection('users').doc(firebaseUid).get();
+      if (fsDoc.exists) {
+        const fsData = fsDoc.data() || {};
+        dbUserRole = fsData.role || fsData.userRole || tokenRole || '';
+        institutionCode = fsData.institutionCode || fsData.institutionId || '';
+        department = fsData.department || '';
+        if (dbUserRole) {
+          setCachedAuth(firebaseUid, dbUserRole, institutionCode, department);
+        }
+      }
+    } catch (err: any) {
+      console.warn('[Auth Middleware Warning] Firestore fallback lookup failed:', err.message);
+    }
+  }
+
+  const isLoginSyncRoute = request.url.includes('/login-sync');
+
+  // For /login-sync, allow through if no role yet so loginSyncHandler can auto-provision or assign
+  if (!dbUserRole && !isLoginSyncRoute) {
     return reply.status(403).send({
       success: false,
       error: {
@@ -105,6 +154,10 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
         code: 'NO_ROLE_ASSIGNED',
       },
     });
+  }
+
+  if (!dbUserRole && isLoginSyncRoute) {
+    dbUserRole = 'parent';
   }
 
   request.user = {
