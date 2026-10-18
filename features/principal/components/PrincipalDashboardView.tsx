@@ -83,19 +83,37 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
   const quickCardWidth = Math.max(130, Math.floor((maxContentWidth - 32 - 10) / 2.3));
 
   const [classSearch, setClassSearch] = useState('');
+  const [classFilter, setClassFilter] = useState<'all' | 'high' | 'normal' | 'at_risk' | 'unassigned'>('all');
   const [showAllClasses, setShowAllClasses] = useState(false);
 
-  // Filter classes based on search
+  // Filter classes based on search and selected attendance rate filter
   const filteredHomerooms = useMemo(() => {
-    if (!classSearch.trim()) return homerooms;
-    const q = classSearch.toLowerCase().trim();
-    return homerooms.filter(
-      (h) =>
-        h.name.toLowerCase().includes(q) ||
-        (h.homeroomTeacherName && h.homeroomTeacherName.toLowerCase().includes(q)) ||
-        (h.roomNumber && h.roomNumber.toLowerCase().includes(q))
-    );
-  }, [homerooms, classSearch]);
+    return homerooms.filter((h) => {
+      if (classSearch.trim()) {
+        const q = classSearch.toLowerCase().trim();
+        const matches =
+          h.name.toLowerCase().includes(q) ||
+          (h.homeroomTeacherName && h.homeroomTeacherName.toLowerCase().includes(q)) ||
+          (h.roomNumber && h.roomNumber.toLowerCase().includes(q));
+        if (!matches) return false;
+      }
+      const studentCount = h.studentCount || 40;
+      const presentCount =
+        h.presentCount !== undefined ? h.presentCount : Math.round(studentCount * 0.92);
+      const ratePct =
+        h.attendanceRate !== undefined && h.attendanceRate > 0
+          ? h.attendanceRate
+          : studentCount > 0
+          ? Math.round((presentCount / studentCount) * 100)
+          : 0;
+
+      if (classFilter === 'high') return ratePct >= 90;
+      if (classFilter === 'normal') return ratePct >= 75 && ratePct < 90;
+      if (classFilter === 'at_risk') return ratePct < 75;
+      if (classFilter === 'unassigned') return !h.homeroomTeacherName;
+      return true;
+    });
+  }, [homerooms, classSearch, classFilter]);
 
   const displayedHomerooms = showAllClasses
     ? filteredHomerooms
@@ -164,14 +182,14 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
           activeOpacity={0.8}
         >
           <View style={styles.blackIconBox}>
-            <MaterialCommunityIcons name="book-open-outline" size={18} color="#F4C430" />
+            <MaterialCommunityIcons name="book-open-outline" size={18} color="#111827" />
           </View>
           <View style={styles.topActionContent}>
             <Text style={styles.topActionTitle} numberOfLines={1}>
-              Educational Tools
+              Academics
             </Text>
-            <Text style={styles.topActionSub} numberOfLines={2}>
-              Academic & classes
+            <Text style={styles.topActionSub} numberOfLines={1}>
+              Classes & tools
             </Text>
           </View>
         </TouchableOpacity>
@@ -182,14 +200,14 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
           activeOpacity={0.8}
         >
           <View style={styles.blackIconBox}>
-            <MaterialCommunityIcons name="calendar-clock" size={18} color="#F4C430" />
+            <MaterialCommunityIcons name="calendar-clock" size={18} color="#111827" />
           </View>
           <View style={styles.topActionContent}>
             <Text style={styles.topActionTitle} numberOfLines={1}>
-              My Timetable
+              Timetable
             </Text>
-            <Text style={styles.topActionSub} numberOfLines={2}>
-              Schedule for today
+            <Text style={styles.topActionSub} numberOfLines={1}>
+              Today's schedule
             </Text>
           </View>
         </TouchableOpacity>
@@ -204,12 +222,12 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
           activeOpacity={0.8}
         >
           <View style={styles.blackIconBox}>
-            <MaterialCommunityIcons name="account-group" size={20} color="#F4C430" />
+            <MaterialCommunityIcons name="account-group" size={20} color="#111827" />
           </View>
           <View style={styles.metricContent}>
             <Text style={styles.metricVal}>{kpis.totalStudents || 568}</Text>
             <Text style={styles.metricLabel} numberOfLines={1}>Students</Text>
-            <Text style={styles.metricSub} numberOfLines={1}>{safeStudentPct}% Present Today</Text>
+            <Text style={styles.metricSub} numberOfLines={1}>{safeStudentPct}% Present</Text>
           </View>
         </TouchableOpacity>
 
@@ -220,7 +238,7 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
           activeOpacity={0.8}
         >
           <View style={styles.blackIconBox}>
-            <MaterialCommunityIcons name="account" size={20} color="#F4C430" />
+            <MaterialCommunityIcons name="account" size={20} color="#111827" />
           </View>
           <View style={styles.metricContent}>
             <Text style={styles.metricVal}>{kpis.totalFaculty || 4}</Text>
@@ -236,12 +254,12 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
           activeOpacity={0.8}
         >
           <View style={styles.blackIconBox}>
-            <MaterialCommunityIcons name="book-open-outline" size={20} color="#F4C430" />
+            <MaterialCommunityIcons name="book-open-outline" size={20} color="#111827" />
           </View>
           <View style={styles.metricContent}>
             <Text style={styles.metricVal}>{homerooms.length || kpis.activeSections || 46}</Text>
             <Text style={styles.metricLabel} numberOfLines={1}>Classes</Text>
-            <Text style={styles.metricSub} numberOfLines={1}>Active Sections (40+ each)</Text>
+            <Text style={styles.metricSub} numberOfLines={1}>{homerooms.length || kpis.activeSections || 46} Sections</Text>
           </View>
         </TouchableOpacity>
 
@@ -252,7 +270,7 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
           activeOpacity={0.8}
         >
           <View style={styles.blackIconBox}>
-            <MaterialCommunityIcons name="file-document-outline" size={20} color="#F4C430" />
+            <MaterialCommunityIcons name="file-document-outline" size={20} color="#111827" />
           </View>
           <View style={styles.metricContent}>
             <Text style={styles.metricVal}>{notices.length || 6}</Text>
@@ -267,7 +285,7 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
         {/* Section Header */}
         <View style={styles.classSectionHeader}>
           <View style={styles.blackSquareSm}>
-            <MaterialCommunityIcons name="chart-bar" size={20} color="#F4C430" />
+            <MaterialCommunityIcons name="chart-bar" size={20} color="#111827" />
           </View>
           <View style={styles.classSectionHeaderTitles}>
             <Text style={styles.classSectionTitle}>Class-Wise Student Attendance</Text>
@@ -291,6 +309,37 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
             </TouchableOpacity>
           )}
         </View>
+
+        {/* Class Attendance Filters Beside/Under Search */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.classFilterChipsScroll}
+        >
+          {(
+            [
+              { key: 'all' as const, label: `All Classes (${homerooms.length})` },
+              { key: 'high' as const, label: '≥90% High' },
+              { key: 'normal' as const, label: '75-89% Normal' },
+              { key: 'at_risk' as const, label: '<75% At-Risk' },
+              { key: 'unassigned' as const, label: 'Unassigned' },
+            ]
+          ).map((item) => {
+            const active = classFilter === item.key;
+            return (
+              <TouchableOpacity
+                key={item.key}
+                style={[styles.classFilterChip, active && styles.classFilterChipActive]}
+                onPress={() => setClassFilter(item.key)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.classFilterChipText, active && styles.classFilterChipTextActive]}>
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
 
         {/* Class Items */}
         <View style={styles.classList}>
@@ -634,8 +683,10 @@ const styles = StyleSheet.create({
   blackIconBox: {
     width: 38,
     height: 38,
-    borderRadius: 10,
-    backgroundColor: '#111827',
+    borderRadius: 8,
+    backgroundColor: '#FFF4C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -644,7 +695,7 @@ const styles = StyleSheet.create({
   },
   topActionTitle: {
     fontFamily: FontFamily.bold,
-    fontSize: 14,
+    fontSize: 13,
     color: '#111827',
   },
   topActionSub: {
@@ -712,7 +763,9 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 8,
-    backgroundColor: '#111827',
+    backgroundColor: '#FFF4C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -747,6 +800,33 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#111827',
     padding: 0,
+  },
+  classFilterChipsScroll: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 2,
+  },
+  classFilterChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+  },
+  classFilterChipActive: {
+    backgroundColor: '#1A1B1C',
+    borderColor: '#1A1B1C',
+  },
+  classFilterChipText: {
+    fontSize: 11,
+    fontFamily: FontFamily.semibold,
+    color: '#6B6B6B',
+  },
+  classFilterChipTextActive: {
+    color: '#F4C430',
+    fontFamily: FontFamily.bold,
   },
 
   // Class List Items
@@ -824,7 +904,7 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 12,
+    borderRadius: 6,
   },
   attendanceRatePillText: {
     fontFamily: FontFamily.bold,

@@ -89,7 +89,7 @@ export const PrincipalWelfareCounselingView: React.FC<PrincipalWelfareCounseling
           {(
             [
               { key: 'all', label: `All Records (${records.length})` },
-              { key: 'high_priority', label: '⚠️ Urgent Attention' },
+              { key: 'high_priority', label: 'Urgent Attention' },
               { key: 'active', label: 'Active' },
               { key: 'in_progress', label: 'In Progress' },
               { key: 'resolved', label: 'Resolved' },

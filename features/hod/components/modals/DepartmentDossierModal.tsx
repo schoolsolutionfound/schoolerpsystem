@@ -54,12 +54,12 @@ export const DepartmentDossierModal: React.FC<DepartmentDossierModalProps> = ({
   const handleCopySummary = async () => {
     const summary = `
 =============================================
-🎓 DEPARTMENT EXECUTIVE DOSSIER: ${departmentName.toUpperCase()}
+DEPARTMENT EXECUTIVE DOSSIER: ${departmentName.toUpperCase()}
 Institution: ${institutionName}
 Generated: ${new Date().toLocaleString()}
 =============================================
 
-📊 DEPARTMENT OPERATIONAL METRICS:
+DEPARTMENT OPERATIONAL METRICS:
 - Total Enrolled Students: ${kpis.totalStudents}
 - Faculty On Duty: ${kpis.facultyOnDuty} / ${kpis.totalFaculty}
 - Active Semester Courses: ${kpis.activeCourses}
@@ -68,7 +68,7 @@ Generated: ${new Date().toLocaleString()}
 - Hall Ticket Detentions (<75%): ${kpis.detentionAlertsCount}
 - Unallocated Courses: ${unassignedCourses.length}
 
-📚 ACADEMIC COURSES (${courses.length} total):
+ACADEMIC COURSES (${courses.length} total):
 ${courses
   .map(
     (c) =>
@@ -76,7 +76,7 @@ ${courses
   )
   .join('\n')}
 
-👨‍🏫 DEPARTMENT FACULTY (${faculty.length} members):
+DEPARTMENT FACULTY (${faculty.length} members):
 ${faculty
   .map(
     (f) =>
@@ -84,7 +84,7 @@ ${faculty
   )
   .join('\n')}
 
-⚠️ DETENTION AT-RISK STUDENTS (${pendingDetentions.length} cases):
+DETENTION AT-RISK STUDENTS (${pendingDetentions.length} cases):
 ${pendingDetentions
   .map(
     (d) =>
@@ -92,7 +92,7 @@ ${pendingDetentions
   )
   .join('\n')}
 
-📢 RECENT DEPARTMENT MEMOS:
+RECENT DEPARTMENT MEMOS:
 ${notices
   .map(
     (n) =>

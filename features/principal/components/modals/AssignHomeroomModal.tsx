@@ -108,8 +108,8 @@ export const AssignHomeroomModal: React.FC<AssignHomeroomModalProps> = ({
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerTitleWrap}>
-              <View style={styles.iconCircle}>
-                <MaterialCommunityIcons name="google-classroom" size={22} color="#0284C7" />
+              <View style={styles.iconSquare}>
+                <MaterialCommunityIcons name="google-classroom" size={20} color="#111827" />
               </View>
               <View>
                 <Text style={styles.title}>Assign Class Teacher</Text>
@@ -128,7 +128,7 @@ export const AssignHomeroomModal: React.FC<AssignHomeroomModalProps> = ({
             <View style={styles.currentInfoLeft}>
               <Text style={styles.infoLabel}>Currently Assigned To:</Text>
               <Text style={styles.currentTeacherName}>
-                {section.homeroomTeacherName ? section.homeroomTeacherName : '⚠️ None (Unassigned Class)'}
+                {section.homeroomTeacherName ? section.homeroomTeacherName : 'None (Unassigned Class)'}
               </Text>
             </View>
             {!!section.homeroomTeacherId && (
@@ -221,10 +221,10 @@ export const AssignHomeroomModal: React.FC<AssignHomeroomModalProps> = ({
               style={[styles.saveBtn, (!selectedTeacherId || saving) && styles.saveBtnDisabled]}
             >
               {saving ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
+                <ActivityIndicator size="small" color="#111827" />
               ) : (
                 <>
-                  <MaterialCommunityIcons name="check-bold" size={16} color="#FFFFFF" />
+                  <MaterialCommunityIcons name="check-bold" size={16} color="#111827" />
                   <Text style={styles.saveText}>Confirm Assignment</Text>
                 </>
               )}
@@ -268,11 +268,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  iconCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#E0F2FE',
+  iconSquare: {
+    width: 38,
+    height: 38,
+    borderRadius: 8,
+    backgroundColor: '#FFF4C7',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -434,13 +434,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   radioCircleActive: {
-    borderColor: '#0284C7',
+    borderColor: '#111827',
   },
   radioInner: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#0284C7',
+    backgroundColor: '#F4C430',
   },
   footer: {
     flexDirection: 'row',
@@ -467,18 +467,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#0284C7',
+    backgroundColor: '#F4C430',
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: BorderRadius.button,
   },
   saveBtnDisabled: {
-    backgroundColor: '#9CA3AF',
+    backgroundColor: '#E8E5DC',
   },
   saveText: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontWeight: '800',
+    color: '#111827',
     fontFamily: FontFamily.bold,
   },
 });

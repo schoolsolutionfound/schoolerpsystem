@@ -53,11 +53,11 @@ export const CampusDossierModal: React.FC<CampusDossierModalProps> = ({
   const handleCopySummary = async () => {
     const summary = `
 =============================================
-🏛️ CAMPUS EXECUTIVE DOSSIER: ${institutionName.toUpperCase()}
+CAMPUS EXECUTIVE DOSSIER: ${institutionName.toUpperCase()}
 Generated: ${new Date().toLocaleString()}
 =============================================
 
-📊 OPERATIONAL METRICS:
+OPERATIONAL METRICS:
 - Total Enrolled Students: ${kpis.totalStudents}
 - Present Today: ${kpis.presentStudents} (${safeStudentPct}%)
 - Total Faculty Members: ${kpis.totalFaculty} (${safeFacultyPct}% on duty)
@@ -66,13 +66,13 @@ Generated: ${new Date().toLocaleString()}
 - Active Guidance/Counseling Cases: ${kpis.counselingCasesActive}
 - Published Circulars: ${notices.length}
 
-🏫 HOMEROOM SECTIONS & CLASS TEACHERS:
+HOMEROOM SECTIONS & CLASS TEACHERS:
 ${homerooms.map((h, i) => `  ${i + 1}. ${h.name} | Mentor: ${h.homeroomTeacherName || 'UNASSIGNED'} | Enrolled: ${h.studentCount}`).join('\n')}
 
-👨‍🏫 FACULTY MEMBERS ON DUTY:
+FACULTY MEMBERS ON DUTY:
 ${staff.map((s, i) => `  ${i + 1}. ${s.fullName} (${s.designation || 'Faculty'}) - ${s.department || 'General'}`).join('\n')}
 
-📢 ACTIVE CAMPUS CIRCULARS:
+ACTIVE CAMPUS CIRCULARS:
 ${notices.map((n, i) => `  ${i + 1}. [${n.priority.toUpperCase()}] ${n.title} (Audience: ${n.targetAudience})`).join('\n')}
 =============================================
 `.trim();
@@ -176,7 +176,7 @@ ${notices.map((n, i) => `  ${i + 1}. [${n.priority.toUpperCase()}] ${n.title} (A
                     </View>
                     <Text style={styles.kpiTitle}>Homeroom Classes</Text>
                     <Text style={[styles.kpiSub, { color: kpis.unassignedHomerooms > 0 ? '#DC2626' : '#4B5563' }]}>
-                      {kpis.unassignedHomerooms > 0 ? `⚠️ ${kpis.unassignedHomerooms} without mentor` : '100% Mentors Assigned'}
+                      {kpis.unassignedHomerooms > 0 ? `${kpis.unassignedHomerooms} without mentor` : '100% Mentors Assigned'}
                     </Text>
                   </View>
 
@@ -189,7 +189,7 @@ ${notices.map((n, i) => `  ${i + 1}. [${n.priority.toUpperCase()}] ${n.title} (A
                     </View>
                     <Text style={styles.kpiTitle}>Guidance Cases</Text>
                     <Text style={[styles.kpiSub, { color: urgentCases.length > 0 ? '#DC2626' : '#4B5563' }]}>
-                      {urgentCases.length > 0 ? `⚠️ ${urgentCases.length} Urgent Priority` : 'All Cases Stable'}
+                      {urgentCases.length > 0 ? `${urgentCases.length} Urgent Priority` : 'All Cases Stable'}
                     </Text>
                   </View>
                 </View>

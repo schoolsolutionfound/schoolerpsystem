@@ -87,20 +87,29 @@ export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
   const quickCardWidth = Math.max(130, Math.floor((maxContentWidth - 32 - 10) / 2.3));
 
   const [courseSearch, setCourseSearch] = useState('');
+  const [courseFilter, setCourseFilter] = useState<'all' | 'high' | 'normal' | 'at_risk' | 'unassigned'>('all');
   const [showAllCourses, setShowAllCourses] = useState(false);
 
-  // Filter courses based on search
+  // Filter courses based on search and status
   const filteredCourses = useMemo(() => {
-    if (!courseSearch.trim()) return courses;
-    const q = courseSearch.toLowerCase().trim();
-    return courses.filter(
-      (c) =>
-        c.name.toLowerCase().includes(q) ||
-        c.code.toLowerCase().includes(q) ||
-        (c.instructorName && c.instructorName.toLowerCase().includes(q)) ||
-        (c.semester && c.semester.toLowerCase().includes(q))
-    );
-  }, [courses, courseSearch]);
+    return courses.filter((c) => {
+      if (courseSearch.trim()) {
+        const q = courseSearch.toLowerCase().trim();
+        const matches =
+          c.name.toLowerCase().includes(q) ||
+          c.code.toLowerCase().includes(q) ||
+          (c.instructorName && c.instructorName.toLowerCase().includes(q)) ||
+          (c.semester && c.semester.toLowerCase().includes(q));
+        if (!matches) return false;
+      }
+      const ratePct = c.syllabusProgressPct !== undefined ? c.syllabusProgressPct : 92;
+      if (courseFilter === 'high') return ratePct >= 90;
+      if (courseFilter === 'normal') return ratePct >= 75 && ratePct < 90;
+      if (courseFilter === 'at_risk') return ratePct < 75;
+      if (courseFilter === 'unassigned') return !c.instructorName;
+      return true;
+    });
+  }, [courses, courseSearch, courseFilter]);
 
   const displayedCourses = showAllCourses
     ? filteredCourses
@@ -170,14 +179,14 @@ export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
           activeOpacity={0.8}
         >
           <View style={styles.blackIconBox}>
-            <MaterialCommunityIcons name="book-open-outline" size={18} color="#F4C430" />
+            <MaterialCommunityIcons name="book-open-outline" size={18} color="#111827" />
           </View>
           <View style={styles.topActionContent}>
             <Text style={styles.topActionTitle} numberOfLines={1}>
-              Educational Tools
+              Academics
             </Text>
-            <Text style={styles.topActionSub} numberOfLines={2}>
-              Academic & courses
+            <Text style={styles.topActionSub} numberOfLines={1}>
+              Courses & labs
             </Text>
           </View>
         </TouchableOpacity>
@@ -188,14 +197,14 @@ export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
           activeOpacity={0.8}
         >
           <View style={styles.blackIconBox}>
-            <MaterialCommunityIcons name="calendar-clock" size={18} color="#F4C430" />
+            <MaterialCommunityIcons name="calendar-clock" size={18} color="#111827" />
           </View>
           <View style={styles.topActionContent}>
             <Text style={styles.topActionTitle} numberOfLines={1}>
-              My Timetable
+              Timetable
             </Text>
-            <Text style={styles.topActionSub} numberOfLines={2}>
-              Schedule for today
+            <Text style={styles.topActionSub} numberOfLines={1}>
+              Today's schedule
             </Text>
           </View>
         </TouchableOpacity>
@@ -210,12 +219,12 @@ export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
           activeOpacity={0.8}
         >
           <View style={styles.blackIconBox}>
-            <MaterialCommunityIcons name="account-group" size={20} color="#F4C430" />
+            <MaterialCommunityIcons name="account-group" size={20} color="#111827" />
           </View>
           <View style={styles.metricContent}>
             <Text style={styles.metricVal}>{kpis.totalStudents || 350}</Text>
             <Text style={styles.metricLabel} numberOfLines={1}>Students</Text>
-            <Text style={styles.metricSub} numberOfLines={1}>92% Present Today</Text>
+            <Text style={styles.metricSub} numberOfLines={1}>92% Present</Text>
           </View>
         </TouchableOpacity>
 
@@ -226,7 +235,7 @@ export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
           activeOpacity={0.8}
         >
           <View style={styles.blackIconBox}>
-            <MaterialCommunityIcons name="account" size={20} color="#F4C430" />
+            <MaterialCommunityIcons name="account" size={20} color="#111827" />
           </View>
           <View style={styles.metricContent}>
             <Text style={styles.metricVal}>{kpis.facultyOnDuty || kpis.totalFaculty || 8}</Text>
@@ -242,12 +251,12 @@ export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
           activeOpacity={0.8}
         >
           <View style={styles.blackIconBox}>
-            <MaterialCommunityIcons name="book-open-outline" size={20} color="#F4C430" />
+            <MaterialCommunityIcons name="book-open-outline" size={20} color="#111827" />
           </View>
           <View style={styles.metricContent}>
             <Text style={styles.metricVal}>{courses.length || kpis.activeCourses || 7}</Text>
             <Text style={styles.metricLabel} numberOfLines={1}>Courses</Text>
-            <Text style={styles.metricSub} numberOfLines={1}>Active Classes (40+ each)</Text>
+            <Text style={styles.metricSub} numberOfLines={1}>{courses.length || kpis.activeCourses || 7} Classes</Text>
           </View>
         </TouchableOpacity>
 
@@ -258,7 +267,7 @@ export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
           activeOpacity={0.8}
         >
           <View style={styles.blackIconBox}>
-            <MaterialCommunityIcons name="file-document-outline" size={20} color="#F4C430" />
+            <MaterialCommunityIcons name="file-document-outline" size={20} color="#111827" />
           </View>
           <View style={styles.metricContent}>
             <Text style={styles.metricVal}>{pendingDetentions.length || kpis.detentionAlertsCount || 0}</Text>
@@ -273,7 +282,7 @@ export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
         {/* Section Header */}
         <View style={styles.classSectionHeader}>
           <View style={styles.blackSquareSm}>
-            <MaterialCommunityIcons name="chart-bar" size={20} color="#F4C430" />
+            <MaterialCommunityIcons name="chart-bar" size={20} color="#111827" />
           </View>
           <View style={styles.classSectionHeaderTitles}>
             <Text style={styles.classSectionTitle}>Class-Wise Student Attendance</Text>
@@ -297,6 +306,37 @@ export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
             </TouchableOpacity>
           )}
         </View>
+
+        {/* Filter Chips Beside/Under Search */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.classFilterChipsScroll}
+        >
+          {(
+            [
+              { key: 'all' as const, label: `All Courses (${courses.length})` },
+              { key: 'high' as const, label: '≥90% High' },
+              { key: 'normal' as const, label: '75-89% Normal' },
+              { key: 'at_risk' as const, label: '<75% At-Risk' },
+              { key: 'unassigned' as const, label: 'Unassigned' },
+            ]
+          ).map((item) => {
+            const active = courseFilter === item.key;
+            return (
+              <TouchableOpacity
+                key={item.key}
+                style={[styles.classFilterChip, active && styles.classFilterChipActive]}
+                onPress={() => setCourseFilter(item.key)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.classFilterChipText, active && styles.classFilterChipTextActive]}>
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
 
         {/* Course / Class List */}
         <View style={styles.classList}>
@@ -635,8 +675,10 @@ const styles = StyleSheet.create({
   blackIconBox: {
     width: 38,
     height: 38,
-    borderRadius: 10,
-    backgroundColor: '#111827',
+    borderRadius: 8,
+    backgroundColor: '#FFF4C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -645,7 +687,7 @@ const styles = StyleSheet.create({
   },
   topActionTitle: {
     fontFamily: FontFamily.bold,
-    fontSize: 14,
+    fontSize: 13,
     color: '#111827',
   },
   topActionSub: {
@@ -713,7 +755,9 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 8,
-    backgroundColor: '#111827',
+    backgroundColor: '#FFF4C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -748,6 +792,33 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#111827',
     padding: 0,
+  },
+  classFilterChipsScroll: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 2,
+  },
+  classFilterChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+  },
+  classFilterChipActive: {
+    backgroundColor: '#1A1B1C',
+    borderColor: '#1A1B1C',
+  },
+  classFilterChipText: {
+    fontSize: 11,
+    fontFamily: FontFamily.semibold,
+    color: '#6B6B6B',
+  },
+  classFilterChipTextActive: {
+    color: '#F4C430',
+    fontFamily: FontFamily.bold,
   },
 
   // Class List Items

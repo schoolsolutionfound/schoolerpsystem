@@ -47,11 +47,7 @@ export const HODHeader: React.FC<HODHeaderProps> = ({
               <Feather name="menu" size={22} color="#111827" />
             </TouchableOpacity>
           )}
-          <Image
-            source={require('../../../assets/text-logo.png')}
-            style={styles.logoImage}
-            resizeMode="contain"
-          />
+          <Text style={styles.brandTitle}>Kivquo</Text>
         </View>
 
         {/* Right Group: Switch to Teacher + Bell + Avatar */}
@@ -121,9 +117,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#111827',
   },
-  logoImage: {
-    width: 100,
-    height: 28,
+  brandTitle: {
+    fontFamily: FontFamily.bold,
+    fontSize: 20,
+    color: '#111827',
+    letterSpacing: -0.3,
   },
   rightGroup: {
     flexDirection: 'row',
