@@ -9,6 +9,7 @@ import {
   ScrollView,
   Animated,
   Easing,
+  Image,
   useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -128,19 +129,33 @@ export const PrincipalDrawer: React.FC<PrincipalDrawerProps> = ({
             },
           ]}
         >
-          {/* Header Profile Section */}
+          {/* Header Brand Section */}
           <View style={styles.drawerHeader}>
-            <View style={styles.headerTop}>
-              <View style={styles.avatarWrap}>
-                <MaterialCommunityIcons name="shield-crown" size={26} color="#F4C430" />
-              </View>
+            <View style={styles.brandRow}>
+              <Image
+                source={require('../../../assets/text-logo.png')}
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
               <TouchableOpacity onPress={onClose} style={styles.closeIconBtn} activeOpacity={0.7}>
                 <Feather name="x" size={20} color="#6B6B6B" />
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.drawerName} numberOfLines={1}>{fullName}</Text>
-            <Text style={styles.drawerEmail} numberOfLines={1}>{email}</Text>
+            {/* Executive Profile Card */}
+            <View style={styles.profileCard}>
+              <View style={styles.avatarWrap}>
+                <Text style={styles.avatarInitial}>
+                  {(fullName ? fullName.trim().charAt(0) : 'P').toUpperCase()}
+                </Text>
+              </View>
+              <View style={styles.profileMeta}>
+                <Text style={styles.drawerName} numberOfLines={1}>{fullName}</Text>
+                <Text style={styles.drawerRole}>Principal / Executive Head</Text>
+                <Text style={styles.drawerEmail} numberOfLines={1}>{email}</Text>
+              </View>
+            </View>
+
             <View style={styles.campusBadge}>
               <MaterialCommunityIcons name="office-building" size={13} color="#F4C430" />
               <Text style={styles.campusBadgeText} numberOfLines={1}>{institutionName}</Text>
@@ -286,43 +301,70 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 16,
   },
   drawerHeader: {
-    paddingHorizontal: 20,
-    paddingBottom: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
   },
-  headerTop: {
+  brandRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 14,
   },
-  avatarWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#FFF4C7',
-    borderWidth: 1.5,
-    borderColor: '#F4C430',
-    alignItems: 'center',
-    justifyContent: 'center',
+  logoImage: {
+    width: 108,
+    height: 30,
   },
   closeIconBtn: {
     width: 32,
     height: 32,
-    borderRadius: 16,
+    borderRadius: 8,
     backgroundColor: '#F3F4F6',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  drawerName: {
+  profileCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#FFFDF7',
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    borderRadius: 8,
+    padding: 10,
+  },
+  avatarWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 8,
+    backgroundColor: '#1A1B1C',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarInitial: {
+    fontFamily: FontFamily.bold,
     fontSize: 16,
+    color: '#F4C430',
+  },
+  profileMeta: {
+    flex: 1,
+  },
+  drawerName: {
+    fontSize: 14,
     fontWeight: '800',
     color: '#171717',
-    fontFamily: FontFamily.extrabold,
+    fontFamily: FontFamily.bold,
+  },
+  drawerRole: {
+    fontSize: 10,
+    color: '#D97706',
+    fontFamily: FontFamily.semibold,
+    marginTop: 1,
+    letterSpacing: 0.3,
   },
   drawerEmail: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#6B6B6B',
     fontFamily: FontFamily.regular,
     marginTop: 1,
