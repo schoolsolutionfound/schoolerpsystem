@@ -118,9 +118,9 @@ const styles = StyleSheet.create({
   },
   brandTitle: {
     fontFamily: FontFamily.bold,
-    fontSize: 20,
+    fontSize: 22,
     color: '#111827',
-    letterSpacing: -0.3,
+    letterSpacing: -0.4,
   },
   iconBtn: {
     width: 36,
