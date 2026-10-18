@@ -9,6 +9,7 @@ import {
   RefreshControl,
   Linking,
   Alert,
+  useWindowDimensions,
 } from 'react-native';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
@@ -31,6 +32,12 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
   refreshing,
   onRefresh,
 }) => {
+  const { width: windowWidth } = useWindowDimensions();
+  const maxContentWidth = Math.min(windowWidth, 1200);
+  const isDesktop = windowWidth >= 768;
+  const cardGap = 12;
+  const cardWidth = isDesktop ? Math.floor((maxContentWidth - 32 - cardGap) / 2) : '100%';
+
   const [search, setSearch] = useState('');
   const [designationFilter, setDesignationFilter] = useState<'all' | StaffDesignation | 'pastoral'>('all');
 
@@ -158,18 +165,19 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#16A34A']} />}
         showsVerticalScrollIndicator={false}
       >
-        {filteredStaff.map((staff) => {
-          const badgeColor =
-            DESIGNATION_BADGE_COLORS[staff.designation] || {
-              bg: '#F3F4F6',
-              text: '#374151',
-              border: '#E5E7EB',
-            };
-          const isPresent = staff.attendanceToday === 'present';
-          const isLeave = staff.attendanceToday === 'on_leave';
+        <View style={styles.cardsGrid}>
+          {filteredStaff.map((staff) => {
+            const badgeColor =
+              DESIGNATION_BADGE_COLORS[staff.designation] || {
+                bg: '#F3F4F6',
+                text: '#374151',
+                border: '#E5E7EB',
+              };
+            const isPresent = staff.attendanceToday === 'present';
+            const isLeave = staff.attendanceToday === 'on_leave';
 
-          return (
-            <View key={staff.id} style={styles.card}>
+            return (
+              <View key={staff.id} style={[styles.card, { width: cardWidth }]}>
               <View style={styles.cardHeader}>
                 <View style={styles.avatarWrap}>
                   <Text style={styles.avatarText}>{staff.fullName.slice(0, 2).toUpperCase()}</Text>
@@ -246,6 +254,7 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
             </View>
           );
         })}
+      </View>
 
         {filteredStaff.length === 0 && (
           <View style={styles.emptyWrap}>
@@ -272,6 +281,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E8E5DC',
     gap: 10,
+    maxWidth: 1200,
+    width: '100%',
+    alignSelf: 'center',
   },
   searchBar: {
     flexDirection: 'row',
@@ -296,7 +308,7 @@ const styles = StyleSheet.create({
   filterChip: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: BorderRadius.chip,
+    borderRadius: 6,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E8E5DC',
@@ -324,6 +336,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#E8E5DC',
+    maxWidth: 1200,
+    width: '100%',
+    alignSelf: 'center',
   },
   glanceItem: {
     flexDirection: 'row',
@@ -357,6 +372,14 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 10,
     paddingBottom: 40,
+    maxWidth: 1200,
+    width: '100%',
+    alignSelf: 'center',
+  },
+  cardsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
   },
   card: {
     backgroundColor: '#FFFFFF',
@@ -377,19 +400,19 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   avatarWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 42,
+    height: 42,
+    borderRadius: 8,
     backgroundColor: '#FFF4C7',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
   },
   avatarText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800',
-    color: '#F4C430',
-    fontFamily: FontFamily.extrabold,
+    color: '#111827',
+    fontFamily: FontFamily.bold,
   },
   statusDot: {
     position: 'absolute',
@@ -414,7 +437,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     paddingHorizontal: 7,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: 6,
     borderWidth: 1,
     marginTop: 3,
   },
@@ -430,7 +453,7 @@ const styles = StyleSheet.create({
   iconBtn: {
     width: 32,
     height: 32,
-    borderRadius: 16,
+    borderRadius: 6,
     backgroundColor: '#FFFDF7',
     borderWidth: 1,
     borderColor: '#E8E5DC',
@@ -452,7 +475,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#16A34A18',
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 4,
+    borderRadius: 6,
   },
   homeroomPillText: {
     fontSize: 11,
@@ -467,7 +490,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 4,
+    borderRadius: 6,
   },
   deptPillText: {
     fontSize: 11,

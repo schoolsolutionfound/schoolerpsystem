@@ -93,7 +93,7 @@ export const HODNoticesView: React.FC<HODNoticesViewProps> = ({
         </View>
 
         <TouchableOpacity style={styles.createBtn} onPress={onOpenCreateModal} activeOpacity={0.8}>
-          <MaterialCommunityIcons name="plus" size={18} color="#FFFFFF" />
+          <MaterialCommunityIcons name="plus" size={18} color="#1A1B1C" />
           <Text style={styles.createBtnText}>New Memo</Text>
         </TouchableOpacity>
       </View>

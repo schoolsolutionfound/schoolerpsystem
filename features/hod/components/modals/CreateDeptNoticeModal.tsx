@@ -127,7 +127,7 @@ export const CreateDeptNoticeModal: React.FC<CreateDeptNoticeModalProps> = ({
                     <MaterialCommunityIcons
                       name={opt.icon as any}
                       size={15}
-                      color={isSelected ? '#EA580C' : '#6B6B6B'}
+                      color={isSelected ? '#111827' : '#6B6B6B'}
                     />
                     <Text
                       style={[styles.audienceChipText, isSelected && styles.audienceChipTextSelected]}
@@ -199,7 +199,7 @@ export const CreateDeptNoticeModal: React.FC<CreateDeptNoticeModalProps> = ({
               disabled={!title.trim() || !content.trim() || saving}
             >
               {saving ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
+                <ActivityIndicator size="small" color="#111827" />
               ) : (
                 <Text style={styles.submitBtnText}>Post Memo</Text>
               )}
@@ -292,17 +292,18 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   audienceChipSelected: {
-    borderColor: '#EA580C',
-    backgroundColor: '#FFF7ED',
+    borderColor: '#F4C430',
+    backgroundColor: '#FFF4C7',
   },
   audienceChipText: {
     fontSize: 12,
     color: '#4B5563',
-    fontFamily: FontFamily.poppins,
+    fontFamily: FontFamily.medium,
   },
   audienceChipTextSelected: {
-    color: '#EA580C',
+    color: '#111827',
     fontWeight: '700',
+    fontFamily: FontFamily.bold,
   },
   priorityRow: {
     flexDirection: 'row',
@@ -314,7 +315,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 10,
     paddingVertical: 7,
-    borderRadius: BorderRadius.chip,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: '#E5E7EB',
     backgroundColor: '#F9FAFB',
@@ -328,19 +329,19 @@ const styles = StyleSheet.create({
   priorityChipText: {
     fontSize: 12,
     color: '#4B5563',
-    fontFamily: FontFamily.poppins,
+    fontFamily: FontFamily.medium,
   },
   textArea: {
     backgroundColor: '#F9FAFB',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: BorderRadius.input,
+    borderRadius: 6,
     padding: 12,
     fontSize: 13,
     color: '#171717',
     minHeight: 100,
     textAlignVertical: 'top',
-    fontFamily: FontFamily.poppins,
+    fontFamily: FontFamily.regular,
   },
   footer: {
     flexDirection: 'row',
@@ -360,23 +361,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#6B6B6B',
-    fontFamily: FontFamily.poppins,
+    fontFamily: FontFamily.medium,
   },
   submitBtn: {
-    backgroundColor: '#EA580C',
-    borderRadius: BorderRadius.button,
+    backgroundColor: '#F4C430',
+    borderRadius: 6,
     paddingHorizontal: 20,
     paddingVertical: 10,
     minWidth: 130,
     alignItems: 'center',
   },
   submitBtnDisabled: {
-    backgroundColor: '#FED7AA',
+    backgroundColor: '#E8E5DC',
   },
   submitBtnText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#FFFFFF',
-    fontFamily: FontFamily.poppins,
+    color: '#111827',
+    fontFamily: FontFamily.bold,
   },
 });

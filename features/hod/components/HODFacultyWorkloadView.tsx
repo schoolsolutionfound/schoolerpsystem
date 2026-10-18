@@ -9,6 +9,7 @@ import {
   Linking,
   Alert,
   RefreshControl,
+  useWindowDimensions,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
@@ -26,6 +27,12 @@ export const HODFacultyWorkloadView: React.FC<HODFacultyWorkloadViewProps> = ({
   refreshing,
   onRefresh,
 }) => {
+  const { width: windowWidth } = useWindowDimensions();
+  const maxContentWidth = Math.min(windowWidth, 1200);
+  const isDesktop = windowWidth >= 768;
+  const cardGap = 12;
+  const cardWidth = isDesktop ? Math.floor((maxContentWidth - 32 - cardGap) / 2) : '100%';
+
   const [search, setSearch] = useState('');
   const [selectedRank, setSelectedRank] = useState<FacultyRank | 'all'>('all');
 
@@ -163,18 +170,19 @@ export const HODFacultyWorkloadView: React.FC<HODFacultyWorkloadViewProps> = ({
           </Text>
         </View>
 
-        {filteredFaculty.map((f) => {
-          const status = getStatusBadge(f.status);
-          const isOverloaded = f.assignedCredits >= f.maxCreditsPerWeek;
-          const loadPercentage = Math.round((f.assignedCredits / (f.maxCreditsPerWeek || 1)) * 100);
+        <View style={styles.cardsGrid}>
+          {filteredFaculty.map((f) => {
+            const status = getStatusBadge(f.status);
+            const isOverloaded = f.assignedCredits >= f.maxCreditsPerWeek;
+            const loadPercentage = Math.round((f.assignedCredits / (f.maxCreditsPerWeek || 1)) * 100);
 
-          return (
-            <View key={f.id} style={styles.card}>
-              {/* Header */}
-              <View style={styles.cardHeader}>
-                <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>{f.name.charAt(0)}</Text>
-                </View>
+            return (
+              <View key={f.id} style={[styles.card, { width: cardWidth }]}>
+                {/* Header */}
+                <View style={styles.cardHeader}>
+                  <View style={styles.avatar}>
+                    <Text style={styles.avatarText}>{f.name.charAt(0)}</Text>
+                  </View>
 
                 <View style={{ flex: 1 }}>
                   <View style={styles.nameRow}>
@@ -265,6 +273,7 @@ export const HODFacultyWorkloadView: React.FC<HODFacultyWorkloadViewProps> = ({
             </View>
           );
         })}
+      </View>
 
         {filteredFaculty.length === 0 && (
           <View style={styles.emptyState}>
@@ -290,6 +299,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E8E5DC',
+    maxWidth: 1200,
+    width: '100%',
+    alignSelf: 'center',
   },
   searchBox: {
     flexDirection: 'row',
@@ -313,6 +325,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E8E5DC',
     paddingVertical: 8,
+    maxWidth: 1200,
+    width: '100%',
+    alignSelf: 'center',
   },
   filterScroll: {
     paddingHorizontal: 16,
@@ -345,6 +360,14 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 40,
     gap: 14,
+    maxWidth: 1200,
+    width: '100%',
+    alignSelf: 'center',
+  },
+  cardsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
   },
   summaryBar: {
     marginBottom: 4,
@@ -368,17 +391,17 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 42,
+    height: 42,
+    borderRadius: 8,
     backgroundColor: '#FFF4C7',
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: '800',
-    color: '#F4C430',
+    color: '#111827',
     fontFamily: FontFamily.poppins,
   },
   nameRow: {
@@ -399,7 +422,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 7,
     paddingVertical: 3,
-    borderRadius: 12,
+    borderRadius: 6,
     gap: 4,
   },
   statusDot: {
@@ -490,7 +513,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E8E5DC',
-    borderRadius: 4,
+    borderRadius: 6,
     paddingHorizontal: 6,
     paddingVertical: 2,
   },
@@ -530,7 +553,7 @@ const styles = StyleSheet.create({
   contactBtn: {
     width: 34,
     height: 34,
-    borderRadius: 17,
+    borderRadius: 6,
     backgroundColor: '#FFFDF7',
     borderWidth: 1,
     borderColor: '#E8E5DC',

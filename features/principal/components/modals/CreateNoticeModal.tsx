@@ -72,8 +72,8 @@ export const CreateNoticeModal: React.FC<CreateNoticeModalProps> = ({
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerTitleWrap}>
-              <View style={styles.iconCircle}>
-                <MaterialCommunityIcons name="bullhorn" size={22} color="#D97706" />
+              <View style={styles.iconSquare}>
+                <MaterialCommunityIcons name="bullhorn" size={20} color="#111827" />
               </View>
               <View>
                 <Text style={styles.title}>Publish School Circular</Text>
@@ -104,10 +104,10 @@ export const CreateNoticeModal: React.FC<CreateNoticeModalProps> = ({
               <View style={styles.chipsWrap}>
                 {(
                   [
-                    { key: 'all', label: '📢 All Campus' },
-                    { key: 'teachers', label: '👨‍🏫 Teachers Only' },
-                    { key: 'parents', label: '👨‍👩‍👧 Parents' },
-                    { key: 'students', label: '🎒 Students' },
+                    { key: 'all' as const, label: 'All Campus', icon: 'bullhorn-outline' as const },
+                    { key: 'teachers' as const, label: 'Faculty & Staff', icon: 'account-tie-outline' as const },
+                    { key: 'parents' as const, label: 'Parents', icon: 'account-child-outline' as const },
+                    { key: 'students' as const, label: 'Students', icon: 'school-outline' as const },
                   ] as const
                 ).map((aud) => {
                   const active = targetAudience === aud.key;
@@ -118,6 +118,11 @@ export const CreateNoticeModal: React.FC<CreateNoticeModalProps> = ({
                       onPress={() => setTargetAudience(aud.key)}
                       activeOpacity={0.7}
                     >
+                      <MaterialCommunityIcons
+                        name={aud.icon}
+                        size={15}
+                        color={active ? '#111827' : '#6B6B6B'}
+                      />
                       <Text style={[styles.chipText, active && styles.chipTextActive]}>
                         {aud.label}
                       </Text>
@@ -132,11 +137,11 @@ export const CreateNoticeModal: React.FC<CreateNoticeModalProps> = ({
               <Text style={styles.label}>Target Department (Optional)</Text>
               <View style={styles.chipsWrap}>
                 {[
-                  { key: '', label: '🌐 All Departments' },
-                  { key: 'Computer Science', label: '💻 Computer Science' },
-                  { key: 'Mathematics', label: '📐 Mathematics' },
-                  { key: 'Science', label: '🔬 Science' },
-                  { key: 'English', label: '📖 English' },
+                  { key: '', label: 'All Departments', icon: 'earth' as const },
+                  { key: 'Computer Science', label: 'Computer Science', icon: 'laptop' as const },
+                  { key: 'Mathematics', label: 'Mathematics', icon: 'calculator-variant-outline' as const },
+                  { key: 'Science', label: 'Science', icon: 'flask-outline' as const },
+                  { key: 'English', label: 'English', icon: 'book-open-page-variant-outline' as const },
                 ].map((dept) => {
                   const active = (department || '').toLowerCase() === dept.key.toLowerCase();
                   return (
@@ -146,6 +151,11 @@ export const CreateNoticeModal: React.FC<CreateNoticeModalProps> = ({
                       onPress={() => setDepartment(dept.key)}
                       activeOpacity={0.7}
                     >
+                      <MaterialCommunityIcons
+                        name={dept.icon}
+                        size={15}
+                        color={active ? '#111827' : '#6B6B6B'}
+                      />
                       <Text style={[styles.chipText, active && styles.chipTextActive]}>
                         {dept.label}
                       </Text>
@@ -224,10 +234,10 @@ export const CreateNoticeModal: React.FC<CreateNoticeModalProps> = ({
               ]}
             >
               {saving ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
+                <ActivityIndicator size="small" color="#111827" />
               ) : (
                 <>
-                  <MaterialCommunityIcons name="send" size={16} color="#FFFFFF" />
+                  <MaterialCommunityIcons name="send" size={16} color="#111827" />
                   <Text style={styles.saveText}>Publish Notice</Text>
                 </>
               )}
@@ -271,11 +281,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  iconCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#FEF3C7',
+  iconSquare: {
+    width: 38,
+    height: 38,
+    borderRadius: 8,
+    backgroundColor: '#FFF4C7',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -333,16 +343,19 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 7,
-    borderRadius: BorderRadius.chip,
-    backgroundColor: '#F3F4F6',
+    borderRadius: 6,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E8E5DC',
   },
   chipActive: {
-    backgroundColor: '#FEF3C7',
-    borderColor: '#F59E0B',
+    backgroundColor: '#FFF4C7',
+    borderColor: '#F4C430',
   },
   chipText: {
     fontSize: 12,
@@ -351,7 +364,7 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.semibold,
   },
   chipTextActive: {
-    color: '#B45309',
+    color: '#111827',
     fontWeight: '700',
   },
   priorityRow: {
@@ -395,29 +408,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: BorderRadius.button,
+    backgroundColor: '#F3F4F6',
   },
   cancelText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#6B6B6B',
+    color: '#374151',
     fontFamily: FontFamily.semibold,
   },
   saveBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#D97706',
+    backgroundColor: '#F4C430',
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: BorderRadius.button,
   },
   saveBtnDisabled: {
-    backgroundColor: '#9CA3AF',
+    backgroundColor: '#E8E5DC',
   },
   saveText: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontWeight: '800',
+    color: '#111827',
     fontFamily: FontFamily.bold,
   },
 });
