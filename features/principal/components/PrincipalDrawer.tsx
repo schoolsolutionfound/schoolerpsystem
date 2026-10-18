@@ -166,7 +166,7 @@ export const PrincipalDrawer: React.FC<PrincipalDrawerProps> = ({
                     <MaterialCommunityIcons
                       name={item.icon}
                       size={20}
-                      color={active ? '#FFFFFF' : '#4B5563'}
+                      color={active ? '#111827' : '#4B5563'}
                     />
                   </View>
                   <Text style={[styles.navItemText, active && styles.navItemTextActive]}>
@@ -370,9 +370,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   navItemActive: {
-    backgroundColor: '#FFF4C7',
-    borderLeftWidth: 3,
-    borderLeftColor: '#F4C430',
+    backgroundColor: '#F4C430',
   },
   navIconBox: {
     width: 34,
@@ -383,7 +381,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   navIconBoxActive: {
-    backgroundColor: '#1A1B1C',
+    backgroundColor: 'rgba(0, 0, 0, 0.08)',
   },
   navItemText: {
     fontSize: 13,
@@ -393,9 +391,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   navItemTextActive: {
-    color: '#171717',
+    color: '#111827',
     fontWeight: '800',
-    fontFamily: FontFamily.bold,
+    fontFamily: FontFamily.extrabold,
   },
   badgePill: {
     backgroundColor: '#EF4444',

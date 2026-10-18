@@ -48,13 +48,13 @@ export const PrincipalNoticesView: React.FC<PrincipalNoticesViewProps> = ({
       {/* Top Header & Search */}
       <View style={styles.headerBlock}>
         <View style={styles.topActionRow}>
-          <View>
-            <Text style={styles.sectionTitle}>Campus Circulars & Broadcasts</Text>
-            <Text style={styles.sectionSub}>Official announcements to faculty, parents & students</Text>
+          <View style={styles.titleWrap}>
+            <Text style={styles.sectionTitle} numberOfLines={1}>Campus Circulars</Text>
+            <Text style={styles.sectionSub} numberOfLines={1}>Official announcements & broadcasts</Text>
           </View>
           <TouchableOpacity style={styles.addBtn} onPress={onOpenCreateModal} activeOpacity={0.8}>
-            <Feather name="plus" size={16} color="#FFFFFF" />
-            <Text style={styles.addBtnText}>Publish Circular</Text>
+            <Feather name="plus" size={16} color="#1A1B1C" />
+            <Text style={styles.addBtnText}>Publish</Text>
           </TouchableOpacity>
         </View>
 
@@ -204,9 +204,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 12,
+  },
+  titleWrap: {
+    flex: 1,
+    minWidth: 0,
   },
   sectionTitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '800',
     color: '#171717',
     fontFamily: FontFamily.extrabold,
@@ -220,11 +225,12 @@ const styles = StyleSheet.create({
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
     backgroundColor: '#F4C430',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: BorderRadius.button,
+    flexShrink: 0,
   },
   addBtnText: {
     fontSize: 12,
