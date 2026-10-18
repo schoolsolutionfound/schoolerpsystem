@@ -12,6 +12,7 @@ export default function AuthScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(24)).current;
@@ -19,28 +20,37 @@ export default function AuthScreen() {
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: 0, duration: 600, useNativeDriver: true }),
-      Animated.spring(logoScale, { toValue: 1, tension: 50, friction: 7, useNativeDriver: true }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 600, useNativeDriver: Platform.OS !== 'web' }),
+      Animated.spring(logoScale, { toValue: 1, tension: 50, friction: 7, useNativeDriver: Platform.OS !== 'web' }),
     ]).start();
   }, []);
 
   const handleAuth = async () => {
-    if (!email || !password) {
-      Alert.alert('Missing Fields', 'Please fill in all required fields.');
+    setErrorMessage(null);
+    if (!email.trim() || !password) {
+      const msg = 'Please fill in all required fields.';
+      setErrorMessage(msg);
+      Alert.alert('Missing Fields', msg);
       return;
     }
 
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      await signInWithEmailAndPassword(auth, email.trim(), password);
     } catch (e: any) {
-      const msg = e.code === 'auth/user-not-found'
+      const code = e?.code || '';
+      const msg = code === 'auth/user-not-found'
         ? 'No account found with this email.'
-        : e.code === 'auth/wrong-password'
-          ? 'Incorrect password.'
-          : e.message;
-      Alert.alert('Error', msg);
+        : code === 'auth/wrong-password' || code === 'auth/invalid-credential' || code === 'auth/invalid-login-credentials'
+          ? 'Incorrect email or password. Please verify your credentials.'
+          : code === 'auth/invalid-email'
+            ? 'Please enter a valid email address.'
+            : code === 'auth/too-many-requests'
+              ? 'Too many failed login attempts. Please wait a moment and try again.'
+              : e?.message || 'Authentication failed. Please try again.';
+      setErrorMessage(msg);
+      Alert.alert('Sign In Failed', msg);
     } finally {
       setLoading(false);
     }
@@ -90,6 +100,7 @@ export default function AuthScreen() {
                   setShowPassword={setShowPassword}
                   onSubmit={handleAuth}
                   loading={loading}
+                  errorMessage={errorMessage}
                 />
               </View>
 

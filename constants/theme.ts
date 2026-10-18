@@ -4,8 +4,8 @@ const tintColorLight = '#F4C430';
 const tintColorDark = '#F4C430';
 
 export const BorderRadius = {
-  input: 6,
-  button: 7,
+  input: 5,
+  button: 5,
   card: 8,
   modal: 10,
   bottomSheet: 12,

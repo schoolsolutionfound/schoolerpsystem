@@ -23,9 +23,12 @@ export function useLibraryPYQs(initialFilters?: PYQFilters) {
       if (Array.isArray(res)) {
         setPyqs(res);
         setTotal(res.length);
-      } else if (res && Array.isArray(res.items)) {
-        setPyqs(res.items);
-        setTotal(res.total ?? res.items.length);
+      } else if (res && Array.isArray((res as any).items)) {
+        setPyqs((res as any).items);
+        setTotal(res.total ?? (res as any).items.length);
+      } else if (res && Array.isArray((res as any).data)) {
+        setPyqs((res as any).data);
+        setTotal(res.total ?? (res as any).data.length);
       } else {
         setPyqs([]);
         setTotal(0);

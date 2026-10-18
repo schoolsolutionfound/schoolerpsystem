@@ -116,7 +116,7 @@ export class LibraryService {
       };
     });
 
-    return { data: enrichedBooks, total, limit: opts?.limit, offset: opts?.offset };
+    return { data: enrichedBooks, items: enrichedBooks, total, limit: opts?.limit, offset: opts?.offset };
   }
 
   public async getBook(institutionCode: string, id: string) {
@@ -305,7 +305,7 @@ export class LibraryService {
       })
     );
 
-    return { data: enrichedLoans, total, limit: opts?.limit, offset: opts?.offset };
+    return { data: enrichedLoans, items: enrichedLoans, total, limit: opts?.limit, offset: opts?.offset };
   }
 
   public async issueBook(institutionCode: string, issuedBy: string, input: IssueBookInput) {
@@ -314,16 +314,22 @@ export class LibraryService {
       throw { statusCode: 404, code: 'BOOK_NOT_FOUND', message: 'Book not found' };
     }
 
-    const copy = await libraryRepository.getCopyById(input.copyId);
+    const targetCopyId = input.copyId || (input as any).bookCopyId;
+    let copy = targetCopyId ? await libraryRepository.getCopyById(targetCopyId) : null;
     if (!copy || copy.bookId !== input.bookId || copy.institutionCode.toLowerCase() !== institutionCode.toLowerCase()) {
-      throw { statusCode: 404, code: 'COPY_NOT_FOUND', message: 'Physical book copy not found or does not belong to this book' };
+      const allCopies = await libraryRepository.listCopiesByBookId(input.bookId);
+      copy = allCopies.find((c) => c.status === 'AVAILABLE') || null;
+    }
+
+    if (!copy) {
+      throw { statusCode: 400, code: 'COPY_NOT_FOUND', message: 'No available physical copy of this book was found to issue' };
     }
 
     if (copy.status !== 'AVAILABLE') {
       throw { statusCode: 400, code: 'COPY_UNAVAILABLE', message: `Physical copy "${copy.accessionNumber}" is currently ${copy.status.replace('_', ' ')}` };
     }
 
-    const activeCopyLoan = await libraryRepository.getActiveLoanByCopyId(input.copyId);
+    const activeCopyLoan = await libraryRepository.getActiveLoanByCopyId(copy.id);
     if (activeCopyLoan) {
       throw { statusCode: 400, code: 'COPY_ALREADY_ISSUED', message: `Physical copy "${copy.accessionNumber}" already has an active loan (#${activeCopyLoan.id})` };
     }
@@ -367,7 +373,7 @@ export class LibraryService {
       const loan = await libraryRepository.createLoan(
         {
           institutionCode,
-          copyId: input.copyId,
+          copyId: copy.id,
           bookId: input.bookId,
           studentId: input.studentId,
           issuedBy: issuedBy || 'staff',
@@ -379,7 +385,7 @@ export class LibraryService {
         tx
       );
 
-      await libraryRepository.updateCopy(input.copyId, { status: 'ISSUED' }, tx);
+      await libraryRepository.updateCopy(copy.id, { status: 'ISSUED' }, tx);
 
       return loan;
     });
@@ -520,7 +526,7 @@ export class LibraryService {
       })
     );
 
-    return { data: enrichedFines, total, limit: opts?.limit, offset: opts?.offset };
+    return { data: enrichedFines, items: enrichedFines, total, limit: opts?.limit, offset: opts?.offset };
   }
 
   public async payFine(institutionCode: string, cashierName: string, fineId: string, input: PayFineInput) {

@@ -8,24 +8,36 @@ import {
   Modal,
   Alert,
   StyleSheet,
+  RefreshControl,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
+  Linking,
 } from 'react-native';
+import * as DocumentPicker from 'expo-document-picker';
 import { Feather, MaterialCommunityIcons } from '../common/Icons';
 import { QuestionPaper, ExamType } from '../../types';
+import { FontFamily } from '../../../../constants/fonts';
 
 interface PYQsViewProps {
   questionPapers: QuestionPaper[];
   onUploadPYQ: () => void;
   onPreviewPYQ: (paper: QuestionPaper) => void;
   onDeletePYQ: (pyqId: string) => void;
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
   commonStyles: any;
   fineStyles: any;
 }
 
-export function PYQsView({ questionPapers, onUploadPYQ, onPreviewPYQ, onDeletePYQ, commonStyles, fineStyles }: PYQsViewProps) {
+export function PYQsView({ questionPapers, onUploadPYQ, onPreviewPYQ, onDeletePYQ, onRefresh, isRefreshing, commonStyles, fineStyles }: PYQsViewProps) {
   const [search, setSearch] = useState('');
   const [selectedYear, setSelectedYear] = useState('ALL');
   const [selectedClass, setSelectedClass] = useState('ALL');
   const [selectedExam, setSelectedExam] = useState('ALL');
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+
+  const isAnyFilterActive = selectedYear !== 'ALL' || selectedClass !== 'ALL' || selectedExam !== 'ALL';
 
   const yearOptions = ['ALL', '2024-2025', '2023-2024', '2022-2023'];
   const classOptions = ['ALL', 'Class 9', 'Class 10', 'Class 11', 'Class 12'];
@@ -59,115 +71,77 @@ export function PYQsView({ questionPapers, onUploadPYQ, onPreviewPYQ, onDeletePY
   const styles = commonStyles;
 
   return (
-    <ScrollView style={styles.viewBodyContainer} showsVerticalScrollIndicator={false}>
-      {/* Header Bar */}
+    <ScrollView
+      style={styles.viewBodyContainer}
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        onRefresh ? (
+          <RefreshControl
+            refreshing={!!isRefreshing}
+            onRefresh={onRefresh}
+            colors={['#D97706']}
+            tintColor="#D97706"
+          />
+        ) : undefined
+      }
+    >
+      {/* Header Bar with Attendance Theme Styling */}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
-        <View>
-          <Text style={{ fontSize: 20, fontWeight: '900', color: '#111827' }}>Past Year Question Papers Archive</Text>
-          <Text style={{ fontSize: 12, color: '#6B7280', fontWeight: '500' }}>
-            Store, categorize, preview and manage examination papers across all subjects and grades
-          </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1, minWidth: 200 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 18, fontFamily: FontFamily.extrabold, color: '#171717' }}>Previous Year Question Papers </Text>
+          </View>
         </View>
 
-        <TouchableOpacity style={[styles.primaryBtn, { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingVertical: 10 }]} onPress={onUploadPYQ}>
-          <Feather name="upload" size={16} color="#121316" />
-          <Text style={styles.primaryBtnText}>Upload New PYQ</Text>
+        <TouchableOpacity style={pyqStyles.uploadBtn} onPress={onUploadPYQ} activeOpacity={0.85}>
+          <Text style={pyqStyles.uploadBtnText}>Upload New PYQ</Text>
         </TouchableOpacity>
       </View>
 
-      {/* KPI Cards */}
-      <View style={[fineStyles.kpiGrid, { marginBottom: 18 }]}>
-        <View style={[fineStyles.kpiCard, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}>
-          <MaterialCommunityIcons name="file-document-multiple" size={24} color="#2563EB" />
-          <Text style={[fineStyles.kpiLabel, { color: '#1E40AF' }]}>Archived Papers</Text>
-          <Text style={[fineStyles.kpiValue, { color: '#1E3A8A' }]}>{questionPapers.length}</Text>
-          <Text style={fineStyles.kpiSub}>Question paper records</Text>
-        </View>
-
-        <View style={[fineStyles.kpiCard, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}>
-          <Feather name="download" size={24} color="#166534" />
-          <Text style={[fineStyles.kpiLabel, { color: '#166534' }]}>Total Downloads</Text>
-          <Text style={[fineStyles.kpiValue, { color: '#14532D' }]}>{totalDownloads}</Text>
-          <Text style={fineStyles.kpiSub}>Student & teacher downloads</Text>
-        </View>
-
-        <View style={[fineStyles.kpiCard, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]}>
-          <MaterialCommunityIcons name="book-open-page-variant" size={24} color="#D97706" />
-          <Text style={[fineStyles.kpiLabel, { color: '#B45309' }]}>Subjects Covered</Text>
-          <Text style={[fineStyles.kpiValue, { color: '#78350F' }]}>{uniqueSubjects}</Text>
-          <Text style={fineStyles.kpiSub}>Across all grade levels</Text>
-        </View>
+      {/* Search Bar */}
+      <View style={[styles.searchBox, { marginBottom: 8 }]}>
+        <Feather name="search" size={16} color="#6B7280" />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search by title, subject or uploader..."
+          value={search}
+          onChangeText={setSearch}
+          placeholderTextColor="#475569"
+        />
+        {search !== '' && (
+          <TouchableOpacity onPress={() => setSearch('')}>
+            <Feather name="x" size={16} color="#6B7280" />
+          </TouchableOpacity>
+        )}
       </View>
 
-      {/* Search and Filters Box */}
-      <View style={{ backgroundColor: '#FFFFFF', padding: 14, borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB', marginBottom: 16, gap: 12 }}>
-        {/* Search Bar */}
-        <View style={styles.searchBox}>
-          <Feather name="search" size={16} color="#6B7280" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search by title, subject or uploader..."
-            value={search}
-            onChangeText={setSearch}
-            placeholderTextColor="#9CA3AF"
-          />
-          {search !== '' && (
-            <TouchableOpacity onPress={() => setSearch('')}>
-              <Feather name="x" size={16} color="#6B7280" />
-            </TouchableOpacity>
-          )}
-        </View>
+      {/* Filter Option aligned to the right */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: isAnyFilterActive ? 'space-between' : 'flex-end', marginBottom: 16, paddingHorizontal: 2 }}>
+        {isAnyFilterActive && (
+          <TouchableOpacity
+            onPress={() => {
+              setSelectedYear('ALL');
+              setSelectedClass('ALL');
+              setSelectedExam('ALL');
+            }}
+            activeOpacity={0.7}
+          >
+            <Text style={{ fontSize: 12, fontFamily: FontFamily.semibold, color: '#DC2626', textDecorationLine: 'underline' }}>
+              Reset Filters
+            </Text>
+          </TouchableOpacity>
+        )}
 
-        {/* Filter Rows */}
-        <View style={{ gap: 10 }}>
-          {/* Year Chips */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <Text style={{ fontSize: 11, fontWeight: '700', color: '#6B7280', width: 90 }}>Academic Year:</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
-              {yearOptions.map((yr) => (
-                <TouchableOpacity
-                  key={yr}
-                  style={[styles.chip, selectedYear === yr && styles.chipActive]}
-                  onPress={() => setSelectedYear(yr)}
-                >
-                  <Text style={[styles.chipText, selectedYear === yr && styles.chipTextActive]}>{yr}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-
-          {/* Class Chips */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <Text style={{ fontSize: 11, fontWeight: '700', color: '#6B7280', width: 90 }}>Grade / Class:</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
-              {classOptions.map((cls) => (
-                <TouchableOpacity
-                  key={cls}
-                  style={[styles.chip, selectedClass === cls && styles.chipActive]}
-                  onPress={() => setSelectedClass(cls)}
-                >
-                  <Text style={[styles.chipText, selectedClass === cls && styles.chipTextActive]}>{cls}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-
-          {/* Exam Type Chips */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <Text style={{ fontSize: 11, fontWeight: '700', color: '#6B7280', width: 90 }}>Exam Type:</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
-              {examOptions.map((ex) => (
-                <TouchableOpacity
-                  key={ex}
-                  style={[styles.chip, selectedExam === ex && styles.chipActive]}
-                  onPress={() => setSelectedExam(ex)}
-                >
-                  <Text style={[styles.chipText, selectedExam === ex && styles.chipTextActive]}>{ex}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
+        <TouchableOpacity
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4 }}
+          onPress={() => setIsFilterModalOpen(true)}
+          activeOpacity={0.7}
+        >
+          <Feather name="sliders" size={14} color="#171717" />
+          <Text style={{ fontSize: 13, fontFamily: FontFamily.bold, color: '#171717', textDecorationLine: isAnyFilterActive ? 'underline' : 'none' }}>
+            Filter {isAnyFilterActive ? `(${[selectedYear !== 'ALL' && selectedYear, selectedClass !== 'ALL' && selectedClass, selectedExam !== 'ALL' && selectedExam].filter(Boolean).join(', ')})` : ''}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* List / Cards */}
@@ -228,29 +202,32 @@ export function PYQsView({ questionPapers, onUploadPYQ, onPreviewPYQ, onDeletePY
                 </View>
               </View>
 
-              {/* Action Buttons Footer */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, borderTopWidth: 1, borderTopColor: '#F3F4F6', paddingTop: 12, marginTop: 4 }}>
+              {/* Action Buttons Footer (Attendance Theme) */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, borderTopWidth: 1, borderTopColor: '#E8E5DC', paddingTop: 12, marginTop: 4 }}>
                 <TouchableOpacity
-                  style={[pyqStyles.btnOutline, { borderColor: '#BFDBFE', backgroundColor: '#EFF6FF', flex: 1, justifyContent: 'center' }]}
+                  style={[pyqStyles.btnOutline, { borderColor: '#E8E5DC', backgroundColor: '#FFFFFF', flex: 1, justifyContent: 'center' }]}
                   onPress={() => onPreviewPYQ(paper)}
+                  activeOpacity={0.8}
                 >
-                  <MaterialCommunityIcons name="eye-outline" size={16} color="#2563EB" />
-                  <Text style={[pyqStyles.btnOutlineText, { color: '#2563EB' }]}>Preview PDF</Text>
+                  <Feather name="eye" size={15} color="#171717" />
+                  <Text style={[pyqStyles.btnOutlineText, { color: '#171717' }]}>Preview</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[pyqStyles.btnOutline, { borderColor: '#FDE047', backgroundColor: '#FEF08A', flex: 1, justifyContent: 'center' }]}
+                  style={[pyqStyles.btnOutline, { borderColor: '#F4C430', backgroundColor: '#F4C430', flex: 1, justifyContent: 'center' }]}
                   onPress={() => onPreviewPYQ(paper)}
+                  activeOpacity={0.8}
                 >
-                  <MaterialCommunityIcons name="download-outline" size={16} color="#121316" />
-                  <Text style={[pyqStyles.btnOutlineText, { color: '#121316' }]}>Download</Text>
+                  <Feather name="download" size={15} color="#171717" />
+                  <Text style={[pyqStyles.btnOutlineText, { color: '#171717', fontWeight: '900' }]}>Download</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   style={[pyqStyles.btnOutline, { borderColor: '#FECACA', backgroundColor: '#FEF2F2', paddingHorizontal: 12 }]}
                   onPress={() => onDeletePYQ(paper.id)}
+                  activeOpacity={0.8}
                 >
-                  <MaterialCommunityIcons name="trash-can-outline" size={16} color="#DC2626" />
+                  <MaterialCommunityIcons name="trash-can-outline" size={15} color="#DC2626" />
                   <Text style={[pyqStyles.btnOutlineText, { color: '#DC2626' }]}>Delete</Text>
                 </TouchableOpacity>
               </View>
@@ -258,7 +235,181 @@ export function PYQsView({ questionPapers, onUploadPYQ, onPreviewPYQ, onDeletePY
           ))}
         </View>
       )}
+      <PYQFilterModal
+        visible={isFilterModalOpen}
+        onClose={() => setIsFilterModalOpen(false)}
+        selectedYear={selectedYear}
+        setSelectedYear={setSelectedYear}
+        selectedClass={selectedClass}
+        setSelectedClass={setSelectedClass}
+        selectedExam={selectedExam}
+        setSelectedExam={setSelectedExam}
+        yearOptions={yearOptions}
+        classOptions={classOptions}
+        examOptions={examOptions}
+      />
     </ScrollView>
+  );
+}
+
+function PYQFilterModal({
+  visible,
+  onClose,
+  selectedYear,
+  setSelectedYear,
+  selectedClass,
+  setSelectedClass,
+  selectedExam,
+  setSelectedExam,
+  yearOptions,
+  classOptions,
+  examOptions,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  selectedYear: string;
+  setSelectedYear: (val: string) => void;
+  selectedClass: string;
+  setSelectedClass: (val: string) => void;
+  selectedExam: string;
+  setSelectedExam: (val: string) => void;
+  yearOptions: string[];
+  classOptions: string[];
+  examOptions: string[];
+}) {
+  const [tempYear, setTempYear] = useState(selectedYear);
+  const [tempClass, setTempClass] = useState(selectedClass);
+  const [tempExam, setTempExam] = useState(selectedExam);
+
+  useEffect(() => {
+    if (visible) {
+      setTempYear(selectedYear);
+      setTempClass(selectedClass);
+      setTempExam(selectedExam);
+    }
+  }, [visible, selectedYear, selectedClass, selectedExam]);
+
+  const handleApply = () => {
+    setSelectedYear(tempYear);
+    setSelectedClass(tempClass);
+    setSelectedExam(tempExam);
+    onClose();
+  };
+
+  const handleReset = () => {
+    setTempYear('ALL');
+    setTempClass('ALL');
+    setTempExam('ALL');
+    setSelectedYear('ALL');
+    setSelectedClass('ALL');
+    setSelectedExam('ALL');
+    onClose();
+  };
+
+  return (
+    <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+        <View style={{ width: '100%', maxWidth: 400, backgroundColor: '#FFFFFF', borderRadius: 8, padding: 20, gap: 16 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={{ fontSize: 16, fontFamily: FontFamily.bold, color: '#171717' }}>Filter Question Papers</Text>
+            <TouchableOpacity onPress={onClose}>
+              <Feather name="x" size={20} color="#6B7280" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Academic Year */}
+          <View style={{ gap: 8 }}>
+            <Text style={{ fontSize: 12, fontFamily: FontFamily.bold, color: '#4B5563' }}>Academic Year</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+              {yearOptions.map((yr) => (
+                <TouchableOpacity
+                  key={yr}
+                  style={[{
+                    paddingHorizontal: 10,
+                    paddingVertical: 5,
+                    borderRadius: 5,
+                    borderWidth: 1,
+                    borderColor: tempYear === yr ? '#F4C430' : '#E5E7EB',
+                    backgroundColor: tempYear === yr ? '#FFF4C7' : '#F9FAFB',
+                  }]}
+                  onPress={() => setTempYear(yr)}
+                >
+                  <Text style={{ fontSize: 11, fontFamily: FontFamily.bold, color: tempYear === yr ? '#171717' : '#6B7280' }}>
+                    {yr}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Grade / Class */}
+          <View style={{ gap: 8 }}>
+            <Text style={{ fontSize: 12, fontFamily: FontFamily.bold, color: '#4B5563' }}>Grade / Class</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+              {classOptions.map((cls) => (
+                <TouchableOpacity
+                  key={cls}
+                  style={[{
+                    paddingHorizontal: 10,
+                    paddingVertical: 5,
+                    borderRadius: 5,
+                    borderWidth: 1,
+                    borderColor: tempClass === cls ? '#F4C430' : '#E5E7EB',
+                    backgroundColor: tempClass === cls ? '#FFF4C7' : '#F9FAFB',
+                  }]}
+                  onPress={() => setTempClass(cls)}
+                >
+                  <Text style={{ fontSize: 11, fontFamily: FontFamily.bold, color: tempClass === cls ? '#171717' : '#6B7280' }}>
+                    {cls}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Exam Type */}
+          <View style={{ gap: 8 }}>
+            <Text style={{ fontSize: 12, fontFamily: FontFamily.bold, color: '#4B5563' }}>Exam Type</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+              {examOptions.map((ex) => (
+                <TouchableOpacity
+                  key={ex}
+                  style={[{
+                    paddingHorizontal: 10,
+                    paddingVertical: 5,
+                    borderRadius: 5,
+                    borderWidth: 1,
+                    borderColor: tempExam === ex ? '#F4C430' : '#E5E7EB',
+                    backgroundColor: tempExam === ex ? '#FFF4C7' : '#F9FAFB',
+                  }]}
+                  onPress={() => setTempExam(ex)}
+                >
+                  <Text style={{ fontSize: 11, fontFamily: FontFamily.bold, color: tempExam === ex ? '#171717' : '#6B7280' }}>
+                    {ex}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Actions */}
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+            <TouchableOpacity
+              style={{ flex: 1, backgroundColor: '#F4C430', borderRadius: 5, paddingVertical: 10, alignItems: 'center', justifyContent: 'center' }}
+              onPress={handleApply}
+            >
+              <Text style={{ fontSize: 13, fontFamily: FontFamily.bold, color: '#171717' }}>Apply Filters</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{ flex: 1, backgroundColor: '#F1F5F9', borderRadius: 5, paddingVertical: 10, alignItems: 'center', justifyContent: 'center' }}
+              onPress={handleReset}
+            >
+              <Text style={{ fontSize: 13, fontFamily: FontFamily.bold, color: '#64748B' }}>Reset</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -285,6 +436,19 @@ export function UploadPYQModal({
   const [totalMarks, setTotalMarks] = useState('80');
   const [durationMinutes, setDurationMinutes] = useState('180');
   const [attachedFileName, setAttachedFileName] = useState<string | null>(null);
+  const [attachedFileUri, setAttachedFileUri] = useState<string | null>(null);
+  const [attachedFileSize, setAttachedFileSize] = useState<string | null>(null);
+  const [isPickingFile, setIsPickingFile] = useState(false);
+  const [isExamDropdownOpen, setIsExamDropdownOpen] = useState(false);
+
+  const EXAM_TYPE_OPTIONS: ExamType[] = ['FINAL', 'MIDTERM', 'ANNUAL', 'UNIT_TEST', 'SUPPLEMENTARY'];
+  const EXAM_TYPE_DISPLAY: Record<ExamType, string> = {
+    FINAL: 'Final Examination',
+    MIDTERM: 'Mid-Term Examination',
+    ANNUAL: 'Annual Examination',
+    UNIT_TEST: 'Unit Test / Periodic Test',
+    SUPPLEMENTARY: 'Supplementary Examination',
+  };
 
   useEffect(() => {
     if (visible) {
@@ -296,12 +460,58 @@ export function UploadPYQModal({
       setTotalMarks('80');
       setDurationMinutes('180');
       setAttachedFileName(null);
+      setAttachedFileUri(null);
+      setAttachedFileSize(null);
+      setIsPickingFile(false);
+      setIsExamDropdownOpen(false);
     }
   }, [visible]);
 
-  const handlePickPDF = () => {
-    setAttachedFileName(`${subject ? subject.toLowerCase().replace(/\s+/g, '_') : 'question_paper'}_${academicYear}_${examType.toLowerCase()}.pdf`);
-    Alert.alert('File Attached', 'PDF document selected successfully for PYQ archive upload.');
+  const handlePickPDF = async () => {
+    try {
+      setIsPickingFile(true);
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['application/pdf'],
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const file = result.assets[0];
+        setAttachedFileName(file.name);
+        setAttachedFileUri(file.uri);
+        const formattedSize = file.size
+          ? file.size > 1024 * 1024
+            ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
+            : `${Math.round(file.size / 1024)} KB`
+          : 'PDF Document';
+        setAttachedFileSize(formattedSize);
+
+        if (!title.trim() && file.name) {
+          const cleanName = file.name
+            .replace(/\.pdf$/i, '')
+            .replace(/[_-]+/g, ' ')
+            .trim();
+          if (cleanName) {
+            setTitle(cleanName);
+          }
+        }
+      }
+    } catch (err: any) {
+      console.warn('PDF document pick error:', err);
+      Alert.alert(
+        'Document Attachment Notice',
+        'Unable to open document picker. Please check file permissions and try again.'
+      );
+    } finally {
+      setIsPickingFile(false);
+    }
+  };
+
+  const handleRemovePDF = () => {
+    setAttachedFileName(null);
+    setAttachedFileUri(null);
+    setAttachedFileSize(null);
   };
 
   const handleSubmit = () => {
@@ -322,7 +532,8 @@ export function UploadPYQModal({
       examType: examType,
       totalMarks: parseInt(totalMarks, 10) || 100,
       durationMinutes: parseInt(durationMinutes, 10) || 180,
-      fileUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+      fileUrl: attachedFileUri || 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+      fileSize: attachedFileSize || (attachedFileName ? '1.5 MB' : undefined),
     });
   };
 
@@ -331,99 +542,176 @@ export function UploadPYQModal({
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={modalStyles.backdrop}>
-        <View style={[modalStyles.modalContainer, { maxHeight: '90%' }]}>
-          <View style={modalStyles.header}>
-            <View>
-              <Text style={modalStyles.headerTitle}>Upload Past Year Question Paper</Text>
-              <Text style={{ fontSize: 11, color: '#6B7280' }}>Add new PYQ entry to the digital library repository</Text>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={{ width: '100%', maxWidth: 540 }}
+        >
+          <View style={[modalStyles.modalContainer, { maxHeight: '90%' }]}>
+            <View style={modalStyles.header}>
+              <View>
+                <Text style={modalStyles.headerTitle}>Upload Question Paper</Text>
+              </View>
+              <TouchableOpacity onPress={onClose}>
+                <Feather name="x" size={20} color="#6B7280" />
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity onPress={onClose}>
-              <Feather name="x" size={20} color="#6B7280" />
-            </TouchableOpacity>
-          </View>
 
-          <ScrollView style={{ padding: 16 }}>
+            <ScrollView
+              style={{ padding: 16 }}
+              contentContainerStyle={{ paddingBottom: 40 }}
+              nestedScrollEnabled={true}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
             <View style={styles.formGroup}>
               <Text style={styles.formLabel}>Paper Title *</Text>
               <TextInput
-                style={styles.formInput}
-                placeholder="e.g. Mathematics Final Term Examination Paper 2024-2025"
+                style={[styles.formInput, { borderRadius: 5 }]}
+                placeholder="e.g. Mathematics Paper 2024-25"
+                placeholderTextColor="#475569"
                 value={title}
                 onChangeText={setTitle}
               />
             </View>
 
+            {/* Subject and Class / Grade */}
             <View style={{ flexDirection: 'row', gap: 10 }}>
               <View style={[styles.formGroup, { flex: 1 }]}>
                 <Text style={styles.formLabel}>Subject *</Text>
                 <TextInput
-                  style={styles.formInput}
-                  placeholder="e.g. Mathematics, Physics, English"
+                  style={[styles.formInput, { borderRadius: 5 }]}
+                  placeholder="e.g. Mathematics"
+                  placeholderTextColor="#475569"
                   value={subject}
                   onChangeText={setSubject}
                 />
               </View>
 
               <View style={[styles.formGroup, { flex: 1 }]}>
-                <Text style={styles.formLabel}>Academic Year *</Text>
-                <TextInput
-                  style={styles.formInput}
-                  placeholder="e.g. 2024-2025"
-                  value={academicYear}
-                  onChangeText={setAcademicYear}
-                />
-              </View>
-            </View>
-
-            <View style={{ flexDirection: 'row', gap: 10 }}>
-              <View style={[styles.formGroup, { flex: 1 }]}>
                 <Text style={styles.formLabel}>Class / Grade *</Text>
                 <TextInput
-                  style={styles.formInput}
+                  style={[styles.formInput, { borderRadius: 5 }]}
                   placeholder="e.g. Class 10"
+                  placeholderTextColor="#475569"
                   value={classGrade}
                   onChangeText={setClassGrade}
                 />
               </View>
-
-              <View style={[styles.formGroup, { flex: 1 }]}>
-                <Text style={styles.formLabel}>Exam Type</Text>
-                <View style={{ flexDirection: 'row', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
-                  {(['FINAL', 'MIDTERM', 'ANNUAL', 'UNIT_TEST'] as ExamType[]).map((ex) => (
-                    <TouchableOpacity
-                      key={ex}
-                      style={[
-                        styles.chip,
-                        { paddingHorizontal: 8, paddingVertical: 4 },
-                        examType === ex && styles.chipActive,
-                      ]}
-                      onPress={() => setExamType(ex)}
-                    >
-                      <Text style={[styles.chipText, { fontSize: 10 }, examType === ex && styles.chipTextActive]}>
-                        {ex}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
             </View>
 
+            {/* Exam Type Dropdown - Dedicated & Properly Organised */}
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Exam Type *</Text>
+              <TouchableOpacity
+                style={[
+                  styles.formInput,
+                  {
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    paddingHorizontal: 12,
+                    paddingVertical: 10,
+                    borderRadius: 5,
+                  },
+                ]}
+                onPress={() => setIsExamDropdownOpen(!isExamDropdownOpen)}
+                activeOpacity={0.8}
+              >
+                <Text style={{ fontSize: 13, color: '#171717', fontFamily: FontFamily.semibold }}>
+                  {EXAM_TYPE_DISPLAY[examType] || examType}
+                </Text>
+                <Feather
+                  name={isExamDropdownOpen ? 'chevron-up' : 'chevron-down'}
+                  size={16}
+                  color="#64748B"
+                />
+              </TouchableOpacity>
+
+              {isExamDropdownOpen && (
+                <View
+                  style={{
+                    backgroundColor: '#FFFFFF',
+                    borderRadius: 5,
+                    borderWidth: 1,
+                    borderColor: '#E2E8F0',
+                    marginTop: 4,
+                    shadowColor: '#000000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 4,
+                    elevation: 4,
+                    overflow: 'hidden',
+                  }}
+                >
+                  {EXAM_TYPE_OPTIONS.map((ex) => {
+                    const isSelected = examType === ex;
+                    return (
+                      <TouchableOpacity
+                        key={ex}
+                        style={{
+                          paddingHorizontal: 14,
+                          paddingVertical: 11,
+                          backgroundColor: isSelected ? '#FFF4C7' : '#FFFFFF',
+                          borderBottomWidth: 1,
+                          borderBottomColor: '#F1F5F9',
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        }}
+                        onPress={() => {
+                          setExamType(ex);
+                          setIsExamDropdownOpen(false);
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontFamily: isSelected ? FontFamily.bold : FontFamily.regular,
+                            color: isSelected ? '#171717' : '#334155',
+                          }}
+                        >
+                          {EXAM_TYPE_DISPLAY[ex] || ex}
+                        </Text>
+                        {isSelected && <Feather name="check" size={16} color="#D97706" />}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+
+            {/* Academic Year, Total Marks & Duration */}
             <View style={{ flexDirection: 'row', gap: 10 }}>
+              <View style={[styles.formGroup, { flex: 1.2 }]}>
+                <Text style={styles.formLabel}>Academic Year *</Text>
+                <TextInput
+                  style={[styles.formInput, { borderRadius: 5 }]}
+                  placeholder="e.g. 2024-2025"
+                  placeholderTextColor="#475569"
+                  value={academicYear}
+                  onChangeText={setAcademicYear}
+                />
+              </View>
+
               <View style={[styles.formGroup, { flex: 1 }]}>
                 <Text style={styles.formLabel}>Total Marks</Text>
                 <TextInput
-                  style={styles.formInput}
+                  style={[styles.formInput, { borderRadius: 5 }]}
                   keyboardType="numeric"
+                  placeholder="100"
+                  placeholderTextColor="#475569"
                   value={totalMarks}
                   onChangeText={setTotalMarks}
                 />
               </View>
 
               <View style={[styles.formGroup, { flex: 1 }]}>
-                <Text style={styles.formLabel}>Duration (Minutes)</Text>
+                <Text style={styles.formLabel}>Duration (Mins)</Text>
                 <TextInput
-                  style={styles.formInput}
+                  style={[styles.formInput, { borderRadius: 5 }]}
                   keyboardType="numeric"
+                  placeholder="180"
+                  placeholderTextColor="#475569"
                   value={durationMinutes}
                   onChangeText={setDurationMinutes}
                 />
@@ -433,40 +721,132 @@ export function UploadPYQModal({
             {/* Attachment Box */}
             <View style={{ marginTop: 6, marginBottom: 16 }}>
               <Text style={styles.formLabel}>PDF Document Attachment</Text>
-              <TouchableOpacity
-                style={{
-                  backgroundColor: '#FFFDF7',
-                  borderWidth: 1.5,
-                  borderColor: attachedFileName ? '#86EFAC' : '#FEF08A',
-                  borderStyle: 'dashed',
-                  borderRadius: 10,
-                  padding: 16,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginTop: 6,
-                  gap: 6,
-                }}
-                onPress={handlePickPDF}
-              >
-                <MaterialCommunityIcons
-                  name={attachedFileName ? 'file-pdf-box' : 'cloud-upload-outline'}
-                  size={32}
-                  color={attachedFileName ? '#059669' : '#EAB308'}
-                />
-                <Text style={{ fontSize: 13, fontWeight: '700', color: '#111827' }}>
-                  {attachedFileName ? attachedFileName : 'Tap to Upload PDF Document'}
-                </Text>
-                <Text style={{ fontSize: 11, color: '#6B7280' }}>
-                  {attachedFileName ? 'File ready for archival' : 'Supports .pdf files up to 25MB'}
-                </Text>
-              </TouchableOpacity>
+              {attachedFileName ? (
+                <View
+                  style={{
+                    backgroundColor: '#F0FDF4',
+                    borderWidth: 1.5,
+                    borderColor: '#026440',
+                    borderRadius: 8,
+                    padding: 12,
+                    marginTop: 6,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 10,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                    <View
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 6,
+                        backgroundColor: '#DC2626',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <MaterialCommunityIcons name="file-pdf-box" size={24} color="#FFFFFF" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={{ fontSize: 13, fontFamily: FontFamily.bold, color: '#0F172A' }}
+                        numberOfLines={1}
+                      >
+                        {attachedFileName}
+                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                        {attachedFileSize && (
+                          <Text style={{ fontSize: 11, fontFamily: FontFamily.semibold, color: '#026440' }}>
+                            {attachedFileSize}
+                          </Text>
+                        )}
+                        <Text style={{ fontSize: 11, color: '#64748B' }}>• Ready to upload</Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <TouchableOpacity
+                      onPress={handlePickPDF}
+                      style={{
+                        paddingHorizontal: 10,
+                        paddingVertical: 6,
+                        backgroundColor: '#FFFFFF',
+                        borderWidth: 1,
+                        borderColor: '#E8E5DC',
+                        borderRadius: 5,
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={{ fontSize: 11, fontFamily: FontFamily.bold, color: '#171717' }}>Change</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={handleRemovePDF}
+                      style={{
+                        padding: 6,
+                        backgroundColor: '#FEE2E2',
+                        borderRadius: 5,
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Feather name="x" size={14} color="#DC2626" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={{
+                    backgroundColor: '#FFFDF7',
+                    borderWidth: 1.5,
+                    borderColor: '#FEF08A',
+                    borderStyle: 'dashed',
+                    borderRadius: 8,
+                    padding: 18,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginTop: 6,
+                    gap: 6,
+                  }}
+                  onPress={handlePickPDF}
+                  disabled={isPickingFile}
+                  activeOpacity={0.75}
+                >
+                  {isPickingFile ? (
+                    <ActivityIndicator size="small" color="#D97706" />
+                  ) : (
+                    <MaterialCommunityIcons name="cloud-upload-outline" size={30} color="#D97706" />
+                  )}
+                  <Text style={{ fontSize: 13, fontFamily: FontFamily.bold, color: '#111827' }}>
+                    {isPickingFile ? 'Opening Document Picker...' : 'Tap to Browse & Attach PDF Document'}
+                  </Text>
+                  <Text style={{ fontSize: 11, fontFamily: FontFamily.regular, color: '#6B7280' }}>
+                    Select question paper PDF file from your device (up to 25MB)
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
 
-            <TouchableOpacity style={[styles.primaryBtn, { marginBottom: 20 }]} onPress={handleSubmit}>
-              <Text style={styles.primaryBtnText}>Save to PYQ Archive</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 10, marginBottom: 20 }}>
+              <TouchableOpacity
+                style={{ flex: 1, backgroundColor: '#026440', borderRadius: 10, paddingVertical: 12, alignItems: 'center', justifyContent: 'center' }}
+                onPress={handleSubmit}
+                activeOpacity={0.8}
+              >
+                <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 13 }}>Upload to Archive</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{ flex: 1, backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA', borderRadius: 10, paddingVertical: 12, alignItems: 'center', justifyContent: 'center' }}
+                onPress={onClose}
+                activeOpacity={0.8}
+              >
+                <Text style={{ color: '#DC2626', fontWeight: '800', fontSize: 13 }}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
           </ScrollView>
         </View>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );
@@ -488,8 +868,17 @@ export function PDFPreviewModal({
 
   if (!paper) return null;
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     onDownload(paper.id);
+    if (paper.fileUrl && (paper.fileUrl.startsWith('http://') || paper.fileUrl.startsWith('https://'))) {
+      try {
+        const canOpen = await Linking.canOpenURL(paper.fileUrl);
+        if (canOpen) {
+          await Linking.openURL(paper.fileUrl);
+          return;
+        }
+      } catch (_e) { }
+    }
     Alert.alert('Downloading Document', `Downloading "${paper.title}.pdf" to your device storage.`);
   };
 
@@ -612,12 +1001,91 @@ export function PDFPreviewModal({
 }
 
 const pyqStyles = StyleSheet.create({
+  headerIconBadge: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: '#FFF4C7',
+    borderWidth: 1,
+    borderColor: '#F3E8C8',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  uploadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#F4C430',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 5,
+    shadowColor: '#171717',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  uploadBtnText: {
+    fontSize: 12.5,
+    fontFamily: FontFamily.bold,
+    color: '#171717',
+  },
+  kpiGrid: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  kpiCard: {
+    flex: 1,
+    minWidth: 96,
+    padding: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    backgroundColor: '#FFFFFF',
+    gap: 2,
+    overflow: 'hidden',
+  },
+  kpiHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    width: '100%',
+    gap: 4,
+  },
+  kpiIconBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  kpiLabel: {
+    flex: 1,
+    flexShrink: 1,
+    fontSize: 10,
+    fontFamily: FontFamily.bold,
+    color: '#6B6B6B',
+    lineHeight: 13,
+  },
+  kpiValue: {
+    fontSize: 17,
+    fontFamily: FontFamily.extrabold,
+    color: '#171717',
+    marginVertical: 1,
+  },
+  kpiSub: {
+    fontSize: 9,
+    fontFamily: FontFamily.medium,
+    color: '#8A8A8E',
+    lineHeight: 12,
+  },
   pyqCard: {
     backgroundColor: '#FFFFFF',
     padding: 16,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E8E5DC',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -627,7 +1095,7 @@ const pyqStyles = StyleSheet.create({
   },
   pyqTitle: {
     fontSize: 16,
-    fontWeight: '900',
+    fontFamily: FontFamily.extrabold,
     color: '#111827',
     lineHeight: 22,
     marginTop: 2,
@@ -636,43 +1104,44 @@ const pyqStyles = StyleSheet.create({
     backgroundColor: '#EFF6FF',
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: 5,
     borderWidth: 1,
     borderColor: '#BFDBFE',
   },
   subjectBadgeText: {
     fontSize: 11,
-    fontWeight: '800',
+    fontFamily: FontFamily.bold,
     color: '#1E40AF',
   },
   examBadge: {
     backgroundColor: '#FEF08A',
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: 5,
     borderWidth: 1,
     borderColor: '#FDE047',
   },
   examBadgeText: {
     fontSize: 11,
-    fontWeight: '900',
+    fontFamily: FontFamily.bold,
     color: '#121316',
   },
   classBadge: {
     backgroundColor: '#F3F4F6',
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: 5,
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
   classBadgeText: {
     fontSize: 11,
-    fontWeight: '700',
+    fontFamily: FontFamily.bold,
     color: '#4B5563',
   },
   metaText: {
     fontSize: 12,
+    fontFamily: FontFamily.regular,
     color: '#6B7280',
   },
   btnOutline: {
@@ -681,11 +1150,11 @@ const pyqStyles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: 10,
+    borderRadius: 5,
     borderWidth: 1,
   },
   btnOutlineText: {
     fontSize: 13,
-    fontWeight: '800',
+    fontFamily: FontFamily.bold,
   },
 });

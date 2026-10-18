@@ -1,16 +1,16 @@
-import React, { useState } from 'react';
-import { View, FlatList, StyleSheet, RefreshControl } from 'react-native';
+import React, { useState, useMemo, useEffect } from 'react';
+import { View, Text, FlatList, StyleSheet, RefreshControl, TouchableOpacity } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { AnnouncementCard } from './AnnouncementCard';
 import { AnnouncementDetailModal } from './AnnouncementDetailModal';
 import { CreateAnnouncementModal } from './CreateAnnouncementModal';
 import { AnnouncementFilters } from './AnnouncementFilters';
-import { AnnouncementStatsHeader } from './AnnouncementStatsHeader';
 import { Announcement, AnnouncementFilterState } from '../types';
 import { LoadingView } from '../../shared/components/LoadingView';
 import { EmptyState } from '../../shared/components/EmptyState';
 import { ErrorState } from '../../shared/components/ErrorState';
-import { AppButton } from '../../shared/components/AppButton';
 import { Colors } from '../../../constants/theme';
+import { FontFamily } from '../../../constants/fonts';
 
 interface AnnouncementListProps {
   items: Announcement[];
@@ -34,7 +34,6 @@ interface AnnouncementListProps {
 
 export const AnnouncementList: React.FC<AnnouncementListProps> = ({
   items,
-  total,
   loading,
   refreshing = false,
   error,
@@ -44,20 +43,28 @@ export const AnnouncementList: React.FC<AnnouncementListProps> = ({
   onCreate,
   onUpdate,
   onDelete,
-  onPublish,
-  onCancel,
   onMarkRead,
   isManagement = false,
-  unreadCount = 0,
   actionLoading = false,
 }) => {
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
   const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
   const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 6;
 
-  const publishedCount = items.filter((i) => i.status === 'PUBLISHED').length;
-  const scheduledCount = items.filter((i) => i.status === 'SCHEDULED').length;
-  const draftCount = items.filter((i) => i.status === 'DRAFT').length;
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters]);
+
+  const totalPages = Math.ceil(items.length / ITEMS_PER_PAGE) || 1;
+  const paginatedItems = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return items.slice(start, start + ITEMS_PER_PAGE);
+  }, [items, currentPage]);
+
+  const startRange = items.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1;
+  const endRange = Math.min(currentPage * ITEMS_PER_PAGE, items.length);
 
   const handleCreateSubmit = async (payload: any) => {
     if (editingAnnouncement && onUpdate) {
@@ -69,21 +76,13 @@ export const AnnouncementList: React.FC<AnnouncementListProps> = ({
     setCreateModalVisible(false);
   };
 
-  const handleCardEdit = (ann: Announcement) => {
-    setEditingAnnouncement(ann);
-    setCreateModalVisible(true);
-  };
-
   const handleCardDelete = async (ann: Announcement) => {
-    if (onDelete) await onDelete(ann.id);
-  };
-
-  const handleCardPublish = async (ann: Announcement) => {
-    if (onPublish) await onPublish(ann.id);
-  };
-
-  const handleCardCancel = async (ann: Announcement) => {
-    if (onCancel) await onCancel(ann.id);
+    if (onDelete) {
+      await onDelete(ann.id);
+      if (selectedAnnouncement?.id === ann.id) {
+        setSelectedAnnouncement(null);
+      }
+    }
   };
 
   if (loading && items.length === 0 && !error) {
@@ -101,56 +100,112 @@ export const AnnouncementList: React.FC<AnnouncementListProps> = ({
 
   return (
     <View style={styles.container}>
-      {isManagement && onCreate && (
-        <View style={styles.topActionRow}>
-          <AppButton
-            title="New Announcement"
-            iconName="plus"
-            disabled={actionLoading}
+      {/* Top Header & Add Announcement Button */}
+      {onCreate && (
+        <View style={styles.headerRow}>
+          <View style={styles.headerTextWrap}>
+            <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
+              Announcements
+            </Text>
+            
+          </View>
+
+          <TouchableOpacity
+            style={styles.addBtn}
             onPress={() => {
               setEditingAnnouncement(null);
               setCreateModalVisible(true);
             }}
-          />
+            disabled={actionLoading}
+            activeOpacity={0.8}
+          >
+            
+            <Text style={styles.addBtnText}>Add Announcement</Text>
+          </TouchableOpacity>
         </View>
       )}
 
-      <AnnouncementStatsHeader
-        total={total}
-        publishedCount={publishedCount}
-        scheduledCount={scheduledCount}
-        draftCount={draftCount}
-        unreadCount={unreadCount}
-        isManagement={isManagement}
-      />
-
+      {/* Clean Search Bar */}
       <AnnouncementFilters
         filters={filters}
         onFilterChange={onFilterChange}
         isManagement={isManagement}
       />
 
+      {/* Announcement List */}
       <FlatList
-        data={items}
+        data={paginatedItems}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <AnnouncementCard
             announcement={item}
             onPress={(ann) => setSelectedAnnouncement(ann)}
-            onEdit={isManagement ? handleCardEdit : undefined}
-            onDelete={isManagement ? handleCardDelete : undefined}
-            onPublish={isManagement ? handleCardPublish : undefined}
-            onCancel={isManagement ? handleCardCancel : undefined}
-            isManagement={isManagement}
+            onDelete={onDelete ? handleCardDelete : undefined}
             disabled={actionLoading}
           />
         )}
         ListEmptyComponent={
           <EmptyState
             iconName="bullhorn-outline"
-            title="No Announcements Found"
-            description="No announcements match your search or selected filters."
+            title="No Announcements"
+            description="Tap '+ Add Announcement' to post a notice with a time period."
           />
+        }
+        ListFooterComponent={
+          items.length > 0 ? (
+            <View style={styles.paginationContainer}>
+              <Text style={styles.paginationInfo}>
+                Showing {startRange}-{endRange} of {items.length} announcements
+              </Text>
+              <View style={styles.paginationBtnRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.paginationBtn,
+                    currentPage === 1 && styles.paginationBtnDisabled,
+                  ]}
+                  disabled={currentPage === 1}
+                  onPress={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  activeOpacity={0.8}
+                >
+                  <MaterialCommunityIcons name="chevron-left" size={18} color={currentPage === 1 ? '#9CA3AF' : '#171717'} />
+                  <Text
+                    style={[
+                      styles.paginationBtnText,
+                      currentPage === 1 && styles.paginationBtnTextDisabled,
+                    ]}
+                  >
+                    Prev
+                  </Text>
+                </TouchableOpacity>
+
+                <View style={styles.paginationIndicator}>
+                  <Text style={styles.paginationIndicatorText}>
+                    {currentPage} / {totalPages}
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  style={[
+                    styles.paginationBtn,
+                    currentPage === totalPages && styles.paginationBtnDisabled,
+                  ]}
+                  disabled={currentPage === totalPages}
+                  onPress={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  activeOpacity={0.8}
+                >
+                  <Text
+                    style={[
+                      styles.paginationBtnText,
+                      currentPage === totalPages && styles.paginationBtnTextDisabled,
+                    ]}
+                  >
+                    Next
+                  </Text>
+                  <MaterialCommunityIcons name="chevron-right" size={18} color={currentPage === totalPages ? '#9CA3AF' : '#171717'} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : null
         }
         contentContainerStyle={[
           styles.listContent,
@@ -166,15 +221,17 @@ export const AnnouncementList: React.FC<AnnouncementListProps> = ({
         }
       />
 
+      {/* Detail Modal */}
       <AnnouncementDetailModal
         visible={Boolean(selectedAnnouncement)}
         onClose={() => setSelectedAnnouncement(null)}
         announcement={selectedAnnouncement}
         onMarkRead={onMarkRead}
-        isUserFeed={!isManagement}
+        onDelete={onDelete ? handleCardDelete : undefined}
       />
 
-      {isManagement && (
+      {/* Create / Edit Modal */}
+      {onCreate && (
         <CreateAnnouncementModal
           visible={createModalVisible}
           onClose={() => {
@@ -195,10 +252,107 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.light.background,
   },
-  topActionRow: {
-    marginBottom: 12,
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+    gap: 10,
+  },
+  headerTextWrap: {
+    flex: 1,
+    paddingRight: 6,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontFamily: FontFamily.bold,
+    color: '#171717',
+  },
+  headerSubtitle: {
+    fontSize: 11.5,
+    fontFamily: FontFamily.regular,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  addBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#F4C430',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 5,
+    shadowColor: '#171717',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  addBtnText: {
+    fontSize: 12.5,
+    fontFamily: FontFamily.bold,
+    color: '#171717',
   },
   listContent: {
-    paddingBottom: 20,
+    paddingBottom: 40,
+  },
+  paginationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 4,
+    marginTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#E8E5DC',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  paginationInfo: {
+    fontSize: 12,
+    fontFamily: FontFamily.medium,
+    color: '#64748B',
+  },
+  paginationBtnRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  paginationBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 5,
+  },
+  paginationBtnDisabled: {
+    backgroundColor: '#F8FAFC',
+    borderColor: '#E2E8F0',
+    opacity: 0.6,
+  },
+  paginationBtnText: {
+    fontSize: 12,
+    fontFamily: FontFamily.bold,
+    color: '#171717',
+  },
+  paginationBtnTextDisabled: {
+    color: '#9CA3AF',
+  },
+  paginationIndicator: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 5,
+    backgroundColor: '#FFFDF0',
+    borderWidth: 1,
+    borderColor: '#FEF08A',
+  },
+  paginationIndicatorText: {
+    fontSize: 12,
+    fontFamily: FontFamily.bold,
+    color: '#171717',
   },
 });

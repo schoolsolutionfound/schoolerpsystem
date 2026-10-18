@@ -95,7 +95,8 @@ export const UpdateCopySchema = CreateCopySchema.partial();
 
 export const IssueBookSchema = z.object({
   bookId: z.string().min(1, 'Book ID is required'),
-  copyId: z.string().min(1, 'Copy ID is required'),
+  copyId: z.string().optional(),
+  bookCopyId: z.string().optional(),
   studentId: z.string().min(1, 'Student/Member ID is required'),
   issueDate: z.string().optional(),
   dueDate: z.string().optional(),
@@ -168,6 +169,7 @@ export const CreatePYQSchema = z.object({
   totalMarks: z.number().int().optional().default(100),
   durationMinutes: z.number().int().optional().default(180),
   fileUrl: z.string().optional(),
+  fileSize: z.string().optional(),
 });
 
 export const PYQQuerySchema = z.object({

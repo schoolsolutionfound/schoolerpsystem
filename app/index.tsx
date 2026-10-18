@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Animated, Dimensions, StatusBar, Image } from 'react-native';
+import { View, Text, StyleSheet, Animated, Dimensions, StatusBar, Image, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -44,12 +44,12 @@ export default function AppSplashScreen() {
             toValue: 1,
             tension: 50,
             friction: 7,
-            useNativeDriver: true,
+            useNativeDriver: Platform.OS !== 'web',
           }),
           Animated.timing(logoOpacity, {
             toValue: 1,
             duration: 600,
-            useNativeDriver: true,
+            useNativeDriver: Platform.OS !== 'web',
           }),
         ]),
       ]),
@@ -58,7 +58,7 @@ export default function AppSplashScreen() {
         Animated.timing(textOpacity, {
           toValue: 1,
           duration: 500,
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== 'web',
         }),
       ]),
     ]).start();
@@ -69,12 +69,12 @@ export default function AppSplashScreen() {
         Animated.timing(glowAnim, {
           toValue: 0.6,
           duration: 1200,
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== 'web',
         }),
         Animated.timing(glowAnim, {
           toValue: 0.3,
           duration: 1200,
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== 'web',
         }),
       ])
     ).start();

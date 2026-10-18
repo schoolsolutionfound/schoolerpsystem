@@ -206,6 +206,7 @@ export interface CreateBookPayload {
   shelfLocation?: string;
   bookType?: string;
   totalCopies?: number;
+  price?: string;
 }
 
 export type UpdateBookPayload = Partial<CreateBookPayload>;
@@ -248,10 +249,12 @@ export interface LoanFilters {
 
 export interface IssueBookPayload {
   bookId: string;
-  bookCopyId: string;
+  copyId?: string;
+  bookCopyId?: string;
   studentId: string;
   dueDate?: string;
   notes?: string;
+  customDays?: number;
 }
 
 export interface ReturnBookPayload {
@@ -447,9 +450,17 @@ export async function getLoansApi(filters?: LoanFilters): Promise<PaginatedResul
 }
 
 export async function issueBookApi(payload: IssueBookPayload): Promise<LibraryLoan> {
+  const resolvedCopyId = payload.copyId || payload.bookCopyId;
+  const bodyPayload: any = {
+    ...payload,
+  };
+  if (resolvedCopyId) {
+    bodyPayload.copyId = resolvedCopyId;
+    bodyPayload.bookCopyId = resolvedCopyId;
+  }
   return apiClient<LibraryLoan>('/library/loans/issue', {
     method: 'POST',
-    body: JSON.stringify(payload),
+    body: JSON.stringify(bodyPayload),
   });
 }
 

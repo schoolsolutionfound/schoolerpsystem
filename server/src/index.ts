@@ -29,8 +29,33 @@ async function main() {
       .filter(Boolean);
 
     await fastify.register(cors, {
-      origin: allowedOrigins.length > 0 ? allowedOrigins : true,
+      origin: (origin, cb) => {
+        // Allow requests with no origin (mobile apps, curl, server-to-server)
+        if (!origin) return cb(null, true);
+
+        // Allow localhost on any port (Expo Web: 8081, 8082, 19006, Vite: 5173, etc.)
+        if (
+          /^https?:\/\/localhost(:\d+)?$/.test(origin) ||
+          /^https?:\/\/127\.0\.0\.1(:\d+)?$/.test(origin)
+        ) {
+          return cb(null, true);
+        }
+
+        // Allow local LAN IPs (e.g. 172.20.x.x, 192.168.x.x, 10.x.x.x) on any port
+        if (/^https?:\/\/(172\.(1[6-9]|2\d|3[01])|192\.168|10)\.\d+\.\d+(:\d+)?$/.test(origin)) {
+          return cb(null, true);
+        }
+
+        // Check explicit origins from env
+        if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+          return cb(null, true);
+        }
+
+        return cb(new Error('Not allowed by CORS'), false);
+      },
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+      credentials: true,
     });
 
     await fastify.register(rateLimit, {

@@ -159,20 +159,12 @@ export class AnnouncementService {
   }
 
   /**
-   * Delete announcement (only DRAFT allowed).
+   * Delete announcement.
    */
   async deleteAnnouncement(institutionCode: string, id: string): Promise<boolean> {
     const existing = await announcementRepository.findById(institutionCode, id);
     if (!existing) {
       throw new AppError('Announcement not found', 'NOT_FOUND', 404);
-    }
-
-    if (existing.status !== 'DRAFT') {
-      throw new AppError(
-        `Only DRAFT announcements can be deleted. Current status: ${existing.status}`,
-        'ONLY_DRAFT_CAN_BE_DELETED',
-        400
-      );
     }
 
     return await announcementRepository.delete(institutionCode, id);

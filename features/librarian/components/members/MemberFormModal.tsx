@@ -8,6 +8,8 @@ import {
   Modal,
   Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Feather } from '../common/Icons';
 import { StudentProfile } from '../../types';
@@ -77,15 +79,25 @@ export const MemberFormModal = ({
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={modalStyles.backdrop}>
-        <View style={[modalStyles.modalContainer, { maxHeight: '90%' }]}>
-          <View style={modalStyles.header}>
-            <Text style={modalStyles.headerTitle}>{editingStudent ? 'Edit Member Details' : 'Register New Member'}</Text>
-            <TouchableOpacity onPress={onClose}>
-              <Feather name="x" size={20} color="#6B7280" />
-            </TouchableOpacity>
-          </View>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={{ width: '100%', maxWidth: 540 }}
+        >
+          <View style={[modalStyles.modalContainer, { maxHeight: '90%' }]}>
+            <View style={modalStyles.header}>
+              <Text style={modalStyles.headerTitle}>{editingStudent ? 'Edit Member Details' : 'Register New Member'}</Text>
+              <TouchableOpacity onPress={onClose}>
+                <Feather name="x" size={20} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
 
-          <ScrollView style={{ padding: 16 }} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              style={{ padding: 16 }}
+              contentContainerStyle={{ paddingBottom: 40 }}
+              nestedScrollEnabled={true}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
             <View style={styles.formGroup}>
               <Text style={styles.formLabel}>Full Name *</Text>
               <TextInput
@@ -93,6 +105,7 @@ export const MemberFormModal = ({
                 value={fullName}
                 onChangeText={setFullName}
                 placeholder="e.g. Rahul Mehta"
+                placeholderTextColor="#475569"
               />
             </View>
 
@@ -104,6 +117,7 @@ export const MemberFormModal = ({
                   value={admissionNo}
                   onChangeText={setAdmissionNo}
                   placeholder="e.g. ADM-2026-001"
+                  placeholderTextColor="#475569"
                 />
               </View>
 
@@ -114,6 +128,7 @@ export const MemberFormModal = ({
                   value={classSection}
                   onChangeText={setClassSection}
                   placeholder="e.g. Class 10-A"
+                  placeholderTextColor="#475569"
                 />
               </View>
             </View>
@@ -127,6 +142,7 @@ export const MemberFormModal = ({
                 keyboardType="email-address"
                 autoCapitalize="none"
                 placeholder="e.g. student@school.com"
+                placeholderTextColor="#475569"
               />
             </View>
 
@@ -138,6 +154,7 @@ export const MemberFormModal = ({
                 onChangeText={setPhone}
                 keyboardType="phone-pad"
                 placeholder="e.g. +1 555-0192"
+                placeholderTextColor="#475569"
               />
             </View>
 
@@ -146,6 +163,7 @@ export const MemberFormModal = ({
             </TouchableOpacity>
           </ScrollView>
         </View>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );

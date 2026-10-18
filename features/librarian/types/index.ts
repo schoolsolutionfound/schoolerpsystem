@@ -82,6 +82,7 @@ export interface Book {
   description?: string | null;
   bookType?: BookType | null;
   coverImage?: string | null;
+  price?: string | number | null;
   totalCopies?: number;
   availableCopies?: number;
   keywords?: string[];

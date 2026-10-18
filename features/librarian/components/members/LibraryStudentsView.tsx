@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,9 +6,11 @@ import {
   TouchableOpacity,
   FlatList,
   StyleSheet,
+  RefreshControl,
 } from 'react-native';
 import { Feather } from '../common/Icons';
 import { Book, BookCopy, Loan, Fine, Reservation, StudentProfile } from '../../types';
+import { FontFamily } from '../../../../constants/fonts';
 
 export const LibraryStudentsView = ({
   students,
@@ -21,6 +23,8 @@ export const LibraryStudentsView = ({
   onEditStudent,
   onDeleteStudent,
   commonStyles,
+  onRefresh,
+  isRefreshing,
 }: {
   students: StudentProfile[];
   loans: Loan[];
@@ -32,8 +36,12 @@ export const LibraryStudentsView = ({
   onEditStudent: (s: StudentProfile) => void;
   onDeleteStudent: (id: string) => void;
   commonStyles: any;
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
 }) => {
   const [search, setSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 8;
 
   const filtered = useMemo(() => {
     if (!search.trim()) return students;
@@ -47,6 +55,19 @@ export const LibraryStudentsView = ({
     );
   }, [students, search]);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
+
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE) || 1;
+  const paginatedStudents = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filtered.slice(start, start + ITEMS_PER_PAGE);
+  }, [filtered, currentPage]);
+
+  const startRange = filtered.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1;
+  const endRange = Math.min(currentPage * ITEMS_PER_PAGE, filtered.length);
+
   const styles = commonStyles;
 
   return (
@@ -55,13 +76,10 @@ export const LibraryStudentsView = ({
       <View style={{ gap: 10, marginBottom: 12 }}>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
           <View style={{ flex: 1, minWidth: 180 }}>
-            <Text style={styles.sectionHeader}>Members Directory ({students.length})</Text>
-            <Text style={{ fontSize: 11, color: '#6B7280', marginTop: -8 }}>
-              Manage registered student profiles, borrowing history & fines
-            </Text>
+            <Text style={styles.sectionHeader}>Members Directory</Text>
+            
           </View>
           <TouchableOpacity style={memStyles.addBtnHeader} onPress={onAddStudent}>
-            <Feather name="user-plus" size={14} color="#121316" />
             <Text style={memStyles.addBtnHeaderText}>Register Member</Text>
           </TouchableOpacity>
         </View>
@@ -71,6 +89,7 @@ export const LibraryStudentsView = ({
           <TextInput
             style={styles.searchInput}
             placeholder="Search members by name, admission no, or class..."
+            placeholderTextColor="#475569"
             value={search}
             onChangeText={setSearch}
           />
@@ -78,9 +97,20 @@ export const LibraryStudentsView = ({
       </View>
 
       <FlatList
-        data={filtered}
+        data={paginatedStudents}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: 80, gap: 10 }}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={
+          onRefresh ? (
+            <RefreshControl
+              refreshing={!!isRefreshing}
+              onRefresh={onRefresh}
+              colors={['#D97706']}
+              tintColor="#D97706"
+            />
+          ) : undefined
+        }
         renderItem={({ item }) => {
           const activeLoans = loans.filter((l) => l.studentId === item.id && (l.status === 'ACTIVE' || l.status === 'OVERDUE'));
           const unpaidFines = fines.filter((f) => f.studentId === item.id && f.status === 'UNPAID');
@@ -119,7 +149,7 @@ export const LibraryStudentsView = ({
                   {unpaidTotal > 0 && (
                     <View style={[styles.statusBadge, styles.badgeRed]}>
                       <Text style={[styles.badgeText, styles.badgeTextRed]}>
-                        Fine: ${unpaidTotal.toFixed(2)}
+                        Fine: ₹{unpaidTotal.toFixed(2)}
                       </Text>
                     </View>
                   )}
@@ -128,22 +158,133 @@ export const LibraryStudentsView = ({
             </View>
           );
         }}
-      />
+        ListFooterComponent={
+          filtered.length > 0 ? (
+            <View style={memStyles.paginationContainer}>
+              <Text style={memStyles.paginationInfo}>
+                Showing {startRange}-{endRange} of {filtered.length} members
+              </Text>
+              <View style={memStyles.paginationBtnRow}>
+                <TouchableOpacity
+                  style={[
+                    memStyles.paginationBtn,
+                    currentPage === 1 && memStyles.paginationBtnDisabled,
+                  ]}
+                  disabled={currentPage === 1}
+                  onPress={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  activeOpacity={0.8}
+                >
+                  <Feather name="chevron-left" size={16} color={currentPage === 1 ? '#9CA3AF' : '#171717'} />
+                  <Text
+                    style={[
+                      memStyles.paginationBtnText,
+                      currentPage === 1 && memStyles.paginationBtnTextDisabled,
+                    ]}
+                  >
+                    Prev
+                  </Text>
+                </TouchableOpacity>
 
-      <TouchableOpacity style={styles.fab} onPress={onAddStudent}>
-        <Feather name="user-plus" size={24} color="#121316" />
-      </TouchableOpacity>
+                <View style={memStyles.paginationIndicator}>
+                  <Text style={memStyles.paginationIndicatorText}>
+                    {currentPage} / {totalPages}
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  style={[
+                    memStyles.paginationBtn,
+                    currentPage === totalPages && memStyles.paginationBtnDisabled,
+                  ]}
+                  disabled={currentPage === totalPages}
+                  onPress={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  activeOpacity={0.8}
+                >
+                  <Text
+                    style={[
+                      memStyles.paginationBtnText,
+                      currentPage === totalPages && memStyles.paginationBtnTextDisabled,
+                    ]}
+                  >
+                    Next
+                  </Text>
+                  <Feather name="chevron-right" size={16} color={currentPage === totalPages ? '#9CA3AF' : '#171717'} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : null
+        }
+      />
     </View>
   );
 };
 
 const memStyles = StyleSheet.create({
-  addBtnHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FEF08A', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
-  addBtnHeaderText: { fontSize: 12, fontWeight: '800', color: '#121316' },
-  card: { flexDirection: 'row', backgroundColor: '#FFFFFF', padding: 14, borderRadius: 12, borderWidth: 1, borderColor: '#F3F4F6', gap: 12 },
+  addBtnHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F4C430', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 5 },
+  addBtnHeaderText: { fontSize: 12, fontFamily: FontFamily.bold, color: '#171717' },
+  card: { flexDirection: 'row', backgroundColor: '#FFFFFF', padding: 14, borderRadius: 10, borderWidth: 1, borderColor: '#E8E5DC', gap: 12 },
   avatarCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center' },
-  avatarLetter: { fontSize: 18, fontWeight: '900', color: '#D97706' },
-  name: { fontSize: 14, fontWeight: '800', color: '#111827' },
-  subText: { fontSize: 12, color: '#4B5563', fontWeight: '600' },
-  contactText: { fontSize: 11, color: '#6B7280' },
+  avatarLetter: { fontSize: 18, fontFamily: FontFamily.extrabold, color: '#D97706' },
+  name: { fontSize: 14, fontFamily: FontFamily.bold, color: '#111827' },
+  subText: { fontSize: 12, color: '#4B5563', fontFamily: FontFamily.semibold },
+  contactText: { fontSize: 11, color: '#6B7280', fontFamily: FontFamily.regular },
+  paginationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 4,
+    marginTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#E8E5DC',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  paginationInfo: {
+    fontSize: 12,
+    fontFamily: FontFamily.medium,
+    color: '#64748B',
+  },
+  paginationBtnRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  paginationBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 5,
+  },
+  paginationBtnDisabled: {
+    backgroundColor: '#F8FAFC',
+    borderColor: '#E2E8F0',
+    opacity: 0.6,
+  },
+  paginationBtnText: {
+    fontSize: 12,
+    fontFamily: FontFamily.bold,
+    color: '#171717',
+  },
+  paginationBtnTextDisabled: {
+    color: '#9CA3AF',
+  },
+  paginationIndicator: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 5,
+    backgroundColor: '#FFFDF0',
+    borderWidth: 1,
+    borderColor: '#FEF08A',
+  },
+  paginationIndicatorText: {
+    fontSize: 12,
+    fontFamily: FontFamily.bold,
+    color: '#171717',
+  },
 });

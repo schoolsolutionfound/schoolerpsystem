@@ -195,7 +195,7 @@ export async function requireStaff(request: FastifyRequest, reply: FastifyReply)
   if (reply.sent) return;
 
   const role = normalizeRole(request.user?.role);
-  if (!['admin', 'hod', 'principal', 'teacher'].includes(role)) {
+  if (!['admin', 'hod', 'principal', 'teacher', 'librarian', 'accountant', 'staff'].includes(role)) {
     return reply.status(403).send({
       success: false,
       error: {

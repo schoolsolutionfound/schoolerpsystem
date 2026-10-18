@@ -12,6 +12,7 @@ interface LoginFormProps {
   setShowPassword: (val: boolean) => void;
   onSubmit: () => void;
   loading: boolean;
+  errorMessage?: string | null;
 }
 
 export const LoginForm: React.FC<LoginFormProps> = ({
@@ -23,9 +24,16 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   setShowPassword,
   onSubmit,
   loading,
+  errorMessage,
 }) => {
   return (
     <View style={styles.form}>
+      {errorMessage ? (
+        <View style={styles.errorBanner}>
+          <MaterialCommunityIcons name="alert-circle-outline" size={18} color="#EF4444" style={{ marginRight: 8 }} />
+          <Text style={styles.errorBannerText}>{errorMessage}</Text>
+        </View>
+      ) : null}
       {/* Email */}
       <View style={styles.inputGroup}>
         <Text style={styles.inputLabel}>Email</Text>
@@ -129,6 +137,23 @@ const styles = StyleSheet.create({
     marginTop: -2,
     marginBottom: 4,
   },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    borderRadius: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 4,
+  },
+  errorBannerText: {
+    color: '#B91C1C',
+    fontSize: 13,
+    fontFamily: FontFamily.medium,
+    flex: 1,
+  },
   forgotText: {
     fontSize: 13,
     fontFamily: FontFamily.medium,
@@ -137,7 +162,7 @@ const styles = StyleSheet.create({
 
   submitBtn: {
     backgroundColor: '#F4C430',
-    borderRadius: 12,
+    borderRadius: 5,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 4,

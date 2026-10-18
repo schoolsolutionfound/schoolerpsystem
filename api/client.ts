@@ -3,17 +3,27 @@ import { AppError } from '../utils/errorHandler';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 const getBaseUrl = (): string => {
-  if (process.env.EXPO_PUBLIC_API_URL) {
-    return process.env.EXPO_PUBLIC_API_URL;
+  const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
+  const hostUri = Constants.expoConfig?.hostUri || (Constants as any).manifest2?.extra?.expoGo?.debuggerHost;
+  const hostIp = hostUri ? hostUri.split(':')[0] : null;
+
+  if (envUrl) {
+    // If running on web in localhost browser, map to localhost backend so requests don't fail when LAN IP changes
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && (window.location?.hostname === 'localhost' || window.location?.hostname === '127.0.0.1')) {
+      return envUrl.replace(/https?:\/\/[^/:]+(:[0-9]+)?/, (match, port) => `http://localhost${port || ':5000'}`);
+    }
+
+    // If running on a physical mobile device and envUrl uses localhost/127.0.0.1,
+    // dynamically swap it with the hotspot/LAN hostIp so requests don't fail
+    if (hostIp && hostIp !== 'localhost' && hostIp !== '127.0.0.1' && Platform.OS !== 'web' && /localhost|127\.0\.0\.1/.test(envUrl)) {
+      return envUrl.replace(/localhost|127\.0\.0\.1/, hostIp);
+    }
+    return envUrl;
   }
   
   // Extract host IP dynamically when running on physical devices/emulators via Expo Go
-  const hostUri = Constants.expoConfig?.hostUri || (Constants as any).manifest2?.extra?.expoGo?.debuggerHost;
-  if (hostUri) {
-    const hostIp = hostUri.split(':')[0];
-    if (hostIp && hostIp !== 'localhost' && hostIp !== '127.0.0.1') {
-      return `http://${hostIp}:5000/api/v1`;
-    }
+  if (hostIp && hostIp !== 'localhost' && hostIp !== '127.0.0.1') {
+    return `http://${hostIp}:5000/api/v1`;
   }
 
   return Platform.OS === 'android'

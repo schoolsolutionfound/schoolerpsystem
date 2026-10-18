@@ -64,7 +64,7 @@ export default function ChangePasswordScreen() {
       });
 
       setShowSuccessModal(true);
-      Animated.spring(scaleAnim, { toValue: 1, friction: 6, useNativeDriver: true }).start();
+      Animated.spring(scaleAnim, { toValue: 1, friction: 6, useNativeDriver: Platform.OS !== 'web' }).start();
 
       setTimeout(() => {
         setShowSuccessModal(false);

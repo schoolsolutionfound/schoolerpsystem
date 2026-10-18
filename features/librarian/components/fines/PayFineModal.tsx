@@ -8,10 +8,13 @@ import {
   Modal,
   Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '../common/Icons';
 import { Fine, StudentProfile, FineStatus, PaymentTransaction } from '../../types';
 import { apiClient } from '../../../../api/client';
+import { FontFamily } from '../../../../constants/fonts';
 
 export const PayFineModal = ({
   visible,
@@ -80,18 +83,18 @@ export const PayFineModal = ({
   const handleProcessPayment = () => {
     const amt = parseFloat(payAmount);
     if (isNaN(amt) || amt <= 0) {
-      Alert.alert('Invalid Amount', 'Please enter a valid payment amount greater than $0.');
+      Alert.alert('Invalid Amount', 'Please enter a valid payment amount greater than ₹0.');
       return;
     }
     if (amt > remainingBalance + 0.01) {
-      Alert.alert('Amount Exceeded', `Payment amount cannot exceed the remaining balance of $${remainingBalance.toFixed(2)}.`);
+      Alert.alert('Amount Exceeded', `Payment amount cannot exceed the remaining balance of ₹${remainingBalance.toFixed(2)}.`);
       return;
     }
 
     if (paymentMethod === 'CASH') {
       const cashVal = parseFloat(cashTendered || '0');
       if (isNaN(cashVal) || cashVal < amt - 0.01) {
-        Alert.alert('Insufficient Cash', `Cash tendered ($${cashVal.toFixed(2)}) is less than payment amount ($${amt.toFixed(2)}).`);
+        Alert.alert('Insufficient Cash', `Cash tendered (₹${cashVal.toFixed(2)}) is less than payment amount (₹${amt.toFixed(2)}).`);
         return;
       }
     }
@@ -161,22 +164,32 @@ export const PayFineModal = ({
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={modalStyles.backdrop}>
-        <View style={[modalStyles.modalContainer, { maxHeight: '94%' }]}>
-          <View style={modalStyles.header}>
-            <Text style={modalStyles.headerTitle}>
-              {receiptData ? 'Digital Receipt Issued' : `Collect Fine Payment (#${fine.id})`}
-            </Text>
-            <TouchableOpacity onPress={onClose}>
-              <Feather name="x" size={20} color="#6B7280" />
-            </TouchableOpacity>
-          </View>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={{ width: '100%', maxWidth: 540 }}
+        >
+          <View style={[modalStyles.modalContainer, { maxHeight: '94%' }]}>
+            <View style={modalStyles.header}>
+              <Text style={modalStyles.headerTitle}>
+                {receiptData ? 'Digital Receipt Issued' : `Collect Fine Payment (#${fine.id})`}
+              </Text>
+              <TouchableOpacity onPress={onClose}>
+                <Feather name="x" size={20} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
 
-          <ScrollView style={{ padding: 16 }} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              style={{ padding: 16 }}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              nestedScrollEnabled={true}
+              contentContainerStyle={{ paddingBottom: 40 }}
+            >
             {receiptData ? (
               /* DIGITAL RECEIPT VIEW */
               <View style={fineStyles.receiptContainer}>
                 <View style={fineStyles.receiptHeader}>
-                  <MaterialCommunityIcons name="check-circle" size={40} color="#059669" />
+                  <MaterialCommunityIcons name="check-circle" size={40} color="#026440" />
                   <Text style={fineStyles.receiptTitle}>KIVQUO SCHOOL LIBRARY</Text>
                   <Text style={fineStyles.receiptSub}>Official Payment Receipt</Text>
                   <Text style={fineStyles.receiptNo}>Receipt No: {receiptData.receiptNo}</Text>
@@ -213,11 +226,11 @@ export const PayFineModal = ({
                   <>
                     <View style={fineStyles.receiptRow}>
                       <Text style={fineStyles.receiptLabel}>Cash Tendered:</Text>
-                      <Text style={fineStyles.receiptVal}>${receiptData.cashTendered.toFixed(2)}</Text>
+                      <Text style={fineStyles.receiptVal}>₹{receiptData.cashTendered.toFixed(2)}</Text>
                     </View>
                     <View style={fineStyles.receiptRow}>
                       <Text style={fineStyles.receiptLabel}>Change Returned:</Text>
-                      <Text style={[fineStyles.receiptVal, { color: '#059669' }]}>${receiptData.changeReturned.toFixed(2)}</Text>
+                      <Text style={[fineStyles.receiptVal, { color: '#026440' }]}>₹{receiptData.changeReturned.toFixed(2)}</Text>
                     </View>
                   </>
                 )}
@@ -240,12 +253,12 @@ export const PayFineModal = ({
 
                 <View style={fineStyles.receiptRowLarge}>
                   <Text style={fineStyles.receiptLabelLarge}>Amount Paid:</Text>
-                  <Text style={fineStyles.receiptValLarge}>${receiptData.amountPaid.toFixed(2)}</Text>
+                  <Text style={fineStyles.receiptValLarge}>₹{receiptData.amountPaid.toFixed(2)}</Text>
                 </View>
 
                 <View style={fineStyles.receiptRow}>
                   <Text style={fineStyles.receiptLabel}>Remaining Balance:</Text>
-                  <Text style={fineStyles.receiptVal}>${receiptData.remainingBalance.toFixed(2)}</Text>
+                  <Text style={fineStyles.receiptVal}>₹{receiptData.remainingBalance.toFixed(2)}</Text>
                 </View>
 
                 <View style={fineStyles.receiptFooter}>
@@ -266,14 +279,14 @@ export const PayFineModal = ({
                     <Text style={fineStyles.modalMemberName}>{student?.fullName || 'Student Member'}</Text>
                     <Text style={fineStyles.modalMemberSub}>{student?.admissionNo} • {student?.classSection}</Text>
                     <Text style={{ fontSize: 11, color: '#DC2626', fontWeight: '800', marginTop: 4 }}>
-                      Fine Total: ${fine.amount.toFixed(2)} | Balance Due: ${remainingBalance.toFixed(2)}
+                      Fine Total: ₹{fine.amount.toFixed(2)} | Balance Due: ₹{remainingBalance.toFixed(2)}
                     </Text>
                   </View>
                 </View>
 
                 {/* Amount to Pay */}
                 <View style={styles.formGroup}>
-                  <Text style={styles.formLabel}>Payment Amount ($) *</Text>
+                  <Text style={styles.formLabel}>Payment Amount (₹) *</Text>
                   <TextInput
                     style={[styles.formInput, { fontSize: 16, fontWeight: '800' }]}
                     value={payAmount}
@@ -283,6 +296,7 @@ export const PayFineModal = ({
                     }}
                     keyboardType="numeric"
                     placeholder="0.00"
+                    placeholderTextColor="#475569"
                   />
                 </View>
 
@@ -319,21 +333,22 @@ export const PayFineModal = ({
 
                     <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.formLabel}>Cash Amount Tendered ($) *</Text>
+                        <Text style={styles.formLabel}>Cash Amount Tendered (₹) *</Text>
                         <TextInput
-                          style={[styles.formInput, { fontSize: 16, fontWeight: '800', color: '#059669' }]}
+                          style={[styles.formInput, { fontSize: 16, fontWeight: '800', color: '#026440' }]}
                           value={cashTendered}
                           onChangeText={setCashTendered}
                           keyboardType="numeric"
                           placeholder="0.00"
+                          placeholderTextColor="#475569"
                         />
                       </View>
 
                       <View style={{ flex: 1, justifyContent: 'center' }}>
                         <Text style={styles.formLabel}>Change to Return</Text>
-                        <View style={[styles.formInput, { backgroundColor: changeReturned >= 0 ? '#ECFDF5' : '#FEF2F2', justifyContent: 'center' }]}>
-                          <Text style={{ fontSize: 16, fontWeight: '900', color: changeReturned >= 0 ? '#059669' : '#DC2626' }}>
-                            ${changeReturned.toFixed(2)}
+                        <View style={[styles.formInput, { backgroundColor: changeReturned >= 0 ? '#ECFDF5' : '#FEF2F2', borderColor: changeReturned >= 0 ? '#026440' : '#FECACA', borderWidth: 1, justifyContent: 'center' }]}>
+                          <Text style={{ fontSize: 16, fontWeight: '900', color: changeReturned >= 0 ? '#026440' : '#DC2626' }}>
+                            ₹{changeReturned.toFixed(2)}
                           </Text>
                         </View>
                       </View>
@@ -342,12 +357,12 @@ export const PayFineModal = ({
                     {/* Quick Tender Presets */}
                     <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
                       {[
-                        { label: `Exact ($${parseFloat(payAmount || '0').toFixed(2)})`, val: parseFloat(payAmount || '0') },
-                        { label: '+$5.00', val: (parseFloat(payAmount || '0') || 0) + 5 },
-                        { label: '+$10.00', val: (parseFloat(payAmount || '0') || 0) + 10 },
-                        { label: '$20.00', val: 20 },
-                        { label: '$50.00', val: 50 },
-                        { label: '$100.00', val: 100 },
+                        { label: `Exact (₹${parseFloat(payAmount || '0').toFixed(2)})`, val: parseFloat(payAmount || '0') },
+                        { label: '+₹5.00', val: (parseFloat(payAmount || '0') || 0) + 5 },
+                        { label: '+₹10.00', val: (parseFloat(payAmount || '0') || 0) + 10 },
+                        { label: '₹20.00', val: 20 },
+                        { label: '₹50.00', val: 50 },
+                        { label: '₹100.00', val: 100 },
                       ].map((p, idx) => (
                         <TouchableOpacity
                           key={idx}
@@ -378,7 +393,7 @@ export const PayFineModal = ({
                       <View style={fineStyles.scannerCornerBL} />
                       <View style={fineStyles.scannerCornerBR} />
 
-                      <MaterialCommunityIcons name="camera-outline" size={44} color={scannedPayload ? '#059669' : '#EAB308'} />
+                      <MaterialCommunityIcons name="camera-outline" size={44} color={scannedPayload ? '#026440' : '#EAB308'} />
                       <Text style={fineStyles.scannerStatusText}>
                         {scannedPayload ? '✅ Payment QR Code Verified!' : 'Position member payment QR code inside frame'}
                       </Text>
@@ -404,20 +419,57 @@ export const PayFineModal = ({
                     value={refNotes}
                     onChangeText={setRefNotes}
                     placeholder="e.g. Receipt #, POS Auth Code, UPI transaction ID..."
+                    placeholderTextColor="#475569"
                   />
                 </View>
 
-                <TouchableOpacity style={[styles.primaryBtn, { marginTop: 10 }]} onPress={handleProcessPayment} disabled={submitting}>
-                  {submitting ? (
-                    <ActivityIndicator size="small" color="#121316" />
-                  ) : (
-                    <Text style={styles.primaryBtnText}>Collect Payment & Log Transaction</Text>
-                  )}
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+                  <TouchableOpacity
+                    style={{
+                      flex: 1,
+                      backgroundColor: '#FEF2F2',
+                      borderWidth: 1,
+                      borderColor: '#FECACA',
+                      paddingVertical: 12,
+                      borderRadius: 5,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                    onPress={onClose}
+                    disabled={submitting}
+                  >
+                    <Text style={{ color: '#DC2626', fontSize: 13, fontFamily: FontFamily.bold }}>Cancel</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={{
+                      flex: 1.8,
+                      backgroundColor: '#026440',
+                      paddingVertical: 12,
+                      borderRadius: 5,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      shadowColor: '#026440',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.25,
+                      shadowRadius: 3,
+                      elevation: 3,
+                    }}
+                    onPress={handleProcessPayment}
+                    disabled={submitting}
+                  >
+                    {submitting ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <Text style={{ color: '#FFFFFF', fontSize: 13, fontFamily: FontFamily.bold }}>Collect Payment</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
               </View>
             )}
           </ScrollView>
         </View>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );
