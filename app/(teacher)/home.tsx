@@ -306,7 +306,9 @@ export default function TeacherHomeScreen() {
                         />
                       </View>
                     </View>
-                    <Text style={[styles.centerLabel, isActive && styles.centerLabelActive]}>{tab.label}</Text>
+                    <Text style={[styles.centerLabel, isActive && styles.centerLabelActive]} numberOfLines={1}>
+                      {tab.label}
+                    </Text>
                   </TouchableOpacity>
                 );
               }
@@ -328,7 +330,9 @@ export default function TeacherHomeScreen() {
                       color={isActive ? '#1A1B1C' : '#9CA3AF'}
                     />
                   </View>
-                  <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>{tab.label}</Text>
+                  <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]} numberOfLines={1}>
+                    {tab.label}
+                  </Text>
                 </TouchableOpacity>
               );
             })}
@@ -454,13 +458,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#171717',
   },
   centerLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: FontFamily.medium,
     color: '#9CA3AF',
-    marginTop: 5,
+    marginTop: 4,
+    textAlign: 'center',
   },
   centerLabelActive: {
-    color: '#F4C430',
+    color: '#1A1B1C',
     fontFamily: FontFamily.bold,
   },
 });

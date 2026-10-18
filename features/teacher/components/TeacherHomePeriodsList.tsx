@@ -88,39 +88,34 @@ export const TeacherHomePeriodsList: React.FC<TeacherHomePeriodsListProps> = ({
               <View key={slot.id || i}>
                 {i > 0 && <View style={styles.divider} />}
                 <View style={[styles.periodRow, active && styles.activePeriodRow]}>
-                  <View style={[styles.periodBadge, active && styles.activePeriodBadge]}>
-                    <Text style={[styles.periodBadgeNum, active && styles.periodBadgeNumActive]}>
-                      {periodLabel(slot, i)}
-                    </Text>
-                  </View>
-                  <View style={styles.timeWrap}>
+                  <View style={styles.timeBadgeCol}>
+                    <View style={[styles.periodBadge, active && styles.activePeriodBadge]}>
+                      <Text style={[styles.periodBadgeNum, active && styles.periodBadgeNumActive]}>
+                        {periodLabel(slot, i)}
+                      </Text>
+                    </View>
                     <Text style={[styles.timeText, active && styles.timeTextActive]}>
                       {slot?.period?.startTime || ''}
                     </Text>
-                    <Text style={styles.timeSubText}>{slot?.period?.endTime || ''}</Text>
                   </View>
-                  <View style={styles.iconSubjectWrap}>
-                    <View style={[styles.subjectIconCircle, active && styles.subjectIconCircleActive]}>
-                      <MaterialCommunityIcons
-                        name="book-open-page-variant-outline"
-                        size={18}
-                        color="#1A1B1C"
-                      />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.subjectName}>{slot?.subject?.name || 'Subject'}</Text>
-                      <Text style={styles.roomName}>
-                        {slot?.classSectionName || 'Class'}
-                        {slot?.room ? ` · Room ${slot.room}` : ''}
-                      </Text>
-                    </View>
+
+                  <View style={styles.subjectCol}>
+                    <Text style={styles.subjectName} numberOfLines={1}>
+                      {slot?.subject?.name || 'Subject'}
+                    </Text>
+                    <Text style={styles.roomName} numberOfLines={1}>
+                      {slot?.classSectionName || 'Class'}
+                      {slot?.room ? ` · Room ${slot.room}` : ''}
+                    </Text>
                   </View>
+
                   {onMarkAttendance ? (
                     <TouchableOpacity
                       style={styles.markBtn}
                       onPress={() => onMarkAttendance(slot.id, slot?.subject?.name || 'Subject')}
+                      activeOpacity={0.8}
                     >
-                      <MaterialCommunityIcons name="check-circle-outline" size={14} color="#FFFFFF" />
+                      <MaterialCommunityIcons name="check-circle-outline" size={14} color="#111827" />
                       <Text style={styles.markBtnText}>Mark</Text>
                     </TouchableOpacity>
                   ) : active ? (
@@ -174,9 +169,14 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   activePeriodRow: { backgroundColor: '#FFF4C7' },
+  timeBadgeCol: {
+    width: 64,
+    gap: 4,
+    alignItems: 'center',
+  },
   periodBadge: {
-    width: 52,
-    height: 30,
+    width: 48,
+    height: 24,
     borderRadius: 6,
     backgroundColor: '#1A1B1C',
     justifyContent: 'center',
@@ -186,42 +186,33 @@ const styles = StyleSheet.create({
     backgroundColor: '#F4C430',
   },
   periodBadgeNum: { fontSize: 11, fontFamily: FontFamily.bold, color: '#F4C430' },
-  periodBadgeNumActive: { color: '#FFFFFF' },
-  timeWrap: { width: 70 },
-  timeText: { fontSize: 12, fontFamily: FontFamily.semibold, color: '#171717' },
-  timeTextActive: { color: '#F4C430' },
-  timeSubText: { fontSize: 11, fontFamily: FontFamily.regular, color: '#6B6B6B' },
-  iconSubjectWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  subjectIconCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#F4C430',
-    justifyContent: 'center',
-    alignItems: 'center',
+  periodBadgeNumActive: { color: '#111827' },
+  timeText: { fontSize: 11, fontFamily: FontFamily.medium, color: '#6B6B6B' },
+  timeTextActive: { color: '#B45309', fontFamily: FontFamily.bold },
+  subjectCol: {
+    flex: 1,
+    minWidth: 100,
+    gap: 2,
   },
-  subjectIconCircleActive: {
-    backgroundColor: '#F4C430',
-  },
-  subjectName: { fontSize: 14, fontFamily: FontFamily.semibold, color: '#171717' },
+  subjectName: { fontSize: 14, fontFamily: FontFamily.bold, color: '#171717' },
   roomName: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B6B6B' },
   markBtn: {
     backgroundColor: '#F4C430',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: BorderRadius.chip,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
-  markBtnText: { fontSize: 11, fontFamily: FontFamily.bold, color: '#FFFFFF' },
+  markBtnText: { fontSize: 11, fontFamily: FontFamily.bold, color: '#111827' },
   nowChip: {
     backgroundColor: '#F4C430',
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: BorderRadius.chip,
+    borderRadius: 6,
   },
-  nowChipText: { fontSize: 11, fontFamily: FontFamily.bold, color: '#FFFFFF' },
+  nowChipText: { fontSize: 11, fontFamily: FontFamily.bold, color: '#111827' },
   divider: { height: 1, backgroundColor: '#FFFEFE' },
   emptyCard: { padding: 24, alignItems: 'center', gap: 6 },
   emptyIconWrap: {

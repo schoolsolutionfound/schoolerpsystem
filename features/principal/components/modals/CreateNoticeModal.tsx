@@ -184,8 +184,8 @@ export const CreateNoticeModal: React.FC<CreateNoticeModalProps> = ({
                     p === 'normal'
                       ? 'Routine / Info'
                       : p === 'important'
-                      ? '⭐ Important'
-                      : '🚨 High Alert / Urgent';
+                      ? 'Important'
+                      : 'Urgent';
 
                   return (
                     <TouchableOpacity
@@ -237,8 +237,19 @@ export const CreateNoticeModal: React.FC<CreateNoticeModalProps> = ({
                 <ActivityIndicator size="small" color="#111827" />
               ) : (
                 <>
-                  <MaterialCommunityIcons name="send" size={16} color="#111827" />
-                  <Text style={styles.saveText}>Publish Notice</Text>
+                  <MaterialCommunityIcons
+                    name="send"
+                    size={16}
+                    color={!title.trim() || !content.trim() || saving ? '#9CA3AF' : '#111827'}
+                  />
+                  <Text
+                    style={[
+                      styles.saveText,
+                      (!title.trim() || !content.trim() || saving) && styles.saveTextDisabled,
+                    ]}
+                  >
+                    Publish Notice
+                  </Text>
                 </>
               )}
             </TouchableOpacity>
@@ -354,7 +365,7 @@ const styles = StyleSheet.create({
     borderColor: '#E8E5DC',
   },
   chipActive: {
-    backgroundColor: '#FFF4C7',
+    backgroundColor: '#F4C430',
     borderColor: '#F4C430',
   },
   chipText: {
@@ -366,6 +377,7 @@ const styles = StyleSheet.create({
   chipTextActive: {
     color: '#111827',
     fontWeight: '700',
+    fontFamily: FontFamily.bold,
   },
   priorityRow: {
     flexDirection: 'row',
@@ -382,8 +394,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   priorityBtnActive: {
-    backgroundColor: '#FFFBEB',
-    borderColor: '#D97706',
+    backgroundColor: '#F4C430',
+    borderColor: '#F4C430',
   },
   priorityText: {
     fontSize: 11,
@@ -391,8 +403,9 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.medium,
   },
   priorityTextActive: {
-    color: '#D97706',
+    color: '#111827',
     fontWeight: '700',
+    fontFamily: FontFamily.bold,
   },
   footer: {
     flexDirection: 'row',
@@ -433,5 +446,8 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#111827',
     fontFamily: FontFamily.bold,
+  },
+  saveTextDisabled: {
+    color: '#9CA3AF',
   },
 });

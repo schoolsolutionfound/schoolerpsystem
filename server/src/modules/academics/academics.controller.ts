@@ -107,6 +107,21 @@ export async function deleteClassSectionHandler(request: FastifyRequest<{ Params
   }
 }
 
+export async function getClassSectionStudentsHandler(
+  request: FastifyRequest<{ Params: { id: string } }>,
+  reply: FastifyReply
+) {
+  try {
+    const data = await academicsService.getClassSectionStudents(
+      getInstCode(request),
+      request.params.id
+    );
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to fetch students for class section');
+  }
+}
+
 export async function listSubjectsHandler(request: FastifyRequest, reply: FastifyReply) {
   try {
     const data = await academicsService.listSubjects(getInstCode(request), getPagination(request.query));

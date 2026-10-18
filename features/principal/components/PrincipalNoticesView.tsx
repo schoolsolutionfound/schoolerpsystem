@@ -7,11 +7,11 @@ import {
   ScrollView,
   TextInput,
   RefreshControl,
-  useWindowDimensions,
+  Alert,
 } from 'react-native';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
-import { BorderRadius } from '../../../constants/theme';
 import { FontFamily } from '../../../constants/fonts';
+import { YellowTheme, globalYellowStyles } from '../../../constants/globalYellowStyles';
 import { SchoolNotice } from '../types/principal.types';
 
 interface PrincipalNoticesViewProps {
@@ -27,185 +27,114 @@ export const PrincipalNoticesView: React.FC<PrincipalNoticesViewProps> = ({
   onRefresh,
   onOpenCreateModal,
 }) => {
-  const { width: windowWidth } = useWindowDimensions();
-  const maxContentWidth = Math.min(windowWidth, 1200);
-  const isDesktop = windowWidth >= 768;
-  const cardGap = 12;
-  const cardWidth = isDesktop ? Math.floor((maxContentWidth - 32 - cardGap) / 2) : '100%';
-
   const [search, setSearch] = useState('');
-  const [audienceFilter, setAudienceFilter] = useState<'all' | 'teachers' | 'parents' | 'students' | 'urgent'>('all');
+  const [deletedIds, setDeletedIds] = useState<string[]>([]);
 
-  const filteredNotices = notices.filter((n) => {
-    const q = search.toLowerCase();
-    const matchesSearch =
-      n.title.toLowerCase().includes(q) ||
-      n.content.toLowerCase().includes(q) ||
-      n.author.toLowerCase().includes(q);
+  const handleDelete = (id: string, title: string) => {
+    Alert.alert(
+      'Delete Announcement',
+      `Are you sure you want to delete "${title}"?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => setDeletedIds((prev) => [...prev, id]),
+        },
+      ]
+    );
+  };
 
-    if (!matchesSearch) return false;
-
-    if (audienceFilter === 'all') return true;
-    if (audienceFilter === 'urgent') return n.priority === 'urgent';
-    return n.targetAudience === audienceFilter || n.targetAudience === 'all';
-  });
+  const filteredNotices = notices
+    .filter((n) => !deletedIds.includes(n.id))
+    .filter((n) => {
+      const q = search.toLowerCase();
+      return (
+        n.title.toLowerCase().includes(q) ||
+        n.content.toLowerCase().includes(q) ||
+        (n.author && n.author.toLowerCase().includes(q))
+      );
+    });
 
   return (
     <View style={styles.container}>
-      {/* Top Header & Search */}
+      {/* Top Header & Search (Screenshot 2: Announcements + Add Announcement) */}
       <View style={styles.headerBlock}>
         <View style={styles.topActionRow}>
-          <View style={styles.titleWrap}>
-            <Text style={styles.sectionTitle} numberOfLines={1}>Campus Circulars</Text>
-            <Text style={styles.sectionSub} numberOfLines={1}>Official announcements & broadcasts</Text>
-          </View>
+          <Text style={styles.pageTitle}>Announcements</Text>
           <TouchableOpacity style={styles.addBtn} onPress={onOpenCreateModal} activeOpacity={0.8}>
-            <Feather name="plus" size={16} color="#1A1B1C" />
-            <Text style={styles.addBtnText}>Publish</Text>
+            <Text style={styles.addBtnText}>Add Announcement</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Search Input */}
+        {/* Search Bar with Brand Yellow Magnifying Glass */}
         <View style={styles.searchBar}>
-          <MaterialCommunityIcons name="magnify" size={20} color="#9CA3AF" />
+          <MaterialCommunityIcons name="magnify" size={20} color={YellowTheme.primaryYellow} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search circulars by subject, keyword..."
-            placeholderTextColor="#9CA3AF"
+            placeholder="Search announcements..."
+            placeholderTextColor={YellowTheme.placeholder}
             value={search}
             onChangeText={setSearch}
           />
           {search ? (
             <TouchableOpacity onPress={() => setSearch('')}>
-              <MaterialCommunityIcons name="close-circle" size={18} color="#9CA3AF" />
+              <MaterialCommunityIcons name="close-circle" size={18} color={YellowTheme.placeholder} />
             </TouchableOpacity>
           ) : null}
         </View>
-
-        {/* Filter Pills */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
-          {(
-            [
-              { key: 'all' as const, label: `All Circulars (${notices.length})`, icon: 'bullhorn-outline' as const },
-              { key: 'urgent' as const, label: 'Urgent Priority', icon: 'alert-decagram' as const },
-              { key: 'teachers' as const, label: 'Faculty & Staff', icon: 'account-tie-outline' as const },
-              { key: 'parents' as const, label: 'Parents', icon: 'account-child-outline' as const },
-              { key: 'students' as const, label: 'Students', icon: 'school-outline' as const },
-            ]
-          ).map((item) => {
-            const active = audienceFilter === item.key;
-            return (
-              <TouchableOpacity
-                key={item.key}
-                style={[styles.filterChip, active && styles.filterChipActive]}
-                onPress={() => setAudienceFilter(item.key)}
-                activeOpacity={0.7}
-              >
-                <MaterialCommunityIcons
-                  name={item.icon}
-                  size={14}
-                  color={active ? '#F4C430' : item.key === 'urgent' ? '#DC2626' : '#6B6B6B'}
-                />
-                <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
-                  {item.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
       </View>
 
-      {/* Notices List */}
+      {/* Notices List (Screenshot 2 Theme Cards) */}
       <ScrollView
         style={styles.list}
         contentContainerStyle={styles.listContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#D97706']} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[YellowTheme.primaryYellow]} />}
         showsVerticalScrollIndicator={false}
       >
-        {filteredNotices.map((notice) => {
-          const isUrgent = notice.priority === 'urgent';
-          const isImportant = notice.priority === 'important';
-
-          return (
-            <View key={notice.id} style={[styles.card, { width: cardWidth }]}>
-              <View style={styles.cardTop}>
-                <View style={styles.badgeRow}>
-                  {/* Audience Badge */}
-                  <View style={styles.audienceBadge}>
-                    <MaterialCommunityIcons
-                      name={
-                        notice.targetAudience === 'all'
-                          ? 'bullhorn-outline'
-                          : notice.targetAudience === 'teachers'
-                          ? 'account-tie-outline'
-                          : notice.targetAudience === 'parents'
-                          ? 'account-child-outline'
-                          : 'school-outline'
-                      }
-                      size={12}
-                      color="#1A1B1C"
-                    />
-                    <Text style={styles.audienceText}>
-                      {notice.targetAudience === 'all'
-                        ? 'CAMPUS WIDE'
-                        : notice.targetAudience === 'teachers'
-                        ? 'FACULTY ONLY'
-                        : notice.targetAudience === 'parents'
-                        ? 'PARENTS'
-                        : 'STUDENTS'}
-                    </Text>
-                  </View>
-
-                  {/* Priority Badge */}
-                  {isUrgent && (
-                    <View style={styles.urgentBadge}>
-                      <Text style={styles.urgentBadgeText}>URGENT</Text>
-                    </View>
-                  )}
-                  {isImportant && (
-                    <View style={styles.importantBadge}>
-                      <Text style={styles.importantBadgeText}>IMPORTANT</Text>
-                    </View>
-                  )}
-
-                  {/* Target Department Badge */}
-                  {notice.department ? (
-                    <View style={styles.deptBadge}>
-                      <MaterialCommunityIcons name="tag-outline" size={11} color="#2563EB" />
-                      <Text style={styles.deptBadgeText}>{notice.department.toUpperCase()}</Text>
-                    </View>
-                  ) : null}
-                </View>
-
-                <Text style={styles.dateText}>{notice.publishedDate}</Text>
-              </View>
-
-              <Text style={styles.noticeTitle}>{notice.title}</Text>
-              <Text style={styles.noticeBody}>{notice.content}</Text>
-
-              <View style={styles.cardFooter}>
-                <View style={styles.authorRow}>
-                  <MaterialCommunityIcons name="shield-check" size={14} color="#D97706" />
-                  <Text style={styles.authorText}>Issued by: {notice.author}</Text>
-                </View>
-
-                {notice.acknowledgedCount !== undefined && notice.acknowledgedCount > 0 && (
-                  <View style={styles.ackRow}>
-                    <MaterialCommunityIcons name="check-all" size={14} color="#16A34A" />
-                    <Text style={styles.ackText}>{notice.acknowledgedCount} Acknowledged</Text>
-                  </View>
-                )}
-              </View>
-            </View>
-          );
-        })}
-
-        {filteredNotices.length === 0 && (
-          <View style={styles.emptyWrap}>
-            <MaterialCommunityIcons name="bullhorn-outline" size={48} color="#D1D5DB" />
-            <Text style={styles.emptyTitle}>No matching circulars</Text>
-            <Text style={styles.emptySub}>All campus notices have been cleared or filter is empty</Text>
+        {filteredNotices.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <MaterialCommunityIcons name="bullhorn-outline" size={42} color={YellowTheme.darkSubtle} />
+            <Text style={styles.emptyTitle}>No announcements found</Text>
+            <Text style={styles.emptySub}>Tap "Add Announcement" above to publish your first circular.</Text>
           </View>
+        ) : (
+          filteredNotices.map((notice) => {
+            const timePeriod = notice.expiresAt
+              ? `${notice.publishedDate || 'Current'} – ${notice.expiresAt}`
+              : `From ${notice.publishedDate || '30 Sep 2026'}`;
+
+            return (
+              <View key={notice.id} style={styles.card}>
+                {/* Card Top: Title on left, Red Delete button on right */}
+                <View style={styles.cardHeaderRow}>
+                  <Text style={styles.cardTitle} numberOfLines={1}>
+                    {notice.title}
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.deleteBtn}
+                    onPress={() => handleDelete(notice.id, notice.title)}
+                    activeOpacity={0.7}
+                  >
+                    <MaterialCommunityIcons name="trash-can-outline" size={17} color={YellowTheme.statusRed} />
+                    <Text style={styles.deleteText}>Delete</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Card Content Description */}
+                <Text style={styles.cardDescription} numberOfLines={2}>
+                  {notice.content}
+                </Text>
+
+                {/* Inset Time Period Pill (Screenshot 2: Calendar icon + Time Period) */}
+                <View style={styles.timePill}>
+                  <MaterialCommunityIcons name="calendar-clock" size={15} color={YellowTheme.dark} />
+                  <Text style={styles.timePillLabel}>Time Period: </Text>
+                  <Text style={styles.timePillBold}>{timePeriod}</Text>
+                </View>
+              </View>
+            );
+          })
         )}
       </ScrollView>
     </View>
@@ -215,266 +144,171 @@ export const PrincipalNoticesView: React.FC<PrincipalNoticesViewProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFDF7',
+    backgroundColor: YellowTheme.screenBg,
   },
   headerBlock: {
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 8,
+    paddingTop: 16,
+    paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E8E5DC',
-    gap: 12,
-    maxWidth: 1200,
-    width: '100%',
-    alignSelf: 'center',
+    borderBottomColor: YellowTheme.cardBorder,
   },
   topActionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 12,
+    marginBottom: 14,
   },
-  titleWrap: {
-    flex: 1,
-    minWidth: 0,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#171717',
+  pageTitle: {
     fontFamily: FontFamily.extrabold,
-  },
-  sectionSub: {
-    fontSize: 11,
-    color: '#6B6B6B',
-    fontFamily: FontFamily.regular,
-    marginTop: 1,
+    fontSize: 22,
+    color: YellowTheme.black,
+    letterSpacing: -0.3,
   },
   addBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#F4C430',
+    backgroundColor: YellowTheme.primaryYellow,
     paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: BorderRadius.button,
-    flexShrink: 0,
+    paddingVertical: 9,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   addBtnText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#1A1B1C',
     fontFamily: FontFamily.bold,
+    fontSize: 13,
+    color: YellowTheme.black,
+    letterSpacing: -0.1,
   },
+
+  // Search Bar with Brand Yellow Magnifier (Screenshot 2)
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFDF7',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E8E5DC',
-    borderRadius: BorderRadius.input,
-    paddingHorizontal: 10,
-    height: 40,
-    gap: 8,
+    borderColor: YellowTheme.cardBorder,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    height: 44,
+  },
+  searchIcon: {
+    marginRight: 8,
   },
   searchInput: {
     flex: 1,
-    fontSize: 13,
-    color: '#171717',
     fontFamily: FontFamily.regular,
+    fontSize: 14,
+    color: YellowTheme.dark,
+    paddingVertical: 0,
   },
-  filterScroll: {
-    flexDirection: 'row',
-  },
-  filterChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: BorderRadius.chip,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E8E5DC',
-    marginRight: 8,
-  },
-  filterChipActive: {
-    backgroundColor: '#1A1B1C',
-    borderColor: '#1A1B1C',
-  },
-  filterChipText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#6B6B6B',
-    fontFamily: FontFamily.semibold,
-  },
-  filterChipTextActive: {
-    color: '#F4C430',
-  },
+
   list: {
     flex: 1,
   },
   listContent: {
     padding: 16,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 12,
-    paddingBottom: 40,
-    maxWidth: 1200,
-    width: '100%',
-    alignSelf: 'center',
   },
+
+  // Content Cards (Screenshot 2)
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.card,
+    backgroundColor: YellowTheme.cardBg,
     borderWidth: 1,
-    borderColor: '#E8E5DC',
-    padding: 14,
-    gap: 8,
-    shadowColor: '#000',
+    borderColor: YellowTheme.cardBorder,
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 2,
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
     elevation: 1,
   },
-  cardTop: {
+  cardHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 8,
-  },
-  badgeRow: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    flexWrap: 'wrap',
+    marginBottom: 8,
+  },
+  cardTitle: {
     flex: 1,
-  },
-  audienceBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  audienceText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#374151',
-    fontFamily: FontFamily.bold,
-  },
-  urgentBadge: {
-    backgroundColor: '#DC262618',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  urgentBadgeText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#DC2626',
     fontFamily: FontFamily.extrabold,
+    fontSize: 16,
+    color: YellowTheme.black,
+    letterSpacing: -0.2,
+    marginRight: 10,
   },
-  importantBadge: {
-    backgroundColor: '#F59E0B18',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  importantBadgeText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#D97706',
-    fontFamily: FontFamily.extrabold,
-  },
-  deptBadge: {
+  deleteBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#3B82F618',
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#3B82F630',
+    paddingVertical: 2,
+    paddingHorizontal: 4,
   },
-  deptBadgeText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: '#2563EB',
+  deleteText: {
     fontFamily: FontFamily.bold,
-  },
-  dateText: {
-    fontSize: 11,
-    color: '#8A8A8A',
-    fontFamily: FontFamily.regular,
-    marginTop: 2,
-    flexShrink: 0,
-  },
-  noticeTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#171717',
-    fontFamily: FontFamily.bold,
-    marginTop: 2,
-  },
-  noticeBody: {
     fontSize: 13,
-    color: '#4B5563',
-    lineHeight: 19,
+    color: YellowTheme.statusRed,
+  },
+  cardDescription: {
     fontFamily: FontFamily.regular,
+    fontSize: 13,
+    color: YellowTheme.darkMuted,
+    lineHeight: 19,
+    marginBottom: 10,
   },
-  cardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: '#E8E5DC',
-    paddingTop: 8,
-    marginTop: 4,
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  authorRow: {
+
+  // Time Period Inset Pill (Screenshot 2)
+  timePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    flex: 1,
-    minWidth: 140,
+    backgroundColor: YellowTheme.subtleBg,
+    borderWidth: 1,
+    borderColor: YellowTheme.cardBorder,
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    alignSelf: 'flex-start',
   },
-  authorText: {
-    fontSize: 11,
-    color: '#6B6B6B',
-    fontFamily: FontFamily.medium,
+  timePillLabel: {
+    fontFamily: FontFamily.regular,
+    fontSize: 12,
+    color: YellowTheme.darkSubtle,
+    marginLeft: 6,
   },
-  ackRow: {
-    flexDirection: 'row',
+  timePillBold: {
+    fontFamily: FontFamily.bold,
+    fontSize: 12,
+    color: YellowTheme.black,
+  },
+
+  // Empty State
+  emptyCard: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: YellowTheme.cardBorder,
+    borderRadius: 12,
+    padding: 32,
     alignItems: 'center',
-    gap: 4,
-  },
-  ackText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#16A34A',
-    fontFamily: FontFamily.semibold,
-  },
-  emptyWrap: {
-    alignItems: 'center',
-    paddingTop: 60,
-    gap: 8,
+    justifyContent: 'center',
+    marginTop: 20,
   },
   emptyTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#374151',
     fontFamily: FontFamily.bold,
+    fontSize: 16,
+    color: YellowTheme.black,
+    marginTop: 12,
+    marginBottom: 4,
   },
   emptySub: {
-    fontSize: 12,
-    color: '#9CA3AF',
     fontFamily: FontFamily.regular,
+    fontSize: 13,
+    color: YellowTheme.darkMuted,
+    textAlign: 'center',
   },
 });
