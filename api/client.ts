@@ -71,7 +71,7 @@ export async function apiClient<T = any>(
     return (data.data !== undefined ? data.data : data) as T;
   } catch (error: any) {
     if (error instanceof AppError) throw error;
-    console.warn(`[API Client Network Warning] Failed to reach Fastify API at ${url}: ${error.message}`);
+    console.log(`[API Client Network Info] Fastify API at ${url} unavailable (${error.message}). App falling back to cloud services.`);
     throw new AppError(`API Network Error: Could not connect to backend server at ${url}.`, 'NETWORK_ERROR', 503);
   }
 }

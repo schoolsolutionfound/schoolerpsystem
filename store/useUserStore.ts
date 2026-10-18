@@ -156,6 +156,8 @@ export const useUserStore = create<UserState>()(
         fullName: state.fullName,
         email: state.email,
         phone: state.phone,
+        userRole: state.userRole,
+        roles: state.roles,
         institutionId: state.institutionId,
         institutionName: state.institutionName,
         institutionCode: state.institutionCode,

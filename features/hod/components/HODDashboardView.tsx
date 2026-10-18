@@ -131,10 +131,9 @@ export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
               Educational Tools
             </Text>
             <Text style={styles.topActionSub} numberOfLines={2}>
-              Manage courses & academic labs.
+              Academic & courses
             </Text>
           </View>
-          <MaterialCommunityIcons name="chevron-right" size={16} color="#9CA3AF" />
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -150,10 +149,9 @@ export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
               My Timetable
             </Text>
             <Text style={styles.topActionSub} numberOfLines={2}>
-              View your schedule for the day.
+              Schedule for today
             </Text>
           </View>
-          <MaterialCommunityIcons name="chevron-right" size={16} color="#9CA3AF" />
         </TouchableOpacity>
       </View>
 
@@ -426,7 +424,7 @@ export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FFFDF7',
   },
   content: {
     paddingHorizontal: 16,
@@ -443,7 +441,7 @@ const styles = StyleSheet.create({
   dateText: {
     fontFamily: FontFamily.regular,
     fontSize: 13,
-    color: '#6B7280',
+    color: '#6B6B6B',
     marginBottom: 2,
   },
   greetingText: {
@@ -459,9 +457,9 @@ const styles = StyleSheet.create({
   },
   subGreetingText: {
     fontFamily: FontFamily.regular,
-    fontSize: 14,
-    color: '#6B7280',
-    marginTop: 4,
+    fontSize: 13,
+    color: '#6B6B6B',
+    marginTop: 3,
   },
 
   // 2. Top Action Cards
@@ -475,16 +473,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E8E5DC',
     borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    gap: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    gap: 8,
   },
   blackIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
+    width: 38,
+    height: 38,
+    borderRadius: 10,
     backgroundColor: '#111827',
     alignItems: 'center',
     justifyContent: 'center',
@@ -494,14 +492,14 @@ const styles = StyleSheet.create({
   },
   topActionTitle: {
     fontFamily: FontFamily.bold,
-    fontSize: 13,
+    fontSize: 14,
     color: '#111827',
   },
   topActionSub: {
     fontFamily: FontFamily.regular,
-    fontSize: 10,
-    color: '#6B7280',
-    lineHeight: 13,
+    fontSize: 11,
+    color: '#6B6B6B',
+    lineHeight: 14,
     marginTop: 2,
   },
 
@@ -517,9 +515,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E8E5DC',
     borderRadius: 12,
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 10,
     gap: 8,
   },
@@ -534,13 +532,13 @@ const styles = StyleSheet.create({
   },
   metricLabel: {
     fontFamily: FontFamily.bold,
-    fontSize: 12,
+    fontSize: 13,
     color: '#111827',
   },
   metricSub: {
     fontFamily: FontFamily.regular,
-    fontSize: 10,
-    color: '#6B7280',
+    fontSize: 11,
+    color: '#6B6B6B',
     marginTop: 1,
   },
 
@@ -548,7 +546,7 @@ const styles = StyleSheet.create({
   classSectionCard: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E8E5DC',
     borderRadius: 12,
     padding: 14,
     gap: 10,
@@ -577,7 +575,7 @@ const styles = StyleSheet.create({
   classSectionSubtitle: {
     fontFamily: FontFamily.regular,
     fontSize: 12,
-    color: '#6B7280',
+    color: '#6B6B6B',
     marginTop: 1,
   },
   searchBarWrap: {
@@ -586,7 +584,7 @@ const styles = StyleSheet.create({
     gap: 8,
     backgroundColor: '#F9FAFB',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E8E5DC',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -609,7 +607,7 @@ const styles = StyleSheet.create({
   },
   classItemBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: '#E8E5DC',
     paddingBottom: 10,
   },
   classItemTop: {
@@ -628,7 +626,7 @@ const styles = StyleSheet.create({
   classRoomText: {
     fontFamily: FontFamily.regular,
     fontSize: 12,
-    color: '#6B7280',
+    color: '#6B6B6B',
     marginTop: 1,
   },
   assignPillBtn: {
@@ -664,7 +662,7 @@ const styles = StyleSheet.create({
   statText: {
     fontFamily: FontFamily.regular,
     fontSize: 12,
-    color: '#4B5563',
+    color: '#6B6B6B',
   },
 
   emptyWrap: {
@@ -676,7 +674,7 @@ const styles = StyleSheet.create({
   emptyText: {
     fontFamily: FontFamily.regular,
     fontSize: 13,
-    color: '#6B7280',
+    color: '#6B6B6B',
   },
 
   viewAllFooter: {
@@ -685,7 +683,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: '#E8E5DC',
   },
   viewAllText: {
     fontFamily: FontFamily.semibold,
@@ -710,7 +708,7 @@ const styles = StyleSheet.create({
   quickAccessSubtitle: {
     fontFamily: FontFamily.regular,
     fontSize: 12,
-    color: '#6B7280',
+    color: '#6B6B6B',
   },
   quickAccessScroll: {
     gap: 10,
@@ -719,7 +717,7 @@ const styles = StyleSheet.create({
   quickCard: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E8E5DC',
     borderRadius: 12,
     padding: 10,
     gap: 6,
@@ -744,6 +742,6 @@ const styles = StyleSheet.create({
   quickCardSub: {
     fontFamily: FontFamily.regular,
     fontSize: 10,
-    color: '#6B7280',
+    color: '#6B6B6B',
   },
 });

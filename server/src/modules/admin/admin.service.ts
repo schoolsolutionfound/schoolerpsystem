@@ -752,6 +752,31 @@ export class AdminService {
       scope: JSON.stringify(scopeObj),
     });
 
+    if (isFirebaseAdminInitialized) {
+      try {
+        await admin.auth().setCustomUserClaims(firebaseUid, {
+          role: primaryRole,
+          roles: assignedRoles,
+          institutionCode: payload.institutionCode,
+        });
+        await admin.firestore().collection('users').doc(firebaseUid).set({
+          fullName: payload.fullName,
+          email: payload.email,
+          role: primaryRole,
+          userRole: primaryRole,
+          roles: assignedRoles,
+          institutionCode: payload.institutionCode,
+          institutionName: payload.institutionName || payload.institutionCode,
+          institutionType: instType,
+          mustChangePassword: true,
+          profileCompleted: false,
+          createdAt: new Date().toISOString(),
+        }, { merge: true });
+      } catch (fbErr: any) {
+        console.warn('[Admin Service] Failed to sync new user to Firebase:', fbErr.message);
+      }
+    }
+
     return createdUser;
   }
 

@@ -143,8 +143,16 @@ export async function fetchPrincipalHomeroomsApi(): Promise<HomeroomSection[]> {
 
 export async function fetchPrincipalStaffDirectoryApi(): Promise<PrincipalStaffMember[]> {
   try {
-    const res = await apiClient<{ success?: boolean; data?: StaffApiResponse[] } | StaffApiResponse[]>('/admin/teachers');
-    const teachers = Array.isArray(res) ? res : res?.data || [];
+    const res = await apiClient<any>('/admin/teachers');
+    const teachers: StaffApiResponse[] = Array.isArray(res)
+      ? res
+      : Array.isArray(res?.data)
+      ? res.data
+      : Array.isArray(res?.data?.data)
+      ? res.data.data
+      : Array.isArray(res?.items)
+      ? res.items
+      : [];
 
     return teachers.map((t, idx) => {
       const parsedScope = t.scope && typeof t.scope === 'object' ? t.scope : {};
