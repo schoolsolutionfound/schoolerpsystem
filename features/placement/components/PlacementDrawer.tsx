@@ -27,15 +27,8 @@ interface PlacementDrawerProps {
   profilePic?: string;
   institutionName?: string;
   activeTab?: string;
-  onTabSwitch?: (tab: 'drives' | 'students' | 'team' | 'profile') => void;
+  onTabSwitch?: (tab: 'drives' | 'students' | 'team' | 'results' | 'profile') => void;
 }
-
-const PRIMARY = [
-  { key: 'drives', label: 'Placement Drives', icon: 'briefcase-outline', iconFilled: 'briefcase', tab: 'drives' as const },
-  { key: 'students', label: 'Students Directory', icon: 'account-group-outline', iconFilled: 'account-group', tab: 'students' as const },
-  { key: 'team', label: 'Placement Team', icon: 'account-multiple-outline', iconFilled: 'account-multiple', tab: 'team' as const },
-  { key: 'profile', label: 'Profile', icon: 'account-circle-outline', iconFilled: 'account-circle', tab: 'profile' as const },
-];
 
 export const PlacementDrawer: React.FC<PlacementDrawerProps> = ({
   visible,
@@ -49,8 +42,25 @@ export const PlacementDrawer: React.FC<PlacementDrawerProps> = ({
 }) => {
   const router = useRouter();
   const resetUser = useUserStore((s) => s.resetUser);
+  const userRole = useUserStore((s) => s.userRole);
+  const placementAccess = useUserStore((s) => s.placementAccess);
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
+
+  const isHead =
+    placementAccess === 'head' ||
+    userRole === 'admin' ||
+    (userRole as string) === 'placement_officer';
+
+  const menuItems = [
+    { key: 'drives', label: 'Placement Drives', icon: 'briefcase-outline', iconFilled: 'briefcase', tab: 'drives' as const },
+    { key: 'students', label: 'Students Directory', icon: 'account-group-outline', iconFilled: 'account-group', tab: 'students' as const },
+    { key: 'results', label: 'Placement Results', icon: 'clipboard-list-outline', iconFilled: 'clipboard-list', tab: 'results' as const },
+    ...(isHead
+      ? [{ key: 'team', label: 'Placement Team', icon: 'account-multiple-outline', iconFilled: 'account-multiple', tab: 'team' as const }]
+      : []),
+    { key: 'profile', label: 'Profile', icon: 'account-circle-outline', iconFilled: 'account-circle', tab: 'profile' as const },
+  ];
 
   const slideX = useRef(new Animated.Value(-width)).current;
   const fade = useRef(new Animated.Value(0)).current;
@@ -96,7 +106,7 @@ export const PlacementDrawer: React.FC<PlacementDrawerProps> = ({
     setTimeout(() => router.push(route as any), 120);
   };
 
-  const switchTabAndClose = (tab: 'drives' | 'students' | 'team' | 'profile') => {
+  const switchTabAndClose = (tab: 'drives' | 'students' | 'team' | 'results' | 'profile') => {
     if (onTabSwitch) {
       onTabSwitch(tab);
     }
@@ -180,7 +190,7 @@ export const PlacementDrawer: React.FC<PlacementDrawerProps> = ({
               showsVerticalScrollIndicator={false}
             >
               <Text style={styles.sectionLabel}>WORKSPACE</Text>
-              {PRIMARY.map((item) => {
+              {menuItems.map((item) => {
                 const isActive = activeTab === item.key;
                 return (
                   <TouchableOpacity
@@ -201,6 +211,38 @@ export const PlacementDrawer: React.FC<PlacementDrawerProps> = ({
                   </TouchableOpacity>
                 );
               })}
+
+              {(userRole === 'teacher' || userRole === 'admin') && (
+                <>
+                  <Text style={[styles.sectionLabel, { marginTop: 18 }]}>SWITCH PORTAL</Text>
+                  {userRole === 'teacher' && (
+                    <TouchableOpacity
+                      style={[styles.menuItem, { backgroundColor: 'rgba(244, 196, 48, 0.08)', marginBottom: 6 }]}
+                      activeOpacity={0.7}
+                      onPress={() => navigateAndClose('/(teacher)/home')}
+                    >
+                      <View style={[styles.menuIcon, { borderColor: 'rgba(244, 196, 48, 0.3)', backgroundColor: 'rgba(244, 196, 48, 0.15)' }]}>
+                        <MaterialCommunityIcons name="school-outline" size={18} color="#F4C430" />
+                      </View>
+                      <Text style={[styles.menuText, { color: '#F4C430', fontWeight: '700' }]}>Teacher Portal</Text>
+                      <Feather name="chevron-right" size={16} color="#F4C430" />
+                    </TouchableOpacity>
+                  )}
+                  {userRole === 'admin' && (
+                    <TouchableOpacity
+                      style={[styles.menuItem, { backgroundColor: 'rgba(244, 196, 48, 0.08)', marginBottom: 6 }]}
+                      activeOpacity={0.7}
+                      onPress={() => navigateAndClose('/(admin)/home')}
+                    >
+                      <View style={[styles.menuIcon, { borderColor: 'rgba(244, 196, 48, 0.3)', backgroundColor: 'rgba(244, 196, 48, 0.15)' }]}>
+                        <MaterialCommunityIcons name="shield-account-outline" size={18} color="#F4C430" />
+                      </View>
+                      <Text style={[styles.menuText, { color: '#F4C430', fontWeight: '700' }]}>Admin Portal</Text>
+                      <Feather name="chevron-right" size={16} color="#F4C430" />
+                    </TouchableOpacity>
+                  )}
+                </>
+              )}
 
               <Text style={[styles.sectionLabel, { marginTop: 18 }]}>ACCOUNT</Text>
               <TouchableOpacity

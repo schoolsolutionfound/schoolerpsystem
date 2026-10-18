@@ -11,6 +11,7 @@ import {
   Modal,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
@@ -137,8 +138,12 @@ export function PlacementDrivesView() {
           )}
         </View>
 
-        {/* Unified Filter Tabs Container */}
-        <View style={styles.segmentedContainer}>
+        {/* Responsive Horizontal Filter Tabs (White unselected, Yellow active, 5px radius) */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.statusTabsScroll}
+        >
           {(['all', 'published', 'closed'] as FilterTab[]).map((tab) => {
             const isActive = selectedFilter === tab;
             const labels: Record<FilterTab, string> = {
@@ -154,17 +159,17 @@ export function PlacementDrivesView() {
             return (
               <TouchableOpacity
                 key={tab}
-                style={[styles.segmentItem, isActive && styles.segmentItemActive]}
+                style={[styles.statusTabItem, isActive && styles.statusTabItemActive]}
                 onPress={() => setSelectedFilter(tab)}
                 activeOpacity={0.7}
               >
-                <Text style={[styles.segmentText, isActive && styles.segmentTextActive]}>
+                <Text style={[styles.statusTabText, isActive && styles.statusTabTextActive]}>
                   {labels[tab]} ({counts[tab]})
                 </Text>
               </TouchableOpacity>
             );
           })}
-        </View>
+        </ScrollView>
 
         {/* Drives List */}
         {filteredDrives.length === 0 ? (
@@ -432,35 +437,33 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.regular,
   },
 
-  // Segmented Container
-  segmentedContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F3F1EA',
+  // Responsive Horizontal Filter Tabs
+  statusTabsScroll: {
+    gap: 6,
+    paddingVertical: 2,
+  },
+  statusTabItem: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+    borderRadius: 5,
     borderWidth: 1,
     borderColor: '#E8E5DC',
-    borderRadius: 5,
-    padding: 3,
-  },
-  segmentItem: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 7,
-    paddingHorizontal: 8,
-    borderRadius: 4,
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
   },
-  segmentItemActive: {
+  statusTabItemActive: {
     backgroundColor: '#F4C430',
+    borderColor: '#F4C430',
   },
-  segmentText: {
+  statusTabText: {
     fontSize: 12,
     fontWeight: '700',
     color: '#6B6B6B',
   },
-  segmentTextActive: {
+  statusTabTextActive: {
     color: '#1A1B1C',
     fontWeight: '800',
   },

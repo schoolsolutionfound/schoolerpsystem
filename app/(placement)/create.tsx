@@ -114,18 +114,7 @@ export default function CreatePlacementDriveScreen() {
           <Feather name="x" size={20} color="#171717" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Create Drive</Text>
-        <TouchableOpacity
-          onPress={handleSubmit}
-          disabled={loading}
-          style={styles.publishBtn}
-          activeOpacity={0.8}
-        >
-          {loading ? (
-            <ActivityIndicator size="small" color="#1A1B1C" />
-          ) : (
-            <Text style={styles.publishText}>Publish</Text>
-          )}
-        </TouchableOpacity>
+        <View style={{ width: 36 }} />
       </View>
 
       <KeyboardAvoidingView
@@ -305,6 +294,22 @@ export default function CreatePlacementDriveScreen() {
             />
           </View>
 
+          {/* Bottom Actions - Right-aligned Publish Button */}
+          <View style={styles.bottomActionRow}>
+            <TouchableOpacity
+              onPress={handleSubmit}
+              disabled={loading}
+              style={styles.publishBtn}
+              activeOpacity={0.8}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="#1A1B1C" />
+              ) : (
+                <Text style={styles.publishText}>Publish Drive</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+
           <View style={{ height: 40 }} />
         </ScrollView>
       </KeyboardAvoidingView>
@@ -338,13 +343,21 @@ const styles = StyleSheet.create({
     color: '#171717',
     fontFamily: FontFamily.bold,
   },
+  bottomActionRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 8,
+    marginBottom: 8,
+  },
   publishBtn: {
     backgroundColor: '#F4C430',
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    borderRadius: BorderRadius.button,
-    minWidth: 80,
+    paddingHorizontal: 22,
+    paddingVertical: 11,
+    borderRadius: 5,
+    minWidth: 120,
     alignItems: 'center',
+    justifyContent: 'center',
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
   },
   publishText: {
     color: '#1A1B1C',

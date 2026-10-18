@@ -207,3 +207,40 @@ export async function getPlacementStats(): Promise<PlacementStats> {
   return (res as any).stats;
 }
 
+export interface PlacementResultItem {
+  id: string;
+  driveId: string;
+  studentId: string;
+  status: 'applied' | 'shortlisted' | 'hired' | 'rejected' | 'withdrawn';
+  currentRoundIndex: number;
+  currentRoundName?: string;
+  resumeUrl: string;
+  appliedAt: string;
+  drive?: {
+    id?: string;
+    companyName: string;
+    title: string;
+    logoUrl?: string;
+    ctcOrStipend?: string;
+    rounds?: { name: string; description: string }[];
+  };
+  student?: {
+    id: string;
+    fullName: string;
+    email: string;
+    phone: string;
+    rollNoOrUSN: string;
+    branch: string;
+    year: string;
+    cgpa: number | null;
+    activeBacklogs: number;
+    profilePicUrl?: string;
+  };
+}
+
+export async function getAllPlacementResults(): Promise<PlacementResultItem[]> {
+  const res = await apiClient<{ results: PlacementResultItem[] }>('/placement/results');
+  return (res as any).results || [];
+}
+
+

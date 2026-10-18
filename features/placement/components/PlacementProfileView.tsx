@@ -165,7 +165,7 @@ export function PlacementProfileView() {
   };
 
   const isHead = placementAccess === 'head' || userRole === 'admin' || (userRole as string) === 'placement_officer';
-  const roleTitle = isHead ? 'Training & Placement Officer (TPO)' : 'Placement Coordinator';
+  const roleTitle = isHead ? 'Training & Placement Officer' : 'Placement Coordinator';
 
   return (
     <View style={styles.container}>
@@ -173,7 +173,7 @@ export function PlacementProfileView() {
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
-        {/* Hero Section — Matching Student Profile Header */}
+        {/* Hero Section — Off-yellow theme with high legibility */}
         <View style={styles.heroSection}>
           <View style={styles.heroRow}>
             <View style={styles.avatarContainer}>
@@ -201,7 +201,7 @@ export function PlacementProfileView() {
                 activeOpacity={0.8}
                 disabled={uploadingPhoto}
               >
-                <MaterialCommunityIcons name="camera" size={14} color="#FFFFFF" />
+                <MaterialCommunityIcons name="camera" size={14} color="#171717" />
               </TouchableOpacity>
             </View>
 
@@ -223,19 +223,13 @@ export function PlacementProfileView() {
               <Text style={styles.statNum} numberOfLines={1}>{institutionCode || 'College'}</Text>
               <Text style={styles.statLabel}>Inst Code</Text>
             </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statCell}>
-              <Text style={styles.statNum}>{isHead ? 'Head' : 'Member'}</Text>
-              <Text style={styles.statLabel}>Privilege</Text>
-            </View>
           </View>
         </View>
 
-        {/* Officer Profile Card */}
+        {/* Professional Details Card (Consolidated single section without heading icon) */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <MaterialCommunityIcons name="badge-account-outline" size={16} color="#F4C430" />
-            <Text style={styles.sectionTitle}>Officer Profile</Text>
+            <Text style={styles.sectionTitle}>Professional Details</Text>
             <TouchableOpacity style={styles.headerActionBtn} onPress={handleOpenEditModal} activeOpacity={0.7}>
               <Text style={styles.headerActionBtnText}>Edit</Text>
             </TouchableOpacity>
@@ -260,40 +254,25 @@ export function PlacementProfileView() {
               <Text style={styles.infoValue} numberOfLines={1}>{phone || '—'}</Text>
             </View>
           </View>
-        </View>
-
-        {/* Institution & Placement Cell */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <MaterialCommunityIcons name="office-building" size={16} color="#F4C430" />
-            <Text style={styles.sectionTitle}>Institution</Text>
-          </View>
           <View style={styles.gridRow}>
             <View style={[styles.gridCell, styles.gridFull]}>
-              <Text style={styles.infoLabel}>Name</Text>
+              <Text style={styles.infoLabel}>Institution</Text>
               <Text style={styles.infoValue} numberOfLines={1}>
                 {institutionName || institutionCode || '—'}
               </Text>
             </View>
           </View>
-          <View style={styles.gridRow}>
+          <View style={[styles.gridRow, { borderBottomWidth: 0 }]}>
             <View style={styles.gridCell}>
-              <Text style={styles.infoLabel}>Code</Text>
+              <Text style={styles.infoLabel}>Institution Code</Text>
               <Text style={styles.infoValue} numberOfLines={1}>{institutionCode || '—'}</Text>
-            </View>
-            <View style={styles.gridCell}>
-              <Text style={styles.infoLabel}>Access Privilege</Text>
-              <Text style={styles.infoValue} numberOfLines={1}>
-                {isHead ? 'Placement Head' : 'Placement Member'}
-              </Text>
             </View>
           </View>
         </View>
 
-        {/* Account Settings */}
+        {/* Account Settings (Heading without icon, inner icons preserved) */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <MaterialCommunityIcons name="cog-outline" size={16} color="#F4C430" />
             <Text style={styles.sectionTitle}>Account</Text>
           </View>
           <View style={styles.divider} />
@@ -397,14 +376,14 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFFEFE' },
   scroll: { paddingBottom: 40 },
 
-  // Hero Section — Student Profile Theme
+  // Hero Section — Off-yellow Theme with High Contrast & Legibility
   heroSection: {
-    backgroundColor: '#1A1B1C',
+    backgroundColor: '#FFF8E7',
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: 18,
     paddingBottom: 18,
     borderBottomWidth: 1,
-    borderBottomColor: '#2A2B2C',
+    borderBottomColor: '#F3E8C8',
   },
   heroRow: {
     flexDirection: 'row',
@@ -418,7 +397,7 @@ const styles = StyleSheet.create({
     borderRadius: 36,
     overflow: 'hidden',
     borderWidth: 2,
-    borderColor: '#1A1B1C',
+    borderColor: '#F4C430',
   },
   avatarImage: { width: 72, height: 72, borderRadius: 36 },
   avatarPlaceholder: {
@@ -436,11 +415,11 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#1A1B1C',
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#F4C430',
+    borderWidth: 1.5,
+    borderColor: '#E8E5DC',
   },
   avatarBadge: {
     width: 20,
@@ -450,40 +429,40 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#1A1B1C',
+    borderColor: '#FFFFFF',
   },
   heroMain: { flex: 1, minWidth: 0 },
-  heroHandle: { fontSize: 19, fontWeight: '800', color: '#FFFFFF', flexShrink: 1 },
-  heroEmail: { fontSize: 12, color: '#9A9A9A', marginTop: 2 },
-  heroRoleText: { fontSize: 12, fontWeight: '700', color: '#F4C430', marginTop: 4 },
+  heroHandle: { fontSize: 19, fontWeight: '800', color: '#171717', flexShrink: 1 },
+  heroEmail: { fontSize: 12, color: '#6B6B6B', marginTop: 2 },
+  heroRoleText: { fontSize: 12, fontWeight: '700', color: '#B45309', marginTop: 4 },
 
   // Stats row inside hero
   statsRow: {
     flexDirection: 'row',
     alignItems: 'stretch',
     marginTop: 16,
-    backgroundColor: '#232425',
-    borderRadius: 8,
-    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 5,
+    paddingVertical: 11,
     borderWidth: 1,
-    borderColor: '#2A2B2C',
+    borderColor: '#E8E5DC',
   },
   statCell: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
-  statNum: { fontSize: 13, fontWeight: '800', color: '#FFFFFF' },
+  statNum: { fontSize: 13, fontWeight: '800', color: '#171717' },
   statLabel: {
     fontSize: 10,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#8A8A8A',
     marginTop: 2,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  statDivider: { width: 1, backgroundColor: '#2F3031', marginVertical: 4 },
+  statDivider: { width: 1, backgroundColor: '#E8E5DC', marginVertical: 4 },
 
   // Cards
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 10,
+    borderRadius: 5,
     paddingHorizontal: 14,
     paddingTop: 12,
     paddingBottom: 8,

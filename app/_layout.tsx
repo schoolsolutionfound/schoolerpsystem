@@ -106,7 +106,23 @@ const AppLayout = function Layout() {
         '/(placement)': 'placement_officer',
       };
       const requiredRole = groupToRole[routeGroup];
-      if (requiredRole && requiredRole !== currentRole) return;
+      if (requiredRole && requiredRole !== currentRole) {
+        if (routeGroup === '/(placement)') {
+          const placementAccess = useUserStore.getState().placementAccess;
+          if (
+            placementAccess === 'head' ||
+            placementAccess === 'member' ||
+            currentRole === 'teacher' ||
+            currentRole === 'admin'
+          ) {
+            // Authorized placement route
+          } else {
+            return;
+          }
+        } else {
+          return;
+        }
+      }
     }
 
     router.push({ pathname: route as any, params: data });

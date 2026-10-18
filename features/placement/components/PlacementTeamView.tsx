@@ -5,10 +5,11 @@ import {
   ScrollView,
   Text,
   TouchableOpacity,
-  Alert,
+  Platform,
   ActivityIndicator,
   TextInput,
   RefreshControl,
+  Modal,
 } from 'react-native';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { listPlacementMembers, searchEligibleMembers, assignPlacementMember } from '../../../api/placement';
@@ -22,7 +23,9 @@ export function PlacementTeamView() {
   const [refreshing, setRefreshing] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [assigning, setAssigning] = useState<string | null>(null);
+  const [userToAssign, setUserToAssign] = useState<any | null>(null);
+  const [assigning, setAssigning] = useState(false);
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const loadData = async () => {
     try {
@@ -49,27 +52,24 @@ export function PlacementTeamView() {
     await loadData();
   };
 
-  const handleAssign = (userId: string, fullName: string) => {
-    Alert.alert('Assign Placement Officer', `Add ${fullName} as a Placement Member?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Assign',
-        onPress: async () => {
-          try {
-            setAssigning(userId);
-            await assignPlacementMember({ userId, accessLevel: 'member' });
-            Alert.alert('Success', `${fullName} is now assigned to the Placement Cell.`);
-            await loadData();
-            setShowSearch(false);
-            setSearchQuery('');
-          } catch (err: any) {
-            Alert.alert('Error', err.message || 'Failed to assign member.');
-          } finally {
-            setAssigning(null);
-          }
-        },
-      },
-    ]);
+  const handleConfirmAssign = async () => {
+    if (!userToAssign) return;
+    try {
+      setAssigning(true);
+      await assignPlacementMember({ userId: userToAssign.id, accessLevel: 'member' });
+      const assignedName = userToAssign.fullName;
+      setUserToAssign(null);
+      await loadData();
+      setShowSearch(false);
+      setSearchQuery('');
+      setFeedback({ type: 'success', message: `${assignedName} is now assigned to the Placement Cell.` });
+      setTimeout(() => setFeedback(null), 4000);
+    } catch (err: any) {
+      setFeedback({ type: 'error', message: err.message || 'Failed to assign member.' });
+      setTimeout(() => setFeedback(null), 5000);
+    } finally {
+      setAssigning(false);
+    }
   };
 
   if (loading && !refreshing) {
@@ -106,6 +106,22 @@ export function PlacementTeamView() {
           />
         }
       >
+        {/* In-theme feedback toast banner */}
+        {feedback && (
+          <View style={[styles.feedbackBanner, feedback.type === 'error' && styles.feedbackBannerError]}>
+            <MaterialCommunityIcons
+              name={feedback.type === 'success' ? 'check-circle' : 'alert-circle'}
+              size={16}
+              color={feedback.type === 'success' ? '#16A34A' : '#DC2626'}
+            />
+            <Text style={[styles.feedbackText, feedback.type === 'error' && styles.feedbackTextError]}>
+              {feedback.message}
+            </Text>
+            <TouchableOpacity onPress={() => setFeedback(null)} hitSlop={8}>
+              <Feather name="x" size={14} color="#6B6B6B" />
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Action Toggle to Add Member */}
         <TouchableOpacity
@@ -161,15 +177,11 @@ export function PlacementTeamView() {
                   </View>
                   <TouchableOpacity
                     style={styles.assignLink}
-                    onPress={() => handleAssign(user.id, user.fullName)}
-                    disabled={assigning === user.id}
-                    activeOpacity={0.7}
+                    onPress={() => setUserToAssign(user)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    activeOpacity={0.6}
                   >
-                    {assigning === user.id ? (
-                      <ActivityIndicator size="small" color="#D97706" />
-                    ) : (
-                      <Text style={styles.assignLinkText}>Assign</Text>
-                    )}
+                    <Text style={styles.assignLinkText}>Assign</Text>
                   </TouchableOpacity>
                 </View>
               ))
@@ -216,6 +228,57 @@ export function PlacementTeamView() {
           })
         )}
       </ScrollView>
+
+      {/* Assign Member Confirmation Modal */}
+      <Modal
+        visible={!!userToAssign}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (!assigning) setUserToAssign(null);
+        }}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.confirmCard}>
+            <View style={styles.confirmIconWrap}>
+              <MaterialCommunityIcons name="account-plus-outline" size={28} color="#1A1B1C" />
+            </View>
+
+            <Text style={styles.confirmTitle}>Assign Placement Member?</Text>
+            <Text style={styles.confirmMessage}>
+              Are you sure you want to add{' '}
+              <Text style={{ fontWeight: '800', color: '#171717' }}>
+                {userToAssign?.fullName}
+              </Text>{' '}
+              ({userToAssign?.role?.toUpperCase()} • {userToAssign?.email}) to the Placement Cell team?
+            </Text>
+
+            <View style={styles.confirmFooter}>
+              <TouchableOpacity
+                style={styles.confirmCancelBtn}
+                onPress={() => setUserToAssign(null)}
+                disabled={assigning}
+                activeOpacity={0.75}
+              >
+                <Text style={styles.confirmCancelText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.confirmActionBtn}
+                onPress={handleConfirmAssign}
+                disabled={assigning}
+                activeOpacity={0.85}
+              >
+                {assigning ? (
+                  <ActivityIndicator size="small" color="#1A1B1C" />
+                ) : (
+                  <Text style={styles.confirmActionBtnText}>Confirm Assign</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -224,6 +287,34 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#FFFDF7' },
   container: { padding: 14, paddingBottom: 60, gap: 12 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+
+  // Feedback Toast Banner
+  feedbackBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0FDF4',
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+    marginBottom: 4,
+  },
+  feedbackBannerError: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FECACA',
+  },
+  feedbackText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#166534',
+    fontFamily: FontFamily.medium,
+  },
+  feedbackTextError: {
+    color: '#991B1B',
+  },
 
   // Section Header & Member Count
   sectionHeaderRow: {
@@ -301,8 +392,9 @@ const styles = StyleSheet.create({
   staffName: { fontSize: 13, fontWeight: '700', color: '#171717' },
   staffRole: { fontSize: 10, color: '#6B6B6B', marginTop: 1 },
   assignLink: {
-    paddingVertical: 4,
-    paddingHorizontal: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
   },
   assignLinkText: {
     fontSize: 12,
@@ -370,4 +462,85 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { fontSize: 15, fontWeight: '800', color: '#171717', marginTop: 8 },
   emptySub: { fontSize: 12, color: '#6B6B6B', textAlign: 'center', marginTop: 4 },
+
+  // Modal Styles
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  confirmCard: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 5,
+    padding: 22,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  confirmIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#FFF4C7',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  confirmTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#171717',
+    fontFamily: FontFamily.bold,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  confirmMessage: {
+    fontSize: 13,
+    color: '#4B5563',
+    textAlign: 'center',
+    lineHeight: 19,
+    fontFamily: FontFamily.regular,
+    marginBottom: 20,
+    paddingHorizontal: 4,
+  },
+  confirmFooter: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+  },
+  confirmCancelBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 5,
+    backgroundColor: '#F3F1EA',
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
+  },
+  confirmCancelText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#6B6B6B',
+  },
+  confirmActionBtn: {
+    flex: 1.3,
+    height: 44,
+    borderRadius: 5,
+    backgroundColor: '#F4C430',
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
+  },
+  confirmActionBtnText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#1A1B1C',
+  },
 });

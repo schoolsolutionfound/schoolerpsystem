@@ -184,6 +184,18 @@ export class PlacementController {
     }
   }
 
+  public async getAllResults(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const results = await placementService.getAllResults(request.user!);
+      return reply.send({ success: true, results });
+    } catch (error: any) {
+      return reply.status(error.statusCode || 500).send({
+        success: false,
+        error: { message: error.message || 'Failed to get placement results' },
+      });
+    }
+  }
+
   public async updateApplicationStatus(request: FastifyRequest, reply: FastifyReply) {
     try {
       const { driveId, applicationId } = request.params as { driveId: string; applicationId: string };

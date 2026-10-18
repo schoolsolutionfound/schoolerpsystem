@@ -19,6 +19,7 @@ import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../../firebaseConfig';
 import { useUserStore } from '../../../store/useUserStore';
+import { syncLoginApi } from '../../../api/auth';
 
 interface TeacherDrawerProps {
   visible: boolean;
@@ -104,6 +105,18 @@ export const TeacherDrawer: React.FC<TeacherDrawerProps> = ({
       });
     }
   }, [visible, slideX, fade, mounted, width]);
+
+  useEffect(() => {
+    if (visible && !placementAccess) {
+      syncLoginApi()
+        .then((res: any) => {
+          if (res?.placementAccess) {
+            useUserStore.getState().setUserProfile({ placementAccess: res.placementAccess });
+          }
+        })
+        .catch(() => {});
+    }
+  }, [visible, placementAccess]);
 
   const navigateAndClose = (route: string) => {
     onClose();
@@ -211,17 +224,27 @@ export const TeacherDrawer: React.FC<TeacherDrawerProps> = ({
               </TouchableOpacity>
             ))}
 
-            {institutionType === 'college' && (placementAccess === 'head' || placementAccess === 'member') && (
+            {(placementAccess === 'head' || placementAccess === 'member' || institutionType === 'college') && (
               <TouchableOpacity
-                style={styles.menuItem}
+                style={[styles.menuItem, activeTab === 'placement' && styles.menuItemActive]}
                 activeOpacity={0.7}
-                onPress={() => navigateAndClose('/(placement)/drives')}
+                onPress={() => navigateAndClose('/(placement)/home')}
               >
-                <View style={styles.menuIcon}>
-                  <MaterialCommunityIcons name="briefcase-outline" size={18} color="#9A9A9A" />
+                <View style={[styles.menuIcon, activeTab === 'placement' && styles.menuIconActive]}>
+                  <MaterialCommunityIcons
+                    name={activeTab === 'placement' ? 'briefcase' : 'briefcase-outline'}
+                    size={18}
+                    color={activeTab === 'placement' ? '#1A1B1C' : '#9A9A9A'}
+                  />
                 </View>
-                <Text style={styles.menuText}>Placement Admin</Text>
-                <Feather name="chevron-right" size={16} color="#5A5A5A" />
+                <Text style={[styles.menuText, activeTab === 'placement' && styles.menuTextActive]}>
+                  Placement Cell
+                </Text>
+                <Feather
+                  name="chevron-right"
+                  size={16}
+                  color={activeTab === 'placement' ? '#1A1B1C' : '#5A5A5A'}
+                />
               </TouchableOpacity>
             )}
 

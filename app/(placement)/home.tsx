@@ -10,16 +10,11 @@ import { PlacementDrivesView } from '../../features/placement/components/Placeme
 import { PlacementStudentsView } from '../../features/placement/components/PlacementStudentsView';
 import { PlacementTeamView } from '../../features/placement/components/PlacementTeamView';
 import { PlacementProfileView } from '../../features/placement/components/PlacementProfileView';
+import { PlacementResultsView } from '../../features/placement/components/PlacementResultsView';
+import { TeacherDrawer } from '../../features/teacher/components/TeacherDrawer';
 import { FontFamily } from '../../constants/fonts';
 
-type Tab = 'drives' | 'students' | 'team' | 'profile';
-
-const TABS: { key: Tab; label: string; icon: string; iconFilled: string }[] = [
-  { key: 'drives', label: 'Drives', icon: 'briefcase-outline', iconFilled: 'briefcase' },
-  { key: 'students', label: 'Students', icon: 'account-group-outline', iconFilled: 'account-group' },
-  { key: 'team', label: 'Team', icon: 'account-multiple-outline', iconFilled: 'account-multiple' },
-  { key: 'profile', label: 'Profile', icon: 'account-circle-outline', iconFilled: 'account-circle' },
-];
+type Tab = 'drives' | 'students' | 'team' | 'results' | 'profile';
 
 export default function PlacementHomeScreen() {
   const router = useRouter();
@@ -32,9 +27,25 @@ export default function PlacementHomeScreen() {
   const email = useUserStore((state) => state.email) || '';
   const institutionName = useUserStore((state) => state.institutionName) || '';
   const placementAccess = useUserStore((state) => state.placementAccess);
+  const userRole = useUserStore((state) => state.userRole);
+
+  const isTeacher = userRole === 'teacher';
+  const showTeamTab =
+    !isTeacher &&
+    (placementAccess === 'head' || userRole === 'admin' || (userRole as string) === 'placement_officer');
+
+  const tabs = [
+    { key: 'drives' as Tab, label: 'Drives', icon: 'briefcase-outline', iconFilled: 'briefcase' },
+    { key: 'students' as Tab, label: 'Students', icon: 'account-group-outline', iconFilled: 'account-group' },
+    { key: 'results' as Tab, label: 'Results', icon: 'clipboard-list-outline', iconFilled: 'clipboard-list' },
+    ...(showTeamTab
+      ? [{ key: 'team' as Tab, label: 'Team', icon: 'account-multiple-outline', iconFilled: 'account-multiple' }]
+      : []),
+    { key: 'profile' as Tab, label: 'Profile', icon: 'account-circle-outline', iconFilled: 'account-circle' },
+  ];
 
   useEffect(() => {
-    if (params.tab && ['drives', 'students', 'team', 'profile'].includes(params.tab)) {
+    if (params.tab && ['drives', 'students', 'team', 'results', 'profile'].includes(params.tab)) {
       setActiveTab(params.tab as Tab);
     }
   }, [params.tab]);
@@ -45,8 +56,10 @@ export default function PlacementHomeScreen() {
         return <PlacementDrivesView />;
       case 'students':
         return <PlacementStudentsView />;
+      case 'results':
+        return <PlacementResultsView />;
       case 'team':
-        return <PlacementTeamView />;
+        return showTeamTab ? <PlacementTeamView /> : <PlacementResultsView />;
       case 'profile':
         return <PlacementProfileView />;
       default:
@@ -57,7 +70,7 @@ export default function PlacementHomeScreen() {
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-        {/* Unified Kivquo Header with Drawer Menu Trigger */}
+        {/* Unified Kivquo Header with Drawer Menu */}
         <PlacementHomeHeader
           fullName={fullName}
           profilePic={profilePic}
@@ -77,7 +90,7 @@ export default function PlacementHomeScreen() {
         {/* Bottom Tab Bar with Kivquo Styling */}
         <View style={styles.tabBarBg}>
           <View style={styles.tabBar}>
-            {TABS.map((tab) => {
+            {tabs.map((tab) => {
               const isActive = activeTab === tab.key;
               return (
                 <TouchableOpacity
@@ -103,20 +116,38 @@ export default function PlacementHomeScreen() {
         </View>
       </SafeAreaView>
 
-      {/* Side Drawer Modal */}
-      <PlacementDrawer
-        visible={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        fullName={fullName}
-        email={email}
-        profilePic={profilePic}
-        institutionName={institutionName}
-        activeTab={activeTab}
-        onTabSwitch={(tab) => {
-          setActiveTab(tab);
-          setDrawerOpen(false);
-        }}
-      />
+      {/* Side Drawer Modal: TeacherDrawer for teachers, PlacementDrawer for placement officers */}
+      {isTeacher ? (
+        <TeacherDrawer
+          visible={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          fullName={fullName}
+          email={email}
+          profilePic={profilePic}
+          institutionName={institutionName}
+          activeTab="placement"
+          onTabSwitch={(tab) => {
+            setDrawerOpen(false);
+            setTimeout(() => {
+              router.replace({ pathname: '/(teacher)/home', params: { tab } } as any);
+            }, 120);
+          }}
+        />
+      ) : (
+        <PlacementDrawer
+          visible={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          fullName={fullName}
+          email={email}
+          profilePic={profilePic}
+          institutionName={institutionName}
+          activeTab={activeTab}
+          onTabSwitch={(tab) => {
+            setActiveTab(tab);
+            setDrawerOpen(false);
+          }}
+        />
+      )}
     </View>
   );
 }

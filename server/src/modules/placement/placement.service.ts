@@ -582,6 +582,123 @@ export class PlacementService {
   }
 
   /**
+   * STAFF: Get all placement results / applications across drives
+   */
+  public async getAllResults(currentUser: AuthenticatedUser) {
+    if (!db) throw new Error('Database connection required');
+
+    const drivesList = await db.query.placementDrives.findMany({
+      where: eq(placementDrives.institutionCode, currentUser.institutionCode || ''),
+      orderBy: (drives, { desc }) => [desc(drives.createdAt)],
+    });
+
+    if (drivesList.length === 0) {
+      return [];
+    }
+
+    const driveIds = drivesList.map((d) => d.id);
+    const driveMap = new Map(drivesList.map((d) => [d.id, d]));
+
+    const applications = await db.query.driveApplications.findMany({
+      where: inArray(driveApplications.driveId, driveIds),
+      orderBy: (apps, { desc }) => [desc(apps.appliedAt)],
+    });
+
+    if (applications.length === 0) {
+      return [];
+    }
+
+    const studentIds = Array.from(new Set(applications.map((a) => a.studentId))).filter(Boolean);
+    const studentUsers = studentIds.length > 0
+      ? await db.query.users.findMany({
+          where: inArray(users.id, studentIds),
+          columns: {
+            id: true,
+            fullName: true,
+            email: true,
+            phone: true,
+            profilePicUrl: true,
+            rollNoOrUSN: true,
+            tenthPercentage: true,
+            twelfthPercentage: true,
+          },
+        })
+      : [];
+
+    const studentProfiles = studentIds.length > 0
+      ? await db.query.studentPlacementProfiles.findMany({
+          where: inArray(studentPlacementProfiles.userId, studentIds),
+        })
+      : [];
+
+    const userMap = new Map(studentUsers.map((u) => [u.id, u]));
+    const profileMap = new Map(studentProfiles.map((p) => [p.userId, p]));
+
+    const enriched = await Promise.all(
+      applications.map(async (app) => {
+        const u = userMap.get(app.studentId);
+        const p = profileMap.get(app.studentId);
+        const drive = driveMap.get(app.driveId);
+
+        let branch = 'Computer Science';
+        let year = '2026 Batch';
+        try {
+          const classSectionId = await dbFindStudentClassSectionId(app.studentId);
+          if (classSectionId) {
+            const classRow = await db!.query.classSections.findFirst({
+              where: eq(classSections.id, classSectionId),
+            });
+            if (classRow) {
+              branch = classRow.department || branch;
+              year = classRow.academicYear || year;
+            }
+          }
+        } catch (e) {
+          // ignore
+        }
+
+        const snapshot = (app.profileSnapshot as any) || {};
+        const rounds = (drive?.rounds as any[]) || [];
+        const roundIdx = app.currentRoundIndex || 0;
+        const currentRoundName = rounds[roundIdx]?.name || `Round ${roundIdx + 1}`;
+
+        return {
+          id: app.id,
+          driveId: app.driveId,
+          studentId: app.studentId,
+          status: app.status,
+          currentRoundIndex: app.currentRoundIndex,
+          currentRoundName,
+          resumeUrl: app.resumeUrl || p?.resumeUrl || snapshot.resumeUrl || '',
+          appliedAt: app.appliedAt,
+          drive: {
+            id: drive?.id,
+            companyName: drive?.companyName || 'Recruitment Partner',
+            title: drive?.title || 'Open Role',
+            logoUrl: drive?.logoUrl || '',
+            ctcOrStipend: drive?.ctcOrStipend || 'Competitive',
+            rounds: rounds,
+          },
+          student: {
+            id: app.studentId,
+            fullName: u?.fullName || snapshot.fullName || 'Student',
+            email: u?.email || snapshot.email || '',
+            phone: u?.phone || snapshot.phone || '',
+            rollNoOrUSN: u?.rollNoOrUSN || snapshot.rollNoOrUSN || '',
+            profilePicUrl: u?.profilePicUrl || snapshot.photoUrl || '',
+            branch: branch !== 'N/A' ? branch : (snapshot.branch || 'Computer Science'),
+            year: year !== 'N/A' ? year : (snapshot.year || '2026 Batch'),
+            cgpa: p?.cgpa != null ? Number(p.cgpa) : (snapshot.cgpa != null ? Number(snapshot.cgpa) : null),
+            activeBacklogs: p?.activeBacklogs != null ? Number(p.activeBacklogs) : (snapshot.activeBacklogs != null ? Number(snapshot.activeBacklogs) : 0),
+          },
+        };
+      })
+    );
+
+    return enriched;
+  }
+
+  /**
    * STAFF: Update application status
    */
   public async updateApplicationStatus(

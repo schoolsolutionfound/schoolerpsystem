@@ -45,15 +45,31 @@ function extractGroup(pathname: string): string {
   return match ? `/${match[1]}` : '';
 }
 
+import { useUserStore } from '../../../store/useUserStore';
+
 export function isRouteAllowedForRole(pathname: string, role?: string): boolean {
   const norm = (role || '').toLowerCase().trim();
   if (SHARED_ROUTES.includes(pathname)) return true;
   if (!norm || norm === 'loading') return false;
 
+  const pathGroup = extractGroup(pathname);
+  if (!pathGroup) return true;
+
+  if (pathGroup === '/(placement)') {
+    const placementAccess = useUserStore.getState().placementAccess;
+    if (
+      norm === 'placement_officer' ||
+      norm === 'admin' ||
+      norm === 'teacher' ||
+      placementAccess === 'head' ||
+      placementAccess === 'member'
+    ) {
+      return true;
+    }
+  }
+
   const allowedGroup = ROLE_GROUP[norm];
   if (!allowedGroup) return false;
 
-  const pathGroup = extractGroup(pathname);
-  if (!pathGroup) return true;
   return pathGroup === allowedGroup;
 }

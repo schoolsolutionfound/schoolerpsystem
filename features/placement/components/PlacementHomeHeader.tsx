@@ -8,7 +8,8 @@ interface PlacementHomeHeaderProps {
   profilePic?: string;
   institutionName?: string;
   accessLevel?: 'head' | 'member' | null;
-  onMenuPress: () => void;
+  onMenuPress?: () => void;
+  onBackPress?: () => void;
   onNotificationsPress: () => void;
   onProfilePress: () => void;
   showGreeting?: boolean;
@@ -27,6 +28,7 @@ export const PlacementHomeHeader: React.FC<PlacementHomeHeaderProps> = ({
   institutionName = '',
   accessLevel,
   onMenuPress,
+  onBackPress,
   onNotificationsPress,
   onProfilePress,
   showGreeting = true,
@@ -37,9 +39,17 @@ export const PlacementHomeHeader: React.FC<PlacementHomeHeaderProps> = ({
     <View style={[styles.container, !showGreeting && styles.containerCompact]}>
       {/* Top action row */}
       <View style={styles.topHeader}>
-        <TouchableOpacity style={styles.iconBtn} onPress={onMenuPress} activeOpacity={0.7}>
-          <Feather name="menu" size={22} color="#171717" />
-        </TouchableOpacity>
+        {onBackPress ? (
+          <TouchableOpacity style={styles.iconBtn} onPress={onBackPress} activeOpacity={0.7}>
+            <Feather name="arrow-left" size={22} color="#171717" />
+          </TouchableOpacity>
+        ) : onMenuPress ? (
+          <TouchableOpacity style={styles.iconBtn} onPress={onMenuPress} activeOpacity={0.7}>
+            <Feather name="menu" size={22} color="#171717" />
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.iconBtn} />
+        )}
 
         <Image
           source={require('../../../assets/text-logo.png')}

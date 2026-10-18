@@ -51,6 +51,7 @@ export function useAppSync(userSession: User | null) {
         designation: res.designation || '',
         mustChangePassword: res.mustChangePassword ?? false,
         profileCompleted: res.profileCompleted ?? false,
+        placementAccess: res.placementAccess || null,
         isEmailVerified: true,
       });
 
@@ -121,6 +122,7 @@ export function useAppSync(userSession: User | null) {
               designation: data.designation || data.title || '',
               mustChangePassword: data.mustChangePassword ?? false,
               profileCompleted: data.profileCompleted ?? false,
+              placementAccess: data.placementAccess || useUserStore.getState().placementAccess || null,
               isEmailVerified: data.isEmailVerified === true || currentUser.emailVerified,
             });
 

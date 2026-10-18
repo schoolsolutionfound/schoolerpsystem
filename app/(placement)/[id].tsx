@@ -9,6 +9,7 @@ import {
   RefreshControl,
   Modal,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
@@ -22,6 +23,8 @@ import {
   DriveApplication,
   PlacementDrive,
 } from '../../api/placement';
+import { useUserStore } from '../../store/useUserStore';
+import { PlacementHomeHeader } from '../../features/placement/components/PlacementHomeHeader';
 import { FontFamily } from '../../constants/fonts';
 import { BorderRadius } from '../../constants/theme';
 import { ShimmerProvider } from '../../features/student/components/ShimmerSkeleton';
@@ -32,6 +35,11 @@ export default function PlacementAdminApplicantsScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const { id } = useLocalSearchParams<{ id: string }>();
+
+  const fullName = useUserStore((state) => state.fullName) || 'Placement Officer';
+  const profilePic = useUserStore((state) => state.profilePic);
+  const institutionName = useUserStore((state) => state.institutionName) || '';
+  const placementAccess = useUserStore((state) => state.placementAccess);
 
   const [drive, setDrive] = useState<PlacementDrive | null>(null);
   const [applications, setApplications] = useState<DriveApplication[]>([]);
@@ -276,14 +284,17 @@ export default function PlacementAdminApplicantsScreen() {
 
   if (loading && !refreshing) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
-            <Feather name="arrow-left" size={22} color="#171717" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Drive Applicants</Text>
-          <View style={{ width: 36 }} />
-        </View>
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+        <PlacementHomeHeader
+          fullName={fullName}
+          profilePic={profilePic}
+          institutionName={institutionName}
+          accessLevel={placementAccess}
+          onBackPress={handleBack}
+          onNotificationsPress={() => router.push('/notifications')}
+          onProfilePress={() => router.push({ pathname: '/(placement)/home', params: { tab: 'profile' } } as any)}
+          showGreeting={true}
+        />
         <ScrollView contentContainerStyle={styles.scroll}>
           <ShimmerProvider>
             <PlacementStudentsSkeleton />
@@ -294,13 +305,22 @@ export default function PlacementAdminApplicantsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Header */}
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      {/* Unified Kivquo Header */}
+      <PlacementHomeHeader
+        fullName={fullName}
+        profilePic={profilePic}
+        institutionName={institutionName}
+        accessLevel={placementAccess}
+        onBackPress={handleBack}
+        onNotificationsPress={() => router.push('/notifications')}
+        onProfilePress={() => router.push({ pathname: '/(placement)/home', params: { tab: 'profile' } } as any)}
+        showGreeting={true}
+      />
+
+      {/* Drive Details Bar */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={handleBack} activeOpacity={0.7}>
-          <Feather name="arrow-left" size={22} color="#171717" />
-        </TouchableOpacity>
-        <View style={{ flex: 1, marginHorizontal: 8 }}>
+        <View style={{ flex: 1, marginRight: 8 }}>
           <Text style={styles.headerTitle} numberOfLines={1}>
             {drive?.title || 'Drive Applicants'}
           </Text>
@@ -349,35 +369,33 @@ export default function PlacementAdminApplicantsScreen() {
           />
         }
       >
-        {/* Status Filter Tabs */}
+        {/* Status Filter Tabs (White background unselected, yellow active, 5px border radius) */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterScrollWrapper}
+          contentContainerStyle={styles.statusTabsScroll}
         >
-          <View style={styles.segmentedContainer}>
-            {[
-              { key: 'all', label: 'All', count: applications.length },
-              { key: 'applied', label: 'Applied', count: stats.applied },
-              { key: 'shortlisted', label: 'Shortlisted', count: stats.shortlisted },
-              { key: 'hired', label: 'Hired', count: stats.hired },
-              { key: 'rejected', label: 'Rejected', count: stats.rejected },
-            ].map((tab) => {
-              const isActive = statusFilter === tab.key;
-              return (
-                <TouchableOpacity
-                  key={tab.key}
-                  style={[styles.segmentItem, isActive && styles.segmentItemActive]}
-                  onPress={() => setStatusFilter(tab.key)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.segmentText, isActive && styles.segmentTextActive]}>
-                    {tab.label} ({tab.count})
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+          {[
+            { key: 'all', label: 'All', count: applications.length },
+            { key: 'shortlisted', label: 'Shortlisted', count: stats.shortlisted },
+            { key: 'hired', label: 'Hired', count: stats.hired },
+            { key: 'applied', label: 'Applied', count: stats.applied },
+            { key: 'rejected', label: 'Rejected', count: stats.rejected },
+          ].map((tab) => {
+            const isActive = statusFilter === tab.key;
+            return (
+              <TouchableOpacity
+                key={tab.key}
+                style={[styles.statusTabItem, isActive && styles.statusTabItemActive]}
+                onPress={() => setStatusFilter(tab.key)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.statusTabText, isActive && styles.statusTabTextActive]}>
+                  {tab.label} ({tab.count})
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
 
         {/* Branch Filter Pills */}
@@ -972,36 +990,33 @@ const styles = StyleSheet.create({
 
   scroll: { padding: 14, paddingBottom: 60, gap: 12 },
 
-  // Unified Segmented Filters
-  filterScrollWrapper: {
+  // Status Filter Tabs
+  statusTabsScroll: {
+    gap: 6,
     paddingVertical: 2,
   },
-  segmentedContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F3F1EA',
+  statusTabItem: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+    borderRadius: 5,
     borderWidth: 1,
     borderColor: '#E8E5DC',
-    borderRadius: 5,
-    padding: 3,
-  },
-  segmentItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-    borderRadius: 4,
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
   },
-  segmentItemActive: {
+  statusTabItemActive: {
     backgroundColor: '#F4C430',
+    borderColor: '#F4C430',
   },
-  segmentText: {
+  statusTabText: {
     fontSize: 12,
     fontWeight: '700',
     color: '#6B6B6B',
   },
-  segmentTextActive: {
+  statusTabTextActive: {
     color: '#1A1B1C',
     fontWeight: '800',
   },
@@ -1010,10 +1025,11 @@ const styles = StyleSheet.create({
   branchPill: {
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 14,
+    borderRadius: 5,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E8E5DC',
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
   },
   branchPillActive: { backgroundColor: '#F4C430', borderColor: '#F4C430' },
   branchText: { fontSize: 11, fontWeight: '700', color: '#6B6B6B' },
