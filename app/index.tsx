@@ -121,16 +121,6 @@ export default function AppSplashScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
 
-      {/* Lottie animation */}
-      <View style={styles.lottieContainer}>
-        <LottieView
-          source={{ uri: 'https://assets9.lottiefiles.com/packages/lf20_u4yrau.json' }}
-          autoPlay
-          loop
-          style={styles.lottie}
-        />
-      </View>
-
       {/* Center content */}
       <View style={styles.content}>
         {/* Logo with glow */}
