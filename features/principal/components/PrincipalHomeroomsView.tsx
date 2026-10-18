@@ -136,14 +136,14 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
             {(
               [
-                { key: 'all' as const, label: `All Sections (${totalSections})` },
+                { key: 'all' as const, label: `All Sections (${totalSections})`, icon: 'google-classroom' as const },
                 ...(unassignedCount > 0
-                  ? [{ key: 'unassigned' as const, label: `⚠️ Unassigned (${unassignedCount})` }]
+                  ? [{ key: 'unassigned' as const, label: `Unassigned (${unassignedCount})`, icon: 'alert-circle-outline' as const }]
                   : []),
-                { key: 'primary' as const, label: 'Primary (Gr 1-5)' },
-                { key: 'middle' as const, label: 'Middle (Gr 6-8)' },
-                { key: 'secondary' as const, label: 'Secondary (Gr 9-12)' },
-                { key: 'unclassified' as const, label: 'Unclassified' },
+                { key: 'primary' as const, label: 'Primary (Gr 1-5)', icon: 'school-outline' as const },
+                { key: 'middle' as const, label: 'Middle (Gr 6-8)', icon: 'school-outline' as const },
+                { key: 'secondary' as const, label: 'Secondary (Gr 9-12)', icon: 'school-outline' as const },
+                { key: 'unclassified' as const, label: 'Unclassified', icon: 'shape-outline' as const },
               ]
             ).map((item) => {
               const active = wingFilter === item.key;
@@ -160,6 +160,17 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
                   onPress={() => setWingFilter(item.key)}
                   activeOpacity={0.7}
                 >
+                  <MaterialCommunityIcons
+                    name={item.icon}
+                    size={13}
+                    color={
+                      active
+                        ? '#F4C430'
+                        : isUnassignedChip
+                        ? '#B45309'
+                        : '#6B6B6B'
+                    }
+                  />
                   <Text
                     style={[
                       styles.filterChipText,
@@ -426,8 +437,11 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: BorderRadius.chip,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
@@ -559,7 +573,7 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 6,
   },
   rateBadgeGood: {
     backgroundColor: 'rgba(22, 163, 74, 0.12)',
@@ -693,6 +707,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
   statusDot: {
     width: 6,
@@ -701,7 +719,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#10B981',
   },
   statusPillText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     color: '#15803D',
     fontFamily: FontFamily.bold,

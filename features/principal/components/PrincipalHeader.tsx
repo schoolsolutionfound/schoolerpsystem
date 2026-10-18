@@ -47,7 +47,11 @@ export const PrincipalHeader: React.FC<PrincipalHeaderProps> = ({
               <Feather name="menu" size={22} color="#111827" />
             </TouchableOpacity>
           )}
-          <Text style={styles.brandTitle}>Kivquo</Text>
+          <Image
+            source={require('../../../assets/text-logo.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
         </View>
 
         {/* Right Group: Switch to Teacher + Bell + Avatar */}
@@ -117,11 +121,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#111827',
   },
-  brandTitle: {
-    fontFamily: FontFamily.bold,
-    fontSize: 20,
-    color: '#111827',
-    letterSpacing: -0.3,
+  logoImage: {
+    width: 100,
+    height: 28,
   },
   rightGroup: {
     flexDirection: 'row',
@@ -131,13 +133,13 @@ const styles = StyleSheet.create({
   teacherSwitchBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
+    gap: 4,
     backgroundColor: '#FFF4C7',
     borderWidth: 1,
     borderColor: '#E8E5DC',
     paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 14,
+    paddingVertical: 5,
+    borderRadius: 6,
   },
   teacherSwitchText: {
     fontFamily: FontFamily.bold,
@@ -160,27 +162,29 @@ const styles = StyleSheet.create({
     backgroundColor: '#EF4444',
   },
   avatarBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 32,
+    height: 32,
+    borderRadius: 8,
     overflow: 'hidden',
   },
   avatarImg: {
     width: '100%',
     height: '100%',
-    borderRadius: 15,
+    borderRadius: 8,
   },
   avatarPlaceholder: {
     width: '100%',
     height: '100%',
-    borderRadius: 15,
+    borderRadius: 8,
     backgroundColor: '#FFF4C7',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
   },
   avatarInitial: {
     fontFamily: FontFamily.bold,
-    fontSize: 12,
+    fontSize: 13,
     color: '#F4C430',
   },
 });

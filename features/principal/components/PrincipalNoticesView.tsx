@@ -76,15 +76,15 @@ export const PrincipalNoticesView: React.FC<PrincipalNoticesViewProps> = ({
         </View>
 
         {/* Filter Pills */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
           {(
             [
-              { key: 'all', label: `All Circulars (${notices.length})` },
-              { key: 'urgent', label: '🚨 Urgent Priority' },
-              { key: 'teachers', label: '👨‍🏫 Teachers Only' },
-              { key: 'parents', label: '👨‍👩‍👧 Parents' },
-              { key: 'students', label: '🎒 Students' },
-            ] as const
+              { key: 'all' as const, label: `All Circulars (${notices.length})`, icon: 'bullhorn-outline' as const },
+              { key: 'urgent' as const, label: 'Urgent Priority', icon: 'alert-decagram' as const },
+              { key: 'teachers' as const, label: 'Faculty & Staff', icon: 'account-tie-outline' as const },
+              { key: 'parents' as const, label: 'Parents', icon: 'account-child-outline' as const },
+              { key: 'students' as const, label: 'Students', icon: 'school-outline' as const },
+            ]
           ).map((item) => {
             const active = audienceFilter === item.key;
             return (
@@ -94,6 +94,11 @@ export const PrincipalNoticesView: React.FC<PrincipalNoticesViewProps> = ({
                 onPress={() => setAudienceFilter(item.key)}
                 activeOpacity={0.7}
               >
+                <MaterialCommunityIcons
+                  name={item.icon}
+                  size={14}
+                  color={active ? '#F4C430' : item.key === 'urgent' ? '#DC2626' : '#6B6B6B'}
+                />
                 <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
                   {item.label}
                 </Text>
@@ -120,14 +125,27 @@ export const PrincipalNoticesView: React.FC<PrincipalNoticesViewProps> = ({
                 <View style={styles.badgeRow}>
                   {/* Audience Badge */}
                   <View style={styles.audienceBadge}>
+                    <MaterialCommunityIcons
+                      name={
+                        notice.targetAudience === 'all'
+                          ? 'bullhorn-outline'
+                          : notice.targetAudience === 'teachers'
+                          ? 'account-tie-outline'
+                          : notice.targetAudience === 'parents'
+                          ? 'account-child-outline'
+                          : 'school-outline'
+                      }
+                      size={12}
+                      color="#1A1B1C"
+                    />
                     <Text style={styles.audienceText}>
                       {notice.targetAudience === 'all'
-                        ? '📢 CAMPUS WIDE'
+                        ? 'CAMPUS WIDE'
                         : notice.targetAudience === 'teachers'
-                        ? '👨‍🏫 FACULTY ONLY'
+                        ? 'FACULTY ONLY'
                         : notice.targetAudience === 'parents'
-                        ? '👨‍👩‍👧 PARENTS'
-                        : '🎒 STUDENTS'}
+                        ? 'PARENTS'
+                        : 'STUDENTS'}
                     </Text>
                   </View>
 
@@ -146,7 +164,8 @@ export const PrincipalNoticesView: React.FC<PrincipalNoticesViewProps> = ({
                   {/* Target Department Badge */}
                   {notice.department ? (
                     <View style={styles.deptBadge}>
-                      <Text style={styles.deptBadgeText}>🏷️ {notice.department.toUpperCase()}</Text>
+                      <MaterialCommunityIcons name="tag-outline" size={11} color="#2563EB" />
+                      <Text style={styles.deptBadgeText}>{notice.department.toUpperCase()}</Text>
                     </View>
                   ) : null}
                 </View>
@@ -259,8 +278,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: BorderRadius.chip,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
@@ -315,10 +337,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   audienceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     backgroundColor: '#F3F4F6',
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
   },
   audienceText: {
     fontSize: 10,
@@ -330,7 +355,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#DC262618',
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: 6,
   },
   urgentBadgeText: {
     fontSize: 9,
@@ -342,7 +367,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F59E0B18',
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: 6,
   },
   importantBadgeText: {
     fontSize: 9,
@@ -351,10 +376,13 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.extrabold,
   },
   deptBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     backgroundColor: '#3B82F618',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: '#3B82F630',
   },

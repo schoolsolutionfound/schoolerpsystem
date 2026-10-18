@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 14,
+    borderRadius: 6,
   },
   switchBtnText: {
     fontFamily: FontFamily.semibold,
