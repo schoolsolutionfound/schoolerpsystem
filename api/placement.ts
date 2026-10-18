@@ -56,6 +56,7 @@ export interface DriveApplication {
   appliedAt: string;
   
   // Appended for staff
+  profileSnapshot?: any;
   student?: {
     id: string;
     fullName: string;
@@ -66,6 +67,13 @@ export interface DriveApplication {
     twelfthPercentage: string;
     branch?: string;
     year?: string;
+    cgpa?: number | null;
+    activeBacklogs?: number;
+    portfolioUrl?: string;
+    linkedinUrl?: string;
+    githubUrl?: string;
+    leetcodeUrl?: string;
+    otherLinks?: { name: string; url: string }[];
   };
 }
 

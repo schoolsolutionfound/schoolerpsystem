@@ -553,18 +553,26 @@ export class PlacementService {
         } catch (e) {
           // ignore
         }
+        const snapshot = (app.profileSnapshot as any) || {};
         return {
           ...app,
           student: {
             id: app.studentId,
-            fullName: u?.fullName || (app.profileSnapshot as any)?.fullName || 'Student',
-            email: u?.email || (app.profileSnapshot as any)?.email || '',
-            phone: u?.phone || (app.profileSnapshot as any)?.phone || '',
-            profilePicUrl: u?.profilePicUrl || '',
-            tenthPercentage: p?.tenthPercent ? String(p.tenthPercent) : (u?.tenthPercentage || ''),
-            twelfthPercentage: p?.twelfthOrDiplomaPercent ? String(p.twelfthOrDiplomaPercent) : (u?.twelfthPercentage || ''),
-            branch,
-            year,
+            fullName: u?.fullName || snapshot.fullName || 'Student',
+            email: u?.email || snapshot.email || '',
+            phone: u?.phone || snapshot.phone || '',
+            profilePicUrl: u?.profilePicUrl || snapshot.photoUrl || '',
+            tenthPercentage: p?.tenthPercent != null ? String(p.tenthPercent) : (snapshot.tenthPercent != null ? String(snapshot.tenthPercent) : (u?.tenthPercentage || '')),
+            twelfthPercentage: p?.twelfthOrDiplomaPercent != null ? String(p.twelfthOrDiplomaPercent) : (snapshot.twelfthOrDiplomaPercent != null ? String(snapshot.twelfthOrDiplomaPercent) : (u?.twelfthPercentage || '')),
+            cgpa: p?.cgpa != null ? Number(p.cgpa) : (snapshot.cgpa != null ? Number(snapshot.cgpa) : null),
+            activeBacklogs: p?.activeBacklogs != null ? Number(p.activeBacklogs) : (snapshot.activeBacklogs != null ? Number(snapshot.activeBacklogs) : 0),
+            portfolioUrl: p?.portfolioUrl || snapshot.portfolioUrl || '',
+            linkedinUrl: p?.linkedinUrl || snapshot.linkedinUrl || '',
+            githubUrl: p?.githubUrl || snapshot.githubUrl || '',
+            leetcodeUrl: p?.leetcodeUrl || snapshot.leetcodeUrl || '',
+            otherLinks: p?.otherLinks || snapshot.otherLinks || [],
+            branch: branch !== 'N/A' ? branch : (snapshot.branch || 'N/A'),
+            year: year !== 'N/A' ? year : (snapshot.year || 'N/A'),
           },
         };
       })

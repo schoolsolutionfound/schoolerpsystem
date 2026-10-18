@@ -113,7 +113,7 @@ export default function CreatePlacementDriveScreen() {
         <TouchableOpacity style={styles.backBtn} onPress={handleBack} activeOpacity={0.7}>
           <Feather name="x" size={20} color="#171717" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Create Placement Drive</Text>
+        <Text style={styles.headerTitle}>Create Drive</Text>
         <TouchableOpacity
           onPress={handleSubmit}
           disabled={loading}
@@ -140,7 +140,7 @@ export default function CreatePlacementDriveScreen() {
               <Text style={styles.label}>Company Name *</Text>
               <TextInput
                 style={styles.input}
-                placeholder="e.g. Google, Microsoft, Infosys"
+                placeholder="e.g. Found , Google"
                 placeholderTextColor="#9A9A9A"
                 value={form.companyName}
                 onChangeText={(t) => setForm({ ...form, companyName: t })}
@@ -151,7 +151,7 @@ export default function CreatePlacementDriveScreen() {
               <Text style={styles.label}>Job Title / Role *</Text>
               <TextInput
                 style={styles.input}
-                placeholder="e.g. Associate Software Engineer (2026 Batch)"
+                placeholder="e.g. Software Engineer"
                 placeholderTextColor="#9A9A9A"
                 value={form.title}
                 onChangeText={(t) => setForm({ ...form, title: t })}
@@ -162,7 +162,7 @@ export default function CreatePlacementDriveScreen() {
               <Text style={styles.label}>Location</Text>
               <TextInput
                 style={styles.input}
-                placeholder="e.g. Bangalore, India (or Hybrid / Remote)"
+                placeholder="e.g. Bangalore"
                 placeholderTextColor="#9A9A9A"
                 value={form.location}
                 onChangeText={(t) => setForm({ ...form, location: t })}
@@ -199,7 +199,7 @@ export default function CreatePlacementDriveScreen() {
               <Text style={styles.label}>CTC / Stipend</Text>
               <TextInput
                 style={styles.input}
-                placeholder="e.g. 14 LPA (or ₹45,000/month stipend)"
+                placeholder="e.g. 14 LPA"
                 placeholderTextColor="#9A9A9A"
                 value={form.ctcOrStipend}
                 onChangeText={(t) => setForm({ ...form, ctcOrStipend: t })}
@@ -237,7 +237,7 @@ export default function CreatePlacementDriveScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Application Deadline (YYYY-MM-DD) *</Text>
+              <Text style={styles.label}>Application Deadline</Text>
               <TextInput
                 style={styles.input}
                 placeholder="2026-12-31"
@@ -261,9 +261,7 @@ export default function CreatePlacementDriveScreen() {
             {rounds.map((round, idx) => (
               <View key={idx} style={styles.roundItem}>
                 <View style={styles.roundHeaderRow}>
-                  <View style={styles.roundIndexPill}>
-                    <Text style={styles.roundIndexText}>Round {idx + 1}</Text>
-                  </View>
+                  <Text style={styles.roundIndexText}>Round {idx + 1}</Text>
                   {rounds.length > 1 && (
                     <TouchableOpacity
                       onPress={() => removeRound(idx)}
@@ -374,13 +372,14 @@ const styles = StyleSheet.create({
   addRoundBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF4C7',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
     gap: 4,
   },
-  addRoundText: { fontSize: 11, fontWeight: '800', color: '#1A1B1C' },
+  addRoundText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1A1B1C',
+    textDecorationLine: 'underline',
+  },
 
   card: {
     backgroundColor: '#FFFFFF',
@@ -439,12 +438,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
-  roundIndexPill: {
-    backgroundColor: '#FFF4C7',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+  roundIndexText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#1A1B1C',
+    textTransform: 'uppercase',
   },
-  roundIndexText: { fontSize: 11, fontWeight: '800', color: '#1A1B1C' },
   deleteRoundBtn: { padding: 4 },
 });

@@ -361,9 +361,9 @@ const styles = StyleSheet.create({
     paddingBottom: 2,
   },
   tabIconBg: {
-    width: 44,
-    height: 34,
-    borderRadius: 17,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },

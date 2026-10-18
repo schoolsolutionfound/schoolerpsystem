@@ -90,8 +90,6 @@ export function PlacementTeamView() {
         u.email?.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-  const headCount = members.filter((m) => m.accessLevel === 'head').length;
-  const memberCount = members.filter((m) => m.accessLevel !== 'head').length;
 
   return (
     <View style={styles.root}>
@@ -108,24 +106,6 @@ export function PlacementTeamView() {
           />
         }
       >
-        {/* Dark Team Overview Card */}
-        <View style={styles.overallCard}>
-          <View style={styles.heroSection}>
-            <Text style={styles.heroValue}>{members.length}</Text>
-            <Text style={styles.heroLabel} numberOfLines={1}>Team Officers</Text>
-          </View>
-          <View style={styles.cardDivider} />
-          <View style={styles.statsSection}>
-            <View style={styles.statCol}>
-              <Text style={[styles.statValue, { color: '#F4C430' }]}>{headCount}</Text>
-              <Text style={styles.statLabel} numberOfLines={1} adjustsFontSizeToFit>Lead / Head</Text>
-            </View>
-            <View style={styles.statCol}>
-              <Text style={[styles.statValue, { color: '#FFFFFF' }]}>{memberCount}</Text>
-              <Text style={styles.statLabel} numberOfLines={1} adjustsFontSizeToFit>Members</Text>
-            </View>
-          </View>
-        </View>
 
         {/* Action Toggle to Add Member */}
         <TouchableOpacity
@@ -180,15 +160,15 @@ export function PlacementTeamView() {
                     <Text style={styles.staffRole}>{user.role?.toUpperCase()} • {user.email}</Text>
                   </View>
                   <TouchableOpacity
-                    style={styles.assignBtn}
+                    style={styles.assignLink}
                     onPress={() => handleAssign(user.id, user.fullName)}
                     disabled={assigning === user.id}
                     activeOpacity={0.7}
                   >
                     {assigning === user.id ? (
-                      <ActivityIndicator size="small" color="#1A1B1C" />
+                      <ActivityIndicator size="small" color="#D97706" />
                     ) : (
-                      <Text style={styles.assignBtnText}>Assign</Text>
+                      <Text style={styles.assignLinkText}>Assign</Text>
                     )}
                   </TouchableOpacity>
                 </View>
@@ -197,8 +177,13 @@ export function PlacementTeamView() {
           </View>
         )}
 
-        {/* Current Placement Team Members */}
-        <Text style={styles.sectionTitle}>Current Placement Team & Coordinators</Text>
+        {/* Current Placement Team Members & Count */}
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionTitle}>Current Placement Team & Coordinators</Text>
+          <Text style={styles.memberCountText}>
+            {members.length} {members.length === 1 ? 'member' : 'members'}
+          </Text>
+        </View>
         {members.length === 0 ? (
           <View style={styles.emptyCard}>
             <MaterialCommunityIcons name="account-group-outline" size={40} color="#6B6B6B" />
@@ -219,18 +204,13 @@ export function PlacementTeamView() {
                 </View>
 
                 <View style={styles.memberInfo}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={styles.memberName}>{member.fullName}</Text>
-                    {isHead && <MaterialCommunityIcons name="star" size={16} color="#F4C430" />}
-                  </View>
-                  <Text style={styles.memberEmail}>{member.email}</Text>
+                  <Text style={styles.memberName} numberOfLines={1}>{member.fullName}</Text>
+                  <Text style={styles.memberEmail} numberOfLines={1}>{member.email}</Text>
                 </View>
 
-                <View style={[styles.roleChip, isHead && styles.headChip]}>
-                  <Text style={[styles.roleChipText, isHead && styles.headChipText]}>
-                    {isHead ? 'Placement Head' : 'Placement Coordinator'}
-                  </Text>
-                </View>
+                <Text style={[styles.roleCleanText, isHead && styles.headRoleCleanText]}>
+                  {isHead ? 'Placement Head' : 'Placement Coordinator'}
+                </Text>
               </View>
             );
           })
@@ -245,69 +225,18 @@ const styles = StyleSheet.create({
   container: { padding: 14, paddingBottom: 60, gap: 12 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
-  // Dark Overview Card
-  overallCard: {
-    backgroundColor: '#1A1B1C',
-    borderRadius: BorderRadius.card,
-    paddingVertical: 14,
-    paddingHorizontal: 12,
+  // Section Header & Member Count
+  sectionHeaderRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#2A2B2C',
-  },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 84,
-    paddingHorizontal: 4,
-  },
-  heroValue: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: '#F4C430',
-    lineHeight: 32,
-  },
-  heroLabel: {
-    fontSize: 9.5,
-    color: '#8A8A8A',
-    marginTop: 2,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  cardDivider: {
-    width: 1,
-    height: 38,
-    backgroundColor: '#2D2E30',
-    marginHorizontal: 4,
-  },
-  statsSection: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-evenly',
-    alignItems: 'center',
-  },
-  statCol: {
-    flex: 1,
-    alignItems: 'center',
+    marginTop: 6,
     paddingHorizontal: 2,
-    minWidth: 0,
   },
-  statValue: {
-    fontSize: 18,
-    fontWeight: '800',
-    lineHeight: 22,
-  },
-  statLabel: {
-    fontSize: 9,
-    color: '#8A8A8A',
-    marginTop: 2,
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-    fontWeight: '700',
-    textAlign: 'center',
+  memberCountText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B6B6B',
   },
 
   // Add Toggle Button
@@ -371,13 +300,16 @@ const styles = StyleSheet.create({
   staffAvatarText: { fontSize: 12, fontWeight: '800', color: '#1A1B1C' },
   staffName: { fontSize: 13, fontWeight: '700', color: '#171717' },
   staffRole: { fontSize: 10, color: '#6B6B6B', marginTop: 1 },
-  assignBtn: {
-    backgroundColor: '#F4C430',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
+  assignLink: {
+    paddingVertical: 4,
+    paddingHorizontal: 4,
   },
-  assignBtnText: { fontSize: 11, fontWeight: '800', color: '#1A1B1C' },
+  assignLinkText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#D97706',
+    textDecorationLine: 'underline',
+  },
 
   // Current Members List
   sectionTitle: {
@@ -386,8 +318,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     textTransform: 'uppercase',
     letterSpacing: 0.6,
-    marginTop: 6,
-    paddingHorizontal: 2,
   },
   memberCard: {
     flexDirection: 'row',
@@ -414,22 +344,20 @@ const styles = StyleSheet.create({
     borderColor: '#F4C430',
   },
   headAvatarText: { color: '#1A1B1C' },
-  memberInfo: { flex: 1 },
+  memberInfo: { flex: 1, minWidth: 0, marginRight: 8 },
   memberName: { fontSize: 14, fontWeight: '800', color: '#171717' },
   memberEmail: { fontSize: 11, color: '#6B6B6B', marginTop: 2 },
-  roleChip: {
-    backgroundColor: '#F3F1EA',
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: 8,
+  roleCleanText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#6B6B6B',
+    textTransform: 'uppercase',
+    flexShrink: 0,
   },
-  roleChipText: { fontSize: 10, fontWeight: '800', color: '#6B6B6B', textTransform: 'uppercase' },
-  headChip: {
-    backgroundColor: '#FFF4C7',
-    borderWidth: 1,
-    borderColor: '#F4C430',
+  headRoleCleanText: {
+    color: '#D97706',
+    fontWeight: '800',
   },
-  headChipText: { color: '#1A1B1C' },
 
   emptyCard: {
     backgroundColor: '#FFFFFF',

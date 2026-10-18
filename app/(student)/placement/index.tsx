@@ -113,7 +113,6 @@ export default function PlacementFeedScreen() {
           onPress={() => router.push('/(student)/placement/profile')}
           activeOpacity={0.7}
         >
-          <MaterialCommunityIcons name="account-edit-outline" size={20} color="#1A1B1C" />
           <Text style={styles.profileBtnText}>My Profile</Text>
         </TouchableOpacity>
       </View>
@@ -131,30 +130,7 @@ export default function PlacementFeedScreen() {
           />
         }
       >
-        {/* Dark Summary Banner */}
-        <View style={styles.overallCard}>
-          <View style={styles.heroSection}>
-            <Text style={styles.heroValue}>{drives.length}</Text>
-            <Text style={styles.heroLabel} numberOfLines={1}>Drives Open</Text>
-          </View>
-          <View style={styles.cardDivider} />
-          <View style={styles.statsSection}>
-            <View style={styles.statCol}>
-              <Text style={[styles.statValue, { color: '#F4C430' }]}>{eligibleCount}</Text>
-              <Text style={styles.statLabel} numberOfLines={1} adjustsFontSizeToFit>Eligible</Text>
-            </View>
-            <View style={styles.statCol}>
-              <Text style={[styles.statValue, { color: '#FFFFFF' }]}>{appliedCount}</Text>
-              <Text style={styles.statLabel} numberOfLines={1} adjustsFontSizeToFit>Applied</Text>
-            </View>
-            <View style={styles.statCol}>
-              <Text style={[styles.statValue, { color: '#16A34A' }]}>{shortlistedCount}</Text>
-              <Text style={styles.statLabel} numberOfLines={1} adjustsFontSizeToFit>Progressed</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Filter Pills */}
+        {/* Filter Tabs Container */}
         <View style={styles.filterRow}>
           {[
             { key: 'all', label: `All Drives (${drives.length})` },
@@ -175,6 +151,13 @@ export default function PlacementFeedScreen() {
               </TouchableOpacity>
             );
           })}
+        </View>
+
+        {/* Drives Count in subtle grey */}
+        <View style={styles.drivesCountRow}>
+          <Text style={styles.drivesCountText}>
+            {filteredDrives.length} drive{filteredDrives.length === 1 ? '' : 's'} available
+          </Text>
         </View>
 
         {/* Drives List */}
@@ -240,19 +223,23 @@ export default function PlacementFeedScreen() {
                     ) : (
                       <View style={styles.logoPlaceholder}>
                         <Text style={styles.logoInitial}>
-                          {drive.companyName ? drive.companyName.substring(0, 2).toUpperCase() : 'CO'}
+                          {drive.companyName
+                            ? (drive.companyName.trim().split(/\s+/).length >= 2
+                                ? (drive.companyName.trim().split(/\s+/)[0][0] + drive.companyName.trim().split(/\s+/)[1][0]).toUpperCase()
+                                : drive.companyName.substring(0, 2).toUpperCase())
+                            : 'CO'}
                         </Text>
                       </View>
                     )}
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.companyName}>{drive.companyName}</Text>
+                    <View style={{ flex: 1, minWidth: 0, marginRight: 8 }}>
+                      <Text style={styles.companyName} numberOfLines={1}>{drive.companyName}</Text>
                       <Text style={styles.driveTitle} numberOfLines={1}>{drive.title}</Text>
                     </View>
                   </View>
 
-                  <View style={[styles.statusPill, { backgroundColor: statusBg }]}>
-                    <Text style={[styles.statusText, { color: statusColor }]}>{statusLabel}</Text>
-                  </View>
+                  <Text style={[styles.statusCleanText, { color: statusColor }]}>
+                    {statusLabel}
+                  </Text>
                 </View>
 
                 {/* Ineligibility Reason */}
@@ -263,22 +250,19 @@ export default function PlacementFeedScreen() {
                   </View>
                 )}
 
-                {/* Details row */}
+                {/* Details row without icons */}
                 <View style={styles.metaRow}>
                   {drive.location ? (
                     <View style={styles.metaItem}>
-                      <MaterialCommunityIcons name="map-marker-outline" size={14} color="#6B6B6B" />
                       <Text style={styles.metaText}>{drive.location}</Text>
                     </View>
                   ) : null}
                   {drive.ctcOrStipend ? (
                     <View style={styles.metaItem}>
-                      <MaterialCommunityIcons name="cash" size={14} color="#F4C430" />
                       <Text style={styles.metaText}>{drive.ctcOrStipend}</Text>
                     </View>
                   ) : null}
                   <View style={styles.metaItem}>
-                    <MaterialCommunityIcons name="calendar-clock" size={14} color="#6B6B6B" />
                     <Text style={styles.metaText}>
                       Deadline: {new Date(drive.applyDeadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </Text>
@@ -330,81 +314,37 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 16, fontWeight: '800', color: '#171717', fontFamily: FontFamily.bold },
   headerSub: { fontSize: 11, color: '#6B6B6B', marginTop: 1, fontFamily: FontFamily.regular },
   profileBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#FFF4C7',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#F4C430',
+    paddingVertical: 4,
+    paddingHorizontal: 4,
   },
-  profileBtnText: { fontSize: 11, fontWeight: '800', color: '#1A1B1C' },
+  profileBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1A1B1C',
+    textDecorationLine: 'underline',
+  },
 
   scroll: { padding: 14, paddingBottom: 60, gap: 12 },
 
-  // Overview Card
-  overallCard: {
-    backgroundColor: '#1A1B1C',
-    borderRadius: BorderRadius.card,
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#2A2B2C',
-  },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 84,
-    paddingHorizontal: 4,
-  },
-  heroValue: { fontSize: 28, fontWeight: '900', color: '#F4C430', lineHeight: 32 },
-  heroLabel: {
-    fontSize: 9.5,
-    color: '#8A8A8A',
-    marginTop: 2,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  cardDivider: {
-    width: 1,
-    height: 38,
-    backgroundColor: '#2D2E30',
-    marginHorizontal: 4,
-  },
-  statsSection: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-evenly',
-    alignItems: 'center',
-  },
-  statCol: {
-    flex: 1,
-    alignItems: 'center',
+  // Drives Count
+  drivesCountRow: {
     paddingHorizontal: 2,
-    minWidth: 0,
-  },
-  statValue: { fontSize: 18, fontWeight: '800', lineHeight: 22 },
-  statLabel: {
-    fontSize: 9,
-    color: '#8A8A8A',
     marginTop: 2,
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-    fontWeight: '700',
-    textAlign: 'center',
+    marginBottom: 2,
+  },
+  drivesCountText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B6B6B',
   },
 
   // Filter Row
   filterRow: {
     flexDirection: 'row',
     backgroundColor: '#F3F1EA',
-    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    borderRadius: 5,
     padding: 3,
     gap: 3,
   },
@@ -413,13 +353,13 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 6,
+    borderRadius: 4,
   },
   filterBtnActive: {
-    backgroundColor: '#1A1B1C',
+    backgroundColor: '#F4C430',
   },
   filterText: { fontSize: 11, fontWeight: '700', color: '#6B6B6B' },
-  filterTextActive: { color: '#FFFFFF', fontWeight: '800' },
+  filterTextActive: { color: '#1A1B1C', fontWeight: '800' },
 
   // Drive Card
   card: {
@@ -439,6 +379,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     flex: 1,
+    minWidth: 0,
     marginRight: 8,
   },
   logoImage: { width: 42, height: 42, borderRadius: 8, resizeMode: 'contain' },
@@ -450,15 +391,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  logoInitial: { fontSize: 14, fontWeight: '800', color: '#F4C430' },
+  logoInitial: { fontSize: 14, fontWeight: '800', color: '#1A1B1C' },
   companyName: { fontSize: 11, color: '#6B6B6B', fontWeight: '600' },
   driveTitle: { fontSize: 14, fontWeight: '800', color: '#171717', marginTop: 1 },
-  statusPill: {
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: 8,
+  statusCleanText: {
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    flexShrink: 0,
   },
-  statusText: { fontSize: 10, fontWeight: '800' },
 
   ineligibleBanner: {
     flexDirection: 'row',

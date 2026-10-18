@@ -150,9 +150,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   tabIconBg: {
-    width: 44,
-    height: 30,
-    borderRadius: 15,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },

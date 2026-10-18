@@ -148,7 +148,11 @@ export default function DriveDetailsScreen() {
             ) : (
               <View style={styles.logoPlaceholder}>
                 <Text style={styles.logoInitial}>
-                  {drive.companyName ? drive.companyName.substring(0, 2).toUpperCase() : 'CO'}
+                  {drive.companyName
+                    ? (drive.companyName.trim().split(/\s+/).length >= 2
+                        ? (drive.companyName.trim().split(/\s+/)[0][0] + drive.companyName.trim().split(/\s+/)[1][0]).toUpperCase()
+                        : drive.companyName.substring(0, 2).toUpperCase())
+                    : 'CO'}
                 </Text>
               </View>
             )}
@@ -159,48 +163,35 @@ export default function DriveDetailsScreen() {
             </View>
           </View>
 
-          {/* Badges */}
+          {/* Clean Type & Status without pills */}
           <View style={styles.badgesRow}>
-            <View style={styles.typeBadge}>
-              <Text style={styles.typeBadgeText}>{drive.jobType.replace('_', ' ').toUpperCase()}</Text>
-            </View>
+            <Text style={styles.typeCleanText}>
+              {drive.jobType.replace('_', ' ').toUpperCase()}
+            </Text>
 
             {isApplied ? (
-              <View
+              <Text
                 style={[
-                  styles.statusBadge,
+                  styles.statusCleanText,
                   {
-                    backgroundColor: isHired
-                      ? 'rgba(22, 163, 74, 0.15)'
-                      : isShortlisted
-                      ? 'rgba(244, 196, 48, 0.2)'
-                      : '#F3F1EA',
+                    color: isHired ? '#16A34A' : isShortlisted ? '#D97706' : '#1A1B1C',
                   },
                 ]}
               >
-                <Text
-                  style={[
-                    styles.statusBadgeText,
-                    {
-                      color: isHired ? '#16A34A' : isShortlisted ? '#D97706' : '#1A1B1C',
-                    },
-                  ]}
-                >
-                  {isHired
-                    ? 'HIRED / OFFERED'
-                    : isShortlisted
-                    ? `SHORTLISTED: ROUND ${application.currentRoundIndex || 1}`
-                    : 'APPLIED'}
-                </Text>
-              </View>
+                {isHired
+                  ? 'HIRED / OFFERED'
+                  : isShortlisted
+                  ? `SHORTLISTED: ROUND ${application.currentRoundIndex || 1}`
+                  : 'APPLIED'}
+              </Text>
             ) : drive.eligible ? (
-              <View style={[styles.statusBadge, { backgroundColor: 'rgba(244, 196, 48, 0.15)' }]}>
-                <Text style={[styles.statusBadgeText, { color: '#B45309' }]}>YOU ARE ELIGIBLE</Text>
-              </View>
+              <Text style={[styles.statusCleanText, { color: '#B45309' }]}>
+                YOU ARE ELIGIBLE
+              </Text>
             ) : (
-              <View style={[styles.statusBadge, { backgroundColor: '#FEF2F2' }]}>
-                <Text style={[styles.statusBadgeText, { color: '#DC2626' }]}>NOT ELIGIBLE</Text>
-              </View>
+              <Text style={[styles.statusCleanText, { color: '#DC2626' }]}>
+                NOT ELIGIBLE
+              </Text>
             )}
           </View>
         </View>
@@ -217,9 +208,6 @@ export default function DriveDetailsScreen() {
         <Text style={styles.sectionTitle}>OPPORTUNITY DETAILS</Text>
         <View style={styles.detailsCard}>
           <View style={styles.detailRow}>
-            <View style={styles.detailIconBox}>
-              <MaterialCommunityIcons name="cash" size={20} color="#F4C430" />
-            </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.detailLabel}>CTC / Compensation</Text>
               <Text style={styles.detailVal}>{drive.ctcOrStipend || 'Competitive / As per industry'}</Text>
@@ -229,9 +217,6 @@ export default function DriveDetailsScreen() {
           <View style={styles.divider} />
 
           <View style={styles.detailRow}>
-            <View style={styles.detailIconBox}>
-              <MaterialCommunityIcons name="map-marker-outline" size={20} color="#F4C430" />
-            </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.detailLabel}>Job Location</Text>
               <Text style={styles.detailVal}>{drive.location || 'Hybrid / Remote / TBD'}</Text>
@@ -241,9 +226,6 @@ export default function DriveDetailsScreen() {
           <View style={styles.divider} />
 
           <View style={styles.detailRow}>
-            <View style={styles.detailIconBox}>
-              <MaterialCommunityIcons name="calendar-clock" size={20} color="#F4C430" />
-            </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.detailLabel}>Apply By Deadline</Text>
               <Text style={[styles.detailVal, deadlinePassed && { color: '#DC2626' }]}>
@@ -423,20 +405,9 @@ const styles = StyleSheet.create({
   companyName: { fontSize: 12, color: '#6B6B6B', fontWeight: '600' },
   driveTitle: { fontSize: 18, fontWeight: '800', color: '#171717', marginTop: 2 },
 
-  badgesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  typeBadge: {
-    backgroundColor: '#F3F1EA',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
-  },
-  typeBadgeText: { fontSize: 10, fontWeight: '800', color: '#4B5563' },
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
-  },
-  statusBadgeText: { fontSize: 10, fontWeight: '800' },
+  badgesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, alignItems: 'center' },
+  typeCleanText: { fontSize: 11, fontWeight: '700', color: '#6B6B6B' },
+  statusCleanText: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
 
   ineligibleBanner: {
     flexDirection: 'row',

@@ -43,6 +43,14 @@ export function PlacementProfileView() {
 
   const handlePickPhoto = async () => {
     try {
+      if (Platform.OS !== 'web') {
+        const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!permissionResult.granted) {
+          Alert.alert('Permission Denied', 'Permission to access photos is required.');
+          return;
+        }
+      }
+
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: true,
@@ -198,24 +206,9 @@ export function PlacementProfileView() {
             </View>
 
             <View style={styles.heroMain}>
-              <View style={styles.heroHandleRow}>
-                <Text style={styles.heroHandle} numberOfLines={1}>{fullName || 'Officer'}</Text>
-                <View style={styles.avatarBadge}>
-                  <MaterialCommunityIcons name="check" size={11} color="#0E0E0E" />
-                </View>
-              </View>
+              <Text style={styles.heroHandle} numberOfLines={1}>{fullName || 'Officer'}</Text>
               <Text style={styles.heroEmail} numberOfLines={1}>{email || '—'}</Text>
-              <View style={styles.heroBadgeRow}>
-                <View style={styles.heroRoleBadge}>
-                  <MaterialCommunityIcons name={isHead ? 'shield-star' : 'account-tie'} size={13} color="#F4C430" />
-                  <Text style={styles.heroRoleText}>{roleTitle}</Text>
-                </View>
-                {institutionName ? (
-                  <View style={styles.heroInstBadge}>
-                    <Text style={styles.heroInstText} numberOfLines={1}>{institutionName}</Text>
-                  </View>
-                ) : null}
-              </View>
+              <Text style={styles.heroRoleText}>{roleTitle}</Text>
             </View>
           </View>
 
@@ -244,7 +237,6 @@ export function PlacementProfileView() {
             <MaterialCommunityIcons name="badge-account-outline" size={16} color="#F4C430" />
             <Text style={styles.sectionTitle}>Officer Profile</Text>
             <TouchableOpacity style={styles.headerActionBtn} onPress={handleOpenEditModal} activeOpacity={0.7}>
-              <MaterialCommunityIcons name="pencil" size={14} color="#F4C430" />
               <Text style={styles.headerActionBtnText}>Edit</Text>
             </TouchableOpacity>
           </View>
@@ -291,11 +283,9 @@ export function PlacementProfileView() {
             </View>
             <View style={styles.gridCell}>
               <Text style={styles.infoLabel}>Access Privilege</Text>
-              <View style={styles.statBadge}>
-                <Text style={styles.statBadgeText}>
-                  {isHead ? 'Placement Head' : 'Placement Member'}
-                </Text>
-              </View>
+              <Text style={styles.infoValue} numberOfLines={1}>
+                {isHead ? 'Placement Head' : 'Placement Member'}
+              </Text>
             </View>
           </View>
         </View>
@@ -333,7 +323,7 @@ export function PlacementProfileView() {
           </TouchableOpacity>
 
           <TouchableOpacity style={[styles.menuItem, { borderBottomWidth: 0 }]} onPress={handleLogout} activeOpacity={0.7}>
-            <View style={[styles.menuIconWrap, { backgroundColor: 'rgba(220, 53, 69, 0.1)' }]}>
+            <View style={styles.menuIconWrap}>
               <MaterialCommunityIcons name="logout" size={17} color="#DC3545" />
             </View>
             <Text style={[styles.menuText, { color: '#DC3545' }]}>Logout</Text>
@@ -463,32 +453,9 @@ const styles = StyleSheet.create({
     borderColor: '#1A1B1C',
   },
   heroMain: { flex: 1, minWidth: 0 },
-  heroHandleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   heroHandle: { fontSize: 19, fontWeight: '800', color: '#FFFFFF', flexShrink: 1 },
   heroEmail: { fontSize: 12, color: '#9A9A9A', marginTop: 2 },
-  heroBadgeRow: { flexDirection: 'row', gap: 6, marginTop: 8, flexWrap: 'wrap' },
-  heroRoleBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(244, 196, 48, 0.12)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(244, 196, 48, 0.3)',
-  },
-  heroRoleText: { fontSize: 11, fontWeight: '700', color: '#F4C430' },
-  heroInstBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    maxWidth: 180,
-  },
-  heroInstText: { fontSize: 11, fontWeight: '600', color: '#BDBDBD' },
+  heroRoleText: { fontSize: 12, fontWeight: '700', color: '#F4C430', marginTop: 4 },
 
   // Stats row inside hero
   statsRow: {
@@ -534,8 +501,17 @@ const styles = StyleSheet.create({
     borderBottomColor: '#EFE9D6',
   },
   sectionTitle: { fontSize: 13, fontWeight: '700', color: '#1A1B1C', letterSpacing: 0.3 },
-  headerActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 'auto' },
-  headerActionBtnText: { fontSize: 12, fontWeight: '700', color: '#F4C430' },
+  headerActionBtn: {
+    marginLeft: 'auto',
+    paddingVertical: 2,
+    paddingHorizontal: 2,
+  },
+  headerActionBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1A1B1C',
+    textDecorationLine: 'underline',
+  },
 
   // Grid rows (2-column layout)
   gridRow: {
@@ -576,10 +552,8 @@ const styles = StyleSheet.create({
     borderBottomColor: '#F3F1EA',
   },
   menuIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 6,
-    backgroundColor: 'rgba(244, 196, 48, 0.15)',
+    width: 28,
+    height: 28,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -619,5 +593,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  submitText: { color: '#FFFFFF', fontWeight: '800', fontSize: 13 },
+  submitText: { color: '#1A1B1C', fontWeight: '800', fontSize: 13 },
 });

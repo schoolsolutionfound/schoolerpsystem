@@ -8,52 +8,45 @@ import {
   RefreshControl,
   Image,
   TextInput,
+  Modal,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
-import { listDrives, getPlacementStats, PlacementDrive, PlacementStats } from '../../../api/placement';
+import { listDrives, updateDrive, PlacementDrive } from '../../../api/placement';
 import { FontFamily } from '../../../constants/fonts';
 import { BorderRadius } from '../../../constants/theme';
 import { ShimmerProvider } from '../../student/components/ShimmerSkeleton';
-import { PlacementStatsSkeleton, PlacementDriveCardSkeleton } from './PlacementSkeleton';
+import { PlacementDriveCardSkeleton } from './PlacementSkeleton';
 
-type FilterTab = 'all' | 'published' | 'draft' | 'closed';
+export const getCompanyInitials = (name?: string): string => {
+  if (!name) return 'CO';
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length >= 2) {
+    return (words[0][0] + words[1][0]).toUpperCase();
+  }
+  return words[0].substring(0, 2).toUpperCase();
+};
+
+type FilterTab = 'all' | 'published' | 'closed';
 
 export function PlacementDrivesView() {
   const router = useRouter();
   const [drives, setDrives] = useState<PlacementDrive[]>([]);
-  const [stats, setStats] = useState<PlacementStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<FilterTab>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Close drive modal state
+  const [driveToClose, setDriveToClose] = useState<PlacementDrive | null>(null);
+  const [closingDrive, setClosingDrive] = useState(false);
+
   const fetchFeed = async () => {
     try {
-      const [drivesData, statsData] = await Promise.all([
-        listDrives().catch(() => []),
-        getPlacementStats().catch(() => null),
-      ]);
+      const drivesData = await listDrives().catch(() => []);
       setDrives(drivesData || []);
-      if (statsData) {
-        setStats(statsData);
-      } else {
-        // Fallback computation
-        const published = (drivesData || []).filter((d) => d.status === 'published').length;
-        const draft = (drivesData || []).filter((d) => d.status === 'draft').length;
-        const closed = (drivesData || []).filter((d) => d.status === 'closed').length;
-        setStats({
-          totalDrives: drivesData?.length || 0,
-          activeDrives: published,
-          draftDrives: draft,
-          closedDrives: closed,
-          totalApplications: 0,
-          hiredCount: 0,
-          shortlistedCount: 0,
-          totalMembers: 0,
-          totalStudents: 0,
-        });
-      }
     } catch (err) {
       console.warn('Failed to load placement drives:', err);
     } finally {
@@ -71,6 +64,22 @@ export function PlacementDrivesView() {
     await fetchFeed();
   };
 
+  const handleConfirmCloseDrive = async () => {
+    if (!driveToClose) return;
+    try {
+      setClosingDrive(true);
+      await updateDrive(driveToClose.id, { status: 'closed' });
+      setDrives((prev) =>
+        prev.map((d) => (d.id === driveToClose.id ? { ...d, status: 'closed' } : d))
+      );
+      setDriveToClose(null);
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'Failed to close placement drive.');
+    } finally {
+      setClosingDrive(false);
+    }
+  };
+
   const filteredDrives = useMemo(() => {
     return drives.filter((d) => {
       const matchesFilter = selectedFilter === 'all' || d.status === selectedFilter;
@@ -86,7 +95,6 @@ export function PlacementDrivesView() {
     return (
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <ShimmerProvider>
-          <PlacementStatsSkeleton />
           <PlacementDriveCardSkeleton />
           <PlacementDriveCardSkeleton />
         </ShimmerProvider>
@@ -94,10 +102,8 @@ export function PlacementDrivesView() {
     );
   }
 
-  const activeDrivesCount = stats?.activeDrives ?? drives.filter((d) => d.status === 'published').length;
-  const totalAppsCount = stats?.totalApplications ?? 0;
-  const hiredCount = stats?.hiredCount ?? 0;
-  const totalDrivesCount = stats?.totalDrives ?? drives.length;
+  const publishedCount = drives.filter((d) => d.status === 'published').length;
+  const closedCount = drives.filter((d) => d.status === 'closed').length;
 
   return (
     <View style={styles.root}>
@@ -114,29 +120,6 @@ export function PlacementDrivesView() {
           />
         }
       >
-        {/* Dark Overview Card - Matching Attendance Theme */}
-        <View style={styles.overallCard}>
-          <View style={styles.heroSection}>
-            <Text style={styles.heroValue}>{activeDrivesCount}</Text>
-            <Text style={styles.heroLabel} numberOfLines={1}>Active Drives</Text>
-          </View>
-          <View style={styles.cardDivider} />
-          <View style={styles.statsSection}>
-            <View style={styles.statCol}>
-              <Text style={[styles.statValue, { color: '#F4C430' }]}>{totalDrivesCount}</Text>
-              <Text style={styles.statLabel} numberOfLines={1} adjustsFontSizeToFit>Total</Text>
-            </View>
-            <View style={styles.statCol}>
-              <Text style={[styles.statValue, { color: '#FFFFFF' }]}>{totalAppsCount}</Text>
-              <Text style={styles.statLabel} numberOfLines={1} adjustsFontSizeToFit>Applied</Text>
-            </View>
-            <View style={styles.statCol}>
-              <Text style={[styles.statValue, { color: '#16A34A' }]}>{hiredCount}</Text>
-              <Text style={styles.statLabel} numberOfLines={1} adjustsFontSizeToFit>Hired</Text>
-            </View>
-          </View>
-        </View>
-
         {/* Search Bar */}
         <View style={styles.searchBox}>
           <Feather name="search" size={18} color="#6B6B6B" />
@@ -154,25 +137,29 @@ export function PlacementDrivesView() {
           )}
         </View>
 
-        {/* Filter Tabs */}
-        <View style={styles.filterRow}>
-          {(['all', 'published', 'draft', 'closed'] as FilterTab[]).map((tab) => {
+        {/* Unified Filter Tabs Container */}
+        <View style={styles.segmentedContainer}>
+          {(['all', 'published', 'closed'] as FilterTab[]).map((tab) => {
             const isActive = selectedFilter === tab;
             const labels: Record<FilterTab, string> = {
-              all: `All (${drives.length})`,
-              published: `Published (${drives.filter((d) => d.status === 'published').length})`,
-              draft: `Draft (${drives.filter((d) => d.status === 'draft').length})`,
-              closed: `Closed (${drives.filter((d) => d.status === 'closed').length})`,
+              all: 'All',
+              published: 'Published',
+              closed: 'Closed',
+            };
+            const counts: Record<FilterTab, number> = {
+              all: drives.length,
+              published: publishedCount,
+              closed: closedCount,
             };
             return (
               <TouchableOpacity
                 key={tab}
-                style={[styles.filterBtn, isActive && styles.filterBtnActive]}
+                style={[styles.segmentItem, isActive && styles.segmentItemActive]}
                 onPress={() => setSelectedFilter(tab)}
                 activeOpacity={0.7}
               >
-                <Text style={[styles.filterText, isActive && styles.filterTextActive]}>
-                  {labels[tab]}
+                <Text style={[styles.segmentText, isActive && styles.segmentTextActive]}>
+                  {labels[tab]} ({counts[tab]})
                 </Text>
               </TouchableOpacity>
             );
@@ -202,7 +189,6 @@ export function PlacementDrivesView() {
           filteredDrives.map((drive) => {
             const isPublished = drive.status === 'published';
             const isDraft = drive.status === 'draft';
-            const statusColor = isPublished ? '#16A34A' : isDraft ? '#D97706' : '#6B6B6B';
             const statusLabel = isPublished ? 'Published' : isDraft ? 'Draft' : 'Closed';
 
             return (
@@ -220,7 +206,7 @@ export function PlacementDrivesView() {
                     ) : (
                       <View style={styles.logoPlaceholder}>
                         <Text style={styles.logoInitial}>
-                          {drive.companyName ? drive.companyName.substring(0, 2).toUpperCase() : 'CO'}
+                          {getCompanyInitials(drive.companyName)}
                         </Text>
                       </View>
                     )}
@@ -230,39 +216,29 @@ export function PlacementDrivesView() {
                     </View>
                   </View>
 
-                  <View
+                  <Text
                     style={[
-                      styles.statusTag,
-                      isPublished ? styles.tagPublished : isDraft ? styles.tagDraft : styles.tagClosed,
+                      styles.statusCleanText,
+                      isPublished ? styles.textPublished : isDraft ? styles.textDraft : styles.textClosed,
                     ]}
                   >
-                    <Text
-                      style={[
-                        styles.statusTagText,
-                        isPublished ? styles.tagTextPublished : isDraft ? styles.tagTextDraft : styles.tagTextClosed,
-                      ]}
-                    >
-                      {statusLabel}
-                    </Text>
-                  </View>
+                    {statusLabel}
+                  </Text>
                 </View>
 
                 {/* Details row */}
                 <View style={styles.metaWrap}>
                   {drive.location ? (
                     <View style={styles.metaItem}>
-                      <MaterialCommunityIcons name="map-marker-outline" size={14} color="#6B6B6B" />
                       <Text style={styles.metaText} numberOfLines={1}>{drive.location}</Text>
                     </View>
                   ) : null}
                   {drive.ctcOrStipend ? (
                     <View style={styles.metaItem}>
-                      <MaterialCommunityIcons name="cash" size={14} color="#F4C430" />
                       <Text style={styles.metaText} numberOfLines={1}>{drive.ctcOrStipend}</Text>
                     </View>
                   ) : null}
                   <View style={styles.metaItem}>
-                    <MaterialCommunityIcons name="clock-outline" size={14} color="#6B6B6B" />
                     <Text style={styles.metaText}>
                       Deadline: {new Date(drive.applyDeadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </Text>
@@ -273,16 +249,30 @@ export function PlacementDrivesView() {
 
                 {/* Card footer */}
                 <View style={styles.cardFooter}>
-                  <View style={styles.roundsBadge}>
-                    <MaterialCommunityIcons name="format-list-checks" size={14} color="#1A1B1C" />
-                    <Text style={styles.roundsText}>
-                      {drive.rounds?.length || 0} Stages / Rounds
+                  <View style={styles.roundsClean}>
+                    <Text style={styles.roundsCleanText}>
+                      {drive.rounds?.length || 0} Rounds
                     </Text>
                   </View>
 
-                  <View style={styles.viewApplicantsBtn}>
-                    <Text style={styles.viewApplicantsText}>View Applicants</Text>
-                    <Feather name="arrow-right" size={13} color="#1A1B1C" />
+                  <View style={styles.footerRightRow}>
+                    {isPublished && (
+                      <TouchableOpacity
+                        style={styles.closeDriveLink}
+                        onPress={(e) => {
+                          e.stopPropagation?.();
+                          setDriveToClose(drive);
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.closeDriveLinkText}>Close</Text>
+                      </TouchableOpacity>
+                    )}
+
+                    <View style={styles.viewApplicantsBtn}>
+                      <Text style={styles.viewApplicantsText}>View Applicants</Text>
+                      <Feather name="arrow-right" size={13} color="#1A1B1C" />
+                    </View>
                   </View>
                 </View>
               </TouchableOpacity>
@@ -299,6 +289,57 @@ export function PlacementDrivesView() {
       >
         <Feather name="plus" size={24} color="#1A1B1C" />
       </TouchableOpacity>
+
+      {/* Close Drive Confirmation Modal */}
+      <Modal
+        visible={!!driveToClose}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (!closingDrive) setDriveToClose(null);
+        }}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.confirmCard}>
+            <View style={styles.confirmIconWrap}>
+              <MaterialCommunityIcons name="lock-alert-outline" size={28} color="#DC2626" />
+            </View>
+
+            <Text style={styles.confirmTitle}>Close Placement Drive?</Text>
+            <Text style={styles.confirmMessage}>
+              Are you sure you want to close the recruitment drive for{' '}
+              <Text style={{ fontWeight: '800', color: '#171717' }}>
+                {driveToClose?.companyName} ({driveToClose?.title})
+              </Text>
+              ? Students will no longer be able to submit applications and the recruitment process will be finalized.
+            </Text>
+
+            <View style={styles.confirmFooter}>
+              <TouchableOpacity
+                style={styles.confirmCancelBtn}
+                onPress={() => setDriveToClose(null)}
+                disabled={closingDrive}
+                activeOpacity={0.75}
+              >
+                <Text style={styles.confirmCancelText}>Keep Open</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.confirmActionBtn}
+                onPress={handleConfirmCloseDrive}
+                disabled={closingDrive}
+                activeOpacity={0.85}
+              >
+                {closingDrive ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.confirmActionBtnText}>Yes, Close Drive</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -391,36 +432,36 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.regular,
   },
 
-  // Filter Row
-  filterRow: {
+  // Segmented Container
+  segmentedContainer: {
     flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#F3F1EA',
-    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    borderRadius: 5,
     padding: 3,
-    gap: 3,
   },
-  filterBtn: {
+  segmentItem: {
     flex: 1,
-    paddingVertical: 7,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 6,
+    gap: 6,
+    paddingVertical: 7,
+    paddingHorizontal: 8,
+    borderRadius: 4,
   },
-  filterBtnActive: {
-    backgroundColor: '#1A1B1C',
-    shadowColor: '#171717',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+  segmentItemActive: {
+    backgroundColor: '#F4C430',
   },
-  filterText: {
-    fontSize: 11,
+  segmentText: {
+    fontSize: 12,
     fontWeight: '700',
     color: '#6B6B6B',
   },
-  filterTextActive: {
-    color: '#FFFFFF',
+  segmentTextActive: {
+    color: '#1A1B1C',
     fontWeight: '800',
   },
 
@@ -442,6 +483,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     flex: 1,
+    minWidth: 0,
     marginRight: 8,
   },
   logoImage: { width: 44, height: 44, borderRadius: 8, resizeMode: 'contain' },
@@ -456,7 +498,7 @@ const styles = StyleSheet.create({
   logoInitial: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#F4C430',
+    color: '#1A1B1C',
   },
   companyName: {
     fontSize: 12,
@@ -469,54 +511,21 @@ const styles = StyleSheet.create({
     color: '#171717',
     marginTop: 2,
   },
-  statusTag: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 3.5,
-    borderRadius: 6,
-    borderWidth: 1,
-    alignSelf: 'flex-start',
-  },
-  tagPublished: {
-    backgroundColor: '#F0FDF4',
-    borderColor: '#BBF7D0',
-  },
-  tagDraft: {
-    backgroundColor: '#FFFBEB',
-    borderColor: '#FDE68A',
-  },
-  tagClosed: {
-    backgroundColor: '#F9FAFB',
-    borderColor: '#E5E7EB',
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  dotPublished: {
-    backgroundColor: '#16A34A',
-  },
-  dotDraft: {
-    backgroundColor: '#D97706',
-  },
-  dotClosed: {
-    backgroundColor: '#6B7280',
-  },
-  statusTagText: {
-    fontSize: 11,
+
+  // Status text clean (no pill bg)
+  statusCleanText: {
+    fontSize: 12,
     fontWeight: '700',
-    letterSpacing: 0.1,
+    flexShrink: 0,
   },
-  tagTextPublished: {
-    color: '#15803D',
+  textPublished: {
+    color: '#16A34A',
   },
-  tagTextDraft: {
-    color: '#B45309',
+  textDraft: {
+    color: '#D97706',
   },
-  tagTextClosed: {
-    color: '#4B5563',
+  textClosed: {
+    color: '#6B6B6B',
   },
 
   metaWrap: {
@@ -546,19 +555,30 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  roundsBadge: {
+  roundsClean: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#F3F1EA',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
   },
-  roundsText: {
-    fontSize: 11,
+  roundsCleanText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B6B6B',
+  },
+  footerRightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  closeDriveLink: {
+    paddingVertical: 2,
+    paddingHorizontal: 4,
+  },
+  closeDriveLinkText: {
+    fontSize: 12,
     fontWeight: '700',
-    color: '#1A1B1C',
+    color: '#DC2626',
+    textDecorationLine: 'underline',
   },
   viewApplicantsBtn: {
     flexDirection: 'row',
@@ -627,5 +647,84 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 8,
     elevation: 8,
+  },
+
+  // Confirmation Modal
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  confirmCard: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 5,
+    padding: 22,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  confirmIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#FEE2E2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  confirmTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#171717',
+    fontFamily: FontFamily.bold,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  confirmMessage: {
+    fontSize: 13,
+    color: '#4B5563',
+    textAlign: 'center',
+    lineHeight: 19,
+    fontFamily: FontFamily.regular,
+    marginBottom: 20,
+    paddingHorizontal: 4,
+  },
+  confirmFooter: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+  },
+  confirmCancelBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: '#F3F1EA',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  confirmCancelText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#6B6B6B',
+  },
+  confirmActionBtn: {
+    flex: 1.3,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: '#DC2626',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  confirmActionBtnText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
 });
