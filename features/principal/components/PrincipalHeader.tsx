@@ -31,17 +31,11 @@ export const PrincipalHeader: React.FC<PrincipalHeaderProps> = ({
   return (
     <View style={styles.container}>
       <View style={styles.topHeader}>
-        {/* Left: Menu Hamburger or Back */}
+        {/* Left: Menu Hamburger */}
         <View style={styles.leftCol}>
-          {isSubTab && onBackToDashboard ? (
-            <TouchableOpacity style={styles.backBtn} onPress={onBackToDashboard} activeOpacity={0.7}>
-              <Feather name="arrow-left" size={22} color="#000000" />
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity style={styles.menuBtn} onPress={onMenuPress} activeOpacity={0.7}>
-              <Feather name="menu" size={24} color="#000000" />
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity style={styles.menuBtn} onPress={onMenuPress} activeOpacity={0.7}>
+            <Feather name="menu" size={24} color="#000000" />
+          </TouchableOpacity>
         </View>
 
         {/* Center: Text Logo in center of header */}

@@ -67,6 +67,18 @@ function detectClassProgram(sec: { name?: string; grade?: string; className?: st
   return 'B.Tech';
 }
 
+function getDepartmentIcon(deptName: string): keyof typeof Feather.glyphMap {
+  const d = (deptName || '').toLowerCase();
+  if (d.includes('aiml') || d.includes('ai') || d.includes('machine')) return 'cpu';
+  if (d.includes('computer') || d.includes('cse') || d.includes('soft')) return 'code';
+  if (d.includes('electronic') || d.includes('ece') || d.includes('comm')) return 'zap';
+  if (d.includes('mech')) return 'settings';
+  if (d.includes('civil')) return 'layers';
+  if (d.includes('commerce') || d.includes('mgmt') || d.includes('business')) return 'briefcase';
+  if (d.includes('sci') || d.includes('applied') || d.includes('math')) return 'book-open';
+  return 'compass';
+}
+
 interface PrincipalFeeLedgerViewProps {
   onBack?: () => void;
   homerooms?: HomeroomSection[];
@@ -215,6 +227,21 @@ export const PrincipalFeeLedgerView: React.FC<PrincipalFeeLedgerViewProps> = ({
     });
   }, [classSummaries, classDeptFilter, classYearFilter, classProgramFilter, feeStatusFilter]);
 
+  // Group Filtered Classes Department-Wise (matching Student & Faculty standards)
+  const departmentClassGroups = useMemo(() => {
+    const map = new Map<string, typeof filteredClasses>();
+    filteredClasses.forEach((sec) => {
+      const dept = sec.department || 'Other';
+      if (!map.has(dept)) map.set(dept, []);
+      map.get(dept)!.push(sec);
+    });
+    return Array.from(map.entries()).map(([deptName, classes]) => ({
+      department: deptName,
+      classes,
+      totalDue: classes.reduce((sum, c) => sum + c.totalDue, 0),
+    }));
+  }, [filteredClasses]);
+
   // Selected Class object
   const selectedClass = useMemo(() => {
     if (!selectedClassId) return null;
@@ -356,6 +383,7 @@ export const PrincipalFeeLedgerView: React.FC<PrincipalFeeLedgerViewProps> = ({
 
   const renderClassCard = ({ item }: { item: (typeof classSummaries)[0] }) => {
     const hasDues = item.totalDue > 0;
+
     return (
       <TouchableOpacity
         style={styles.classCard}
@@ -400,7 +428,7 @@ export const PrincipalFeeLedgerView: React.FC<PrincipalFeeLedgerViewProps> = ({
 
           <View style={styles.classStatItem}>
             <Text style={styles.classStatLabel}>COLLECTED</Text>
-            <Text style={[styles.classStatValue, { color: '#047857' }]}>
+            <Text style={styles.classStatValue}>
               ₹
               {item.totalPaid >= 100000
                 ? `${(item.totalPaid / 100000).toFixed(1)}L`
@@ -412,7 +440,12 @@ export const PrincipalFeeLedgerView: React.FC<PrincipalFeeLedgerViewProps> = ({
 
           <View style={styles.classStatItem}>
             <Text style={styles.classStatLabel}>OUTSTANDING</Text>
-            <Text style={[styles.classStatValue, { color: hasDues ? '#DC2626' : '#6B7280' }]}>
+            <Text
+              style={[
+                styles.classStatValue,
+                { color: hasDues ? '#DC2626' : '#6B7280' },
+              ]}
+            >
               {hasDues
                 ? `₹${
                     item.totalDue >= 100000
@@ -426,11 +459,11 @@ export const PrincipalFeeLedgerView: React.FC<PrincipalFeeLedgerViewProps> = ({
 
         <View style={styles.classCardFooter}>
           <Text style={styles.classCardDueCount}>
-            {hasDues ? `${item.dueCount} students with dues` : 'All fees settled'}
+            {item.dueCount > 0 ? `${item.dueCount} students with dues` : 'All dues cleared'}
           </Text>
           <View style={styles.classViewBtn}>
-            <Text style={styles.classViewBtnText}>View Students</Text>
-            <Feather name="arrow-right" size={14} color="#B45309" />
+            <Text style={styles.classViewBtnText}>View Ledger</Text>
+            <Feather name="chevron-right" size={14} color="#374151" />
           </View>
         </View>
       </TouchableOpacity>
@@ -442,24 +475,20 @@ export const PrincipalFeeLedgerView: React.FC<PrincipalFeeLedgerViewProps> = ({
 
     return (
       <View style={styles.studentCard}>
-        {/* Top Row: Name, Roll Number / USN, Status Badge */}
+        {/* Top Header: Student info & Due status */}
         <View style={styles.cardHeaderRow}>
           <View style={styles.studentInfoCol}>
             <View style={styles.nameRow}>
-              <Text style={styles.studentNameText} numberOfLines={1}>
-                {item.studentName}
-              </Text>
+              <Text style={styles.studentNameText}>{item.studentName}</Text>
               <View style={styles.rollBadge}>
                 <Text style={styles.rollBadgeText}>{item.rollNumber}</Text>
               </View>
             </View>
             <Text style={styles.studentMetaText}>
-              {item.department} · {item.year}
+              {item.className || item.department} · {item.year || 'All Years'}
             </Text>
-            <Text style={styles.campusText}>{item.institution}</Text>
           </View>
 
-          {/* Status Badge */}
           <View
             style={[
               styles.statusBadge,
@@ -472,15 +501,14 @@ export const PrincipalFeeLedgerView: React.FC<PrincipalFeeLedgerViewProps> = ({
                 hasDue ? styles.statusTextDue : styles.statusTextPaid,
               ]}
             >
-              {hasDue ? (item.status === 'overdue' ? 'OVERDUE' : 'DUE') : 'NO DUE'}
+              {hasDue ? 'DUE' : 'PAID'}
             </Text>
           </View>
         </View>
 
-        {/* Divider */}
         <View style={styles.cardDivider} />
 
-        {/* Fee Numbers Row */}
+        {/* Financial Overview Figures (Shortened Space, Neutral Colors) */}
         <View style={styles.feeFiguresRow}>
           <View style={styles.feeCol}>
             <Text style={styles.feeLabel}>TOTAL FEE</Text>
@@ -491,7 +519,7 @@ export const PrincipalFeeLedgerView: React.FC<PrincipalFeeLedgerViewProps> = ({
 
           <View style={styles.feeCol}>
             <Text style={styles.feeLabel}>PAID</Text>
-            <Text style={[styles.feeValue, { color: '#047857' }]}>
+            <Text style={styles.feeValue}>
               ₹{item.paidAmount.toLocaleString()}
             </Text>
           </View>
@@ -503,7 +531,7 @@ export const PrincipalFeeLedgerView: React.FC<PrincipalFeeLedgerViewProps> = ({
             <Text
               style={[
                 styles.feeValue,
-                { color: hasDue ? '#DC2626' : '#6B7280' },
+                { color: hasDue ? '#DC2626' : '#111827' },
               ]}
             >
               {hasDue ? `₹${item.dueAmount.toLocaleString()}` : '₹0'}
@@ -511,7 +539,7 @@ export const PrincipalFeeLedgerView: React.FC<PrincipalFeeLedgerViewProps> = ({
           </View>
         </View>
 
-        {/* Bottom Action Footer */}
+        {/* Bottom Action Footer (Shortened Space, Neutral Styling) */}
         <View style={styles.cardFooterRow}>
           <View style={styles.dateMeta}>
             <Text style={styles.dateMetaText}>
@@ -529,7 +557,6 @@ export const PrincipalFeeLedgerView: React.FC<PrincipalFeeLedgerViewProps> = ({
                 <Text style={styles.concessionBtnText}>Concession</Text>
               </TouchableOpacity>
             )}
-
             <TouchableOpacity
               style={styles.detailsBtn}
               onPress={() => setSelectedStudent(item)}
@@ -551,7 +578,7 @@ export const PrincipalFeeLedgerView: React.FC<PrincipalFeeLedgerViewProps> = ({
     ? searchFilteredStudents
     : isClassSelected
     ? selectedClassStudents
-    : filteredClasses;
+    : departmentClassGroups;
 
   return (
     <View style={styles.container}>
@@ -564,12 +591,42 @@ export const PrincipalFeeLedgerView: React.FC<PrincipalFeeLedgerViewProps> = ({
 
       <FlatList
         data={activeListData}
-        keyExtractor={(item) => item.id}
-        renderItem={
-          isSearching || isClassSelected
-            ? (renderStudentCard as any)
-            : (renderClassCard as any)
-        }
+        keyExtractor={(item) => item.id || item.department}
+        renderItem={({ item }) => {
+          if (isSearching || isClassSelected) {
+            return renderStudentCard({ item: item as StudentFeeRecord });
+          }
+          const group = item as { department: string; classes: (typeof classSummaries)[0][] };
+          return (
+            <View style={styles.deptSectionWrap}>
+              <View style={styles.deptHeaderRow}>
+                <View style={styles.deptHeaderLeft}>
+                  <View style={styles.deptHeaderIconWrap}>
+                    <Feather
+                      name={getDepartmentIcon(group.department)}
+                      size={12}
+                      color="#111827"
+                    />
+                  </View>
+                  <Text style={styles.deptHeaderTitle}>{group.department}</Text>
+                </View>
+                <View style={styles.deptCountPill}>
+                  <Text style={styles.deptCountText}>
+                    {group.classes.length} {group.classes.length === 1 ? 'Class' : 'Classes'}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.classesGrid}>
+                {group.classes.map((clsItem) => (
+                  <View key={clsItem.id}>
+                    {renderClassCard({ item: clsItem })}
+                  </View>
+                ))}
+              </View>
+            </View>
+          );
+        }}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         initialNumToRender={15}
@@ -759,48 +816,7 @@ export const PrincipalFeeLedgerView: React.FC<PrincipalFeeLedgerViewProps> = ({
               </View>
             )}
 
-            {/* Mode 3: Class-wise View */}
-            {!isSearching && !isClassSelected && (
-              <>
-                {/* Department horizontal quick chips */}
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.deptChipsScroll}
-                >
-                  {availableDepartments.map((dept) => {
-                    const isSelected = classDeptFilter === dept;
-                    return (
-                      <TouchableOpacity
-                        key={dept}
-                        style={[styles.deptChip, isSelected && styles.deptChipSelected]}
-                        onPress={() => setClassDeptFilter(isSelected && dept !== 'all' ? 'all' : dept)}
-                        activeOpacity={0.7}
-                      >
-                        <Text
-                          style={[
-                            styles.deptChipText,
-                            isSelected && styles.deptChipTextSelected,
-                          ]}
-                        >
-                          {dept === 'all' ? 'All Depts' : dept}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-
-                {/* Section Title */}
-                <View style={styles.listHeadingRow}>
-                  <Text style={styles.listHeadingText}>
-                    Classes ({filteredClasses.length})
-                  </Text>
-                  <Text style={styles.listSubHeadingText}>
-                    Select a class to view student fee ledger
-                  </Text>
-                </View>
-              </>
-            )}
+            {!isSearching && !isClassSelected && <View style={{ height: 10 }} />}
           </>
         }
         ListEmptyComponent={
@@ -1085,12 +1101,7 @@ export const PrincipalFeeLedgerView: React.FC<PrincipalFeeLedgerViewProps> = ({
           />
           <View style={styles.filterModalCard}>
             <View style={styles.filterModalHeader}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <View style={styles.filterModalIconWrap}>
-                  <MaterialCommunityIcons name="tune-variant" size={16} color="#000000" />
-                </View>
-                <Text style={styles.filterModalTitle}>Filter Classes</Text>
-              </View>
+              <Text style={styles.filterModalTitle}>Filter Classes</Text>
               <TouchableOpacity
                 onPress={() => setFilterModalVisible(false)}
                 style={styles.filterModalCloseBtn}
@@ -1194,12 +1205,14 @@ export const PrincipalFeeLedgerView: React.FC<PrincipalFeeLedgerViewProps> = ({
                   setClassProgramFilter('all');
                   setFeeStatusFilter('all');
                 }}
+                activeOpacity={0.8}
               >
-                <Text style={styles.filterResetText}>Reset</Text>
+                <Text style={styles.filterResetText}>Reset Filters</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.filterApplyBtn}
                 onPress={() => setFilterModalVisible(false)}
+                activeOpacity={0.8}
               >
                 <Text style={styles.filterApplyText}>Apply Filters</Text>
               </TouchableOpacity>
@@ -1646,17 +1659,17 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   classDeptBadge: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: '#F3F4F6',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: '#E5E7EB',
   },
   classDeptBadgeText: {
     fontFamily: FontFamily.bold,
     fontSize: 10,
-    color: '#B45309',
+    color: '#374151',
   },
   classCardDivider: {
     height: 1,
@@ -1673,7 +1686,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   classStatLabel: {
-    fontFamily: FontFamily.bold,
+    fontFamily: FontFamily.medium,
     fontSize: 9.5,
     color: '#9CA3AF',
     letterSpacing: 0.5,
@@ -1711,7 +1724,7 @@ const styles = StyleSheet.create({
   classViewBtnText: {
     fontFamily: FontFamily.bold,
     fontSize: 12,
-    color: '#B45309',
+    color: '#374151',
   },
 
   // Modal Backdrop and Cards
@@ -1743,14 +1756,6 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
-  },
-  filterModalIconWrap: {
-    width: 30,
-    height: 30,
-    borderRadius: 6,
-    backgroundColor: '#F4C430',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   filterModalTitle: {
     fontFamily: FontFamily.bold,
@@ -1797,25 +1802,32 @@ const styles = StyleSheet.create({
   filterModalFooter: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
+    alignItems: 'center',
     gap: 10,
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
   },
   filterResetBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 8,
+    backgroundColor: '#DC2626',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   filterResetText: {
-    fontFamily: FontFamily.medium,
+    fontFamily: FontFamily.bold,
     fontSize: 13,
-    color: '#6B7280',
+    color: '#FFFFFF',
   },
   filterApplyBtn: {
     backgroundColor: '#F4C430',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 9,
     borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   filterApplyText: {
     fontFamily: FontFamily.bold,
@@ -1823,18 +1835,69 @@ const styles = StyleSheet.create({
     color: '#000000',
   },
 
-  // Student Card (No yellow side strip, zero icons, fully responsive)
+  // Department-Wise Section Grouping
+  deptSectionWrap: {
+    marginBottom: 20,
+  },
+  deptHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+    paddingHorizontal: 2,
+  },
+  deptHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  deptHeaderIconWrap: {
+    width: 24,
+    height: 24,
+    borderRadius: 5,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deptHeaderTitle: {
+    fontFamily: FontFamily.bold,
+    fontSize: 14,
+    color: '#111827',
+    letterSpacing: 0.2,
+  },
+  deptCountPill: {
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  deptCountText: {
+    fontFamily: FontFamily.medium,
+    fontSize: 11,
+    color: '#4B5563',
+  },
+  classesGrid: {
+    gap: 12,
+  },
+
+  // Student Card (Reverted, Space-Shortened, Color-Neutral)
   studentCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 14,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     borderWidth: 1,
     borderColor: '#E5E7EB',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 3,
+    shadowOpacity: 0.02,
+    shadowRadius: 2,
     elevation: 1,
+    marginBottom: 8,
   },
   cardHeaderRow: {
     flexDirection: 'row',
@@ -1853,70 +1916,67 @@ const styles = StyleSheet.create({
   },
   studentNameText: {
     fontFamily: FontFamily.bold,
-    fontSize: 15,
+    fontSize: 14,
     color: '#111827',
   },
   rollBadge: {
     backgroundColor: '#F3F4F6',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
     borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   rollBadgeText: {
     fontFamily: FontFamily.medium,
-    fontSize: 11,
+    fontSize: 10.5,
     color: '#4B5563',
   },
   studentMetaText: {
     fontFamily: FontFamily.regular,
-    fontSize: 12,
+    fontSize: 11.5,
     color: '#6B7280',
-    marginTop: 3,
-  },
-  campusText: {
-    fontFamily: FontFamily.regular,
-    fontSize: 11,
-    color: '#9CA3AF',
     marginTop: 2,
   },
   statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 4,
+    borderWidth: 1,
   },
   statusBadgeDue: {
-    backgroundColor: '#FEF3C7',
-    borderWidth: 1,
-    borderColor: '#FDE68A',
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FECACA',
   },
   statusBadgePaid: {
-    backgroundColor: '#D1FAE5',
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
+    backgroundColor: '#F0FDF4',
+    borderColor: '#BBF7D0',
   },
   statusBadgeText: {
     fontFamily: FontFamily.bold,
-    fontSize: 11,
+    fontSize: 10.5,
   },
   statusTextDue: {
-    color: '#B45309',
+    color: '#DC2626',
   },
   statusTextPaid: {
-    color: '#047857',
+    color: '#16A34A',
   },
   cardDivider: {
     height: 1,
     backgroundColor: '#F3F4F6',
-    marginVertical: 10,
+    marginVertical: 6,
   },
   feeFiguresRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#F9FAFB',
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
+    borderRadius: 6,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   feeCol: {
     flex: 1,
@@ -1924,7 +1984,7 @@ const styles = StyleSheet.create({
   },
   feeColDivider: {
     width: 1,
-    height: 24,
+    height: 18,
     backgroundColor: '#E5E7EB',
   },
   feeLabel: {
@@ -1932,18 +1992,18 @@ const styles = StyleSheet.create({
     fontSize: 9,
     color: '#9CA3AF',
     letterSpacing: 0.3,
-    marginBottom: 2,
+    marginBottom: 1,
   },
   feeValue: {
     fontFamily: FontFamily.bold,
-    fontSize: 13,
+    fontSize: 12.5,
     color: '#111827',
   },
   cardFooterRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 6,
   },
   dateMeta: {
     flexDirection: 'row',
@@ -1957,28 +2017,32 @@ const styles = StyleSheet.create({
   cardBtnRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   concessionBtn: {
-    backgroundColor: '#F4C430',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    paddingHorizontal: 9,
+    paddingVertical: 4.5,
+    borderRadius: 5,
   },
   concessionBtnText: {
     fontFamily: FontFamily.bold,
-    fontSize: 11,
-    color: '#000000',
+    fontSize: 10.5,
+    color: '#111827',
   },
   detailsBtn: {
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    paddingHorizontal: 9,
+    paddingVertical: 4.5,
+    borderRadius: 5,
   },
   detailsBtnText: {
     fontFamily: FontFamily.medium,
-    fontSize: 11,
+    fontSize: 10.5,
     color: '#374151',
   },
 

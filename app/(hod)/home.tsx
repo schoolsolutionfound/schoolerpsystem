@@ -46,6 +46,10 @@ import { AssignCourseInstructorModal } from '../../features/hod/components/modal
 import { ReviewHallTicketModal } from '../../features/hod/components/modals/ReviewHallTicketModal';
 import { CreateDeptNoticeModal } from '../../features/hod/components/modals/CreateDeptNoticeModal';
 import { DepartmentDossierModal } from '../../features/hod/components/modals/DepartmentDossierModal';
+import { AcademicCalendarEventsView } from '../../features/shared/components/AcademicCalendarEventsView';
+import { LeaveApprovalView } from '../../features/shared/components/LeaveApprovalView';
+import { PayrollManagementView } from '../../features/shared/components/PayrollManagementView';
+import { DocumentRequestsManagerView } from '../../features/shared/components/DocumentRequestsManagerView';
 
 const BOTTOM_TABS: {
   key: HODTab;
@@ -349,6 +353,39 @@ export default function HODHomeScreen() {
 
           {activeTab === 'attendance' && (
             <AttendanceReportsView mode="department" department={department || undefined} />
+          )}
+
+          {activeTab === 'events' && (
+            <AcademicCalendarEventsView
+              userRole="hod"
+              userDepartment={department}
+              canManageAll={false}
+              canManageDeptOnly={true}
+            />
+          )}
+
+          {activeTab === 'leaves' && (
+            <LeaveApprovalView
+              userRole="hod"
+              userDepartment={department}
+              reviewerName={fullName}
+            />
+          )}
+
+          {activeTab === 'payroll' && (
+            <PayrollManagementView
+              userRole="hod"
+              userDepartment={department}
+              institutionName="Engineering & Technology Institute"
+            />
+          )}
+
+          {activeTab === 'document_requests' && (
+            <DocumentRequestsManagerView
+              userRole="hod"
+              userDepartment={department}
+              institutionName="Engineering & Technology Institute"
+            />
           )}
         </View>
         )}

@@ -164,6 +164,18 @@ function detectClassProgram(sec: HomeroomSection): string {
   return 'B.Tech';
 }
 
+function getDepartmentIcon(deptName: string): keyof typeof Feather.glyphMap {
+  const d = (deptName || '').toLowerCase();
+  if (d.includes('aiml') || d.includes('ai') || d.includes('machine')) return 'cpu';
+  if (d.includes('computer') || d.includes('cse') || d.includes('soft')) return 'code';
+  if (d.includes('electronic') || d.includes('ece') || d.includes('comm')) return 'zap';
+  if (d.includes('mech')) return 'settings';
+  if (d.includes('civil')) return 'layers';
+  if (d.includes('commerce') || d.includes('mgmt') || d.includes('business')) return 'briefcase';
+  if (d.includes('sci') || d.includes('applied') || d.includes('math')) return 'book-open';
+  return 'compass';
+}
+
 export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
   homerooms,
   refreshing,
@@ -1451,13 +1463,19 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
             <View key={group.department} style={styles.deptSectionBlock}>
               {/* Department Section Header */}
               <View style={styles.deptHeaderRow}>
-                <View style={styles.deptIconFrame}>
-                  <MaterialCommunityIcons name="domain" size={18} color="#000000" />
+                <View style={styles.deptHeaderLeft}>
+                  <View style={styles.deptHeaderIconWrap}>
+                    <Feather
+                      name={getDepartmentIcon(group.department)}
+                      size={12}
+                      color="#111827"
+                    />
+                  </View>
+                  <Text style={styles.deptHeaderTitle}>{group.department}</Text>
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.deptSectionTitle}>{group.department}</Text>
-                  <Text style={styles.deptSectionSub}>
-                    {group.classes.length} Classes · {group.totalStudents} Students Enrolled
+                <View style={styles.deptCountPill}>
+                  <Text style={styles.deptCountText}>
+                    {group.classes.length} {group.classes.length === 1 ? 'Class' : 'Classes'}
                   </Text>
                 </View>
               </View>
@@ -1477,10 +1495,6 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
                           {sec.name}
                         </Text>
                         <View style={styles.classCardMetaRow}>
-                          <Text style={styles.classCardRoom}>
-                            {sec.roomNumber ? `Room: ${sec.roomNumber}` : 'Main Hall'}
-                          </Text>
-                          <Text style={styles.metaDot}>·</Text>
                           <Text style={styles.classCardTeacher} numberOfLines={1}>
                             {sec.homeroomTeacherName || 'No Teacher Assigned'}
                           </Text>
@@ -1615,12 +1629,14 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
                   setClassYearFilter('all');
                   setClassProgramFilter('all');
                 }}
+                activeOpacity={0.8}
               >
-                <Text style={styles.filterResetText}>Reset</Text>
+                <Text style={styles.filterResetText}>Reset Filters</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.filterApplyBtn}
                 onPress={() => setFilterModalVisible(false)}
+                activeOpacity={0.8}
               >
                 <Text style={styles.filterApplyText}>Apply Filters</Text>
               </TouchableOpacity>
@@ -1799,29 +1815,43 @@ const styles = StyleSheet.create({
   deptHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingBottom: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    paddingHorizontal: 2,
   },
-  deptIconFrame: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: '#F4C430',
+  deptHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  deptHeaderIconWrap: {
+    width: 24,
+    height: 24,
+    borderRadius: 5,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  deptSectionTitle: {
+  deptHeaderTitle: {
     fontFamily: FontFamily.bold,
-    fontSize: 15,
+    fontSize: 14,
     color: '#111827',
+    letterSpacing: 0.2,
   },
-  deptSectionSub: {
-    fontFamily: FontFamily.regular,
+  deptCountPill: {
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  deptCountText: {
+    fontFamily: FontFamily.medium,
     fontSize: 11,
-    color: '#6B7280',
-    marginTop: 1,
+    color: '#4B5563',
   },
   classesGrid: {
     gap: 10,
@@ -2247,19 +2277,25 @@ const styles = StyleSheet.create({
     borderTopColor: '#E5E7EB',
   },
   filterResetBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 8,
+    backgroundColor: '#DC2626',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   filterResetText: {
-    fontFamily: FontFamily.medium,
+    fontFamily: FontFamily.bold,
     fontSize: 13,
-    color: '#6B7280',
+    color: '#FFFFFF',
   },
   filterApplyBtn: {
     backgroundColor: '#F4C430',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 9,
     borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   filterApplyText: {
     fontFamily: FontFamily.bold,

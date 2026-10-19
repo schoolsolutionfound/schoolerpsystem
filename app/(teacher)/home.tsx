@@ -20,8 +20,9 @@ import { ClassAttendanceReport } from '../../features/teacher/components/ClassAt
 import { TeacherDrawer } from '../../features/teacher/components/TeacherDrawer';
 import { ShimmerProvider } from '../../features/student/components/ShimmerSkeleton';
 import { FontFamily } from '../../constants/fonts';
+import { PayrollManagementView } from '../../features/shared/components/PayrollManagementView';
 
-type Tab = 'home' | 'schedule' | 'attendance' | 'marks' | 'reports' | 'homework' | 'chat' | 'locate' | 'profile';
+type Tab = 'home' | 'schedule' | 'attendance' | 'marks' | 'reports' | 'homework' | 'chat' | 'locate' | 'profile' | 'payroll';
 
 function toMinutes(timeStr?: string): number | null {
   if (!timeStr) return null;
@@ -222,20 +223,27 @@ export default function TeacherHomeScreen() {
           </ShimmerProvider>
         );
       case 'schedule':
-        return <TeacherTimetableView onOpenAttendance={openSlot} />;
+        return (
+          <TeacherTimetableView
+            onOpenAttendance={openSlot}
+            onBack={() => setActiveTab('home')}
+          />
+        );
       case 'attendance':
-        return activeSlot ? (
+        return (
           <AttendanceMarkingView
-            slotId={activeSlot.slotId}
-            subjectName={activeSlot.subjectName}
+            slotId={activeSlot?.slotId}
+            subjectName={activeSlot?.subjectName}
             onSaved={() => {
               setCompletedCount((c) => c + 1);
               setActiveSlot(null);
               fetchAll();
             }}
+            onBack={() => {
+              setActiveSlot(null);
+              setActiveTab('home');
+            }}
           />
-        ) : (
-          <TeacherTimetableView onOpenAttendance={openSlot} />
         );
       case 'marks':
         return <TeacherMarksView />;
@@ -247,6 +255,14 @@ export default function TeacherHomeScreen() {
         return <TeacherLocateStudentsView />;
       case 'reports':
         return <ClassAttendanceReport />;
+      case 'payroll':
+        return (
+          <PayrollManagementView
+            userRole="teacher"
+            currentUserName={fullName}
+            institutionName={institutionName}
+          />
+        );
       default:
         return null;
     }

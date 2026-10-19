@@ -9,9 +9,10 @@ const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 interface TeacherTimetableViewProps {
   onOpenAttendance?: (slotId: string, subjectName: string) => void;
+  onBack?: () => void;
 }
 
-export const TeacherTimetableView: React.FC<TeacherTimetableViewProps> = ({ onOpenAttendance }) => {
+export const TeacherTimetableView: React.FC<TeacherTimetableViewProps> = ({ onOpenAttendance, onBack }) => {
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -32,36 +33,31 @@ export const TeacherTimetableView: React.FC<TeacherTimetableViewProps> = ({ onOp
           periods: [
             {
               id: 'dyn-t-1',
-              classSectionName: 'ECE B.Tech 1st Year',
-              room: '101',
+              classSectionName: 'ECE 1st Year',
               subject: { name: 'Applied Mathematics' },
               period: { label: '1st', startTime: '09:00 AM', endTime: '09:50 AM' },
             },
             {
               id: 'dyn-t-2',
-              classSectionName: 'ECE B.Tech 2nd Year',
-              room: '102',
+              classSectionName: 'ECE 2nd Year',
               subject: { name: 'Circuit Theory & Devices' },
               period: { label: '2nd', startTime: '10:00 AM', endTime: '10:50 AM' },
             },
             {
               id: 'dyn-t-3',
-              classSectionName: 'CSE B.Tech 2nd Year',
-              room: 'Lab 3',
+              classSectionName: 'CSE 2nd Year',
               subject: { name: 'Data Structures' },
               period: { label: '3rd', startTime: '11:15 AM', endTime: '12:05 PM' },
             },
             {
               id: 'dyn-t-4',
-              classSectionName: 'ECE B.Tech 3rd Year',
-              room: '204',
+              classSectionName: 'ECE 3rd Year',
               subject: { name: 'Digital Electronics' },
               period: { label: '4th', startTime: '01:00 PM', endTime: '01:50 PM' },
             },
             {
               id: 'dyn-t-5',
-              classSectionName: 'CSE B.Tech 3rd Year',
-              room: '205',
+              classSectionName: 'CSE 3rd Year',
               subject: { name: 'Computer Architecture' },
               period: { label: '5th', startTime: '02:00 PM', endTime: '02:50 PM' },
             },
@@ -136,25 +132,63 @@ export const TeacherTimetableView: React.FC<TeacherTimetableViewProps> = ({ onOp
   );
   const slotFor = (d: number, p: any) => (weekMap[d] || []).find((s: any) => s.period?.id === p?.id);
 
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const isViewingToday = date === todayStr;
+
   return (
     <View style={styles.container}>
-      <View style={styles.dateBar}>
-        <TouchableOpacity onPress={() => shiftDay(-1)}><MaterialCommunityIcons name="chevron-left" size={24} color="#F4C430" /></TouchableOpacity>
-        <View style={{ alignItems: 'center' }}>
-          <Text style={styles.dateTitle}>{dayLabel}</Text>
-          <Text style={styles.dateSub}>{periods.length} periods today</Text>
+      {/* Header with single back button if onBack provided */}
+      {onBack && (
+        <View style={styles.singleBackHeader}>
+          <TouchableOpacity style={styles.singleBackBtn} onPress={onBack} activeOpacity={0.7}>
+            <MaterialCommunityIcons name="arrow-left" size={20} color="#111827" />
+            <Text style={styles.singleBackBtnText}>Back</Text>
+          </TouchableOpacity>
+          <Text style={styles.scheduleHeaderTitle}>My Schedule</Text>
+          <View style={{ width: 60 }} />
         </View>
-        <TouchableOpacity onPress={() => shiftDay(1)}><MaterialCommunityIcons name="chevron-right" size={24} color="#F4C430" /></TouchableOpacity>
+      )}
+
+      {/* Date Navigation Bar */}
+      <View style={styles.dateBar}>
+        <TouchableOpacity onPress={() => shiftDay(-1)} style={styles.arrowTouch}>
+          <MaterialCommunityIcons name="chevron-left" size={24} color="#111827" />
+        </TouchableOpacity>
+        <View style={{ alignItems: 'center' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={styles.dateTitle}>{dayLabel}</Text>
+            {isViewingToday && (
+              <View style={styles.todayPill}>
+                <Text style={styles.todayPillText}>TODAY</Text>
+              </View>
+            )}
+          </View>
+          <Text style={styles.dateSub}>
+            {isViewingToday ? "Today's Classes: " : ''}{periods.length} periods scheduled
+          </Text>
+        </View>
+        <TouchableOpacity onPress={() => shiftDay(1)} style={styles.arrowTouch}>
+          <MaterialCommunityIcons name="chevron-right" size={24} color="#111827" />
+        </TouchableOpacity>
       </View>
+
+      {!isViewingToday && (
+        <View style={styles.jumpTodayBar}>
+          <Text style={styles.jumpTodayNote}>Viewing alternate date schedule</Text>
+          <TouchableOpacity onPress={() => setDate(todayStr)} style={styles.jumpTodayActionBtn}>
+            <Text style={styles.jumpTodayActionText}>Go to Today</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       <View style={styles.viewRow}>
         <TouchableOpacity style={[styles.viewChip, view === 'day' && styles.viewChipActive]} onPress={() => switchView('day')}>
-          <MaterialCommunityIcons name="calendar-today" size={15} color={view === 'day' ? '#F4C430' : '#6B6B6B'} />
-          <Text style={[styles.viewChipText, view === 'day' && styles.viewChipTextActive]}>Day</Text>
+          <MaterialCommunityIcons name="calendar-today" size={15} color={view === 'day' ? '#111827' : '#6B6B6B'} />
+          <Text style={[styles.viewChipText, view === 'day' && styles.viewChipTextActive]}>Day Schedule</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.viewChip, view === 'week' && styles.viewChipActive]} onPress={() => switchView('week')}>
-          <MaterialCommunityIcons name="calendar-week" size={15} color={view === 'week' ? '#F4C430' : '#6B6B6B'} />
-          <Text style={[styles.viewChipText, view === 'week' && styles.viewChipTextActive]}>Week</Text>
+          <MaterialCommunityIcons name="calendar-week" size={15} color={view === 'week' ? '#111827' : '#6B6B6B'} />
+          <Text style={[styles.viewChipText, view === 'week' && styles.viewChipTextActive]}>Weekly Grid</Text>
         </TouchableOpacity>
       </View>
 
@@ -228,7 +262,6 @@ export const TeacherTimetableView: React.FC<TeacherTimetableViewProps> = ({ onOp
               <View style={styles.infoCol}>
                 <Text style={styles.subject}>{p.subject?.name || 'Subject'}</Text>
                 <Text style={styles.detail}>{p.classSectionName || p.classSection?.name || ''}</Text>
-                {p.room ? <Text style={styles.detail}>Room {p.room}</Text> : null}
               </View>
               {onOpenAttendance && (
                 <TouchableOpacity
@@ -248,10 +281,74 @@ export const TeacherTimetableView: React.FC<TeacherTimetableViewProps> = ({ onOp
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  dateBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#E8E5DC' },
+  container: { flex: 1, backgroundColor: '#F9FAFB' },
+  singleBackHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  singleBackBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 4,
+  },
+  singleBackBtnText: {
+    fontFamily: FontFamily.bold,
+    fontSize: 14,
+    color: '#111827',
+  },
+  scheduleHeaderTitle: {
+    fontFamily: FontFamily.bold,
+    fontSize: 16,
+    color: '#111827',
+  },
+  dateBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
+  arrowTouch: { width: 36, height: 36, borderRadius: 8, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
   dateTitle: { fontSize: 16, fontFamily: FontFamily.bold, color: '#171717' },
   dateSub: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B6B6B', marginTop: 2 },
+  todayPill: {
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  todayPillText: {
+    fontFamily: FontFamily.bold,
+    fontSize: 10,
+    color: '#15803D',
+  },
+  jumpTodayBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#DBEAFE',
+  },
+  jumpTodayNote: {
+    fontFamily: FontFamily.medium,
+    fontSize: 12,
+    color: '#1E40AF',
+  },
+  jumpTodayActionBtn: {
+    backgroundColor: '#1E40AF',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  jumpTodayActionText: {
+    fontFamily: FontFamily.bold,
+    fontSize: 11,
+    color: '#FFFFFF',
+  },
   centerBox: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 60 },
   list: { padding: 16, gap: 10, paddingBottom: 40 },
   periodCard: {

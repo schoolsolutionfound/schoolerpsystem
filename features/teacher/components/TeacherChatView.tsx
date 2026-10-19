@@ -13,19 +13,19 @@ interface Message {
 }
 
 const MOCK_PARENTS = [
-  { id: '1', name: 'Priya Sharma', child: 'Aarav Sharma', subject: 'Maths' },
-  { id: '2', name: 'Rajesh Kumar', child: 'Diya Kumar', subject: 'Science' },
-  { id: '3', name: 'Anita Reddy', child: 'Vivaan Reddy', subject: 'English' },
+  { id: '1', name: 'Priya Sharma', child: 'Aarav Sharma (1VM26CS001)', subject: 'Applied Mathematics' },
+  { id: '2', name: 'Rajesh Kumar', child: 'Diya Kumar (1VM26CS002)', subject: 'Data Structures' },
+  { id: '3', name: 'Anita Reddy', child: 'Vivaan Reddy (1VM26EC003)', subject: 'Digital Electronics' },
 ];
 
 const MOCK_MESSAGES: Record<string, Message[]> = {
   '1': [
-    { id: 'm1', sender: 'parent', senderName: 'Priya Sharma', text: 'Good morning, I wanted to discuss Aarav\'s progress in Maths.', time: '9:15 AM' },
-    { id: 'm2', sender: 'teacher', senderName: 'You', text: 'Good morning! Aarav has been doing well. His last test score was 85%.', time: '9:20 AM' },
-    { id: 'm3', sender: 'parent', senderName: 'Priya Sharma', text: 'That\'s great to hear! He has been studying hard.', time: '9:22 AM' },
+    { id: 'm1', sender: 'parent', senderName: 'Priya Sharma', text: 'Good morning, I wanted to discuss Aarav\'s performance in Applied Mathematics.', time: '9:15 AM' },
+    { id: 'm2', sender: 'teacher', senderName: 'You', text: 'Good morning! Aarav has been doing well. His mid-term score was 85%.', time: '9:20 AM' },
+    { id: 'm3', sender: 'parent', senderName: 'Priya Sharma', text: 'That\'s great to hear! He has been practicing the assignments regularly.', time: '9:22 AM' },
   ],
   '2': [
-    { id: 'm4', sender: 'parent', senderName: 'Rajesh Kumar', text: 'Hello, will Diya get extra classes for Science?', time: '10:00 AM' },
+    { id: 'm4', sender: 'parent', senderName: 'Rajesh Kumar', text: 'Hello Professor, are there review sessions scheduled for Data Structures?', time: '10:00 AM' },
   ],
   '3': [],
 };
