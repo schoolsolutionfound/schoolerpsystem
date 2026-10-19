@@ -17,9 +17,10 @@ import { StudentDrawer } from '../../features/student/components/StudentDrawer';
 import { StudentBusTrackingView } from '../../features/student/components/StudentBusTrackingView';
 import { StudentHomeFeeSummary } from '../../features/student/components/StudentHomeFeeSummary';
 import { ShimmerProvider } from '../../features/student/components/ShimmerSkeleton';
+import { DocumentRequestsManagerView } from '../../features/shared/components/DocumentRequestsManagerView';
 import { FontFamily } from '../../constants/fonts';
 
-  type Tab = 'home' | 'attendance' | 'bus' | 'marks' | 'schedule' | 'homework' | 'fees';
+  type Tab = 'home' | 'attendance' | 'bus' | 'marks' | 'schedule' | 'homework' | 'fees' | 'documents';
 
 function toMinutes(timeStr?: string): number | null {
   if (!timeStr) return null;
@@ -179,6 +180,15 @@ export default function HomeScreen() {
           <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} refreshControl={refreshControl}>
             <StudentHomeFeeSummary />
           </ScrollView>
+        );
+      case 'documents':
+        return (
+          <DocumentRequestsManagerView
+            userRole="student"
+            currentStudentName={fullName}
+            currentStudentUSN={rollNoOrUSN}
+            institutionName={institutionName}
+          />
         );
       default:
         return null;

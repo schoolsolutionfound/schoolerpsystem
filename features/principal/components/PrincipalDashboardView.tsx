@@ -18,6 +18,8 @@ import {
   PrincipalStaffMember,
 } from '../types/principal.types';
 import { MOCK_STUDENT_FEES } from '../constants/feeLedgerData';
+import { INITIAL_EVENTS } from '../../shared/components/AcademicCalendarEventsView';
+import { FACULTY_ASSIGNED_CLASSES } from '../../teacher/components/AttendanceMarkingView';
 
 interface PrincipalDashboardViewProps {
   fullName?: string;
@@ -49,15 +51,35 @@ const getGreeting = (): string => {
   return 'Good Evening,';
 };
 
+const formatUpcomingEventDate = (startDate: string, endDate?: string): string => {
+  try {
+    const d = new Date(`${startDate}T00:00:00Z`);
+    const now = new Date();
+    const todayYMD = now.toISOString().slice(0, 10);
+    if (startDate === todayYMD) return 'Today';
+
+    const diffMs = d.getTime() - new Date(`${todayYMD}T00:00:00Z`).getTime();
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const dateFormatted = `${d.getUTCDate()} ${monthNames[d.getUTCMonth()]}`;
+
+    if (diffDays === 1) return `Tomorrow (${dateFormatted})`;
+    if (diffDays > 1 && diffDays <= 14) return `${dateFormatted} (in ${diffDays}d)`;
+    return dateFormatted;
+  } catch {
+    return startDate;
+  }
+};
+
 
 
 const FALLBACK_DEPARTMENT_CLASSES: HomeroomSection[] = [
   {
     id: 'dyn-cse-1',
-    name: 'CSE B.Tech 1st Year · Sec A',
+    name: 'CSE 1st Year · Sec A',
     grade: '1st Year',
     section: 'A',
-    roomNumber: 'Lab 101',
     homeroomTeacherName: 'Dr. Emily Watson',
     studentCount: 42,
     presentCount: 40,
@@ -65,10 +87,9 @@ const FALLBACK_DEPARTMENT_CLASSES: HomeroomSection[] = [
   },
   {
     id: 'dyn-cse-2',
-    name: 'CSE B.Tech 2nd Year · Sec B',
+    name: 'CSE 2nd Year · Sec B',
     grade: '2nd Year',
     section: 'B',
-    roomNumber: 'Lab 203',
     homeroomTeacherName: 'Prof. David Vance',
     studentCount: 40,
     presentCount: 37,
@@ -76,10 +97,9 @@ const FALLBACK_DEPARTMENT_CLASSES: HomeroomSection[] = [
   },
   {
     id: 'dyn-ece-1',
-    name: 'ECE B.Tech 1st Year · Sec A',
+    name: 'ECE 1st Year · Sec A',
     grade: '1st Year',
     section: 'A',
-    roomNumber: 'Room 302',
     homeroomTeacherName: 'Dr. Sarah Connor',
     studentCount: 38,
     presentCount: 35,
@@ -87,10 +107,9 @@ const FALLBACK_DEPARTMENT_CLASSES: HomeroomSection[] = [
   },
   {
     id: 'dyn-ece-2',
-    name: 'ECE B.Tech 3rd Year · Sec A',
+    name: 'ECE 3rd Year · Sec A',
     grade: '3rd Year',
     section: 'A',
-    roomNumber: 'VLSI Lab',
     homeroomTeacherName: 'Prof. Alan Turing',
     studentCount: 36,
     presentCount: 33,
@@ -260,6 +279,31 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
   const selectedBarInfo =
     selectedBarIndex !== null && chartData[selectedBarIndex] ? chartData[selectedBarIndex] : null;
 
+  // Highlights: Upcoming Events & Today's Classes
+  const todayDateObj = useMemo(() => new Date(), []);
+  const todayStr = useMemo(() => todayDateObj.toISOString().slice(0, 10), [todayDateObj]);
+  const currentDayOfWeek = useMemo(() => todayDateObj.getDay(), [todayDateObj]); // 0 = Sun, 1 = Mon ...
+
+  const todayClasses = useMemo(() => {
+    return FACULTY_ASSIGNED_CLASSES.filter((c) => c.scheduledDays.includes(currentDayOfWeek));
+  }, [currentDayOfWeek]);
+
+  const upcomingEvents = useMemo(() => {
+    return (INITIAL_EVENTS || [])
+      .filter((evt) => {
+        const end = evt.endDate || evt.startDate;
+        return end >= todayStr;
+      })
+      .sort((a, b) => (a.startDate || '').localeCompare(b.startDate || ''));
+  }, [todayStr]);
+
+  const nextUpcomingEvent = upcomingEvents[0] || null;
+  const hasUpcomingEvent = !!nextUpcomingEvent;
+  const hasTodayClasses = todayClasses.length > 0;
+  const bothCardsVisible = hasUpcomingEvent && hasTodayClasses;
+  const showHighlightsRow = hasUpcomingEvent || hasTodayClasses;
+  const firstClass = todayClasses[0] || null;
+
   return (
     <ScrollView
       style={styles.container}
@@ -305,7 +349,9 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
         </View>
       </View>
 
-      {/* Add Announcement Button (Below Attendance) */}
+
+
+      {/* Add Announcement Button (Below Attendance & Highlights) */}
       <View style={styles.announcementActionRow}>
         <TouchableOpacity
           style={styles.primaryCtaBtn}
@@ -447,6 +493,88 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
         </TouchableOpacity>
       </View>
 
+      {/* 5. BOTTOM HIGHLIGHTS: UPCOMING EVENT & TODAY'S CLASSES (TWO BOXES IN A LINE) */}
+      {showHighlightsRow && (
+        <View style={styles.dashboardHighlightsRow}>
+          {hasUpcomingEvent && (
+            <TouchableOpacity
+              style={[
+                styles.highlightCard,
+                bothCardsVisible ? styles.highlightCardHalf : styles.highlightCardFull,
+              ]}
+              onPress={() => onNavigateTab('events')}
+              activeOpacity={0.8}
+            >
+              <View style={styles.highlightHeaderRow}>
+                <View style={styles.highlightIconLabelWrap}>
+                  <View style={styles.eventIconBadge}>
+                    <Feather name="calendar" size={13} color="#B45309" />
+                  </View>
+                  <Text style={styles.highlightEventBadgeLabel}>Upcoming Event</Text>
+                </View>
+                <Feather name="chevron-right" size={14} color="#9CA3AF" />
+              </View>
+
+              <View style={styles.highlightBodySection}>
+                <Text style={styles.highlightMainTitle} numberOfLines={2}>
+                  {nextUpcomingEvent.title}
+                </Text>
+              </View>
+
+              <View style={styles.highlightFooterRow}>
+                <View style={styles.eventDatePill}>
+                  <Text style={styles.eventDatePillText}>
+                    {formatUpcomingEventDate(nextUpcomingEvent.startDate, nextUpcomingEvent.endDate)}
+                  </Text>
+                </View>
+                <View style={styles.eventTypePill}>
+                  <Text style={styles.eventTypePillText}>
+                    {nextUpcomingEvent.type.toUpperCase()}
+                  </Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+          )}
+
+          {hasTodayClasses && firstClass && (
+            <TouchableOpacity
+              style={[
+                styles.highlightCard,
+                bothCardsVisible ? styles.highlightCardHalf : styles.highlightCardFull,
+              ]}
+              onPress={() => onNavigateTab('schedule')}
+              activeOpacity={0.8}
+            >
+              <View style={styles.highlightHeaderRow}>
+                <View style={styles.highlightIconLabelWrap}>
+                  <View style={styles.classesIconBadge}>
+                    <Feather name="book-open" size={13} color="#111827" />
+                  </View>
+                  <Text style={styles.highlightClassesBadgeLabel}>Today's Classes</Text>
+                </View>
+                <Feather name="chevron-right" size={14} color="#9CA3AF" />
+              </View>
+
+              <View style={styles.highlightBodySection}>
+                <Text style={styles.highlightMainTitle} numberOfLines={1}>
+                  {todayClasses.length} {todayClasses.length === 1 ? 'Class' : 'Classes'} Scheduled
+                </Text>
+                <Text style={styles.highlightSubText} numberOfLines={1}>
+                  Next: {firstClass.subjectName}
+                </Text>
+              </View>
+
+              <View style={styles.highlightFooterRow}>
+                <View style={styles.classTimePill}>
+                  <Text style={styles.classTimePillText}>{firstClass.periodTime}</Text>
+                </View>
+                <Text style={styles.classRoomText}>{firstClass.studentCount} Students</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
       <View style={{ height: 32 }} />
     </ScrollView>
   );
@@ -485,9 +613,9 @@ const styles = StyleSheet.create({
   },
   userNameText: {
     fontFamily: FontFamily.bold,
-    fontSize: 24,
+    fontSize: 19,
     color: '#111827',
-    letterSpacing: -0.5,
+    letterSpacing: -0.4,
   },
   subGreetingText: {
     fontFamily: FontFamily.regular,
@@ -536,6 +664,144 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#000000',
     letterSpacing: -0.1,
+  },
+
+  // 2.5 UPCOMING EVENTS & TODAY'S CLASSES (TWO BOXES IN A LINE - BOTTOM HIGHLIGHTS)
+  dashboardHighlightsRow: {
+    width: '100%',
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  highlightCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    padding: 16,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 5,
+    elevation: 2,
+    justifyContent: 'space-between',
+    minHeight: 138,
+  },
+  highlightCardHalf: {
+    flex: 1,
+  },
+  highlightCardFull: {
+    width: '100%',
+  },
+  highlightHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  highlightIconLabelWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  eventIconBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    backgroundColor: '#FEF3C7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  classesIconBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  highlightEventBadgeLabel: {
+    fontFamily: FontFamily.bold,
+    fontSize: 10.5,
+    color: '#B45309',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  highlightClassesBadgeLabel: {
+    fontFamily: FontFamily.bold,
+    fontSize: 10.5,
+    color: '#111827',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  highlightBodySection: {
+    flex: 1,
+    justifyContent: 'center',
+    marginVertical: 4,
+  },
+  highlightMainTitle: {
+    fontFamily: FontFamily.bold,
+    fontSize: 13.5,
+    color: '#111827',
+    lineHeight: 19,
+  },
+  highlightSubText: {
+    fontFamily: FontFamily.medium,
+    fontSize: 11.5,
+    color: '#6B7280',
+    marginTop: 3,
+  },
+  highlightFooterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  eventDatePill: {
+    backgroundColor: '#FFFDF7',
+    borderWidth: 1,
+    borderColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 6,
+  },
+  eventDatePillText: {
+    fontFamily: FontFamily.medium,
+    fontSize: 10.5,
+    color: '#92400E',
+  },
+  eventTypePill: {
+    backgroundColor: '#111827',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  eventTypePillText: {
+    fontFamily: FontFamily.bold,
+    fontSize: 9.5,
+    color: '#F4C430',
+    letterSpacing: 0.3,
+  },
+  classTimePill: {
+    backgroundColor: '#FFFDF7',
+    borderWidth: 1,
+    borderColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 6,
+  },
+  classTimePillText: {
+    fontFamily: FontFamily.bold,
+    fontSize: 10.5,
+    color: '#92400E',
+  },
+  classRoomText: {
+    fontFamily: FontFamily.medium,
+    fontSize: 11,
+    color: '#6B7280',
   },
 
   // 2. Attendance Summary Card (Lighter fade, circular status ring)

@@ -11,8 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { BorderRadius } from '../../../../constants/theme';
+import { Feather } from '@expo/vector-icons';
 import { FontFamily } from '../../../../constants/fonts';
 import { SchoolNotice } from '../../types/principal.types';
 
@@ -21,6 +20,16 @@ interface CreateNoticeModalProps {
   onClose: () => void;
   onSubmit: (notice: Omit<SchoolNotice, 'id' | 'publishedDate' | 'acknowledgedCount'>) => Promise<void>;
 }
+
+const INSTITUTION_DEPARTMENTS = [
+  'Computer Science',
+  'AIML',
+  'Electronics & Comm',
+  'Mechanical Eng',
+  'Civil Eng',
+  'Commerce & Mgmt',
+  'Applied Sciences',
+];
 
 export const CreateNoticeModal: React.FC<CreateNoticeModalProps> = ({
   visible,
@@ -53,7 +62,7 @@ export const CreateNoticeModal: React.FC<CreateNoticeModalProps> = ({
         priority,
         targetAudience,
         department: department.trim() === 'all' ? '' : department.trim(),
-        author: 'Principal / Headmaster',
+        author: 'Principal Office',
       });
       reset();
       onClose();
@@ -73,15 +82,15 @@ export const CreateNoticeModal: React.FC<CreateNoticeModalProps> = ({
           <View style={styles.header}>
             <View style={styles.headerTitleWrap}>
               <View style={styles.iconSquare}>
-                <MaterialCommunityIcons name="bullhorn" size={20} color="#111827" />
+                <Feather name="bell" size={16} color="#111827" />
               </View>
               <View>
-                <Text style={styles.title}>Publish School Circular</Text>
-                <Text style={styles.subTitle}>Official broadcast to faculty, parents & students</Text>
+                <Text style={styles.title}>New Announcement</Text>
+                <Text style={styles.subTitle}>Publish circular to campus community</Text>
               </View>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <MaterialCommunityIcons name="close" size={20} color="#6B6B6B" />
+            <TouchableOpacity onPress={onClose} style={styles.closeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Feather name="x" size={18} color="#6B7280" />
             </TouchableOpacity>
           </View>
 
@@ -91,7 +100,7 @@ export const CreateNoticeModal: React.FC<CreateNoticeModalProps> = ({
               <Text style={styles.label}>Notice Title *</Text>
               <TextInput
                 style={styles.input}
-                placeholder="e.g. Schedule for Annual Science Exhibition 2026"
+                placeholder="e.g. Schedule for Mid-Term Assessments 2026"
                 placeholderTextColor="#9CA3AF"
                 value={title}
                 onChangeText={setTitle}
@@ -104,10 +113,10 @@ export const CreateNoticeModal: React.FC<CreateNoticeModalProps> = ({
               <View style={styles.chipsWrap}>
                 {(
                   [
-                    { key: 'all' as const, label: 'All Campus', icon: 'bullhorn-outline' as const },
-                    { key: 'teachers' as const, label: 'Faculty & Staff', icon: 'account-tie-outline' as const },
-                    { key: 'parents' as const, label: 'Parents', icon: 'account-child-outline' as const },
-                    { key: 'students' as const, label: 'Students', icon: 'school-outline' as const },
+                    { key: 'all' as const, label: 'All Campus' },
+                    { key: 'teachers' as const, label: 'Faculty' },
+                    { key: 'students' as const, label: 'Students' },
+                    { key: 'parents' as const, label: 'Parents' },
                   ] as const
                 ).map((aud) => {
                   const active = targetAudience === aud.key;
@@ -118,11 +127,6 @@ export const CreateNoticeModal: React.FC<CreateNoticeModalProps> = ({
                       onPress={() => setTargetAudience(aud.key)}
                       activeOpacity={0.7}
                     >
-                      <MaterialCommunityIcons
-                        name={aud.icon}
-                        size={15}
-                        color={active ? '#111827' : '#6B6B6B'}
-                      />
                       <Text style={[styles.chipText, active && styles.chipTextActive]}>
                         {aud.label}
                       </Text>
@@ -137,11 +141,8 @@ export const CreateNoticeModal: React.FC<CreateNoticeModalProps> = ({
               <Text style={styles.label}>Target Department (Optional)</Text>
               <View style={styles.chipsWrap}>
                 {[
-                  { key: '', label: 'All Departments', icon: 'earth' as const },
-                  { key: 'Computer Science', label: 'Computer Science', icon: 'laptop' as const },
-                  { key: 'Mathematics', label: 'Mathematics', icon: 'calculator-variant-outline' as const },
-                  { key: 'Science', label: 'Science', icon: 'flask-outline' as const },
-                  { key: 'English', label: 'English', icon: 'book-open-page-variant-outline' as const },
+                  { key: '', label: 'All Departments' },
+                  ...INSTITUTION_DEPARTMENTS.map((d) => ({ key: d, label: d })),
                 ].map((dept) => {
                   const active = (department || '').toLowerCase() === dept.key.toLowerCase();
                   return (
@@ -151,11 +152,6 @@ export const CreateNoticeModal: React.FC<CreateNoticeModalProps> = ({
                       onPress={() => setDepartment(dept.key)}
                       activeOpacity={0.7}
                     >
-                      <MaterialCommunityIcons
-                        name={dept.icon}
-                        size={15}
-                        color={active ? '#111827' : '#6B6B6B'}
-                      />
                       <Text style={[styles.chipText, active && styles.chipTextActive]}>
                         {dept.label}
                       </Text>
@@ -163,15 +159,6 @@ export const CreateNoticeModal: React.FC<CreateNoticeModalProps> = ({
                   );
                 })}
               </View>
-              {department && !['', 'computer science', 'mathematics', 'science', 'english'].includes(department.toLowerCase()) ? (
-                <TextInput
-                  style={[styles.input, { marginTop: 4 }]}
-                  placeholder="Or enter custom department name..."
-                  placeholderTextColor="#9CA3AF"
-                  value={department}
-                  onChangeText={setDepartment}
-                />
-              ) : null}
             </View>
 
             {/* Priority */}
@@ -190,11 +177,19 @@ export const CreateNoticeModal: React.FC<CreateNoticeModalProps> = ({
                   return (
                     <TouchableOpacity
                       key={p}
-                      style={[styles.priorityBtn, active && styles.priorityBtnActive]}
+                      style={[
+                        styles.priorityBtn,
+                        active && (p === 'urgent' ? styles.priorityBtnUrgent : styles.priorityBtnActive),
+                      ]}
                       onPress={() => setPriority(p)}
                       activeOpacity={0.7}
                     >
-                      <Text style={[styles.priorityText, active && styles.priorityTextActive]}>
+                      <Text
+                        style={[
+                          styles.priorityText,
+                          active && (p === 'urgent' ? styles.priorityTextUrgent : styles.priorityTextActive),
+                        ]}
+                      >
                         {label}
                       </Text>
                     </TouchableOpacity>
@@ -205,13 +200,13 @@ export const CreateNoticeModal: React.FC<CreateNoticeModalProps> = ({
 
             {/* Content Body */}
             <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Circular Content & Details *</Text>
+              <Text style={styles.label}>Circular Details *</Text>
               <TextInput
                 style={[styles.input, styles.textArea]}
-                placeholder="Draft circular body, instructions, deadlines, or dress code guidelines..."
+                placeholder="Draft instructions, dates, deadlines, or official guidelines..."
                 placeholderTextColor="#9CA3AF"
                 multiline
-                numberOfLines={5}
+                numberOfLines={4}
                 textAlignVertical="top"
                 value={content}
                 onChangeText={setContent}
@@ -237,10 +232,10 @@ export const CreateNoticeModal: React.FC<CreateNoticeModalProps> = ({
                 <ActivityIndicator size="small" color="#111827" />
               ) : (
                 <>
-                  <MaterialCommunityIcons
+                  <Feather
                     name="send"
-                    size={16}
-                    color={!title.trim() || !content.trim() || saving ? '#9CA3AF' : '#111827'}
+                    size={13}
+                    color={!title.trim() || !content.trim() || saving ? '#9CA3AF' : '#000000'}
                   />
                   <Text
                     style={[
@@ -248,7 +243,7 @@ export const CreateNoticeModal: React.FC<CreateNoticeModalProps> = ({
                       (!title.trim() || !content.trim() || saving) && styles.saveTextDisabled,
                     ]}
                   >
-                    Publish Notice
+                    Publish
                   </Text>
                 </>
               )}
@@ -263,130 +258,126 @@ export const CreateNoticeModal: React.FC<CreateNoticeModalProps> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 16,
   },
   dialog: {
     width: '100%',
-    maxWidth: 540,
+    maxWidth: 520,
     maxHeight: '90%',
     backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.modal,
-    padding: 20,
+    borderRadius: 12,
+    padding: 18,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 6,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 14,
+    marginBottom: 12,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
   },
   headerTitleWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
   iconSquare: {
-    width: 38,
-    height: 38,
-    borderRadius: 8,
-    backgroundColor: '#FFF4C7',
+    width: 32,
+    height: 32,
+    borderRadius: 6,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
     alignItems: 'center',
     justifyContent: 'center',
   },
   title: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#171717',
-    fontFamily: FontFamily.extrabold,
+    fontSize: 15,
+    fontFamily: FontFamily.bold,
+    color: '#111827',
   },
   subTitle: {
-    fontSize: 12,
-    color: '#6B6B6B',
+    fontSize: 11,
+    color: '#6B7280',
     fontFamily: FontFamily.regular,
     marginTop: 1,
   },
   closeBtn: {
-    padding: 6,
-    borderRadius: 8,
-    backgroundColor: '#F3F4F6',
+    padding: 4,
   },
   scrollArea: {
-    maxHeight: 380,
+    maxHeight: 400,
   },
   scrollContent: {
-    gap: 14,
-    paddingBottom: 6,
+    gap: 12,
+    paddingBottom: 4,
   },
   fieldGroup: {
-    gap: 6,
+    gap: 5,
   },
   label: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 11.5,
     color: '#374151',
     fontFamily: FontFamily.bold,
   },
   input: {
-    height: 42,
+    height: 38,
     backgroundColor: '#F9FAFB',
     borderWidth: 1,
-    borderColor: '#E8E5DC',
-    borderRadius: BorderRadius.input,
-    paddingHorizontal: 12,
+    borderColor: '#E5E7EB',
+    borderRadius: 6,
+    paddingHorizontal: 10,
     fontSize: 13,
-    color: '#171717',
+    color: '#111827',
     fontFamily: FontFamily.regular,
   },
   textArea: {
-    height: 100,
-    paddingVertical: 10,
+    height: 84,
+    paddingVertical: 8,
   },
   chipsWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 6,
   },
   chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 5,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E8E5DC',
+    borderColor: '#E5E7EB',
   },
   chipActive: {
-    backgroundColor: '#F4C430',
-    borderColor: '#F4C430',
+    backgroundColor: '#111827',
+    borderColor: '#111827',
   },
   chipText: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 11.5,
     color: '#4B5563',
-    fontFamily: FontFamily.semibold,
+    fontFamily: FontFamily.medium,
   },
   chipTextActive: {
-    color: '#111827',
-    fontWeight: '700',
+    color: '#FFFFFF',
     fontFamily: FontFamily.bold,
   },
   priorityRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
   },
   priorityBtn: {
     flex: 1,
-    paddingVertical: 8,
-    borderRadius: BorderRadius.button,
+    paddingVertical: 7,
+    borderRadius: 6,
     backgroundColor: '#F9FAFB',
     borderWidth: 1,
     borderColor: '#E5E7EB',
@@ -394,57 +385,62 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   priorityBtnActive: {
-    backgroundColor: '#F4C430',
-    borderColor: '#F4C430',
+    backgroundColor: '#111827',
+    borderColor: '#111827',
+  },
+  priorityBtnUrgent: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FECACA',
   },
   priorityText: {
     fontSize: 11,
-    color: '#6B6B6B',
+    color: '#6B7280',
     fontFamily: FontFamily.medium,
   },
   priorityTextActive: {
-    color: '#111827',
-    fontWeight: '700',
+    color: '#FFFFFF',
+    fontFamily: FontFamily.bold,
+  },
+  priorityTextUrgent: {
+    color: '#DC2626',
     fontFamily: FontFamily.bold,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     alignItems: 'center',
-    gap: 10,
-    marginTop: 14,
+    gap: 8,
+    marginTop: 12,
     borderTopWidth: 1,
     borderTopColor: '#F3F4F6',
-    paddingTop: 12,
+    paddingTop: 10,
   },
   cancelBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: BorderRadius.button,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 6,
     backgroundColor: '#F3F4F6',
   },
   cancelText: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 12,
     color: '#374151',
-    fontFamily: FontFamily.semibold,
+    fontFamily: FontFamily.medium,
   },
   saveBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
     backgroundColor: '#F4C430',
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: BorderRadius.button,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
   },
   saveBtnDisabled: {
-    backgroundColor: '#E8E5DC',
+    backgroundColor: '#E5E7EB',
   },
   saveText: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#111827',
+    fontSize: 12,
+    color: '#000000',
     fontFamily: FontFamily.bold,
   },
   saveTextDisabled: {

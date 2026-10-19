@@ -40,7 +40,10 @@ const MAIN_NAV: {
   { key: 'homerooms', label: 'Students', icon: 'account-group-outline' },
   { key: 'timetable', label: 'Timetable', icon: 'calendar-edit' },
   { key: 'staff', label: 'Faculty', icon: 'account-group-outline' },
-  { key: 'attendance', label: 'Attendance', icon: 'chart-bar' },
+  { key: 'events', label: 'Academic Calendar & Events', icon: 'calendar-multiselect' },
+  { key: 'leaves', label: 'Leave Approvals', icon: 'account-clock-outline' },
+  { key: 'document_requests', label: 'Document Issuance & Requests', icon: 'file-certificate-outline' },
+  { key: 'payroll', label: 'Payroll & Compensation', icon: 'cash-register' },
   { key: 'reviews', label: 'Reviews', icon: 'clipboard-text-outline' },
 ];
 

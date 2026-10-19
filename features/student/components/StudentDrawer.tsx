@@ -38,6 +38,7 @@ const PRIMARY = [
   { key: 'bus', label: 'Bus Tracking', icon: 'bus', iconFilled: 'bus', tab: 'bus' as const },
   { key: 'marks', label: 'Marks & Grades', icon: 'certificate-outline', iconFilled: 'certificate', tab: 'marks' as const },
   { key: 'fees', label: 'Fee Summary', icon: 'cash', iconFilled: 'cash', tab: 'fees' as const },
+  { key: 'documents', label: 'Certificates & Documents', icon: 'file-certificate-outline', iconFilled: 'file-certificate', tab: 'documents' as const },
   { key: 'schedule', label: 'Schedule', icon: 'calendar-outline', iconFilled: 'calendar', tab: 'schedule' as const },
 ];
 

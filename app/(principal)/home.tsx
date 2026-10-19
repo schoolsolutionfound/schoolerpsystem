@@ -29,6 +29,8 @@ import {
   fetchSchoolNoticesApi,
   assignHomeroomTeacherApi,
   createSchoolNoticeApi,
+  deleteSchoolNoticeApi,
+  updateSchoolNoticeApi,
 } from '../../api/principal';
 import { PrincipalHeader } from '../../features/principal/components/PrincipalHeader';
 import { PrincipalDrawer } from '../../features/principal/components/PrincipalDrawer';
@@ -37,7 +39,7 @@ import { PrincipalFeeLedgerView } from '../../features/principal/components/Prin
 import { PrincipalHomeroomsView } from '../../features/principal/components/PrincipalHomeroomsView';
 import { PrincipalStaffDirectoryView } from '../../features/principal/components/PrincipalStaffDirectoryView';
 import { PrincipalNoticesView } from '../../features/principal/components/PrincipalNoticesView';
-import { AttendanceReportsView } from '../../features/shared/components/AttendanceReportsView';
+import { AdminAttendanceView } from '../../features/admin/components/AdminAttendanceView';
 import { ReviewCycleListView } from '../../features/review-cycle';
 import { AssignHomeroomModal } from '../../features/principal/components/modals/AssignHomeroomModal';
 import { CreateNoticeModal } from '../../features/principal/components/modals/CreateNoticeModal';
@@ -61,6 +63,10 @@ import { TeacherHomeworkView } from '../../features/teacher/components/TeacherHo
 import { TeacherChatView } from '../../features/teacher/components/TeacherChatView';
 import { TeacherLocateStudentsView } from '../../features/teacher/components/TeacherLocateStudentsView';
 import { AdminTimetableView } from '../../features/admin/components/AdminTimetableView';
+import { AcademicCalendarEventsView } from '../../features/shared/components/AcademicCalendarEventsView';
+import { LeaveApprovalView } from '../../features/shared/components/LeaveApprovalView';
+import { PayrollManagementView } from '../../features/shared/components/PayrollManagementView';
+import { DocumentRequestsManagerView } from '../../features/shared/components/DocumentRequestsManagerView';
 
 const BOTTOM_TABS: {
   key: PrincipalTab;
@@ -190,6 +196,19 @@ export default function PrincipalHomeScreen() {
     Alert.alert('Circular Broadcasted', `"${notice.title}" has been published.`);
   };
 
+  const handleDeleteNotice = async (id: string) => {
+    setNotices((prev) => prev.filter((n) => n.id !== id));
+    await deleteSchoolNoticeApi(id);
+  };
+
+  const handleUpdateNotice = async (updatedNotice: SchoolNotice) => {
+    setNotices((prev) =>
+      prev.map((n) => (n.id === updatedNotice.id ? { ...n, ...updatedNotice } : n))
+    );
+    await updateSchoolNoticeApi(updatedNotice.id, updatedNotice);
+    Alert.alert('Announcement Updated', `"${updatedNotice.title}" has been updated.`);
+  };
+
   const handleLogout = async () => {
     try {
       await signOut(auth);
@@ -293,11 +312,24 @@ export default function PrincipalHomeScreen() {
                   refreshing={refreshing}
                   onRefresh={handleRefresh}
                   onOpenCreateModal={() => setNoticeModalVisible(true)}
+                  onDeleteNotice={handleDeleteNotice}
+                  onUpdateNotice={handleUpdateNotice}
                 />
               )}
 
               {activeTab === 'attendance' && (
-                <AttendanceReportsView mode="institution" />
+                <AdminAttendanceView
+                  classSections={
+                    homerooms.length > 0
+                      ? homerooms
+                      : [
+                          { id: 'sec-cse-1', name: 'CSE B.Tech 1st Year · Sec A' },
+                          { id: 'sec-ece-1', name: 'ECE B.Tech 1st Year · Sec A' },
+                          { id: 'sec-mech-1', name: 'Mechanical B.Tech 1st Year · Sec A' },
+                          { id: 'sec-aiml-1', name: 'AIML B.Tech 1st Year · Sec A' },
+                        ]
+                  }
+                />
               )}
 
               {/* Institution Timetable Builder (Imported from Admin panel) */}
@@ -317,6 +349,36 @@ export default function PrincipalHomeScreen() {
                 />
               )}
 
+              {/* Academic Calendar & Events */}
+              {activeTab === 'events' && (
+                <AcademicCalendarEventsView
+                  userRole="principal"
+                  canManageAll={true}
+                />
+              )}
+
+              {/* Leave Approvals */}
+              {activeTab === 'leaves' && (
+                <LeaveApprovalView
+                  userRole="principal"
+                  reviewerName={fullName}
+                />
+              )}
+
+              {activeTab === 'payroll' && (
+                <PayrollManagementView
+                  userRole="principal"
+                  institutionName={institutionName}
+                />
+              )}
+
+              {activeTab === 'document_requests' && (
+                <DocumentRequestsManagerView
+                  userRole="principal"
+                  institutionName={institutionName}
+                />
+              )}
+
               {/* Teaching & Classroom Operations (Unified In Drawer) */}
               {activeTab === 'schedule' && (
                 <TeacherTimetableView
@@ -328,22 +390,18 @@ export default function PrincipalHomeScreen() {
               )}
 
               {activeTab === 'mark_attendance' && (
-                activeSlot ? (
-                  <AttendanceMarkingView
-                    slotId={activeSlot.slotId}
-                    subjectName={activeSlot.subjectName}
-                    onSaved={() => {
-                      setActiveSlot(null);
-                      loadData();
-                    }}
-                  />
-                ) : (
-                  <TeacherTimetableView
-                    onOpenAttendance={(slotId, subjectName) => {
-                      setActiveSlot({ slotId, subjectName });
-                    }}
-                  />
-                )
+                <AttendanceMarkingView
+                  slotId={activeSlot?.slotId}
+                  subjectName={activeSlot?.subjectName}
+                  onSaved={() => {
+                    setActiveSlot(null);
+                    loadData();
+                  }}
+                  onBack={() => {
+                    setActiveSlot(null);
+                    setActiveTab('dashboard');
+                  }}
+                />
               )}
 
               {activeTab === 'marks' && (

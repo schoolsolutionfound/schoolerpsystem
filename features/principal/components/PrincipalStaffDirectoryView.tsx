@@ -28,6 +28,18 @@ interface PrincipalStaffDirectoryViewProps {
   onRefresh: () => void;
 }
 
+function getDepartmentIcon(deptName: string): keyof typeof Feather.glyphMap {
+  const d = (deptName || '').toLowerCase();
+  if (d.includes('aiml') || d.includes('ai') || d.includes('machine')) return 'cpu';
+  if (d.includes('computer') || d.includes('cse') || d.includes('soft')) return 'code';
+  if (d.includes('electronic') || d.includes('ece') || d.includes('comm')) return 'zap';
+  if (d.includes('mech')) return 'settings';
+  if (d.includes('civil')) return 'layers';
+  if (d.includes('commerce') || d.includes('mgmt') || d.includes('business')) return 'briefcase';
+  if (d.includes('sci') || d.includes('applied') || d.includes('math')) return 'book-open';
+  return 'compass';
+}
+
 // Comprehensive realistic fallback faculty roster across departments
 const COMPREHENSIVE_STAFF_ROSTER: PrincipalStaffMember[] = [
   {
@@ -1053,12 +1065,14 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
               <TouchableOpacity
                 style={styles.filterResetBtn}
                 onPress={resetAllFilters}
+                activeOpacity={0.8}
               >
-                <Text style={styles.filterResetText}>Reset</Text>
+                <Text style={styles.filterResetText}>Reset Filters</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.filterApplyBtn}
                 onPress={() => setFilterModalVisible(false)}
+                activeOpacity={0.8}
               >
                 <Text style={styles.filterApplyText}>Apply Filters</Text>
               </TouchableOpacity>
@@ -1080,7 +1094,16 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
         {departmentSections.map((section) => (
           <View key={section.department} style={styles.deptSectionWrap}>
             <View style={styles.deptHeaderRow}>
-              <Text style={styles.deptHeaderTitle}>{section.department}</Text>
+              <View style={styles.deptHeaderLeft}>
+                <View style={styles.deptHeaderIconWrap}>
+                  <Feather
+                    name={getDepartmentIcon(section.department)}
+                    size={12}
+                    color="#111827"
+                  />
+                </View>
+                <Text style={styles.deptHeaderTitle}>{section.department}</Text>
+              </View>
               <View style={styles.deptCountPill}>
                 <Text style={styles.deptCountText}>
                   {section.staff.length} {section.staff.length === 1 ? 'Faculty' : 'Faculties'}
@@ -1398,26 +1421,33 @@ const styles = StyleSheet.create({
   },
   filterModalFooter: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     alignItems: 'center',
-    paddingTop: 10,
+    gap: 10,
+    paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: '#E5E7EB',
   },
   filterResetBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 8,
+    backgroundColor: '#DC2626',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   filterResetText: {
-    fontFamily: FontFamily.medium,
+    fontFamily: FontFamily.bold,
     fontSize: 13,
-    color: '#6B7280',
+    color: '#FFFFFF',
   },
   filterApplyBtn: {
     backgroundColor: '#F4C430',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 9,
     borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   filterApplyText: {
     fontFamily: FontFamily.bold,
@@ -1442,6 +1472,21 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 10,
     paddingHorizontal: 4,
+  },
+  deptHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  deptHeaderIconWrap: {
+    width: 24,
+    height: 24,
+    borderRadius: 5,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   deptHeaderTitle: {
     fontFamily: FontFamily.bold,

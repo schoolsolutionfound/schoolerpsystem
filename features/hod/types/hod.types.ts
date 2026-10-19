@@ -94,4 +94,8 @@ export type HODTab =
   | 'reviews'
   | 'eligibility'
   | 'notices'
-  | 'attendance';
+  | 'attendance'
+  | 'events'
+  | 'leaves'
+  | 'document_requests'
+  | 'payroll';
