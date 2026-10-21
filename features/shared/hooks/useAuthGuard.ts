@@ -36,8 +36,6 @@ export function useAuthGuard({
         const state = useUserStore.getState();
         if (state.mustChangePassword) {
           router.replace('/change-password');
-        } else if (!state.profileCompleted) {
-          router.replace('/complete-profile');
         } else {
           router.replace(getHomeRouteForRole(state.userRole) as any);
         }

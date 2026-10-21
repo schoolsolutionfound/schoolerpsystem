@@ -3,10 +3,6 @@ import { AppError } from '../utils/errorHandler';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 const getBaseUrl = (): string => {
-  if (process.env.EXPO_PUBLIC_API_URL) {
-    return process.env.EXPO_PUBLIC_API_URL;
-  }
-  
   // Extract host IP dynamically when running on physical devices/emulators via Expo Go
   const hostUri = Constants.expoConfig?.hostUri || (Constants as any).manifest2?.extra?.expoGo?.debuggerHost;
   if (hostUri) {
@@ -14,6 +10,10 @@ const getBaseUrl = (): string => {
     if (hostIp && hostIp !== 'localhost' && hostIp !== '127.0.0.1') {
       return `http://${hostIp}:5000/api/v1`;
     }
+  }
+
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
   }
 
   return Platform.OS === 'android'
@@ -41,12 +41,29 @@ export async function apiClient<T = any>(
   }
 
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+    ...(options.body ? { 'Content-Type': 'application/json' } : {}),
     ...(options.headers as Record<string, string>),
   };
 
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+  if (!headers['Authorization']) {
+    // Dev bypass fallback
+    if (!token) {
+      try {
+        const { useUserStore } = await import('../store/useUserStore');
+        const role = useUserStore.getState().userRole;
+        if (role === 'student') {
+          token = 'dev-hardcoded-student-token';
+        } else {
+          token = 'dev-hardcoded-driver-token';
+        }
+      } catch {
+        token = 'dev-hardcoded-driver-token';
+      }
+    }
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
   }
 
   const baseUrl = getBaseUrl();

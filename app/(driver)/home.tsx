@@ -12,7 +12,7 @@ import { FontFamily } from '../../constants/fonts';
 type Tab = 'trips' | 'profile';
 
 const TABS: { key: Tab; label: string; icon: string; iconFilled: string }[] = [
-  { key: 'trips', label: 'My Trips', icon: 'bus-clock-outline', iconFilled: 'bus-clock' },
+  { key: 'trips', label: 'My Trips', icon: 'bus', iconFilled: 'bus-clock' },
   { key: 'profile', label: 'Profile', icon: 'account-outline', iconFilled: 'account' },
 ];
 
@@ -136,6 +136,11 @@ export default function DriverHomeScreen() {
         email={email}
         profilePic={profilePic}
         institutionName={institutionName}
+        onSelectTab={(tab) => setActiveTab(tab)}
+        onSwitchToStudentView={() => {
+          useUserStore.getState().setUserProfile({ userRole: 'student' });
+          router.push('/(student)/home?tab=bus');
+        }}
         onLogout={() => router.replace('/auth')}
       />
     </View>

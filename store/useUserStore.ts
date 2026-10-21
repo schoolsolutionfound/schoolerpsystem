@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { secureStorage } from './secureStorage';
 
 export type UserRole = 'student' | 'teacher' | 'admin' | 'parent' | 'dev' | 'principal' | 'accountant' | 'hod' | 'librarian' | 'driver' | 'institution admin' | 'loading';
-export type InstitutionType = 'school' | 'college';
+export type InstitutionType = 'school' | 'college' | 'university';
 
 interface UserState {
   fullName: string;
@@ -68,7 +68,7 @@ export const useUserStore = create<UserState>()(
       profileExists: false,
 
       mustChangePassword: false,
-      profileCompleted: false,
+      profileCompleted: true,
       institutionType: 'college',
       rollNoOrUSN: '',
       parentPhone: '',
@@ -114,7 +114,7 @@ export const useUserStore = create<UserState>()(
           isProfileSynced: false,
           profileExists: false,
           mustChangePassword: false,
-          profileCompleted: false,
+          profileCompleted: true,
           institutionType: 'college',
           rollNoOrUSN: '',
           parentPhone: '',

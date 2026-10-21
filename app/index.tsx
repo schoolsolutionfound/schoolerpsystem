@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, Animated, Dimensions, StatusBar, Image } from '
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { onAuthStateChanged } from 'firebase/auth';
-import LottieView from 'lottie-react-native';
 import { auth } from '../firebaseConfig';
 import { useUserStore } from '../store/useUserStore';
 import { getHomeRouteForRole } from '../features/shared/utils/routeGuards';
@@ -87,50 +86,18 @@ export default function AppSplashScreen() {
   }, [_hasHydrated]);
 
   useEffect(() => {
-    const user = auth.currentUser;
-    const isReadyToNavigate = authStateResolved && _hasHydrated && (!user || isProfileSynced);
-    if (!isReadyToNavigate) return;
-
-    let finalRoute: any = '/auth';
-
-    if (user) {
-      if (userRole === 'student' && !isEmailVerified) {
-        finalRoute = '/verify-email';
-      } else if (userRole === 'loading') {
-        return;
-      } else {
-        finalRoute = getHomeRouteForRole(userRole);
-      }
-    } else {
-      finalRoute = '/auth';
-    }
-
-    const remaining = Math.max(0, 2200 - (Date.now() - startTimeRef.current));
-
-    const failsafe = setTimeout(() => {
-      if (!isReadyToNavigate) router.replace('/auth');
-    }, 8000);
+    if (!_hasHydrated) return;
 
     const timer = setTimeout(() => {
-      router.replace(finalRoute);
-    }, remaining);
+      router.replace('/(driver)/home');
+    }, 700);
 
-    return () => { clearTimeout(timer); clearTimeout(failsafe); };
-  }, [authStateResolved, isProfileSynced, _hasHydrated, userRole, isEmailVerified, router]);
+    return () => clearTimeout(timer);
+  }, [_hasHydrated, router]);
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
-
-      {/* Lottie animation */}
-      <View style={styles.lottieContainer}>
-        <LottieView
-          source={{ uri: 'https://assets9.lottiefiles.com/packages/lf20_u4yrau.json' }}
-          autoPlay
-          loop
-          style={styles.lottie}
-        />
-      </View>
 
       {/* Center content */}
       <View style={styles.content}>

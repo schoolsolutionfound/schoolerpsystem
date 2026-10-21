@@ -15,6 +15,7 @@ export function useAppSync(userSession: User | null) {
 
   useEffect(() => {
     if (!userSession || !_hasHydrated) return;
+    if (userSession.uid === 'student_dev_bypass' || userSession.uid === 'driver_dev_bypass' || userSession.uid === 'admin_dev_bypass') return;
 
     const currentUser = userSession;
     let isCancelled = false;

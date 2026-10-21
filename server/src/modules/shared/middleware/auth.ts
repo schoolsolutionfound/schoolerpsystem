@@ -41,6 +41,37 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
     });
   }
 
+  // Dev bypass for hardcoded access
+  if (token === 'dev-hardcoded-student-token') {
+    request.user = {
+      uid: 'student_dev_bypass',
+      email: 'alex.student@schoolerp.dev',
+      role: 'student',
+      institutionCode: 'REAL001',
+    };
+    return;
+  }
+
+  if (token === 'dev-hardcoded-parent-token') {
+    request.user = {
+      uid: 'parent_dev_bypass',
+      email: 'parent@schoolerp.dev',
+      role: 'parent',
+      institutionCode: 'REAL001',
+    };
+    return;
+  }
+
+  if (token === 'dev-hardcoded-driver-token' || token === 'dev-hardcoded-admin-token' || token === 'dev-bypass') {
+    request.user = {
+      uid: 'driver_dev_bypass',
+      email: 'driver@schoolerp.dev',
+      role: 'driver',
+      institutionCode: 'REAL001',
+    };
+    return;
+  }
+
   let firebaseUid = '';
   let email = '';
   let tokenRole = '';

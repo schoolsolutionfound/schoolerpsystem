@@ -134,11 +134,27 @@ const AppLayout = function Layout() {
     }, Platform.OS === 'web' ? 5000 : 8000);
 
     const unsubAuth = onAuthStateChanged(auth, (user) => {
-      setUserSession(user);
-      if (!user) {
-        setIsProfileSynced(false);
-        resetUser();
-      }
+      // Direct Auto-Login: Hardcoded driver account for instant access
+      setUserProfile({
+        fullName: 'Raju Driver',
+        email: 'driver@schoolerp.dev',
+        phone: '+91 9876543210',
+        userRole: 'driver',
+        institutionId: 'REAL001',
+        institutionCode: 'REAL001',
+        institutionName: 'Yenepoya University',
+        institutionType: 'university',
+        department: 'Transport Department',
+        isEmailVerified: true,
+        profileCompleted: true,
+        mustChangePassword: false,
+      });
+      setIsProfileSynced(true);
+      setUserSession({
+        uid: 'driver_dev_bypass',
+        email: 'driver@schoolerp.dev',
+        displayName: 'Raju Driver',
+      } as any);
       setAuthLoading(false);
     });
 

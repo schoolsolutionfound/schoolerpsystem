@@ -20,14 +20,17 @@ interface DriverDrawerProps {
   profilePic?: string;
   institutionName: string;
   onLogout: () => void;
+  onSelectTab?: (tab: 'trips' | 'profile') => void;
+  onSwitchToStudentView?: () => void;
 }
 
 const MENU_ITEMS = [
   { key: 'profile', label: 'My Profile', icon: 'account-outline' },
-  { key: 'trips', label: 'My Trips', icon: 'bus-clock-outline' },
+  { key: 'trips', label: 'My Trips', icon: 'bus-clock' },
 ] as const;
 
 const SECONDARY_ITEMS = [
+  { key: 'student_view', label: 'Student Live View', icon: 'school-outline', color: '#0EA5E9' },
   { key: 'logout', label: 'Logout', icon: 'logout', color: '#DC3545' },
 ] as const;
 
@@ -38,6 +41,8 @@ export const DriverDrawer: React.FC<DriverDrawerProps> = ({
   email,
   institutionName,
   onLogout,
+  onSelectTab,
+  onSwitchToStudentView,
 }) => {
   const { width } = useWindowDimensions();
   const screenWidth = width;
@@ -78,7 +83,14 @@ export const DriverDrawer: React.FC<DriverDrawerProps> = ({
 
           <View style={styles.menuSection}>
             {MENU_ITEMS.map((item) => (
-              <TouchableOpacity key={item.key} style={styles.menuItem} onPress={closeDrawer}>
+              <TouchableOpacity
+                key={item.key}
+                style={styles.menuItem}
+                onPress={() => {
+                  closeDrawer();
+                  if (onSelectTab) onSelectTab(item.key as any);
+                }}
+              >
                 <MaterialCommunityIcons name={item.icon as any} size={20} color="#171717" />
                 <Text style={styles.menuText}>{item.label}</Text>
               </TouchableOpacity>
@@ -92,7 +104,14 @@ export const DriverDrawer: React.FC<DriverDrawerProps> = ({
               <TouchableOpacity
                 key={item.key}
                 style={styles.menuItem}
-                onPress={() => { closeDrawer(); onLogout(); }}
+                onPress={() => {
+                  closeDrawer();
+                  if (item.key === 'student_view') {
+                    onSwitchToStudentView?.();
+                  } else {
+                    onLogout();
+                  }
+                }}
               >
                 <MaterialCommunityIcons name={item.icon as any} size={20} color={item.color} />
                 <Text style={[styles.menuText, { color: item.color }]}>{item.label}</Text>

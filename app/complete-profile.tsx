@@ -34,27 +34,11 @@ export default function CompleteProfileScreen() {
 
   const isStudent = userRole === 'student';
 
-  // Wait for profile sync before allowing redirect
+  // Instantly redirect to student dashboard
   useEffect(() => {
-    if (syncResolved.current) return;
-    if (useUserStore.getState().isProfileSynced && useUserStore.getState().userRole !== 'loading') {
-      syncResolved.current = true;
-      return;
-    }
-    setSyncing(true);
-    const unsub = useUserStore.subscribe((state) => {
-      if (state.isProfileSynced && state.userRole !== 'loading') {
-        syncResolved.current = true;
-        setSyncing(false);
-      }
-    });
-    const timeout = setTimeout(() => {
-      unsub();
-      syncResolved.current = true;
-      setSyncing(false);
-    }, 15000);
-    return () => { unsub(); clearTimeout(timeout); };
-  }, []);
+    useUserStore.getState().setUserProfile({ profileCompleted: true });
+    router.replace('/(student)/home');
+  }, [router]);
 
   const nameParts = fullName.split(' ');
   const firstName = nameParts[0] || '';

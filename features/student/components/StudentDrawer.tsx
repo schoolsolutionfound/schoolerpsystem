@@ -42,6 +42,7 @@ const PRIMARY = [
 ];
 
 const SECONDARY = [
+  { key: 'driver_view', label: 'Driver Trips View', icon: 'bus-side', route: '/(driver)/home' },
   { key: 'profile', label: 'Profile', icon: 'account-outline', route: '/(student)/profile' },
   { key: 'notifications', label: 'Notifications', icon: 'bell-outline', route: '/notifications' },
   { key: 'change-password', label: 'Change Password', icon: 'lock-reset', route: '/change-password' },
@@ -103,6 +104,9 @@ export const StudentDrawer: React.FC<StudentDrawerProps> = ({
 
   const navigateAndClose = (route: string) => {
     onClose();
+    if (route.includes('(driver)')) {
+      useUserStore.getState().setUserProfile({ userRole: 'driver' });
+    }
     setTimeout(() => router.push(route as any), 120);
   };
 

@@ -18,6 +18,7 @@ export default {
       "infoPlist": {
         "NSCameraUsageDescription": "Allow School ERP to use your camera for profile photos and document scanning.",
         "NSPhotoLibraryUsageDescription": "Allow School ERP to access your photos to upload documents.",
+        "NSLocationWhenInUseUsageDescription": "Allow School ERP to access your location to show proximity to the school bus and route stops.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -28,7 +29,20 @@ export default {
         "foregroundImage": "./assets/logo-transparent.png",
         "backgroundColor": "#171717"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ],
+      ...(process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
+        ? {
+            "config": {
+              "googleMaps": {
+                "apiKey": process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
+              }
+            }
+          }
+        : {})
     },
     "web": {
       "bundler": "metro",
