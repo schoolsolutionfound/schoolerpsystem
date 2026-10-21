@@ -105,7 +105,12 @@ export const StudentDrawer: React.FC<StudentDrawerProps> = ({
   const navigateAndClose = (route: string) => {
     onClose();
     if (route.includes('(driver)')) {
-      useUserStore.getState().setUserProfile({ userRole: 'driver' });
+      useUserStore.getState().setUserProfile({
+        userRole: 'driver',
+        fullName: 'safwan suratkal',
+        email: 'driver@schoolerp.dev',
+        rollNoOrUSN: '',
+      });
     }
     setTimeout(() => router.push(route as any), 120);
   };

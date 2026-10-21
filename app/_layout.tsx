@@ -134,27 +134,52 @@ const AppLayout = function Layout() {
     }, Platform.OS === 'web' ? 5000 : 8000);
 
     const unsubAuth = onAuthStateChanged(auth, (user) => {
-      // Direct Auto-Login: Hardcoded driver account for instant access
-      setUserProfile({
-        fullName: 'safwan suratkal',
-        email: 'driver@schoolerp.dev',
-        phone: '+91 9876543210',
-        userRole: 'driver',
-        institutionId: 'REAL001',
-        institutionCode: 'REAL001',
-        institutionName: 'Yenepoya University',
-        institutionType: 'university',
-        department: 'Transport Department',
-        isEmailVerified: true,
-        profileCompleted: true,
-        mustChangePassword: false,
-      });
-      setIsProfileSynced(true);
-      setUserSession({
-        uid: 'driver_dev_bypass',
-        email: 'driver@schoolerp.dev',
-        displayName: 'safwan suratkal',
-      } as any);
+      // Direct Auto-Login: Hardcoded bypass for instant dev testing
+      const currentRole = useUserStore.getState().userRole;
+      if (currentRole === 'student') {
+        setUserProfile({
+          fullName: 'Naseeb Decor',
+          email: 'alex.student@schoolerp.dev',
+          phone: '+91 9876543210',
+          userRole: 'student',
+          institutionId: 'REAL001',
+          institutionCode: 'REAL001',
+          institutionName: 'Yenepoya University',
+          institutionType: 'university',
+          rollNoOrUSN: 'YU2024001',
+          department: 'Class 10',
+          isEmailVerified: true,
+          profileCompleted: true,
+          mustChangePassword: false,
+        });
+        setIsProfileSynced(true);
+        setUserSession({
+          uid: 'student_dev_bypass',
+          email: 'alex.student@schoolerp.dev',
+          displayName: 'Naseeb Decor',
+        } as any);
+      } else {
+        setUserProfile({
+          fullName: 'safwan suratkal',
+          email: 'driver@schoolerp.dev',
+          phone: '+91 9876543210',
+          userRole: 'driver',
+          institutionId: 'REAL001',
+          institutionCode: 'REAL001',
+          institutionName: 'Yenepoya University',
+          institutionType: 'university',
+          department: 'Transport Department',
+          isEmailVerified: true,
+          profileCompleted: true,
+          mustChangePassword: false,
+        });
+        setIsProfileSynced(true);
+        setUserSession({
+          uid: 'driver_dev_bypass',
+          email: 'driver@schoolerp.dev',
+          displayName: 'safwan suratkal',
+        } as any);
+      }
       setAuthLoading(false);
     });
 

@@ -138,7 +138,12 @@ export default function DriverHomeScreen() {
         institutionName={institutionName}
         onSelectTab={(tab) => setActiveTab(tab)}
         onSwitchToStudentView={() => {
-          useUserStore.getState().setUserProfile({ userRole: 'student' });
+          useUserStore.getState().setUserProfile({
+            userRole: 'student',
+            fullName: 'Naseeb Decor',
+            email: 'alex.student@schoolerp.dev',
+            rollNoOrUSN: 'YU2024001',
+          });
           router.push('/(student)/home?tab=bus');
         }}
         onLogout={() => router.replace('/auth')}

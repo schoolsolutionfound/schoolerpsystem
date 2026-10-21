@@ -274,7 +274,7 @@ SELECT 'bus_locations',     count(*) FROM bus_locations   WHERE trip_id = 'real_
 --
 --  Stop sequence:
 --    1. Thokottu       12.818334, 74.860300  <- bus starts here
---    2. Babbukatte     12.819260, 74.867458  <- Arjun boards here (student stop)
+--    2. Babbukatte     12.819260, 74.867458  <- Naseeb boards here (student stop)
 --    3. Kuthar         12.819367, 74.878597
 --    4. Yenepoya Stop  12.812161, 74.882096  <- final destination
 --
