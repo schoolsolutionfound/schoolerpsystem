@@ -136,7 +136,7 @@ const AppLayout = function Layout() {
     const unsubAuth = onAuthStateChanged(auth, (user) => {
       // Direct Auto-Login: Hardcoded driver account for instant access
       setUserProfile({
-        fullName: 'Raju Driver',
+        fullName: 'safwan suratkal',
         email: 'driver@schoolerp.dev',
         phone: '+91 9876543210',
         userRole: 'driver',
@@ -153,7 +153,7 @@ const AppLayout = function Layout() {
       setUserSession({
         uid: 'driver_dev_bypass',
         email: 'driver@schoolerp.dev',
-        displayName: 'Raju Driver',
+        displayName: 'safwan suratkal',
       } as any);
       setAuthLoading(false);
     });
