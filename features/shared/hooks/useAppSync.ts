@@ -35,9 +35,10 @@ export function useAppSync(userSession: User | null) {
 
     const applyBackendData = (res: any) => {
       const rawRole = (res.userRole || '').toLowerCase();
+      // Canonicalize aliases so client guards (isDeveloper/isAdmin) always match.
       const finalRole = (rawRole === 'institution admin' || rawRole === 'admin')
         ? 'admin'
-        : (rawRole || 'student');
+        : (rawRole === 'developer' ? 'dev' : (rawRole || 'student'));
 
       setUserProfile({
         fullName: res.fullName || currentUser.displayName || '',
@@ -64,64 +65,69 @@ export function useAppSync(userSession: User | null) {
         experience: res.experience || '',
         libraryBadgeId: res.libraryBadgeId || '',
         designation: res.designation || '',
+        profileFields: Array.isArray(res.profileFormFields) ? res.profileFormFields : [],
+        customFields: res.customFields && typeof res.customFields === 'object' ? res.customFields : {},
         mustChangePassword: res.mustChangePassword ?? false,
         profileCompleted: res.profileCompleted ?? false,
-        isEmailVerified: true,
+        // Trust the backend's users.email_verified, not the (often stale) Firebase
+        // claim — the backend is the source of truth post-Phase 2.
+        isEmailVerified: res.isEmailVerified ?? res.emailVerified ?? true,
       });
 
       setProfileExists(true);
       setIsProfileSynced(true);
     };
 
-    const determineFallbackRoleFromEmail = (email: string): string => {
-      const lower = email.toLowerCase();
-      if (lower.includes('accountant') || lower.includes('finance')) return 'accountant';
-      if (lower.includes('admin') || lower.includes('principal')) return 'admin';
-      if (lower.includes('teacher') || lower.includes('faculty')) return 'teacher';
-      if (lower.includes('parent')) return 'parent';
-      if (lower.includes('hod')) return 'hod';
-      if (lower.includes('librarian')) return 'librarian';
-      if (lower.includes('dev')) return 'dev';
-      return 'student';
-    };
+    // SECURITY: Never infer privileged roles from email substrings.
+    // Email-based inference let anyone whose address contains "admin"/"dev"
+    // render admin/developer dashboards locally before (or without) backend sync.
+    // Pre-sync profile is a neutral placeholder; applyBackendData (login-sync)
+    // is the sole source of truth for role/flags.
+    const NEUTRAL_PRE_SYNC_ROLE = 'student';
 
     const initProfileFromAuth = async () => {
       try {
         const tokenResult = await currentUser.getIdTokenResult();
         const claims = tokenResult?.claims || {};
-        const claimRole = (claims.role || claims.userRole) as string | undefined;
-        const resolvedRole = claimRole || determineFallbackRoleFromEmail(currentUser.email || '');
+        const claimRole = ((claims.role || claims.userRole) as string | undefined)?.toLowerCase().trim();
+        // Claims only — no email inference. Unknown/unprovisioned users stay neutral.
+        const resolvedRole = claimRole === 'institution admin'
+          ? 'admin'
+          : (claimRole === 'developer' ? 'dev' : (claimRole || NEUTRAL_PRE_SYNC_ROLE));
 
         setUserProfile({
           fullName: currentUser.displayName || (currentUser.email ? currentUser.email.split('@')[0] : 'User'),
           email: currentUser.email || '',
           userRole: resolvedRole as any,
-          institutionId: (claims.institutionCode as string) || 'SCHOOL001',
-          institutionCode: (claims.institutionCode as string) || 'SCHOOL001',
-          institutionName: 'SchoolHub Academy',
-          institutionType: 'school',
+          institutionId: (claims.institutionCode as string) || '',
+          institutionCode: (claims.institutionCode as string) || '',
+          institutionName: (claims.institutionName as string) || '',
+          institutionType: (claims.institutionType === 'college' ? 'college' : 'school'),
           mustChangePassword: false,
           profileCompleted: true,
-          isEmailVerified: true,
+          // Pre-sync fallback: trust the Firebase client claim; the backend
+          // sync below overwrites it with the authoritative value.
+          isEmailVerified: currentUser.emailVerified ?? true,
         });
         setProfileExists(true);
-        setIsProfileSynced(true);
+        // NOTE: isProfileSynced stays false until login-sync returns — the
+        // auth guard waits for it so first-login routing uses the real flags.
       } catch {
-        const resolvedRole = determineFallbackRoleFromEmail(currentUser.email || '');
         setUserProfile({
           fullName: currentUser.displayName || (currentUser.email ? currentUser.email.split('@')[0] : 'User'),
           email: currentUser.email || '',
-          userRole: resolvedRole as any,
-          institutionId: 'SCHOOL001',
-          institutionCode: 'SCHOOL001',
-          institutionName: 'SchoolHub Academy',
+          userRole: NEUTRAL_PRE_SYNC_ROLE as any,
+          institutionId: '',
+          institutionCode: '',
+          institutionName: '',
           institutionType: 'school',
           mustChangePassword: false,
           profileCompleted: true,
-          isEmailVerified: true,
+          // Pre-sync fallback: trust the Firebase client claim; the backend
+          // sync below overwrites it with the authoritative value.
+          isEmailVerified: currentUser.emailVerified ?? true,
         });
         setProfileExists(true);
-        setIsProfileSynced(true);
       }
     };
 
@@ -141,8 +147,18 @@ export function useAppSync(userSession: User | null) {
           setIsProfileSynced(true);
           return;
         }
-        console.warn('[useAppSync] Backend sync error, falling back to Firestore:', err);
-        fallbackFirestoreSync();
+        // Only fall back when the backend is actually unreachable. 4xx/5xx
+        // (incl. 429 RATE_LIMITED) mean the backend responded — falling back
+        // to Firestore there only piles on a second failure (its rules often
+        // deny the read, spamming permission warnings).
+        if (err?.code === 'NETWORK_ERROR') {
+          console.warn('[useAppSync] Backend unreachable, falling back to Firestore:', err?.message);
+          fallbackFirestoreSync();
+          return;
+        }
+        console.warn('[useAppSync] Backend sync rejected — keeping auth-derived profile:', err?.message);
+        // initProfileFromAuth already populated a usable claim-based profile.
+        setIsProfileSynced(true);
       }
     };
 
@@ -157,9 +173,12 @@ export function useAppSync(userSession: User | null) {
         if (docSnap.exists()) {
           const data = docSnap.data();
           if (data) {
-            const finalRole = ((data.role || data.userRole || '') as string)
+            const rawRole = ((data.role || data.userRole || '') as string)
               .toLowerCase()
               .trim() || 'student';
+            const finalRole = (rawRole === 'institution admin' || rawRole === 'admin')
+              ? 'admin'
+              : (rawRole === 'developer' ? 'dev' : rawRole);
 
             setUserProfile({
               fullName: data.fullName || '',

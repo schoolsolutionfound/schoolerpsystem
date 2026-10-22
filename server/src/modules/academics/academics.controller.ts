@@ -16,6 +16,8 @@ import {
   SaveMarksSchema,
   CreateHomeworkSchema,
   UpdateHomeworkSchema,
+  CreateAcademicSessionSchema,
+  UpdateAcademicSessionSchema,
 } from './academics.schema.js';
 import { notifyAttendanceForSlot, notifyHomeworkAssigned, notifyExamPublishedForExam } from '../notifications/notification.triggers.js';
 
@@ -70,6 +72,55 @@ export async function listClassSectionsHandler(request: FastifyRequest, reply: F
     return reply.send({ success: true, data });
   } catch (err: any) {
     return sendError(reply, err, 'Failed to fetch class sections');
+  }
+}
+
+// ---------- Academic Sessions ----------
+
+export async function listAcademicSessionsHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const data = await academicsService.listAcademicSessions(getInstCode(request));
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to fetch academic years');
+  }
+}
+
+export async function createAcademicSessionHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const body = CreateAcademicSessionSchema.parse(request.body);
+    const data = await academicsService.createAcademicSession(getInstCode(request), body);
+    return reply.status(201).send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to create academic year');
+  }
+}
+
+export async function updateAcademicSessionHandler(request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
+  try {
+    const body = UpdateAcademicSessionSchema.parse(request.body);
+    const data = await academicsService.updateAcademicSession(getInstCode(request), request.params.id, body);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to update academic year');
+  }
+}
+
+export async function setAcademicSessionCurrentHandler(request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
+  try {
+    const data = await academicsService.setAcademicSessionCurrent(getInstCode(request), request.params.id);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to set current academic year');
+  }
+}
+
+export async function deleteAcademicSessionHandler(request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
+  try {
+    const data = await academicsService.deleteAcademicSession(getInstCode(request), request.params.id);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to delete academic year');
   }
 }
 
@@ -637,10 +688,9 @@ export async function listParentHomeworkHandler(request: FastifyRequest, reply: 
     if (!parent || parent.role !== 'parent') {
       return reply.status(403).send({ success: false, error: { message: 'Only parents can use this endpoint', code: 'FORBIDDEN' } });
     }
-    const scope = typeof parent.scope === 'string' ? JSON.parse(parent.scope || '{}') : (parent.scope || {});
-    const linkedUsn = scope?.linkedStudentUSN || '';
-    if (!linkedUsn) return reply.send({ success: true, data: [] });
-    const student = await (await import('../shared/db/index.js')).dbFindStudentByUsnInInstitution(instCode, linkedUsn);
+    const link = await (await import('../users/parent-links.js')).getPrimaryParentChild(parent.id);
+    if (!link) return reply.send({ success: true, data: [] });
+    const student = await (await import('../shared/db/index.js')).dbFindUserByIdOrUid(link.studentId);
     if (!student) return reply.send({ success: true, data: [] });
     const enrollment = await (await import('../shared/db/index.js')).dbFindStudentClassSectionId(student.id);
     if (!enrollment) return reply.send({ success: true, data: [] });

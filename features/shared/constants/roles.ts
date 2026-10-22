@@ -9,6 +9,7 @@ export enum Role {
   HOD = 'hod',
   Librarian = 'librarian',
   Driver = 'driver',
+  AdmissionOfficer = 'admission_officer',
 }
 
-export type RoleType = Role | 'dev' | 'admin' | 'teacher' | 'student' | 'principal' | 'parent' | 'accountant' | 'hod' | 'librarian' | 'driver';
+export type RoleType = Role | 'dev' | 'admin' | 'teacher' | 'student' | 'principal' | 'parent' | 'accountant' | 'hod' | 'librarian' | 'driver' | 'admission_officer';

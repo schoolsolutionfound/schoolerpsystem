@@ -16,6 +16,11 @@ import {
   ExpenseRecord,
   PaymentStatus,
   PaymentMethod,
+  PayrollStaff,
+  PayrollSchedule,
+  PayrollScheduleDetail,
+  CreatePayrollScheduleInput,
+  PayrollFrequency,
 } from '../types/finance';
 import {
   fetchFeesApi,
@@ -31,7 +36,44 @@ import {
   deleteFeePaymentApi,
   deleteExpenseApi,
 } from '../../../api/admin';
+import {
+  fetchPayrollStaffApi,
+  fetchPayrollSchedulesApi,
+  createPayrollSchedulesApi,
+  fetchPayrollScheduleDetailApi,
+  updatePayrollScheduleApi,
+  payPayrollScheduleApi,
+  addPayrollBonusApi,
+  generateDuePayrollApi,
+} from '../../../api/payroll';
 import { mapFeeData, mapExpenseRecords } from '../utils/feeMappers';
+
+function mapPayrollSchedule(row: any): PayrollSchedule {
+  return {
+    id: row.id,
+    institutionCode: row.institutionCode,
+    userId: row.userId,
+    payeeName: row.payeeName || '',
+    role: row.role || '',
+    department: row.department ?? null,
+    amount: Number(row.amount) || 0,
+    frequency: row.frequency,
+    dayOfMonth: row.dayOfMonth ?? null,
+    daysOfMonth: row.daysOfMonth ?? null,
+    weekday: row.weekday ?? null,
+    startDate: String(row.startDate || ''),
+    active: !!row.active,
+    notes: row.notes ?? null,
+    lastGeneratedKey: row.lastGeneratedKey ?? null,
+    createdBy: row.createdBy ?? null,
+    createdAt: String(row.createdAt || ''),
+    updatedAt: String(row.updatedAt || ''),
+    pendingAmount: Number(row.pendingAmount) || 0,
+    pendingPeriods: Number(row.pendingPeriods) || 0,
+    paidTotal: Number(row.paidTotal) || 0,
+    nextDue: row.nextDue ?? null,
+  };
+}
 
 interface FinanceState {
   incomeRecords: IncomeRecord[];
@@ -39,8 +81,10 @@ interface FinanceState {
   loaded: boolean;
   loading: boolean;
   error: string | null;
+  refreshTick: number;
 
   loadFees: () => Promise<void>;
+  bumpRefresh: () => void;
   setIncomeRecords: (records: IncomeRecord[]) => void;
   setExpenseRecords: (records: ExpenseRecord[]) => void;
 
@@ -55,6 +99,39 @@ interface FinanceState {
 
   collectStudentFee: (id: string, paymentMethod: PaymentMethod) => Promise<void>;
   disburseSalary: (id: string, paymentMethod: PaymentMethod) => Promise<void>;
+
+  payrollSchedules: PayrollSchedule[];
+  payrollStaff: PayrollStaff[];
+  payrollDetail: PayrollScheduleDetail | null;
+  payrollLoading: boolean;
+
+  loadPayrolls: () => Promise<void>;
+  loadPayrollStaff: (role?: string) => Promise<PayrollStaff[]>;
+  createPayrollSchedules: (
+    input: CreatePayrollScheduleInput
+  ) => Promise<{ created: number; skipped: number; notFound: string[] }>;
+  loadScheduleDetail: (id: string) => Promise<PayrollScheduleDetail | null>;
+  clearScheduleDetail: () => void;
+  paySchedule: (
+    id: string,
+    payload: { amount: number; paymentMethod: PaymentMethod; reference?: string }
+  ) => Promise<{ applied: number; unallocated: number }>;
+  addBonus: (
+    id: string,
+    payload: { amount: number; note: string; paymentMethod: PaymentMethod }
+  ) => Promise<void>;
+  updateSchedule: (
+    id: string,
+    payload: {
+      amount?: number;
+      frequency?: PayrollFrequency;
+      dayOfMonth?: number | null;
+      daysOfMonth?: number[];
+      weekday?: number | null;
+      active?: boolean;
+      notes?: string | null;
+    }
+  ) => Promise<void>;
 
   getTotalIncome: () => number;
   getTotalExpenses: () => number;
@@ -75,6 +152,13 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   loaded: false,
   loading: false,
   error: null,
+  refreshTick: 0,
+  bumpRefresh: () => set((s) => ({ refreshTick: s.refreshTick + 1 })),
+
+  payrollSchedules: [],
+  payrollStaff: [],
+  payrollDetail: null,
+  payrollLoading: false,
 
   loadFees: async () => {
     if (get().loading) return;
@@ -110,9 +194,11 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
 
   addIncome: (record) => {
     const newId = `inc-${Date.now()}`;
-    const receiptNo = `REC-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+    // Manual income is a client-side entry (no fee structure to attach).
+    // Never fabricate a receipt number — real receipts (REC-YYYYMM-NNNN) are
+    // issued by the server inside the payment transaction (webhook / collect).
     set((state) => ({
-      incomeRecords: [{ ...record, id: newId, receiptNo }, ...state.incomeRecords],
+      incomeRecords: [{ ...record, id: newId, receiptNo: '' }, ...state.incomeRecords],
     }));
   },
 
@@ -289,12 +375,143 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     }
   },
 
+  loadPayrolls: async () => {
+    set({ payrollLoading: true });
+    try {
+      // Login-time catch-up: materialize any periods that came due while the
+      // app/server was away (server dedupes, so calling this is always safe).
+      await generateDuePayrollApi().catch(() => null);
+      const [schedulesRes] = await Promise.all([
+        fetchPayrollSchedulesApi().catch(() => [] as any[]),
+        get().loadFees().catch(() => undefined),
+      ]);
+      const schedules = Array.isArray(schedulesRes)
+        ? schedulesRes
+        : Array.isArray((schedulesRes as any)?.data)
+          ? (schedulesRes as any).data
+          : [];
+      set({
+        payrollSchedules: schedules.map(mapPayrollSchedule),
+        payrollLoading: false,
+      });
+    } catch (err: any) {
+      set({ payrollLoading: false, error: err?.message || 'Failed to load payroll' });
+    }
+  },
+
+  loadPayrollStaff: async (role) => {
+    try {
+      const res = await fetchPayrollStaffApi(role ? { role } : undefined);
+      const staff = Array.isArray(res) ? res : Array.isArray((res as any)?.data) ? (res as any).data : [];
+      set({ payrollStaff: staff });
+      return staff as PayrollStaff[];
+    } catch (err: any) {
+      set({ error: err?.message || 'Failed to load staff' });
+      return [];
+    }
+  },
+
+  createPayrollSchedules: async (input) => {
+    set({ payrollLoading: true, error: null });
+    try {
+      const res = await createPayrollSchedulesApi(input);
+      const result = {
+        created: Number(res?.created) || 0,
+        skipped: Number(res?.skipped) || 0,
+        notFound: Array.isArray(res?.notFound) ? res.notFound : [],
+      };
+      await get().loadPayrolls();
+      return result;
+    } catch (err: any) {
+      set({ payrollLoading: false, error: err?.message || 'Failed to create payroll schedules' });
+      throw err;
+    }
+  },
+
+  loadScheduleDetail: async (id) => {
+    set({ payrollLoading: true, error: null });
+    try {
+      const res = await fetchPayrollScheduleDetailApi(id);
+      if (!res?.schedule) {
+        set({ payrollLoading: false, payrollDetail: null });
+        return null;
+      }
+      const detail: PayrollScheduleDetail = {
+        schedule: mapPayrollSchedule(res.schedule),
+        rows: mapExpenseRecords(Array.isArray(res.rows) ? res.rows : []),
+        balance: {
+          pendingAmount: Number(res.balance?.pendingAmount) || 0,
+          pendingPeriods: Number(res.balance?.pendingPeriods) || 0,
+          paidTotal: Number(res.balance?.paidTotal) || 0,
+          nextDue: res.balance?.nextDue ?? null,
+        },
+      };
+      set({ payrollDetail: detail, payrollLoading: false });
+      return detail;
+    } catch (err: any) {
+      set({ payrollLoading: false, error: err?.message || 'Failed to load payroll schedule' });
+      return null;
+    }
+  },
+
+  clearScheduleDetail: () => set({ payrollDetail: null }),
+
+  paySchedule: async (id, payload) => {
+    try {
+      const res = await payPayrollScheduleApi(id, {
+        amount: payload.amount,
+        paymentMethod: payload.paymentMethod,
+        reference: payload.reference || undefined,
+      });
+      await Promise.all([
+        get().loadScheduleDetail(id),
+        get().loadPayrolls(),
+      ]);
+      return {
+        applied: Number(res?.applied) || 0,
+        unallocated: Number(res?.unallocated) || 0,
+      };
+    } catch (err: any) {
+      set({ error: err?.message || 'Payment failed' });
+      throw err;
+    }
+  },
+
+  addBonus: async (id, payload) => {
+    try {
+      await addPayrollBonusApi(id, {
+        amount: payload.amount,
+        note: payload.note,
+        paymentMethod: payload.paymentMethod,
+      });
+      await Promise.all([
+        get().loadScheduleDetail(id),
+        get().loadPayrolls(),
+      ]);
+    } catch (err: any) {
+      set({ error: err?.message || 'Failed to add bonus' });
+      throw err;
+    }
+  },
+
+  updateSchedule: async (id, payload) => {
+    try {
+      await updatePayrollScheduleApi(id, payload);
+      await Promise.all([
+        get().loadScheduleDetail(id),
+        get().loadPayrolls(),
+      ]);
+    } catch (err: any) {
+      set({ error: err?.message || 'Failed to update payroll schedule' });
+      throw err;
+    }
+  },
+
   deleteIncome: async (id) => {
     const prev = get().incomeRecords;
     const target = prev.find((item) => item.id === id);
     set({ incomeRecords: prev.filter((item) => item.id !== id) });
-    if (!target) return;
-    try {
+    if (!target) return;    try {
       if (target.paymentId) {
         await deleteFeePaymentApi(target.paymentId);
       } else if (target.feeStructureId) {

@@ -6,7 +6,9 @@ export function normalizeRole(role?: string): string {
 
 export function isDeveloper(role?: string): boolean {
   const norm = normalizeRole(role);
-  return norm === Role.Developer;
+  // Accept both spellings; server normalizeRole folds 'developer' → we still
+  // match it here so legacy rows seeded as 'Developer' don't bounce to /auth.
+  return norm === Role.Developer || norm === 'developer';
 }
 
 export function isAdmin(role?: string): boolean {

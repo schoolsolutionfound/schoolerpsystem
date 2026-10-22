@@ -27,7 +27,7 @@ export const AdminHomeHeader: React.FC<AdminHomeHeaderProps> = ({
       </View>
 
       <TouchableOpacity style={styles.iconBtn} onPress={onNotificationsPress}>
-        <BellIcon size={20} color="#171717" />
+        <BellIcon size={20} color="#1A1B1C" />
       </TouchableOpacity>
     </View>
   );
@@ -46,11 +46,11 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#FFF4C7',
+    backgroundColor: '#1A1B1C',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  greetingText: { fontSize: 18, fontWeight: '800', color: '#171717' },
+  greetingText: { fontSize: 18, fontWeight: '800', color: '#1A1B1C' },
   schoolNameText: { fontSize: 12, color: '#6B6B6B', marginTop: 2 },
   iconBtn: {
     width: 40,

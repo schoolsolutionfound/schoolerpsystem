@@ -7,7 +7,7 @@ export default {
       "policy": "appVersion"
     },
     "orientation": "default",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/app-icon.png",
     "scheme": "schooerp",
     "userInterfaceStyle": "light",
     "newArchEnabled": false,

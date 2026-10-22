@@ -7,9 +7,9 @@ import {
 } from './announcement.schema.js';
 import {
   dbFindUserByIdOrUid,
-  dbFindStudentByUsnInInstitution,
   dbFindStudentClassSectionId,
 } from '../shared/db/index.js';
+import { resolveParentChildren } from '../users/parent-links.js';
 
 export class AppError extends Error {
   statusCode: number;
@@ -436,17 +436,14 @@ export class AnnouncementService {
 
       let studentId = user.id;
       if (normalizedRole === 'parent') {
-        let scope: any = {};
-        try {
-          scope = typeof user.scope === 'string' ? JSON.parse(user.scope || '{}') : user.scope || {};
-        } catch {
-          scope = {};
+        // A parent sees announcements targeted at ANY of their linked children.
+        const children = await resolveParentChildren(user.id);
+        const sectionIds = new Set<string>();
+        for (const child of children) {
+          const cs = await dbFindStudentClassSectionId(child.studentId);
+          if (cs) sectionIds.add(cs);
         }
-        const linkedUsn = scope?.linkedStudentUSN || '';
-        if (!linkedUsn) return [];
-        const studentUser = await dbFindStudentByUsnInInstitution(institutionCode, linkedUsn);
-        if (!studentUser) return [];
-        studentId = studentUser.id;
+        return Array.from(sectionIds);
       }
 
       const classSectionId = await dbFindStudentClassSectionId(studentId);

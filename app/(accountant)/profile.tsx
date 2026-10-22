@@ -6,7 +6,8 @@ import { performLogout } from '../../utils/logout';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { useUserStore } from '../../store/useUserStore';
-import { BorderRadius } from '../../constants/theme';
+import { ProfileCustomFields } from '../../features/shared/formFields/ProfileCustomFields';
+import { useProfileCustomFields } from '../../features/shared/formFields/useProfileCustomFields';
 
 export default function AccountantProfileScreen() {
   const router = useRouter();
@@ -18,6 +19,7 @@ export default function AccountantProfileScreen() {
   const employeeId = useUserStore((s) => s.employeeId) || '';
   const qualification = useUserStore((s) => s.qualification) || '';
   const resetUser = useUserStore((s) => s.resetUser);
+  const { fields: roleFields, values: roleFieldValues, save: saveRoleFields } = useProfileCustomFields();
 
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to log out?', [
@@ -40,15 +42,15 @@ export default function AccountantProfileScreen() {
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           <View style={styles.card}>
             <View style={styles.avatarRow}>
-              <View style={[styles.avatarCircle, { backgroundColor: '#DCFCE7' }]}>
-                <Text style={[styles.avatarText, { color: '#16A34A' }]}>{fullName.substring(0, 2).toUpperCase()}</Text>
+              <View style={[styles.avatarCircle, { backgroundColor: '#FFF4C7' }]}>
+                <Text style={[styles.avatarText, { color: '#171717' }]}>{fullName.substring(0, 2).toUpperCase()}</Text>
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.nameText}>{fullName}</Text>
                 <Text style={styles.emailText}>{email}</Text>
                 <View style={styles.badgeRow}>
-                  <View style={[styles.roleBadge, { backgroundColor: '#DCFCE7' }]}>
-                    <Text style={[styles.roleBadgeText, { color: '#16A34A' }]}>Accountant</Text>
+                  <View style={[styles.roleBadge, { backgroundColor: '#FFF4C7' }]}>
+                    <Text style={[styles.roleBadgeText, { color: '#171717' }]}>Accountant</Text>
                   </View>
                 </View>
               </View>
@@ -91,6 +93,10 @@ export default function AccountantProfileScreen() {
             </View>
           </View>
 
+          {roleFields.length > 0 && (
+            <ProfileCustomFields fields={roleFields} values={roleFieldValues} onSave={saveRoleFields} />
+          )}
+
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Account</Text>
             <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/change-password')}>
@@ -116,14 +122,14 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E8E5DC', backgroundColor: '#FFFFFF' },
   headerTitle: { fontSize: 17, fontWeight: '700', color: '#171717' },
   scroll: { padding: 16, gap: 14, paddingBottom: 40 },
-  card: { backgroundColor: '#FFFFFF', borderRadius: BorderRadius.card, padding: 18, borderWidth: 1, borderColor: '#E8E5DC', gap: 14 },
+  card: { backgroundColor: '#FFFFFF', borderRadius: 5, padding: 18, borderWidth: 1, borderColor: '#E8E5DC', gap: 14 },
   avatarRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   avatarCircle: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 18, fontWeight: '800' },
   nameText: { fontSize: 18, fontWeight: '800', color: '#171717' },
   emailText: { fontSize: 13, color: '#6B6B6B', marginTop: 2 },
   badgeRow: { marginTop: 6 },
-  roleBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: BorderRadius.chip, alignSelf: 'flex-start' },
+  roleBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 5, alignSelf: 'flex-start' },
   roleBadgeText: { fontSize: 11, fontWeight: '800' },
   sectionTitle: { fontSize: 15, fontWeight: '800', color: '#171717' },
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 28 },

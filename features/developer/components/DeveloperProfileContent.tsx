@@ -1,21 +1,51 @@
-import React from 'react';
-import { View, StyleSheet, Text, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { View, StyleSheet, Text, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
 
 interface DeveloperProfileContentProps {
   fullName: string;
   email: string;
+  phone?: string;
   onChangePassword: () => void;
   onLogout: () => void;
+  onSaveProfile?: (patch: { fullName?: string; phone?: string }) => Promise<boolean>;
 }
 
 export function DeveloperProfileContent({
   fullName,
   email,
+  phone = '',
   onChangePassword,
   onLogout,
+  onSaveProfile,
 }: DeveloperProfileContentProps) {
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [nameVal, setNameVal] = useState(fullName);
+  const [phoneVal, setPhoneVal] = useState(phone);
+
+  const startEdit = () => {
+    setNameVal(fullName);
+    setPhoneVal(phone);
+    setEditing(true);
+  };
+
+  const saveEdit = async () => {
+    if (!onSaveProfile) return;
+    if (nameVal.trim().length < 2) {
+      Alert.alert('Invalid Name', 'Full name must be at least 2 characters.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const ok = await onSaveProfile({ fullName: nameVal.trim(), phone: phoneVal.trim() || undefined });
+      if (ok) setEditing(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.card}>
@@ -34,6 +64,72 @@ export function DeveloperProfileContent({
             </View>
           </View>
         </View>
+      </View>
+
+      <View style={styles.card}>
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionTitle}>Personal Details</Text>
+          {onSaveProfile && !editing && (
+            <TouchableOpacity style={styles.editBtn} onPress={startEdit} accessibilityLabel="Edit profile">
+              <MaterialCommunityIcons name="pencil" size={14} color="#F4C430" />
+              <Text style={styles.editBtnText}>Edit</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {editing ? (
+          <>
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Full Name *</Text>
+              <TextInput
+                style={styles.input}
+                value={nameVal}
+                onChangeText={setNameVal}
+                placeholder="Your full name"
+                placeholderTextColor="#9CA3AF"
+              />
+            </View>
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Phone</Text>
+              <TextInput
+                style={styles.input}
+                value={phoneVal}
+                onChangeText={setPhoneVal}
+                placeholder="e.g. +91 98765 43210"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="phone-pad"
+                autoCapitalize="none"
+              />
+            </View>
+            <View style={styles.editActions}>
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => setEditing(false)}
+                disabled={saving}
+              >
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.saveBtn} onPress={saveEdit} disabled={saving}>
+                {saving ? (
+                  <ActivityIndicator size="small" color="#1A1B1C" />
+                ) : (
+                  <Text style={styles.saveBtnText}>Save</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </>
+        ) : (
+          <>
+            {phone ? (
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Phone</Text>
+                <Text style={styles.infoValue}>{phone}</Text>
+              </View>
+            ) : (
+              <Text style={styles.emptyHint}>No phone number yet — tap Edit to add one.</Text>
+            )}
+          </>
+        )}
       </View>
 
       <View style={styles.card}>
@@ -64,7 +160,31 @@ const styles = StyleSheet.create({
   badgeRow: { marginTop: 6 },
   roleBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FFF4C7', paddingHorizontal: 10, paddingVertical: 3, borderRadius: BorderRadius.chip, alignSelf: 'flex-start' },
   roleBadgeText: { fontSize: 11, fontWeight: '800', color: '#F4C430' },
+  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sectionTitle: { fontSize: 15, fontWeight: '800', color: '#171717' },
+  editBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: BorderRadius.chip, backgroundColor: '#FFF4C7' },
+  editBtnText: { fontSize: 12, fontWeight: '800', color: '#F4C430' },
+  infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 28 },
+  infoLabel: { fontSize: 13, color: '#6B6B6B', fontWeight: '500', flexShrink: 1 },
+  infoValue: { fontSize: 13, fontWeight: '700', color: '#171717', flexShrink: 1, textAlign: 'right' },
+  emptyHint: { fontSize: 13, color: '#9CA3AF', fontStyle: 'italic' },
+  formGroup: { gap: 6 },
+  label: { fontSize: 12, fontWeight: '700', color: '#6B6B6B' },
+  input: {
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    borderRadius: BorderRadius.input,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#171717',
+    backgroundColor: '#FDFCF9',
+  },
+  editActions: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  cancelBtn: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: BorderRadius.chip, borderWidth: 1, borderColor: '#E8E5DC' },
+  cancelBtnText: { fontSize: 14, fontWeight: '700', color: '#6B6B6B' },
+  saveBtn: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: BorderRadius.chip, backgroundColor: '#F4C430' },
+  saveBtnText: { fontSize: 14, fontWeight: '800', color: '#1A1B1C' },
   menuItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#FFFDF7' },
   menuText: { fontSize: 14, fontWeight: '600', color: '#171717' },
 });

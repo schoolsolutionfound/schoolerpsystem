@@ -1,6 +1,6 @@
 /**
  * @file StudentFeesView.tsx
- * @description Dedicated Student Fee Management screen: Paid vs Unpaid student fees, class filters, 1-tap collection & parent reminders.
+ * @description Dedicated Student Fee Management screen: Paid vs Unpaid student fees, class dropdown filter, 1-tap collection & parent reminders.
  */
 
 import React, { useState, useEffect } from 'react';
@@ -16,15 +16,24 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { BorderRadius } from '../../../constants/theme';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { IncomeRecord, PaymentMethod, PaymentStatus } from '../types/finance';
-import { formatINR } from '../utils/financeUtils';
+import { formatINR, getIncomeCategoryLabel } from '../utils/financeUtils';
 import { showAlert } from '../../shared/utils/showAlert';
 import { sharedFinanceStyles } from './financeStyles';
 import { fetchClassSectionsApi } from '../../../api/academics';
 import { useUserStore } from '../../../store/useUserStore';
 import { generateStudentFeeReceiptPdf } from '../utils/financePdfGenerator';
+
+const METHOD_LABELS: Record<PaymentMethod, string> = {
+  bank_transfer: 'Bank Transfer',
+  cheque: 'Cheque',
+  upi: 'UPI',
+  cash: 'Cash',
+  card: 'Card',
+};
+
+const methodLabel = (m: PaymentMethod) => METHOD_LABELS[m] || m.toUpperCase();
 
 export const StudentFeesView: React.FC = () => {
   const incomeRecords = useFinanceStore((s) => s.incomeRecords);
@@ -34,6 +43,7 @@ export const StudentFeesView: React.FC = () => {
 
   const [statusFilter, setStatusFilter] = useState<'all' | 'unpaid' | 'paid'>('unpaid');
   const [classFilter, setClassFilter] = useState<string>('all');
+  const [classOpen, setClassOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [classes, setClasses] = useState<string[]>(['all']);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
@@ -102,7 +112,7 @@ export const StudentFeesView: React.FC = () => {
     if (!collectItem) return;
     try {
       await collectStudentFee(collectItem.id, selectedMethod);
-      showAlert('Fee Collected', `₹${collectItem.amount.toLocaleString('en-IN')} collected from ${collectItem.payerName} via ${selectedMethod.toUpperCase()}.`);
+      showAlert('Fee Collected', `₹${collectItem.amount.toLocaleString('en-IN')} collected from ${collectItem.payerName} via ${methodLabel(selectedMethod)}.`);
     } catch {
       showAlert('Collection Failed', 'Could not record payment. Please try again.');
     }
@@ -154,13 +164,13 @@ export const StudentFeesView: React.FC = () => {
       <View style={styles.kpiBanner}>
         <View style={styles.kpiCol}>
           <Text style={styles.kpiLabel}>Collected Fees</Text>
-          <Text style={[styles.kpiVal, { color: '#16A34A' }]}>{formatINR(totalCollected)}</Text>
+          <Text style={[styles.kpiVal, { color: '#F4C430' }]}>{formatINR(totalCollected)}</Text>
           <Text style={styles.kpiSub}>{studentRecords.filter((r) => r.status === 'paid').length} Paid Invoices</Text>
         </View>
         <View style={styles.kpiDivider} />
         <View style={styles.kpiCol}>
           <Text style={styles.kpiLabel}>Unpaid / Overdue</Text>
-          <Text style={[styles.kpiVal, { color: '#DC3545' }]}>{formatINR(totalUnpaid)}</Text>
+          <Text style={[styles.kpiVal, { color: '#FFFFFF' }]}>{formatINR(totalUnpaid)}</Text>
           <Text style={styles.kpiSub}>{studentRecords.filter((r) => r.status !== 'paid').length} Students Pending</Text>
         </View>
       </View>
@@ -170,28 +180,53 @@ export const StudentFeesView: React.FC = () => {
         <TouchableOpacity
           style={[styles.tabToggleBtn, statusFilter === 'unpaid' && styles.tabToggleActiveUnpaid]}
           onPress={() => setStatusFilter('unpaid')}
+          activeOpacity={0.85}
         >
-          <MaterialCommunityIcons name="clock-alert-outline" size={16} color={statusFilter === 'unpaid' ? '#DC3545' : '#6B6B6B'} />
-          <Text style={[styles.tabToggleText, statusFilter === 'unpaid' && styles.tabToggleTextActiveUnpaid]}>
-            Unpaid Dues ({studentRecords.filter((r) => r.status !== 'paid').length})
+          <MaterialCommunityIcons
+            name="clock-alert-outline"
+            size={15}
+            color={statusFilter === 'unpaid' ? '#FFFFFF' : '#6B6B6B'}
+          />
+          <Text
+            numberOfLines={1}
+            style={[styles.tabToggleText, statusFilter === 'unpaid' && styles.tabToggleTextActive]}
+          >
+            Unpaid ({studentRecords.filter((r) => r.status !== 'paid').length})
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.tabToggleBtn, statusFilter === 'paid' && styles.tabToggleActivePaid]}
           onPress={() => setStatusFilter('paid')}
+          activeOpacity={0.85}
         >
-          <MaterialCommunityIcons name="check-circle-outline" size={16} color={statusFilter === 'paid' ? '#15803D' : '#6B6B6B'} />
-          <Text style={[styles.tabToggleText, statusFilter === 'paid' && styles.tabToggleTextActivePaid]}>
-            Paid Fees ({studentRecords.filter((r) => r.status === 'paid').length})
+          <MaterialCommunityIcons
+            name="check-circle-outline"
+            size={15}
+            color={statusFilter === 'paid' ? '#FFFFFF' : '#6B6B6B'}
+          />
+          <Text
+            numberOfLines={1}
+            style={[styles.tabToggleText, statusFilter === 'paid' && styles.tabToggleTextActive]}
+          >
+            Paid ({studentRecords.filter((r) => r.status === 'paid').length})
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.tabToggleBtn, statusFilter === 'all' && styles.tabToggleActiveAll]}
           onPress={() => setStatusFilter('all')}
+          activeOpacity={0.85}
         >
-          <Text style={[styles.tabToggleText, statusFilter === 'all' && styles.tabToggleTextActiveAll]}>
+          <MaterialCommunityIcons
+            name="format-list-bulleted"
+            size={15}
+            color={statusFilter === 'all' ? '#FFFFFF' : '#6B6B6B'}
+          />
+          <Text
+            numberOfLines={1}
+            style={[styles.tabToggleText, statusFilter === 'all' && styles.tabToggleTextActive]}
+          >
             All ({studentRecords.length})
           </Text>
         </TouchableOpacity>
@@ -199,36 +234,70 @@ export const StudentFeesView: React.FC = () => {
 
       {/* Search Bar */}
       <View style={styles.searchBox}>
-        <MaterialCommunityIcons name="magnify" size={18} color="#8A8A8A" />
+        <MaterialCommunityIcons name="magnify" size={18} color="#6B6B6B" />
         <TextInput
           style={styles.searchInput}
           placeholder="Search student name, roll no, or fee title..."
           value={searchQuery}
           onChangeText={setSearchQuery}
-          placeholderTextColor="#8A8A8A"
+          placeholderTextColor="#9A9A9A"
         />
       </View>
 
-      {/* Class Section Chips */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.classChipScroll}>
-        {classes.map((cls) => (
+      {/* Class Section Dropdown + Result Count */}
+      <View style={styles.filterRow}>
+        <View style={styles.dropdownWrap}>
           <TouchableOpacity
-            key={cls}
-            style={[styles.classChip, classFilter === cls && styles.classChipActive]}
-            onPress={() => setClassFilter(cls)}
+            style={styles.dropdownBtn}
+            onPress={() => setClassOpen((o) => !o)}
+            activeOpacity={0.8}
           >
-            <Text style={[styles.classChipText, classFilter === cls && styles.classChipTextActive]}>
-              {cls === 'all' ? 'All Classes' : cls}
+            <MaterialCommunityIcons name="school-outline" size={16} color="#171717" />
+            <Text style={styles.dropdownText} numberOfLines={1}>
+              {classFilter === 'all' ? 'All Classes' : classFilter}
             </Text>
+            <MaterialCommunityIcons
+              name={classOpen ? 'chevron-up' : 'chevron-down'}
+              size={16}
+              color="#6B6B6B"
+            />
           </TouchableOpacity>
-        ))}
-      </ScrollView>
+
+          {classOpen && (
+            <View style={styles.dropdownMenu}>
+              {classes.map((cls) => {
+                const active = classFilter === cls;
+                return (
+                  <TouchableOpacity
+                    key={cls}
+                    style={[styles.dropdownItem, active && styles.dropdownItemActive]}
+                    onPress={() => {
+                      setClassFilter(cls);
+                      setClassOpen(false);
+                    }}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={[styles.dropdownItemText, active && styles.dropdownItemTextActive]}>
+                      {cls === 'all' ? 'All Classes' : cls}
+                    </Text>
+                    {active && <MaterialCommunityIcons name="check" size={14} color="#B8860B" />}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
+        </View>
+
+        <Text style={styles.resultCount}>
+          {filtered.length} {filtered.length === 1 ? 'invoice' : 'invoices'}
+        </Text>
+      </View>
 
       {/* List */}
       <ScrollView style={sharedFinanceStyles.listContainer} showsVerticalScrollIndicator={false}>
         {filtered.length === 0 ? (
           <View style={sharedFinanceStyles.emptyState}>
-            <MaterialCommunityIcons name="school" size={48} color="#E8E5DC" />
+            <MaterialCommunityIcons name="school" size={48} color="#9A9A9A" />
             <Text style={sharedFinanceStyles.emptyTitle}>No Student Records Found</Text>
             <Text style={sharedFinanceStyles.emptySubtitle}>No fees match the selected filter criteria.</Text>
           </View>
@@ -248,7 +317,13 @@ export const StudentFeesView: React.FC = () => {
                       ]}
                     >
                       <MaterialCommunityIcons
-                        name={item.category === 'bus_fee' ? 'bus' : 'school'}
+                        name={
+                          item.category === 'bus_fee'
+                            ? 'bus'
+                            : item.category === 'hostel_fee'
+                              ? 'home-city'
+                              : 'school'
+                        }
                         size={18}
                         color={item.category === 'bus_fee' ? '#DC3545' : '#F4C430'}
                       />
@@ -265,7 +340,7 @@ export const StudentFeesView: React.FC = () => {
                           { color: item.category === 'bus_fee' ? '#DC3545' : '#F4C430' },
                         ]}
                       >
-                        {item.category === 'bus_fee' ? 'Bus Transport' : 'Tuition & Academic'}
+                        {getIncomeCategoryLabel(item.category)}
                       </Text>
                     </View>
                   </View>
@@ -287,7 +362,9 @@ export const StudentFeesView: React.FC = () => {
 
                 {/* Meta details */}
                 <Text style={sharedFinanceStyles.metaRow}>
-                  {isPaid ? `Paid: ${item.paymentDate} • Via: ${item.paymentMethod.toUpperCase()}` : `Due: ${item.paymentDate} • Overdue`}
+                  {isPaid
+                    ? `Paid: ${item.paymentDate} • Via: ${methodLabel(item.paymentMethod)}`
+                    : `Due: ${item.paymentDate} • Unpaid`}
                 </Text>
 
                 {/* Action Buttons */}
@@ -301,7 +378,7 @@ export const StudentFeesView: React.FC = () => {
                   <View style={sharedFinanceStyles.actionIconsGroup}>
                     {!isPaid && (
                       <>
-                        <TouchableOpacity style={[styles.actionCollectBtn, { backgroundColor: '#16A34A' }]} onPress={() => setCollectItem(item)}>
+                        <TouchableOpacity style={[styles.actionCollectBtn, { backgroundColor: '#171717' }]} onPress={() => setCollectItem(item)}>
                           <MaterialCommunityIcons name="cash-check" size={13} color="#FFFFFF" />
                           <Text style={styles.actionCollectBtnText}>Collect</Text>
                         </TouchableOpacity>
@@ -315,8 +392,8 @@ export const StudentFeesView: React.FC = () => {
 
                     {isPaid && (
                       <TouchableOpacity style={sharedFinanceStyles.actionIconBtn} onPress={() => setSelectedReceipt(item)}>
-                        <MaterialCommunityIcons name="file-document-outline" size={14} color="#F4C430" />
-                        <Text style={[sharedFinanceStyles.actionIconBtnText, { color: '#F4C430' }]}>Receipt</Text>
+                        <MaterialCommunityIcons name="file-document-outline" size={14} color="#B8860B" />
+                        <Text style={[sharedFinanceStyles.actionIconBtnText, { color: '#B8860B' }]}>Receipt</Text>
                       </TouchableOpacity>
                     )}
 
@@ -343,7 +420,7 @@ export const StudentFeesView: React.FC = () => {
               <View style={sharedFinanceStyles.modalHeader}>
                 <Text style={sharedFinanceStyles.modalTitle}>Collect Student Fee</Text>
                 <TouchableOpacity onPress={() => setCollectItem(null)}>
-                  <MaterialCommunityIcons name="close" size={24} color="#8A8A8A" />
+                  <MaterialCommunityIcons name="close" size={24} color="#6B6B6B" />
                 </TouchableOpacity>
               </View>
 
@@ -370,7 +447,7 @@ export const StudentFeesView: React.FC = () => {
                       key={m}
                       style={[
                         sharedFinanceStyles.radioBtn,
-                        selectedMethod === m && { backgroundColor: '#16A34A', borderColor: '#16A34A' },
+                        selectedMethod === m && { backgroundColor: '#171717', borderColor: '#171717' },
                       ]}
                       onPress={() => setSelectedMethod(m)}
                     >
@@ -386,7 +463,7 @@ export const StudentFeesView: React.FC = () => {
                 <TouchableOpacity style={sharedFinanceStyles.cancelBtn} onPress={() => setCollectItem(null)}>
                   <Text style={sharedFinanceStyles.cancelBtnText}>Cancel</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[sharedFinanceStyles.submitBtn, { backgroundColor: '#16A34A' }]} onPress={handleConfirmCollect}>
+                <TouchableOpacity style={[sharedFinanceStyles.submitBtn, { backgroundColor: '#171717' }]} onPress={handleConfirmCollect}>
                   <Text style={sharedFinanceStyles.submitBtnText}>Confirm Collection</Text>
                 </TouchableOpacity>
               </View>
@@ -411,7 +488,7 @@ export const StudentFeesView: React.FC = () => {
               <View style={sharedFinanceStyles.documentBody}>
                 <View style={sharedFinanceStyles.documentRow}>
                   <Text style={sharedFinanceStyles.documentLabel}>Receipt No:</Text>
-                  <Text style={sharedFinanceStyles.documentVal}>{selectedReceipt.receiptNo}</Text>
+                  <Text style={sharedFinanceStyles.documentVal}>{selectedReceipt.receiptNo || '—'}</Text>
                 </View>
                 <View style={sharedFinanceStyles.documentRow}>
                   <Text style={sharedFinanceStyles.documentLabel}>Payer / Student:</Text>
@@ -427,7 +504,7 @@ export const StudentFeesView: React.FC = () => {
                 </View>
                 <View style={sharedFinanceStyles.documentRow}>
                   <Text style={sharedFinanceStyles.documentLabel}>Payment Method:</Text>
-                  <Text style={sharedFinanceStyles.documentVal}>{selectedReceipt.paymentMethod.toUpperCase()}</Text>
+                  <Text style={sharedFinanceStyles.documentVal}>{methodLabel(selectedReceipt.paymentMethod)}</Text>
                 </View>
 
                 <View style={[sharedFinanceStyles.documentTotalBox, { backgroundColor: '#DCFCE7' }]}>
@@ -440,7 +517,7 @@ export const StudentFeesView: React.FC = () => {
 
               <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
                 <TouchableOpacity
-                  style={[sharedFinanceStyles.closeDocumentBtn, { flex: 1, backgroundColor: '#10B981', opacity: isGeneratingPdf ? 0.7 : 1 }]}
+                  style={[sharedFinanceStyles.closeDocumentBtn, { flex: 1, backgroundColor: '#16A34A', opacity: isGeneratingPdf ? 0.7 : 1 }]}
                   onPress={handleDownloadReceiptPdf}
                   disabled={isGeneratingPdf}
                 >
@@ -471,7 +548,7 @@ export const StudentFeesView: React.FC = () => {
               <View style={sharedFinanceStyles.modalHeader}>
                 <Text style={sharedFinanceStyles.modalTitle}>Update Fee Statement</Text>
                 <TouchableOpacity onPress={() => setEditingItem(null)}>
-                  <MaterialCommunityIcons name="close" size={24} color="#8A8A8A" />
+                  <MaterialCommunityIcons name="close" size={24} color="#6B6B6B" />
                 </TouchableOpacity>
               </View>
 
@@ -496,7 +573,7 @@ export const StudentFeesView: React.FC = () => {
                       key={s}
                       style={[
                         sharedFinanceStyles.radioBtn,
-                        editStatus === s && { backgroundColor: s === 'paid' ? '#16A34A' : '#DC3545', borderColor: s === 'paid' ? '#16A34A' : '#DC3545' },
+                        editStatus === s && { backgroundColor: s === 'paid' ? '#171717' : '#D97706', borderColor: s === 'paid' ? '#171717' : '#D97706' },
                       ]}
                       onPress={() => setEditStatus(s)}
                     >
@@ -514,7 +591,7 @@ export const StudentFeesView: React.FC = () => {
                       key={m}
                       style={[
                         sharedFinanceStyles.radioBtn,
-                        editMethod === m && { backgroundColor: '#F4C430', borderColor: '#F4C430' },
+                        editMethod === m && { backgroundColor: '#171717', borderColor: '#171717' },
                       ]}
                       onPress={() => setEditMethod(m)}
                     >
@@ -530,7 +607,7 @@ export const StudentFeesView: React.FC = () => {
                 <TouchableOpacity style={sharedFinanceStyles.cancelBtn} onPress={() => setEditingItem(null)}>
                   <Text style={sharedFinanceStyles.cancelBtnText}>Cancel</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[sharedFinanceStyles.submitBtn, { backgroundColor: '#F4C430' }]} onPress={handleSaveEdit}>
+                <TouchableOpacity style={[sharedFinanceStyles.submitBtn, { backgroundColor: '#171717' }]} onPress={handleSaveEdit}>
                   <Text style={sharedFinanceStyles.submitBtnText}>Save Updates</Text>
                 </TouchableOpacity>
               </View>
@@ -545,18 +622,16 @@ export const StudentFeesView: React.FC = () => {
 const styles = StyleSheet.create({
   kpiBanner: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.card,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#E8E5DC',
+    backgroundColor: '#171717',
+    borderRadius: 5,
+    padding: 14,
     marginBottom: 10,
   },
   kpiCol: { flex: 1, alignItems: 'center' },
-  kpiDivider: { width: 1, backgroundColor: '#E8E5DC' },
-  kpiLabel: { fontSize: 11, color: '#6B6B6B', fontWeight: '700', textTransform: 'uppercase' },
+  kpiDivider: { width: 1, backgroundColor: 'rgba(255,255,255,0.15)' },
+  kpiLabel: { fontSize: 11, color: 'rgba(255,255,255,0.55)', fontWeight: '700', textTransform: 'uppercase' },
   kpiVal: { fontSize: 18, fontWeight: '800', marginVertical: 2 },
-  kpiSub: { fontSize: 10, color: '#8A8A8A' },
+  kpiSub: { fontSize: 10, color: 'rgba(255,255,255,0.5)' },
 
   tabToggleRow: { flexDirection: 'row', gap: 6, marginBottom: 8 },
   tabToggleBtn: {
@@ -564,51 +639,88 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 7,
-    borderRadius: 8,
+    paddingVertical: 8,
+    borderRadius: 5,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E8E5DC',
     gap: 4,
+    overflow: 'hidden',
   },
-  tabToggleActiveUnpaid: { backgroundColor: 'rgba(220,53,69,0.08)', borderColor: '#DC3545' },
-  tabToggleActivePaid: { backgroundColor: '#DCFCE7', borderColor: '#16A34A' },
-  tabToggleActiveAll: { backgroundColor: 'rgba(244,196,48,0.1)', borderColor: '#F4C430' },
-  tabToggleText: { fontSize: 11, fontWeight: '700', color: '#6B6B6B' },
-  tabToggleTextActiveUnpaid: { color: '#DC3545' },
-  tabToggleTextActivePaid: { color: '#15803D' },
-  tabToggleTextActiveAll: { color: '#F4C430' },
+  tabToggleActiveUnpaid: { backgroundColor: '#DC3545', borderColor: '#DC3545' },
+  tabToggleActivePaid: { backgroundColor: '#16A34A', borderColor: '#16A34A' },
+  tabToggleActiveAll: { backgroundColor: '#171717', borderColor: '#171717' },
+  tabToggleText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#6B6B6B',
+    flexShrink: 1,
+  },
+  tabToggleTextActive: { color: '#FFFFFF' },
 
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.input,
+    borderRadius: 5,
     paddingHorizontal: 10,
     borderWidth: 1,
     borderColor: '#E8E5DC',
     height: 38,
     marginBottom: 8,
   },
-  searchInput: { flex: 1, marginLeft: 6, fontSize: 12, color: '#1A1B1C' },
-  classChipScroll: { flexDirection: 'row', marginBottom: 10, maxHeight: 32 },
-  classChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 16,
-    backgroundColor: '#F7F5EE',
-    marginRight: 6,
+  searchInput: { flex: 1, marginLeft: 6, fontSize: 12, color: '#171717' },
+
+  // Class filter dropdown
+  filterRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  dropdownWrap: { flex: 1, position: 'relative', zIndex: 20 },
+  dropdownBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    borderRadius: 5,
+    paddingHorizontal: 12,
+    height: 42,
   },
-  classChipActive: { backgroundColor: '#F4C430' },
-  classChipText: { fontSize: 11, color: '#6B6B6B', fontWeight: '600' },
-  classChipTextActive: { color: '#FFFFFF', fontWeight: '700' },
+  dropdownText: { flex: 1, fontSize: 13, fontWeight: '700', color: '#171717' },
+  dropdownMenu: {
+    position: 'absolute',
+    top: 46,
+    left: 0,
+    right: 0,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    borderRadius: 5,
+    paddingVertical: 4,
+    shadowColor: '#171717',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 8,
+    zIndex: 30,
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  dropdownItemActive: { backgroundColor: '#FFF4C7' },
+  dropdownItemText: { fontSize: 13, fontWeight: '600', color: '#171717' },
+  dropdownItemTextActive: { fontWeight: '800', color: '#171717' },
+  resultCount: { fontSize: 11, fontWeight: '700', color: '#6B6B6B' },
 
   actionCollectBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 6,
+    borderRadius: 5,
     gap: 4,
   },
   actionCollectBtnText: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
@@ -618,7 +730,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F7F5EE',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 6,
+    borderRadius: 5,
     gap: 4,
   },
   reminderBtnText: { fontSize: 11, fontWeight: '700', color: '#6B6B6B' },

@@ -7,8 +7,11 @@ import {
   UpdateFeePaymentSchema,
   CreateExpenseSchema,
   UpdateExpenseSchema,
+  CreateUserSchema,
+  BulkCreateUsersSchema,
 } from './admin.schema.js';
 import { notifyFeePaid } from '../notifications/notification.triggers.js';
+import { dbFindUserByIdOrUid } from '../shared/db/index.js';
 
 export { SingleFeedPayload, CreateStudentPayload, CreateTeacherPayload };
 
@@ -58,6 +61,34 @@ export async function updateInstitutionConfigHandler(request: FastifyRequest, re
   }
 }
 
+export async function getProfileFieldsHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const instCode = extractInstCode(request);
+    const data = await adminService.getProfileFields(instCode);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return reply.status(err.statusCode || 500).send({
+      success: false,
+      error: { message: err.message || 'Failed to fetch form fields', code: err.code || 'SERVER_ERROR' },
+    });
+  }
+}
+
+export async function updateRoleProfileFieldsHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const instCode = extractInstCode(request);
+    const role = (request.params as any)?.role || '';
+    const body = (request.body || {}) as { fields?: unknown };
+    const data = await adminService.updateRoleProfileFields(instCode, role, body.fields);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return reply.status(err.statusCode || 400).send({
+      success: false,
+      error: { message: err.message || 'Failed to update form fields', code: err.code || 'VALIDATION_ERROR' },
+    });
+  }
+}
+
 export async function getDashboardStatsHandler(request: FastifyRequest, reply: FastifyReply) {
   try {
     const instCode = extractInstCode(request);
@@ -77,7 +108,8 @@ export async function getStudentsHandler(request: FastifyRequest, reply: Fastify
     const q = (request.query as any) || {};
     const limit = Math.min(Math.max(Number(q.limit) || 100, 1), 500);
     const offset = Math.max(Number(q.offset) || 0, 0);
-    const data = await adminService.getStudents(instCode, limit, offset);
+    const search = String(q.search || '').trim();
+    const data = await adminService.getStudents(instCode, limit, offset, search);
     return reply.send({ success: true, data });
   } catch (err: any) {
     return reply.status(500).send({
@@ -188,10 +220,41 @@ export async function getAlumniHandler(request: FastifyRequest, reply: FastifyRe
   }
 }
 
+/**
+ * Resolve the PostgreSQL student row id for a self-service (/my/documents)
+ * session. AuthenticatedUser only carries the Firebase uid — not the DB id —
+ * so look it up (or accept a raw DB id if ever present on the session).
+ */
+async function resolveSelfStudentId(request: FastifyRequest): Promise<string> {
+  const user = (request as any).user;
+  const identifier: string | undefined = user?.id || user?.uid;
+  if (!identifier) {
+    throw { statusCode: 401, code: 'UNAUTHORIZED', message: 'No student session.' };
+  }
+  const row = await dbFindUserByIdOrUid(identifier);
+  if (!row || row.role !== 'student') {
+    throw { statusCode: 404, code: 'STUDENT_NOT_FOUND', message: 'Student not found.' };
+  }
+  return row.id;
+}
+
+export async function getMyDocumentsHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const studentId = await resolveSelfStudentId(request);
+    const instCode = extractInstCode(request);
+    const data = await adminService.getStudentDocuments(studentId, instCode);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return reply.status(err.statusCode || 500).send({
+      success: false,
+      error: { message: err.message || 'Failed to fetch documents' },
+    });
+  }
+}
+
 export async function addMyDocumentHandler(request: FastifyRequest, reply: FastifyReply) {
   try {
-    const user = (request as any).user;
-    const studentId = user?.id;
+    const studentId = await resolveSelfStudentId(request);
     const instCode = extractInstCode(request);
     const body = request.body as { documentType: string; fileName: string; fileUrl: string };
     const data = await adminService.addStudentDocument(studentId, instCode, body);
@@ -206,8 +269,7 @@ export async function addMyDocumentHandler(request: FastifyRequest, reply: Fasti
 
 export async function deleteMyDocumentHandler(request: FastifyRequest, reply: FastifyReply) {
   try {
-    const user = (request as any).user;
-    const studentId = user?.id;
+    const studentId = await resolveSelfStudentId(request);
     const instCode = extractInstCode(request);
     const { docId } = request.params as { docId: string };
     const data = await adminService.deleteStudentDocument(studentId, docId, instCode);
@@ -269,7 +331,8 @@ export async function getTeachersHandler(request: FastifyRequest, reply: Fastify
     const q = (request.query as any) || {};
     const limit = Math.min(Math.max(Number(q.limit) || 100, 1), 500);
     const offset = Math.max(Number(q.offset) || 0, 0);
-    const data = await adminService.getTeachers(instCode, limit, offset);
+    const search = String(q.search || '').trim();
+    const data = await adminService.getTeachers(instCode, limit, offset, search);
     return reply.send({ success: true, data });
   } catch (err: any) {
     return reply.status(500).send({
@@ -328,7 +391,8 @@ export async function getUsersHandler(request: FastifyRequest, reply: FastifyRep
     const q = (request.query as any) || {};
     const limit = Math.min(Math.max(Number(q.limit) || 100, 1), 500);
     const offset = Math.max(Number(q.offset) || 0, 0);
-    const data = await adminService.getUsers(instCode, limit, offset);
+    const search = String(q.search || '').trim();
+    const data = await adminService.getUsers(instCode, limit, offset, search);
     return reply.send({ success: true, data });
   } catch (err: any) {
     return reply.status(500).send({
@@ -341,16 +405,55 @@ export async function getUsersHandler(request: FastifyRequest, reply: FastifyRep
 export async function createUserHandler(request: FastifyRequest, reply: FastifyReply) {
   try {
     const instCode = extractInstCode(request);
-    const body = request.body as any;
-    const data = await adminService.createUser({
-      ...body,
-      institutionCode: instCode,
-    });
+    const parsed = CreateUserSchema.safeParse(request.body || {});
+    if (!parsed.success) {
+      const issue = parsed.error.issues[0];
+      return reply.status(400).send({
+        success: false,
+        error: {
+          message: issue ? `${issue.path.join('.') || 'body'}: ${issue.message}` : 'Invalid request body',
+          code: 'VALIDATION_ERROR',
+        },
+      });
+    }
+    const data = await adminService.createUser(
+      { ...parsed.data, institutionCode: instCode },
+      request.user?.email
+    );
     return reply.send({ success: true, data });
   } catch (err: any) {
     return reply.status(err.statusCode || 400).send({
       success: false,
       error: { message: err.message || 'Failed to create user', code: err.code || 'CREATE_USER_ERROR' },
+    });
+  }
+}
+
+export async function bulkCreateUsersHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const instCode = extractInstCode(request);
+    const parsed = BulkCreateUsersSchema.safeParse(request.body || {});
+    if (!parsed.success) {
+      const issue = parsed.error.issues[0];
+      return reply.status(400).send({
+        success: false,
+        error: {
+          message: issue ? `${issue.path.join('.') || 'body'}: ${issue.message}` : 'Invalid request body',
+          code: 'VALIDATION_ERROR',
+        },
+      });
+    }
+    const data = await adminService.bulkCreateUsers(
+      instCode,
+      parsed.data.role,
+      parsed.data.records,
+      request.user?.email
+    );
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return reply.status(err.statusCode || 400).send({
+      success: false,
+      error: { message: err.message || 'Bulk create failed', code: err.code || 'BULK_CREATE_ERROR' },
     });
   }
 }

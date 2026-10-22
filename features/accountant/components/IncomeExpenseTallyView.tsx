@@ -13,10 +13,8 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Alert, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { BorderRadius } from '../../../constants/theme';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { formatINR, getCategoryTotal } from '../utils/financeUtils';
-import { showAlert } from '../../shared/utils/showAlert';
 import { generateIncomeExpenseStatementPdf } from '../utils/financePdfGenerator';
 
 export const IncomeExpenseTallyView: React.FC = () => {
@@ -77,9 +75,9 @@ export const IncomeExpenseTallyView: React.FC = () => {
           </View>
           <TouchableOpacity style={[styles.exportBtn, { opacity: isGeneratingPdf ? 0.7 : 1 }]} onPress={handleExportStatement} disabled={isGeneratingPdf}>
             {isGeneratingPdf ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
+              <ActivityIndicator size="small" color="#171717" />
             ) : (
-              <MaterialCommunityIcons name="file-export-outline" size={16} color="#FFFFFF" />
+              <MaterialCommunityIcons name="file-export-outline" size={16} color="#171717" />
             )}
             <Text style={styles.exportBtnText}>{isGeneratingPdf ? 'Generating...' : 'Export PDF'}</Text>
           </TouchableOpacity>
@@ -141,7 +139,7 @@ export const IncomeExpenseTallyView: React.FC = () => {
                 style={[
                   styles.barFill,
                   {
-                    backgroundColor: '#4338CA',
+                    backgroundColor: '#171717',
                     width: `${totalIncome > 0 ? (studentFeesTotal / totalIncome) * 100 : 0}%`,
                   },
                 ]}
@@ -275,7 +273,7 @@ export const IncomeExpenseTallyView: React.FC = () => {
                 style={[
                   styles.barFill,
                   {
-                    backgroundColor: '#0284C7',
+                    backgroundColor: '#171717',
                     width: `${totalExpense > 0 ? (utilityTotal / totalExpense) * 100 : 0}%`,
                   },
                 ]}
@@ -292,33 +290,33 @@ const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 16, paddingTop: 6 },
   tallyHeaderCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.card,
+    borderRadius: 5,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
     marginBottom: 12,
   },
   tallyHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  tallyCardTitle: { fontSize: 16, fontWeight: '800', color: '#1A202C' },
-  tallyCardSubtitle: { fontSize: 12, color: '#718096', marginTop: 1 },
+  tallyCardTitle: { fontSize: 16, fontWeight: '800', color: '#171717' },
+  tallyCardSubtitle: { fontSize: 12, color: '#6B6B6B', marginTop: 1 },
   exportBtn: {
-    backgroundColor: '#7E57C2',
+    backgroundColor: '#F4C430',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: BorderRadius.button,
+    borderRadius: 5,
     gap: 4,
   },
-  exportBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 12 },
+  exportBtnText: { color: '#171717', fontWeight: '700', fontSize: 12 },
   netBalanceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: 14 },
-  netLabel: { fontSize: 12, color: '#64748B', fontWeight: '600' },
+  netLabel: { fontSize: 12, color: '#6B6B6B', fontWeight: '600' },
   netValue: { fontSize: 24, fontWeight: '800', marginTop: 2 },
-  badgeHealth: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20, gap: 4 },
+  badgeHealth: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 5, gap: 4 },
   badgeHealthText: { fontSize: 11, fontWeight: '800' },
   progressBarBg: {
     height: 10,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: '#F0EDE3',
     borderRadius: 5,
     flexDirection: 'row',
     overflow: 'hidden',
@@ -327,23 +325,23 @@ const styles = StyleSheet.create({
   progressExpenseFill: { backgroundColor: '#DC3545', height: '100%' },
   progressLegendRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  dot: { width: 8, height: 8, borderRadius: 4 },
-  legendText: { fontSize: 11, color: '#64748B', fontWeight: '600' },
+  dot: { width: 8, height: 8, borderRadius: 5 },
+  legendText: { fontSize: 11, color: '#6B6B6B', fontWeight: '600' },
   breakdownGrid: { flexDirection: Platform.OS === 'web' ? 'row' : 'column', gap: 12, marginBottom: 24 },
   breakdownCard: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.card,
+    borderRadius: 5,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
   },
   breakdownCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 },
-  breakdownTitle: { fontSize: 15, fontWeight: '700', color: '#1A202C' },
+  breakdownTitle: { fontSize: 15, fontWeight: '700', color: '#171717' },
   barItem: { marginBottom: 12 },
   barItemRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 3 },
-  barItemLabel: { fontSize: 12, color: '#4A5568', fontWeight: '600' },
-  barItemVal: { fontSize: 12, fontWeight: '700', color: '#1A202C' },
-  barTrack: { height: 6, backgroundColor: '#F1F5F9', borderRadius: 3, overflow: 'hidden' },
-  barFill: { height: '100%', borderRadius: 3 },
+  barItemLabel: { fontSize: 12, color: '#6B6B6B', fontWeight: '600' },
+  barItemVal: { fontSize: 12, fontWeight: '700', color: '#171717' },
+  barTrack: { height: 6, backgroundColor: '#F1F5F9', borderRadius: 5, overflow: 'hidden' },
+  barFill: { height: '100%', borderRadius: 5 },
 });

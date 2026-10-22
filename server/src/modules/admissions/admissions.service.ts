@@ -2,6 +2,7 @@ import { db } from '../shared/db/index.js';
 import * as schema from '../shared/db/schema.js';
 import { eq, desc, or, inArray, and, ne } from 'drizzle-orm';
 import { admin } from '../shared/config/firebase.js';
+import { insertParentLinks } from '../users/parent-links.js';
 
 function newAdmId(): string {
   return `adm_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
@@ -213,7 +214,6 @@ export class AdmissionsService {
           ...currentScope,
           childId: actualStudentId,
           childName: adm.childFullName,
-          linkedStudentUSN: studentUSN,
           relation: currentScope.relation || 'Parent',
           institutionCode: adm.schoolId,
           schoolName: adm.schoolName,
@@ -230,6 +230,15 @@ export class AdmissionsService {
           })
           .where(eq(schema.users.id, parentUser.id));
 
+        // Canonical parent → student link (no USN in scope anymore).
+        try {
+          await insertParentLinks(adm.schoolId, parentUser.id, [
+            { studentId: actualStudentId, relationship: 'Parent', isPrimary: true },
+          ]);
+        } catch (lErr) {
+          console.warn('[AdmissionsService] parent link insert error:', lErr);
+        }
+
         // 3. Sync to Firestore for instant mobile reflection
         try {
           const docId = parentUser.firebaseUid || parentUser.id;
@@ -242,7 +251,6 @@ export class AdmissionsService {
               schoolName: adm.schoolName,
               childName: adm.childFullName,
               childId: actualStudentId,
-              linkedStudentUSN: studentUSN,
               relation: currentScope.relation || 'Parent',
               scope: updatedScope,
               updatedAt: new Date().toISOString(),

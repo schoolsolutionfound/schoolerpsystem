@@ -14,7 +14,6 @@ import {
   Modal,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { BorderRadius } from '../../../constants/theme';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { ExpenseCategory, ExpenseRecord, PaymentMethod, PaymentStatus } from '../types/finance';
 import { getExpenseCategoryLabel, getExpenseCategoryColor, formatINR } from '../utils/financeUtils';
@@ -501,7 +500,7 @@ const styles = StyleSheet.create({
   kpiBanner: {
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.card,
+    borderRadius: 5,
     padding: 12,
     borderWidth: 1,
     borderColor: '#E2E8F0',
@@ -520,7 +519,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 7,
-    borderRadius: 8,
+    borderRadius: 5,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E2E8F0',
@@ -536,7 +535,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.input,
+    borderRadius: 5,
     paddingHorizontal: 10,
     borderWidth: 1,
     borderColor: '#E2E8F0',
@@ -549,7 +548,7 @@ const styles = StyleSheet.create({
     gap: 4,
     backgroundColor: '#DC3545',
     paddingHorizontal: 12,
-    borderRadius: BorderRadius.button,
+    borderRadius: 5,
     height: 38,
   },
   addBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 12 },
@@ -560,7 +559,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#DC3545',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 6,
+    borderRadius: 5,
     gap: 4,
   },
   disburseBtnText: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },

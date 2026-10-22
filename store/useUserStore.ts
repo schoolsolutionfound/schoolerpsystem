@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { secureStorage } from './secureStorage';
+import type { ProfileFormField, CustomFieldValues } from '../features/shared/formFields/types';
 
 export type UserRole = 'student' | 'teacher' | 'admin' | 'parent' | 'dev' | 'principal' | 'accountant' | 'hod' | 'librarian' | 'driver' | 'admission_officer' | 'institution admin' | 'loading';
 export type InstitutionType = 'school' | 'college';
@@ -40,6 +41,10 @@ interface UserState {
   experience: string;
   libraryBadgeId: string;
   designation: string;
+  /** Settings → Form Fields: configured fields for this user's role. */
+  profileFields: ProfileFormField[];
+  /** Settings → Form Fields: this user's saved values, keyed by field id. */
+  customFields: CustomFieldValues;
 
   setUserProfile: (data: Partial<UserState>) => void;
   switchRole: (newRole: UserRole) => void;
@@ -87,6 +92,8 @@ export const useUserStore = create<UserState>()(
       experience: '',
       libraryBadgeId: '',
       designation: '',
+      profileFields: [],
+      customFields: {},
 
       setUserProfile: (data) =>
         set((state) => ({
@@ -137,6 +144,8 @@ export const useUserStore = create<UserState>()(
           experience: '',
           libraryBadgeId: '',
           designation: '',
+          profileFields: [],
+          customFields: {},
         }),
 
       setHasHydrated: (state) => set({ _hasHydrated: state }),
@@ -184,6 +193,8 @@ export const useUserStore = create<UserState>()(
         experience: state.experience,
         libraryBadgeId: state.libraryBadgeId,
         designation: state.designation,
+        profileFields: state.profileFields,
+        customFields: state.customFields,
       }),
       version: 2,
       migrate: (persisted: any, version: number) => {

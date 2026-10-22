@@ -1,38 +1,58 @@
-import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, StyleSheet, Text, TouchableOpacity, ScrollView, Platform, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useUserStore } from '../../store/useUserStore';
 import { AccountantHeader } from '../../features/accountant/components/AccountantHeader';
-import { FinanceSummaryCards } from '../../features/accountant/components/FinanceSummaryCards';
+import { AccountantDrawer } from '../../features/accountant/components/AccountantDrawer';
+import { AccountantHomeOverview } from '../../features/accountant/components/AccountantHomeOverview';
 import { StudentFeesView } from '../../features/accountant/components/StudentFeesView';
 import { PendingDuesView } from '../../features/accountant/components/PendingDuesView';
 import { IncomeManagementView } from '../../features/accountant/components/IncomeManagementView';
 import { AccountsTallyView } from '../../features/accountant/components/AccountsTallyView';
 import { ExpenseManagementView } from '../../features/accountant/components/ExpenseManagementView';
+import { OnlinePaymentsView } from '../../features/accountant/components/OnlinePaymentsView';
 import { useFinanceStore } from '../../features/accountant/store/useFinanceStore';
 import { UserAnnouncementFeedView } from '../../features/announcements';
 import { FontFamily } from '../../constants/fonts';
 
-type FinanceTab = 'overview' | 'fees' | 'dues' | 'income' | 'expenses' | 'accounts' | 'announcements';
+type FinanceTab = 'overview' | 'fees' | 'dues' | 'income' | 'payments' | 'expenses' | 'accounts' | 'announcements';
 
-const TABS: { key: FinanceTab; label: string; icon: string }[] = [
-  { key: 'overview', label: 'Overview', icon: 'view-dashboard-outline' },
-  { key: 'fees', label: 'Student Fees', icon: 'school-outline' },
-  { key: 'dues', label: 'Pending Dues', icon: 'clock-alert-outline' },
-  { key: 'income', label: 'Income', icon: 'cash-plus' },
-  { key: 'expenses', label: 'Expenses', icon: 'cash-minus' },
-  { key: 'accounts', label: 'Accounts', icon: 'calculator-variant-outline' },
-  { key: 'announcements', label: 'News', icon: 'bullhorn-outline' },
+const TAB_VALUES: FinanceTab[] = [
+  'overview',
+  'fees',
+  'dues',
+  'income',
+  'payments',
+  'expenses',
+  'accounts',
+  'announcements',
+];
+
+const BOTTOM_TABS: { key: FinanceTab; label: string; icon: string; iconFilled: string }[] = [
+  { key: 'overview', label: 'Home', icon: 'view-dashboard-outline', iconFilled: 'view-dashboard' },
+  { key: 'expenses', label: 'Expenses', icon: 'cash-minus', iconFilled: 'cash-minus' },
+  { key: 'income', label: 'Income', icon: 'cash-plus', iconFilled: 'cash-plus' },
+  { key: 'fees', label: 'Fees', icon: 'school-outline', iconFilled: 'school' },
+  { key: 'accounts', label: 'Accounts', icon: 'calculator-variant-outline', iconFilled: 'calculator-variant' },
 ];
 
 export default function AccountantHomeScreen() {
   const router = useRouter();
   const fullName = useUserStore((state) => state.fullName) || 'Accountant';
+  const email = useUserStore((state) => state.email) || '';
   const profilePic = useUserStore((state) => state.profilePic);
-  const [activeTab, setActiveTab] = useState<FinanceTab>('overview');
+  const institutionName = useUserStore((state) => state.institutionName) || '';
+  const params = useLocalSearchParams<{ tab?: string }>();
+  const paramTab = String(params.tab ?? '') as FinanceTab;
+  const [activeTab, setActiveTab] = useState<FinanceTab>(
+    TAB_VALUES.includes(paramTab) ? paramTab : 'overview',
+  );
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const loadFees = useFinanceStore((s) => s.loadFees);
+  const bumpRefresh = useFinanceStore((s) => s.bumpRefresh);
   const loading = useFinanceStore((s) => s.loading);
   const error = useFinanceStore((s) => s.error);
 
@@ -40,37 +60,65 @@ export default function AccountantHomeScreen() {
     loadFees();
   }, [loadFees]);
 
+  const handlePullRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await loadFees();
+      bumpRefresh();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadFees, bumpRefresh]);
+
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'overview':
+        return <AccountantHomeOverview onNavigateTab={setActiveTab} />;
+      case 'fees':
+        return <StudentFeesView />;
+      case 'dues':
+        return <PendingDuesView />;
+      case 'income':
+        return <IncomeManagementView />;
+      case 'payments':
+        return <OnlinePaymentsView />;
+      case 'expenses':
+        return <ExpenseManagementView />;
+      case 'accounts':
+        return <AccountsTallyView />;
+      case 'announcements':
+        return <UserAnnouncementFeedView />;
+      default:
+        return null;
+    }
+  };
+
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safe}>
         <AccountantHeader
           fullName={fullName}
           profilePic={profilePic}
+          showGreeting={activeTab === 'overview'}
+          onMenuPress={() => setDrawerOpen(true)}
           onNotificationsPress={() => router.push('/notifications')}
           onProfilePress={() => router.push('/(accountant)/profile')}
         />
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabRow}>
-          {TABS.map((tab) => (
-            <TouchableOpacity
-              key={tab.key}
-              style={[styles.tabBtn, activeTab === tab.key && styles.tabBtnActive]}
-              onPress={() => setActiveTab(tab.key)}
-              activeOpacity={0.75}
-            >
-              <MaterialCommunityIcons
-                name={tab.icon as any}
-                size={16}
-                color={activeTab === tab.key ? '#FFFFFF' : '#6B6B6B'}
-              />
-              <Text style={[styles.tabLabel, activeTab === tab.key && styles.tabLabelActive]}>
-                {tab.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.contentScroll}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handlePullRefresh}
+              tintColor="#171717"
+              colors={['#F4C430']}
+              progressBackgroundColor="#FFFFFF"
+            />
+          }
+        >
           {error ? (
             <View style={styles.errorBanner}>
               <MaterialCommunityIcons name="alert-circle-outline" size={16} color="#DC3545" />
@@ -81,39 +129,69 @@ export default function AccountantHomeScreen() {
             <Text style={styles.loadingText}>Loading fee data…</Text>
           ) : null}
 
-          {activeTab === 'overview' && (
-            <>
-              <FinanceSummaryCards onSelectTab={(t) => {
-                if (t === 'dues') setActiveTab('dues');
-                if (t === 'income') setActiveTab('income');
-                if (t === 'expenses') setActiveTab('expenses');
-                if (t === 'tally') setActiveTab('accounts');
-              }} />
-              <View style={styles.quickSection}>
-                <Text style={styles.sectionTitle}>Quick Actions</Text>
-                <View style={styles.quickRow}>
-                  <TouchableOpacity style={styles.quickCard} onPress={() => setActiveTab('fees')}>
-                    <MaterialCommunityIcons name="cash-multiple" size={22} color="#16A34A" />
-                    <Text style={styles.quickCardTitle}>Student Fees</Text>
-                    <Text style={styles.quickCardSub}>Collect & manage</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.quickCard} onPress={() => setActiveTab('dues')}>
-                    <MaterialCommunityIcons name="clock-alert-outline" size={22} color="#D97706" />
-                    <Text style={styles.quickCardTitle}>Pending Dues</Text>
-                    <Text style={styles.quickCardSub}>Outstanding receivables</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </>
-          )}
-          {activeTab === 'fees' && <StudentFeesView />}
-          {activeTab === 'dues' && <PendingDuesView />}
-          {activeTab === 'income' && <IncomeManagementView />}
-          {activeTab === 'expenses' && <ExpenseManagementView />}
-          {activeTab === 'accounts' && <AccountsTallyView />}
-          {activeTab === 'announcements' && <UserAnnouncementFeedView />}
+          {renderTabContent()}
         </ScrollView>
+
+        {/* Bottom Tab Bar (mirrors student portal) */}
+        <View style={styles.tabBarBg}>
+          <View style={styles.tabBar}>
+            {BOTTOM_TABS.map((tab) => {
+              const isCenter = tab.key === 'income';
+              const isActive = activeTab === tab.key;
+
+              if (isCenter) {
+                return (
+                  <TouchableOpacity
+                    key={tab.key}
+                    style={styles.centerBtnWrap}
+                    onPress={() => setActiveTab(tab.key)}
+                    activeOpacity={0.85}
+                  >
+                    <View style={[styles.centerBtnRing, isActive && styles.centerBtnRingActive]}>
+                      <View style={[styles.centerBtn, isActive && styles.centerBtnActive]}>
+                        <MaterialCommunityIcons
+                          name={tab.iconFilled as any}
+                          size={26}
+                          color={isActive ? '#F4C430' : '#E8E5DC'}
+                        />
+                      </View>
+                    </View>
+                    <Text style={[styles.centerLabel, isActive && styles.centerLabelActive]}>{tab.label}</Text>
+                  </TouchableOpacity>
+                );
+              }
+
+              return (
+                <TouchableOpacity
+                  key={tab.key}
+                  style={styles.tabItem}
+                  onPress={() => setActiveTab(tab.key)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.tabIconBg, isActive && styles.tabIconBgActive]}>
+                    <MaterialCommunityIcons
+                      name={isActive ? (tab.iconFilled as any) : (tab.icon as any)}
+                      size={22}
+                      color={isActive ? '#171717' : '#9CA3AF'}
+                    />
+                  </View>
+                  <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>{tab.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
       </SafeAreaView>
+
+      <AccountantDrawer
+        visible={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        onSwitchTab={(tab: string) => setActiveTab(tab as FinanceTab)}
+        fullName={fullName}
+        email={email}
+        profilePic={profilePic}
+        institutionName={institutionName}
+      />
     </View>
   );
 }
@@ -121,29 +199,9 @@ export default function AccountantHomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFFDF7' },
   safe: { flex: 1 },
-  tabRow: {
-    flexDirection: 'row',
-    gap: 6,
-    paddingHorizontal: 16,
-    paddingTop: 4,
-    paddingBottom: 8,
-  },
-  tabBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E8E5DC',
-  },
-  tabBtnActive: { backgroundColor: '#16A34A', borderColor: '#16A34A' },
-  tabLabel: { fontSize: 11, fontWeight: '700', color: '#6B6B6B' },
-  tabLabelActive: { color: '#FFFFFF' },
-  content: { paddingBottom: 32 },
+  contentScroll: { flex: 1 },
+  content: { paddingBottom: 24 },
+
   errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -151,7 +209,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 8,
     padding: 10,
-    borderRadius: 8,
+    borderRadius: 5,
     backgroundColor: '#FEE2E2',
   },
   errorText: { fontSize: 12, color: '#991B1B', flex: 1 },
@@ -162,24 +220,99 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontFamily: FontFamily.regular,
   },
-  quickSection: { paddingHorizontal: 16, paddingTop: 8 },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#1A1B1C',
-    marginBottom: 10,
-    fontFamily: FontFamily.extrabold,
-  },
-  quickRow: { flexDirection: 'row', gap: 10 },
-  quickCard: {
-    flex: 1,
+
+  // ── Bottom Tab Bar (student-portal mirror) ────────────────────────────────
+  tabBarBg: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E8E5DC',
-    padding: 14,
-    gap: 4,
+    borderRadius: 5,
+    marginHorizontal: 16,
+    marginBottom: Platform.OS === 'ios' ? 16 : 8,
+    paddingTop: 8,
+    paddingBottom: Platform.OS === 'ios' ? 16 : 8,
+    shadowColor: '#171717',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 12,
   },
-  quickCardTitle: { fontSize: 13, fontWeight: '700', color: '#1A1B1C', marginTop: 4 },
-  quickCardSub: { fontSize: 11, color: '#6B6B6B' },
+  tabBar: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    paddingHorizontal: 6,
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: 2,
+  },
+  tabIconBg: {
+    width: 44,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabIconBgActive: {
+    backgroundColor: '#F4C430',
+  },
+  tabLabel: {
+    fontSize: 10,
+    fontFamily: FontFamily.medium,
+    color: '#9CA3AF',
+    marginTop: 4,
+  },
+  tabLabelActive: {
+    color: '#171717',
+    fontFamily: FontFamily.bold,
+  },
+
+  // Center floating button (Income)
+  centerBtnWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: 2,
+    marginTop: -28,
+  },
+  centerBtnRing: {
+    width: 66,
+    height: 66,
+    borderRadius: 33,
+    borderWidth: 3,
+    borderColor: '#E8E5DC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#171717',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  centerBtnRingActive: {
+    borderColor: '#F4C430',
+    shadowColor: '#F4C430',
+    shadowOpacity: 0.35,
+  },
+  centerBtn: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#171717',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  centerBtnActive: {
+    backgroundColor: '#171717',
+  },
+  centerLabel: {
+    fontSize: 10,
+    fontFamily: FontFamily.medium,
+    color: '#9CA3AF',
+    marginTop: 5,
+  },
+  centerLabelActive: {
+    color: '#F4C430',
+    fontFamily: FontFamily.bold,
+  },
 });

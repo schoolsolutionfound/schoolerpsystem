@@ -1,7 +1,27 @@
-import React from 'react';
-import { View, StyleSheet, Text, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { View, StyleSheet, Text, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator, RefreshControl } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
+import { ProfileCustomFields } from '../../shared/formFields/ProfileCustomFields';
+import { useProfileCustomFields } from '../../shared/formFields/useProfileCustomFields';
+
+export interface AdminProfileData {
+  fullName: string;
+  email: string;
+  institutionName: string;
+  institutionCode: string;
+  roleName: string;
+  designation: string;
+  phone?: string;
+  address?: string;
+}
+
+export interface AdminProfilePatch {
+  fullName?: string;
+  phone?: string;
+  designation?: string;
+  address?: string;
+}
 
 interface AdminProfileViewProps {
   fullName: string;
@@ -10,8 +30,13 @@ interface AdminProfileViewProps {
   institutionCode: string;
   roleName: string;
   designation: string;
+  phone?: string;
+  address?: string;
   onChangePassword: () => void;
   onLogout: () => void;
+  onSaveProfile?: (patch: AdminProfilePatch) => Promise<boolean>;
+  refreshing?: boolean;
+  onRefresh?: () => void;
 }
 
 export const AdminProfileView: React.FC<AdminProfileViewProps> = ({
@@ -21,11 +46,65 @@ export const AdminProfileView: React.FC<AdminProfileViewProps> = ({
   institutionCode,
   roleName,
   designation,
+  phone = '',
+  address = '',
   onChangePassword,
   onLogout,
+  onSaveProfile,
+  refreshing = false,
+  onRefresh,
 }) => {
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const { fields: roleFields, values: roleFieldValues, save: saveRoleFields } = useProfileCustomFields();
+  const [nameVal, setNameVal] = useState(fullName);
+  const [phoneVal, setPhoneVal] = useState(phone);
+  const [designationVal, setDesignationVal] = useState(designation);
+  const [addressVal, setAddressVal] = useState(address);
+
+  const startEdit = () => {
+    setNameVal(fullName);
+    setPhoneVal(phone);
+    setDesignationVal(designation);
+    setAddressVal(address);
+    setEditing(true);
+  };
+
+  const cancelEdit = () => setEditing(false);
+
+  const saveEdit = async () => {
+    if (!onSaveProfile) return;
+    if (nameVal.trim().length < 2) {
+      Alert.alert('Invalid Name', 'Full name must be at least 2 characters.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const ok = await onSaveProfile({
+        fullName: nameVal.trim(),
+        phone: phoneVal.trim() || undefined,
+        designation: designationVal.trim() || undefined,
+        address: addressVal.trim() || undefined,
+      });
+      if (ok) setEditing(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const renderInfoRow = (label: string, value: string, mono?: boolean) => (
+    <View style={styles.infoRow}>
+      <Text style={styles.infoLabel}>{label}</Text>
+      <Text style={[styles.infoValue, mono && styles.codeText]}>{value}</Text>
+    </View>
+  );
+
   return (
-    <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      contentContainerStyle={styles.container}
+      showsVerticalScrollIndicator={false}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1A1B1C" colors={['#1A1B1C']} />}
+    >
       {/* Profile Header */}
       <View style={styles.card}>
         <View style={styles.headerRow}>
@@ -44,24 +123,99 @@ export const AdminProfileView: React.FC<AdminProfileViewProps> = ({
         </View>
       </View>
 
+      {/* Personal Details — view or edit */}
+      <View style={styles.card}>
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionTitle}>Personal Details</Text>
+          {onSaveProfile && !editing && (
+            <TouchableOpacity style={styles.editBtn} onPress={startEdit} accessibilityLabel="Edit profile">
+              <MaterialCommunityIcons name="pencil" size={14} color="#F4C430" />
+              <Text style={styles.editBtnText}>Edit</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {editing ? (
+          <>
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Full Name *</Text>
+              <TextInput
+                style={styles.input}
+                value={nameVal}
+                onChangeText={setNameVal}
+                placeholder="Your full name"
+                placeholderTextColor="#9CA3AF"
+              />
+            </View>
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Phone</Text>
+              <TextInput
+                style={styles.input}
+                value={phoneVal}
+                onChangeText={setPhoneVal}
+                placeholder="e.g. +91 98765 43210"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="phone-pad"
+                autoCapitalize="none"
+              />
+            </View>
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Designation</Text>
+              <TextInput
+                style={styles.input}
+                value={designationVal}
+                onChangeText={setDesignationVal}
+                placeholder="e.g. Principal, HR"
+                placeholderTextColor="#9CA3AF"
+              />
+            </View>
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Address</Text>
+              <TextInput
+                style={[styles.input, { minHeight: 60, textAlignVertical: 'top' }]}
+                value={addressVal}
+                onChangeText={setAddressVal}
+                placeholder="Your address"
+                placeholderTextColor="#9CA3AF"
+                multiline
+              />
+            </View>
+            <View style={styles.editActions}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={cancelEdit} disabled={saving}>
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.saveBtn} onPress={saveEdit} disabled={saving}>
+                {saving ? (
+                  <ActivityIndicator size="small" color="#1A1B1C" />
+                ) : (
+                  <Text style={styles.saveBtnText}>Save</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </>
+        ) : (
+          <>
+            {designation ? renderInfoRow('Designation', designation) : null}
+            {phone ? renderInfoRow('Phone', phone) : null}
+            {address ? renderInfoRow('Address', address) : null}
+            {!designation && !phone && !address && (
+              <Text style={styles.emptyHint}>No personal details yet — tap Edit to add them.</Text>
+            )}
+          </>
+        )}
+      </View>
+
       {/* Institutional Scoping */}
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Role & Institution</Text>
-        {designation ? (
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Designation</Text>
-            <Text style={styles.infoValue}>{designation}</Text>
-          </View>
-        ) : null}
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Assigned Institution</Text>
-          <Text style={styles.infoValue}>{institutionName}</Text>
-        </View>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Institution Code</Text>
-          <Text style={[styles.infoValue, styles.codeText]}>{institutionCode || 'N/A'}</Text>
-        </View>
+        {renderInfoRow('Assigned Institution', institutionName)}
+        {renderInfoRow('Institution Code', institutionCode || 'N/A', true)}
       </View>
+
+      {/* Admin-configured form fields (admission officer etc.); empty for admin/dev */}
+      {roleFields.length > 0 && (
+        <ProfileCustomFields fields={roleFields} values={roleFieldValues} onSave={saveRoleFields} />
+      )}
 
       {/* Account Settings & Controls */}
       <View style={styles.card}>
@@ -97,21 +251,42 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: '#FFF4C7',
+    backgroundColor: '#1A1B1C',
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: { fontSize: 18, fontWeight: '800', color: '#F4C430' },
-  nameText: { fontSize: 18, fontWeight: '800', color: '#171717' },
+  nameText: { fontSize: 18, fontWeight: '800', color: '#1A1B1C' },
   emailText: { fontSize: 13, color: '#6B6B6B', marginTop: 2 },
   badgeRow: { marginTop: 6 },
-  roleBadge: { backgroundColor: '#FFF4C7', paddingHorizontal: 10, paddingVertical: 3, borderRadius: BorderRadius.chip, alignSelf: 'flex-start' },
+  roleBadge: { backgroundColor: '#1A1B1C', paddingHorizontal: 10, paddingVertical: 3, borderRadius: BorderRadius.chip, alignSelf: 'flex-start' },
   roleBadgeText: { fontSize: 11, fontWeight: '800', color: '#F4C430' },
-  sectionTitle: { fontSize: 15, fontWeight: '800', color: '#171717' },
+  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  sectionTitle: { fontSize: 15, fontWeight: '800', color: '#1A1B1C' },
+  editBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: BorderRadius.chip, backgroundColor: '#1A1B1C' },
+  editBtnText: { fontSize: 12, fontWeight: '800', color: '#F4C430' },
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 28 },
   infoLabel: { fontSize: 13, color: '#6B6B6B', fontWeight: '500', flexShrink: 1 },
-  infoValue: { fontSize: 13, fontWeight: '700', color: '#171717', flexShrink: 1, textAlign: 'right' },
+  infoValue: { fontSize: 13, fontWeight: '700', color: '#1A1B1C', flexShrink: 1, textAlign: 'right' },
   codeText: { color: '#F4C430' },
+  emptyHint: { fontSize: 13, color: '#9CA3AF', fontStyle: 'italic' },
+  formGroup: { gap: 6 },
+  label: { fontSize: 12, fontWeight: '700', color: '#6B6B6B' },
+  input: {
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    borderRadius: BorderRadius.input,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#1A1B1C',
+    backgroundColor: '#FDFCF9',
+  },
+  editActions: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  cancelBtn: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: BorderRadius.chip, borderWidth: 1, borderColor: '#E8E5DC' },
+  cancelBtnText: { fontSize: 14, fontWeight: '700', color: '#6B6B6B' },
+  saveBtn: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: BorderRadius.chip, backgroundColor: '#F4C430' },
+  saveBtnText: { fontSize: 14, fontWeight: '800', color: '#1A1B1C' },
   menuItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#FFFDF7' },
-  menuText: { fontSize: 14, fontWeight: '600', color: '#171717' },
+  menuText: { fontSize: 14, fontWeight: '600', color: '#1A1B1C' },
 });

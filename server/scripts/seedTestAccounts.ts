@@ -107,14 +107,14 @@ async function main() {
     if (dbConnected) try {
       await db.query(
         `INSERT INTO users
-           (id, firebase_uid, email, full_name, role, must_change_password, profile_completed, institution_id, institution_code)
+           (id, firebase_uid, email, full_name, role, must_change_password, profile_completed, institution_code, institution_name, institution_type)
          VALUES
-           ($1,  $2,           $3,    $4,        $5,   $6,                   $7,                 $8,             $9)
+           ($1,  $2,           $3,    $4,        $5,   $6,                   $7,                 $8,             $9,               'school')
          ON CONFLICT (firebase_uid) DO UPDATE
-           SET email              = EXCLUDED.email,
-               full_name          = EXCLUDED.full_name,
-               role               = EXCLUDED.role,
-               profile_completed  = EXCLUDED.profile_completed`,
+         SET email              = EXCLUDED.email,
+             full_name          = EXCLUDED.full_name,
+             role               = EXCLUDED.role,
+             profile_completed  = EXCLUDED.profile_completed`,
         [
           `usr_test_${uid.slice(0, 8)}`,
           uid,
@@ -123,8 +123,8 @@ async function main() {
           account.role,
           account.mustChangePassword,
           account.profileCompleted,
-          'SCHOOL001',   // default institution id for test accounts
-          'SCHOOL001',   // default institution code
+          'TST001',   // default institution code for test accounts
+          'Test School',
         ]
       );
       console.log(`    ↳ PostgreSQL row upserted for role: ${account.role}`);

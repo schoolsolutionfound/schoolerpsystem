@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Text, ScrollView, TextInput, TouchableOpacity, Modal, Alert, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, Text, ScrollView, TextInput, TouchableOpacity, Modal, Alert, ActivityIndicator, RefreshControl } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { BorderRadius } from '../../../constants/theme';
+import { DropdownSelect } from './DropdownSelect';
 import {
   createClassSectionApi,
   updateClassSectionApi,
@@ -16,12 +16,162 @@ import {
   fetchExamsApi,
   createExamApi,
   updateExamApi,
-  fetchExamApi,
   fetchMarksForClassApi,
   saveMarksApi,
+  createAcademicSessionApi,
+  setCurrentAcademicSessionApi,
+  deleteAcademicSessionApi,
 } from '../../../api/academics';
 import { AdminTimetableView } from './AdminTimetableView';
 import { AdminAttendanceView } from './AdminAttendanceView';
+
+const pad2 = (n: number) => String(n).padStart(2, '0');
+const parseISODate = (value: string): Date | null => {
+  if (!value) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value.trim());
+  if (m) {
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    return isNaN(d.getTime()) ? null : d;
+  }
+  const fallback = new Date(value);
+  return isNaN(fallback.getTime()) ? null : fallback;
+};
+const toISODate = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+
+const WEEK_DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+interface DateFieldProps {
+  label: string;
+  value: string;
+  onChange: (iso: string) => void;
+  placeholder?: string;
+  style?: any;
+}
+
+const DateField: React.FC<DateFieldProps> = ({ label, value, onChange, placeholder = 'YYYY-MM-DD', style }) => {
+  const [open, setOpen] = useState(false);
+  const [temp, setTemp] = useState<Date>(new Date());
+  const [viewYear, setViewYear] = useState(new Date().getFullYear());
+  const [viewMonth, setViewMonth] = useState(new Date().getMonth());
+
+  const openPicker = () => {
+    const d = parseISODate(value) || new Date();
+    setTemp(d);
+    setViewYear(d.getFullYear());
+    setViewMonth(d.getMonth());
+    setOpen(true);
+  };
+
+  const shiftMonth = (delta: number) => {
+    let m = viewMonth + delta;
+    let y = viewYear;
+    if (m < 0) { m = 11; y -= 1; }
+    if (m > 11) { m = 0; y += 1; }
+    setViewMonth(m);
+    setViewYear(y);
+  };
+
+  const firstDow = new Date(viewYear, viewMonth, 1).getDay();
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const cells: (number | null)[] = [];
+  for (let i = 0; i < firstDow; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+  const today = new Date();
+  const isSelectedDay = (d: number) =>
+    temp.getFullYear() === viewYear && temp.getMonth() === viewMonth && temp.getDate() === d;
+  const isToday = (d: number) =>
+    today.getFullYear() === viewYear && today.getMonth() === viewMonth && today.getDate() === d;
+
+  return (
+    <View style={[styles.formGroup, style]}>
+      <Text style={styles.label}>{label}</Text>
+      <TouchableOpacity style={styles.inputWithIcon} activeOpacity={0.7} onPress={openPicker}>
+        <MaterialCommunityIcons name="calendar-blank-outline" size={16} color="#9CA3AF" />
+        <Text style={[styles.inputIconText, !value && styles.inputPlaceholder]} numberOfLines={1}>
+          {value || placeholder}
+        </Text>
+        {!!value && (
+          <TouchableOpacity onPress={() => onChange('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <MaterialCommunityIcons name="close-circle" size={16} color="#9CA3AF" />
+          </TouchableOpacity>
+        )}
+      </TouchableOpacity>
+
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+        <TouchableOpacity style={styles.dateModalOverlay} activeOpacity={1} onPress={() => setOpen(false)}>
+          <View onStartShouldSetResponder={() => true} style={styles.dateModalCard}>
+            <Text style={styles.dateModalTitle}>{label.replace(' *', '')}</Text>
+            <View style={styles.dateMonthNav}>
+              <TouchableOpacity style={styles.dateMonthBtn} onPress={() => shiftMonth(-1)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <MaterialCommunityIcons name="chevron-left" size={18} color="#6B6B6B" />
+              </TouchableOpacity>
+              <Text style={styles.dateMonthLabel}>{`${MONTH_NAMES[viewMonth]} ${viewYear}`}</Text>
+              <TouchableOpacity style={styles.dateMonthBtn} onPress={() => shiftMonth(1)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <MaterialCommunityIcons name="chevron-right" size={18} color="#6B6B6B" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.dateDowRow}>
+              {WEEK_DAYS.map((d, i) => (
+                <Text key={`dow-${i}`} style={styles.dateDowText}>{d}</Text>
+              ))}
+            </View>
+
+            <View style={styles.dateGrid}>
+              {cells.map((d, i) => {
+                if (d === null) return <View key={`pad-${i}`} style={styles.dateDayCell} />;
+                const sel = isSelectedDay(d);
+                return (
+                  <TouchableOpacity
+                    key={`day-${d}`}
+                    style={[styles.dateDayCell, sel ? styles.dateDaySelected : isToday(d) ? styles.dateDayToday : null]}
+                    onPress={() => setTemp(new Date(viewYear, viewMonth, d))}
+                  >
+                    <Text style={[styles.dateDayText, sel && styles.dateDayTextSelected]}>{d}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <View style={styles.dateModalActions}>
+              {value ? (
+                <TouchableOpacity
+                  onPress={() => {
+                    onChange('');
+                    setOpen(false);
+                  }}
+                >
+                  <Text style={styles.dateClearText}>Clear</Text>
+                </TouchableOpacity>
+              ) : (
+                <View />
+              )}
+              <View style={styles.dateActionBtns}>
+                <TouchableOpacity style={styles.dateCancelBtn} onPress={() => setOpen(false)}>
+                  <Text style={styles.dateCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.dateConfirmBtn}
+                  onPress={() => {
+                    onChange(toISODate(temp));
+                    setOpen(false);
+                  }}
+                >
+                  <Text style={styles.dateConfirmText}>Done</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    </View>
+  );
+};
 
 interface AdminAcademicsViewProps {
   institutionType: string;
@@ -35,8 +185,24 @@ interface AdminAcademicsViewProps {
   teachers: any[];
   terms: any[];
   blockedDates: any[];
+  academicSessions?: any[];
   onDataChange: () => void;
+  refreshing?: boolean;
+  onRefresh?: () => void;
 }
+
+const TABS = [
+  ['sessions', 'Academic Year'],
+  ['classes', 'Classes'],
+  ['subjects', 'Subjects'],
+  ['assign', 'Assign'],
+  ['periods', 'Periods'],
+  ['timetable', 'Timetable'],
+  ['attendance', 'Attendance'],
+  ['terms', 'Terms'],
+  ['holidays', 'Holidays'],
+  ['marks', 'Marks'],
+] as const;
 
 export const AdminAcademicsView: React.FC<AdminAcademicsViewProps> = ({
   institutionType,
@@ -50,31 +216,63 @@ export const AdminAcademicsView: React.FC<AdminAcademicsViewProps> = ({
   teachers,
   terms,
   blockedDates,
+  academicSessions = [],
   onDataChange,
+  refreshing = false,
+  onRefresh,
 }) => {
-  const [tab, setTab] = useState<'classes' | 'subjects' | 'assign' | 'periods' | 'timetable' | 'attendance' | 'terms' | 'holidays' | 'marks'>('classes');
+  const [tab, setTab] = useState<'sessions' | 'classes' | 'subjects' | 'assign' | 'periods' | 'timetable' | 'attendance' | 'terms' | 'holidays' | 'marks'>('sessions');
 
   return (
     <View style={styles.container}>
-      <View style={styles.tabRow}>
-        {([
-          ['classes', 'Classes'],
-          ['subjects', 'Subjects'],
-          ['assign', 'Assign'],
-          ['periods', 'Periods'],
-          ['timetable', 'Timetable'],
-          ['attendance', 'Attendance'],
-          ['terms', 'Terms'],
-          ['holidays', 'Holidays'],
-          ['marks', 'Marks'],
-        ] as const).map(([key, label]) => (
-          <TouchableOpacity key={key} style={[styles.tabChip, tab === key && styles.tabChipActive]} onPress={() => setTab(key)}>
-            <Text style={[styles.tabChipText, tab === key && styles.tabChipTextActive]}>{label}</Text>
-          </TouchableOpacity>
-        ))}
+      <View style={styles.pageHeader}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.pageTitle}>Academics</Text>
+          <Text style={styles.pageSubtitle}>
+            {classSections.length} classes · {subjects.length} subjects · {periods.length} periods
+          </Text>
+        </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <View style={styles.statsCard}>
+        <View style={styles.statBox}>
+          <Text style={styles.statValue}>{classSections.length}</Text>
+          <Text style={styles.statLabel}>Classes</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statBox}>
+          <Text style={styles.statValue}>{subjects.length}</Text>
+          <Text style={styles.statLabel}>Subjects</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statBox}>
+          <Text style={styles.statValue}>{periods.length}</Text>
+          <Text style={styles.statLabel}>Periods</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statBox}>
+          <Text style={styles.statValue}>{subjectTeachers.length}</Text>
+          <Text style={styles.statLabel}>Assigned</Text>
+        </View>
+      </View>
+
+      <View style={styles.tabBarWrap}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabBarRow}>
+          {TABS.map(([key, label]) => (
+            <TouchableOpacity key={key} style={styles.tabItem} onPress={() => setTab(key)} activeOpacity={0.7}>
+              <Text style={[styles.tabLabel, tab === key && styles.tabLabelActive]}>{label}</Text>
+              <View style={[styles.tabUnderline, tab === key && styles.tabUnderlineActive]} />
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1A1B1C" colors={['#1A1B1C']} />}
+      >
+        {tab === 'sessions' && <SessionsTab sessions={academicSessions} onDataChange={onDataChange} />}
         {tab === 'classes' && (
           <ClassesTab
             institutionType={institutionType}
@@ -97,7 +295,15 @@ export const AdminAcademicsView: React.FC<AdminAcademicsViewProps> = ({
           />
         )}
         {tab === 'periods' && <PeriodsTab periods={periods} onDataChange={onDataChange} />}
-        {tab === 'timetable' && <AdminTimetableView classSections={classSections} />}
+        {tab === 'timetable' && (
+          <AdminTimetableView
+            classSections={classSections}
+            subjects={subjects}
+            subjectTeachers={subjectTeachers}
+            periods={periods}
+            teachers={teachers}
+          />
+        )}
         {tab === 'attendance' && <AdminAttendanceView classSections={classSections} />}
         {tab === 'terms' && <TermsTab terms={terms} onDataChange={onDataChange} />}
         {tab === 'holidays' && <HolidaysTab blockedDates={blockedDates} onDataChange={onDataChange} />}
@@ -112,6 +318,77 @@ export const AdminAcademicsView: React.FC<AdminAcademicsViewProps> = ({
     </View>
   );
 };
+
+function SectionHeader({ title, count, actionLabel, onAction }: { title: string; count?: string; actionLabel?: string; onAction?: () => void }) {
+  return (
+    <View style={styles.sectionHeader}>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+        {!!count && <Text style={styles.sectionCount}>{count}</Text>}
+      </View>
+      {!!actionLabel && !!onAction && (
+        <TouchableOpacity style={styles.addBtn} onPress={onAction} activeOpacity={0.7}>
+          <MaterialCommunityIcons name="plus" size={15} color="#1A1B1C" />
+          <Text style={styles.addBtnText}>{actionLabel}</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
+
+function MicroLabel({ children }: { children: React.ReactNode }) {
+  return <Text style={styles.microLabel}>{children}</Text>;
+}
+
+function IconAction({ name, color = '#1A1B1C', onPress }: { name: string; color?: string; onPress: () => void }) {
+  return (
+    <TouchableOpacity style={styles.iconBtn} onPress={onPress} activeOpacity={0.6} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+      <MaterialCommunityIcons name={name as any} size={17} color={color} />
+    </TouchableOpacity>
+  );
+}
+
+function FormGroup({ label, children }: any) {
+  return (
+    <View style={styles.formGroup}>
+      <Text style={styles.label}>{label}</Text>
+      {children}
+    </View>
+  );
+}
+
+function EmptyState({ icon, title, sub }: any) {
+  return (
+    <View style={styles.emptyCard}>
+      <View style={styles.emptyIconTile}>
+        <MaterialCommunityIcons name={icon} size={30} color="#F4C430" />
+      </View>
+      <Text style={styles.emptyTitle}>{title}</Text>
+      <Text style={styles.emptySub}>{sub}</Text>
+    </View>
+  );
+}
+
+function ModalShell({ visible, title, onClose, children, footer }: any) {
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>{title}</Text>
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <MaterialCommunityIcons name="close" size={22} color="#6B6B6B" />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={{ maxHeight: 460 }} showsVerticalScrollIndicator={false}>
+            {children}
+          </ScrollView>
+          <View style={styles.modalFooter}>{footer}</View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
 
 function ClassesTab({ institutionType, departments, academicYears, sections, classSections, teachers, onDataChange }: any) {
   const [modalOpen, setModalOpen] = useState(false);
@@ -219,149 +496,224 @@ function ClassesTab({ institutionType, departments, academicYears, sections, cla
   };
 
   const teacherName = (id: string) => teachers.find((t: any) => t.id === id)?.fullName || 'Unassigned';
+  const teacherOptions = [{ key: '', label: 'Unassigned' }, ...teachers.map((t: any) => ({ key: t.id, label: t.fullName }))];
+  const isSchool = institutionType !== 'college';
+
+  const classFields = (isEdit: boolean) => {
+    const deptVal = isEdit ? editDepartment : department;
+    const setDeptVal = isEdit ? setEditDepartment : setDepartment;
+    const yearVal = isEdit ? editAcademicYear : academicYear;
+    const setYearVal = isEdit ? setEditAcademicYear : setAcademicYear;
+    const secVal = isEdit ? editSection : section;
+    const setSecVal = isEdit ? setEditSection : setSection;
+    return (
+      <>
+        {isSchool ? (
+          <>
+            {departments.length > 0 ? (
+              <DropdownSelect
+                variant="inline"
+                label="Stream"
+                value={deptVal}
+                onChange={setDeptVal}
+                placeholder="Select stream"
+                options={departments}
+                menuTitle="Stream"
+              />
+            ) : (
+              <FormGroup label="Stream">
+                <TextInput style={styles.input} placeholder="e.g. Science" value={deptVal} onChangeText={setDeptVal} placeholderTextColor="#9CA3AF" />
+              </FormGroup>
+            )}
+            {academicYears.length > 0 ? (
+              <DropdownSelect
+                variant="inline"
+                label="Class"
+                value={yearVal}
+                onChange={setYearVal}
+                placeholder="Select class"
+                options={academicYears}
+                menuTitle="Class"
+              />
+            ) : (
+              <FormGroup label="Class">
+                <TextInput style={styles.input} placeholder="e.g. Class 10" value={yearVal} onChangeText={setYearVal} placeholderTextColor="#9CA3AF" />
+              </FormGroup>
+            )}
+            {sections.length > 0 ? (
+              <DropdownSelect
+                variant="inline"
+                label="Section"
+                value={secVal}
+                onChange={setSecVal}
+                placeholder="Select section"
+                options={sections}
+                menuTitle="Section"
+              />
+            ) : (
+              <FormGroup label="Section">
+                <TextInput style={styles.input} placeholder="e.g. A" value={secVal} onChangeText={setSecVal} placeholderTextColor="#9CA3AF" />
+              </FormGroup>
+            )}
+          </>
+        ) : (
+          <>
+            {departments.length > 0 ? (
+              <DropdownSelect
+                variant="inline"
+                label="Department"
+                value={deptVal}
+                onChange={setDeptVal}
+                placeholder="Select department"
+                options={departments}
+                menuTitle="Department"
+              />
+            ) : (
+              <FormGroup label="Department">
+                <TextInput style={styles.input} placeholder="Department" value={deptVal} onChangeText={setDeptVal} placeholderTextColor="#9CA3AF" />
+              </FormGroup>
+            )}
+            {academicYears.length > 0 ? (
+              <DropdownSelect
+                variant="inline"
+                label="Academic Year"
+                value={yearVal}
+                onChange={setYearVal}
+                placeholder="Select year"
+                options={academicYears}
+                menuTitle="Academic Year"
+              />
+            ) : (
+              <FormGroup label="Academic Year">
+                <TextInput style={styles.input} placeholder="e.g. 3rd Year" value={yearVal} onChangeText={setYearVal} placeholderTextColor="#9CA3AF" />
+              </FormGroup>
+            )}
+            {sections.length > 0 ? (
+              <DropdownSelect
+                variant="inline"
+                label="Section"
+                value={secVal}
+                onChange={setSecVal}
+                placeholder="Select section"
+                options={sections}
+                menuTitle="Section"
+              />
+            ) : (
+              <FormGroup label="Section">
+                <TextInput style={styles.input} placeholder="e.g. Section A" value={secVal} onChangeText={setSecVal} placeholderTextColor="#9CA3AF" />
+              </FormGroup>
+            )}
+          </>
+        )}
+      </>
+    );
+  };
 
   return (
     <View>
-      <View style={styles.headerBar}>
-        <Text style={styles.sectionTitle}>{institutionType === 'college' ? 'Class Sections' : 'Classes & Sections'}</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={() => setModalOpen(true)}>
-          <Text style={styles.addBtnText}>+ Add</Text>
-        </TouchableOpacity>
-      </View>
+      <SectionHeader
+        title={isSchool ? 'Classes & Sections' : 'Class Sections'}
+        count={`${classSections.length} total`}
+        actionLabel="Add"
+        onAction={() => setModalOpen(true)}
+      />
 
       {classSections.length === 0 ? (
         <EmptyState icon="school-outline" title="No classes yet" sub="Create classes/sections and assign a class teacher." />
       ) : (
         classSections.map((cs: any) => (
           <View key={cs.id} style={styles.card}>
-            <View style={styles.cardHeader}>
-              <View style={styles.cardTitleRow}>
-                <MaterialCommunityIcons name="school-outline" size={18} color="#F4C430" />
-                <Text style={styles.cardTitle}>{cs.name}</Text>
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                <TouchableOpacity onPress={() => openEdit(cs)}>
-                  <MaterialCommunityIcons name="pencil-outline" size={18} color="#1A1B1C" />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => handleDelete(cs.id)}>
-                  <MaterialCommunityIcons name="trash-can-outline" size={18} color="#EF4444" />
-                </TouchableOpacity>
-              </View>
+            <View style={styles.iconTile}>
+              <MaterialCommunityIcons name="school-outline" size={20} color="#F4C430" />
             </View>
-            {institutionType === 'college' ? (
-              <Text style={styles.cardSub}>{cs.department} · {cs.academicYear} · {cs.section}</Text>
-            ) : (
-              <Text style={styles.cardSub}>{cs.department || 'General'} · {cs.academicYear || ''} · Section {cs.section}</Text>
-            )}
-            <View style={styles.badgeRow}>
-              <Text style={styles.badge}>Class Teacher: {teacherName(cs.classTeacherId)}</Text>
+            <View style={styles.cardBody}>
+              <Text style={styles.cardTitle}>{cs.name}</Text>
+              <Text style={styles.cardMeta}>
+                {isSchool
+                  ? [cs.department || 'General', cs.academicYear, cs.section ? `Section ${cs.section}` : ''].filter(Boolean).join(' · ')
+                  : [cs.department, cs.academicYear, cs.section].filter(Boolean).join(' · ')}
+              </Text>
+              <Text style={styles.cardMeta}>Class teacher · {teacherName(cs.classTeacherId)}</Text>
+            </View>
+            <View style={styles.cardActions}>
+              <IconAction name="pencil-outline" onPress={() => openEdit(cs)} />
+              <IconAction name="trash-can-outline" color="#EF4444" onPress={() => handleDelete(cs.id)} />
             </View>
           </View>
         ))
       )}
 
-      <Modal visible={modalOpen} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add Class/Section</Text>
-              <TouchableOpacity onPress={() => setModalOpen(false)}><MaterialCommunityIcons name="close" size={22} color="#6B6B6B" /></TouchableOpacity>
-            </View>
-            <ScrollView style={{ maxHeight: 420 }}>
-              <FormGroup label="Name *">
-                <TextInput style={styles.input} placeholder={institutionType === 'college' ? 'e.g. CSE 1st Year A' : 'e.g. Science Class 10 A'} value={name} onChangeText={setName} />
-              </FormGroup>
-              {institutionType === 'college' ? (
-                <>
-                  <FormGroup label="Department"><TextInput style={styles.input} placeholder="Department" value={department} onChangeText={setDepartment} /></FormGroup>
-                  <FormGroup label="Academic Year"><TextInput style={styles.input} placeholder="e.g. 3rd Year" value={academicYear} onChangeText={setAcademicYear} /></FormGroup>
-                  <FormGroup label="Section"><TextInput style={styles.input} placeholder="e.g. Section A" value={section} onChangeText={setSection} /></FormGroup>
-                </>
-              ) : (
-                <>
-                  <FormGroup label="Department / Stream"><TextInput style={styles.input} placeholder="e.g. Science" value={department} onChangeText={setDepartment} /></FormGroup>
-                  <FormGroup label="Class"><TextInput style={styles.input} placeholder="e.g. Class 10" value={academicYear} onChangeText={setAcademicYear} /></FormGroup>
-                  <FormGroup label="Section"><TextInput style={styles.input} placeholder="e.g. A" value={section} onChangeText={setSection} /></FormGroup>
-                </>
-              )}
-              <FormGroup label="Class Teacher">
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                  {teachers.map((t: any) => (
-                    <TouchableOpacity key={t.id} style={[styles.chip, classTeacherId === t.id && styles.chipActive]} onPress={() => setClassTeacherId(t.id)}>
-                      <Text style={[styles.chipText, classTeacherId === t.id && styles.chipTextActive]}>{t.fullName}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </FormGroup>
-            </ScrollView>
-            <View style={styles.modalFooter}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setModalOpen(false)}><Text style={styles.cancelText}>Cancel</Text></TouchableOpacity>
-              <TouchableOpacity style={styles.submitBtn} onPress={handleCreate} disabled={submitting}><Text style={styles.submitText}>{submitting ? 'Creating...' : 'Create'}</Text></TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <ModalShell
+        visible={modalOpen}
+        title="Add Class / Section"
+        onClose={() => setModalOpen(false)}
+        footer={
+          <>
+            <TouchableOpacity style={styles.cancelBtn} onPress={() => setModalOpen(false)}><Text style={styles.cancelText}>Cancel</Text></TouchableOpacity>
+            <TouchableOpacity style={styles.submitBtn} onPress={handleCreate} disabled={submitting}>
+              <Text style={styles.submitText}>{submitting ? 'Creating...' : 'Create'}</Text>
+            </TouchableOpacity>
+          </>
+        }
+      >
+        <FormGroup label="Name *">
+          <TextInput
+            style={styles.input}
+            placeholder={isSchool ? 'e.g. Class 10 A' : 'e.g. CSE 1st Year A'}
+            value={name}
+            onChangeText={setName}
+            placeholderTextColor="#9CA3AF"
+          />
+        </FormGroup>
+        {classFields(false)}
+        <DropdownSelect
+          variant="inline"
+          label="Class Teacher"
+          value={classTeacherId}
+          onChange={setClassTeacherId}
+          placeholder="Unassigned"
+          options={teacherOptions}
+          menuTitle="Class Teacher"
+        />
+      </ModalShell>
 
-      {/* Edit Class Modal */}
-      <Modal visible={!!editTarget} animationType="slide" transparent onRequestClose={closeEdit}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Edit Class / Section</Text>
-              <TouchableOpacity onPress={closeEdit}><MaterialCommunityIcons name="close" size={22} color="#6B6B6B" /></TouchableOpacity>
-            </View>
-            <ScrollView style={{ maxHeight: 420 }}>
-              <FormGroup label="Name *">
-                <TextInput style={styles.input} placeholder="Class / section name" value={editName} onChangeText={setEditName} />
-              </FormGroup>
-              {institutionType === 'college' ? (
-                <>
-                  <FormGroup label="Department"><TextInput style={styles.input} placeholder="Department" value={editDepartment} onChangeText={setEditDepartment} /></FormGroup>
-                  <FormGroup label="Academic Year"><TextInput style={styles.input} placeholder="e.g. 3rd Year" value={editAcademicYear} onChangeText={setEditAcademicYear} /></FormGroup>
-                  <FormGroup label="Section"><TextInput style={styles.input} placeholder="e.g. Section A" value={editSection} onChangeText={setEditSection} /></FormGroup>
-                </>
-              ) : (
-                <>
-                  <FormGroup label="Department / Stream"><TextInput style={styles.input} placeholder="e.g. Science" value={editDepartment} onChangeText={setEditDepartment} /></FormGroup>
-                  <FormGroup label="Class"><TextInput style={styles.input} placeholder="e.g. Class 10" value={editAcademicYear} onChangeText={setEditAcademicYear} /></FormGroup>
-                  <FormGroup label="Section"><TextInput style={styles.input} placeholder="e.g. A" value={editSection} onChangeText={setEditSection} /></FormGroup>
-                </>
-              )}
-              <FormGroup label="Class Teacher">
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <Text style={styles.cardSub}>
-                    {editClassTeacherId
-                      ? `Current: ${teacherName(editClassTeacherId)}`
-                      : 'Currently unassigned'}
-                  </Text>
-                  {editClassTeacherId ? (
-                    <TouchableOpacity onPress={handleUnassignTeacher}>
-                      <Text style={{ color: '#DC3545', fontSize: 12, fontWeight: '700' }}>Unassign</Text>
-                    </TouchableOpacity>
-                  ) : null}
-                </View>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                  {teachers.map((t: any) => (
-                    <TouchableOpacity
-                      key={t.id}
-                      style={[styles.chip, editClassTeacherId === t.id && styles.chipActive]}
-                      onPress={() => setEditClassTeacherId(t.id)}
-                    >
-                      <Text style={[styles.chipText, editClassTeacherId === t.id && styles.chipTextActive]}>{t.fullName}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </FormGroup>
-            </ScrollView>
-            <View style={styles.modalFooter}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={closeEdit}><Text style={styles.cancelText}>Cancel</Text></TouchableOpacity>
-              <TouchableOpacity style={styles.submitBtn} onPress={handleSaveEdit} disabled={editSubmitting}>
-                <Text style={styles.submitText}>{editSubmitting ? 'Saving...' : 'Save Changes'}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+      <ModalShell
+        visible={!!editTarget}
+        title="Edit Class / Section"
+        onClose={closeEdit}
+        footer={
+          <>
+            <TouchableOpacity style={styles.cancelBtn} onPress={closeEdit}><Text style={styles.cancelText}>Cancel</Text></TouchableOpacity>
+            <TouchableOpacity style={styles.submitBtn} onPress={handleSaveEdit} disabled={editSubmitting}>
+              <Text style={styles.submitText}>{editSubmitting ? 'Saving...' : 'Save Changes'}</Text>
+            </TouchableOpacity>
+          </>
+        }
+      >
+        <FormGroup label="Name *">
+          <TextInput style={styles.input} placeholder="Class / section name" value={editName} onChangeText={setEditName} placeholderTextColor="#9CA3AF" />
+        </FormGroup>
+        {classFields(true)}
+        <View style={styles.inlineRow}>
+          <Text style={styles.cardMeta}>
+            {editClassTeacherId ? `Current · ${teacherName(editClassTeacherId)}` : 'Currently unassigned'}
+          </Text>
+          {editClassTeacherId ? (
+            <TouchableOpacity onPress={handleUnassignTeacher} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={styles.unassignText}>Unassign</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
-      </Modal>
+        <DropdownSelect
+          variant="inline"
+          label="Class Teacher"
+          value={editClassTeacherId}
+          onChange={setEditClassTeacherId}
+          placeholder="Unassigned"
+          options={teacherOptions}
+          menuTitle="Class Teacher"
+        />
+      </ModalShell>
     </View>
   );
 }
@@ -390,40 +742,43 @@ function SubjectsTab({ subjects, onDataChange }: any) {
 
   return (
     <View>
-      <View style={styles.headerBar}>
-        <Text style={styles.sectionTitle}>Subjects</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={() => setModalOpen(true)}><Text style={styles.addBtnText}>+ Add</Text></TouchableOpacity>
-      </View>
+      <SectionHeader title="Subjects" count={`${subjects.length} total`} actionLabel="Add" onAction={() => setModalOpen(true)} />
       {subjects.length === 0 ? (
         <EmptyState icon="book-open-variant" title="No subjects yet" sub="Create subjects like Mathematics, Science, DS, etc." />
       ) : (
         subjects.map((s: any) => (
           <View key={s.id} style={styles.card}>
-            <View style={styles.cardTitleRow}>
-              <MaterialCommunityIcons name="book-open-variant" size={18} color="#F4C430" />
-              <Text style={styles.cardTitle}>{s.name}</Text>
+            <View style={styles.iconTile}>
+              <MaterialCommunityIcons name="book-open-variant" size={20} color="#F4C430" />
             </View>
-            {s.code ? <Text style={styles.cardSub}>Code: {s.code}</Text> : null}
+            <View style={styles.cardBody}>
+              <Text style={styles.cardTitle}>{s.name}</Text>
+              {s.code ? <Text style={styles.cardMeta}>Code · {s.code}</Text> : null}
+            </View>
           </View>
         ))
       )}
 
-      <Modal visible={modalOpen} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add Subject</Text>
-              <TouchableOpacity onPress={() => setModalOpen(false)}><MaterialCommunityIcons name="close" size={22} color="#6B6B6B" /></TouchableOpacity>
-            </View>
-            <FormGroup label="Subject Name *"><TextInput style={styles.input} placeholder="e.g. Mathematics" value={name} onChangeText={setName} /></FormGroup>
-            <FormGroup label="Code (optional)"><TextInput style={styles.input} placeholder="e.g. MAT101" value={code} onChangeText={setCode} /></FormGroup>
-            <View style={styles.modalFooter}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setModalOpen(false)}><Text style={styles.cancelText}>Cancel</Text></TouchableOpacity>
-              <TouchableOpacity style={styles.submitBtn} onPress={handleCreate} disabled={submitting}><Text style={styles.submitText}>{submitting ? 'Creating...' : 'Create'}</Text></TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <ModalShell
+        visible={modalOpen}
+        title="Add Subject"
+        onClose={() => setModalOpen(false)}
+        footer={
+          <>
+            <TouchableOpacity style={styles.cancelBtn} onPress={() => setModalOpen(false)}><Text style={styles.cancelText}>Cancel</Text></TouchableOpacity>
+            <TouchableOpacity style={styles.submitBtn} onPress={handleCreate} disabled={submitting}>
+              <Text style={styles.submitText}>{submitting ? 'Creating...' : 'Create'}</Text>
+            </TouchableOpacity>
+          </>
+        }
+      >
+        <FormGroup label="Subject Name *">
+          <TextInput style={styles.input} placeholder="e.g. Mathematics" value={name} onChangeText={setName} placeholderTextColor="#9CA3AF" />
+        </FormGroup>
+        <FormGroup label="Code (optional)">
+          <TextInput style={styles.input} placeholder="e.g. MAT101" value={code} onChangeText={setCode} autoCapitalize="characters" placeholderTextColor="#9CA3AF" />
+        </FormGroup>
+      </ModalShell>
     </View>
   );
 }
@@ -484,7 +839,7 @@ function AssignTab({ classSections, subjects, teachers, subjectTeachers, onDataC
     }
   };
 
-  const label = (list: any[], id: string, key: string) => list.find((x: any) => x.id === id)?.[key] || '';
+  const label = (rows: any[], id: string, key: string) => rows.find((x: any) => x.id === id)?.[key] || '';
 
   // ---- Bulk assign (one teacher + one subject, many class/sections) ----
   const [bulkTeacherId, setBulkTeacherId] = useState(teachers[0]?.id || '');
@@ -538,7 +893,6 @@ function AssignTab({ classSections, subjects, teachers, subjectTeachers, onDataC
         await createSubjectTeacherApi({ classSectionId: csId, subjectId: bulkSubjectId, teacherId: bulkTeacherId });
         done++;
       } catch (err: any) {
-        // 409 = already assigned (race / pre-existing). Treat as skipped.
         if (err && (err.status === 409 || /SUBJECT_TEACHER_EXISTS|already/i.test(String(err.message)))) {
           skipped++;
         } else {
@@ -560,157 +914,115 @@ function AssignTab({ classSections, subjects, teachers, subjectTeachers, onDataC
   const bulkSubjectName = label(subjects, bulkSubjectId, 'name') || '—';
   const bulkTeacherName = label(teachers, bulkTeacherId, 'fullName') || '—';
 
+  const classOptions = classSections.map((c: any) => ({ key: c.id, label: c.name }));
+  const subjectOptions = subjects.map((s: any) => ({ key: s.id, label: s.name }));
+  const teacherOptions = teachers.map((t: any) => ({ key: t.id, label: t.fullName }));
+
   return (
     <View>
-      <Text style={styles.sectionTitle}>Assign Subject Teachers</Text>
+      <SectionHeader title="Subject Teachers" count={`${subjectTeachers.length} assignments`} />
       <Text style={styles.hintText}>Each subject per class/section gets one teacher.</Text>
 
-      <FormGroup label="Class / Section">
-        <View style={styles.chipWrap}>
-          {classSections.map((c: any) => (
-            <TouchableOpacity key={c.id} style={[styles.chip, classSectionId === c.id && styles.chipActive]} onPress={() => setClassSectionId(c.id)}>
-              <Text style={[styles.chipText, classSectionId === c.id && styles.chipTextActive]}>{c.name}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </FormGroup>
+      <DropdownSelect
+        label="Class / Section"
+        value={classSectionId}
+        onChange={setClassSectionId}
+        placeholder="Select class"
+        options={classOptions}
+        menuTitle="Class / Section"
+        leadingIcon="school-outline"
+      />
 
       {cls ? (
-        <>
-          <FormGroup label="Subject">
-            <View style={styles.chipWrap}>
-              {subjects.map((s: any) => (
-                <TouchableOpacity key={s.id} style={[styles.chip, subjectId === s.id && styles.chipActive]} onPress={() => setSubjectId(s.id)}>
-                  <Text style={[styles.chipText, subjectId === s.id && styles.chipTextActive]}>{s.name}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </FormGroup>
+        <View style={{ marginTop: 12, gap: 10 }}>
+          <DropdownSelect
+            label="Subject"
+            value={subjectId}
+            onChange={setSubjectId}
+            placeholder="Select subject"
+            options={subjectOptions}
+            menuTitle="Subject"
+            leadingIcon="book-open-variant"
+          />
+          <DropdownSelect
+            label="Teacher"
+            value={teacherId}
+            onChange={setTeacherId}
+            placeholder="Select teacher"
+            options={teacherOptions}
+            menuTitle="Teacher"
+            leadingIcon="account-tie-outline"
+          />
 
-          <FormGroup label="Teacher">
-            <View style={styles.chipWrap}>
-              {teachers.map((t: any) => (
-                <TouchableOpacity key={t.id} style={[styles.chip, teacherId === t.id && styles.chipActive]} onPress={() => setTeacherId(t.id)}>
-                  <Text style={[styles.chipText, teacherId === t.id && styles.chipTextActive]}>{t.fullName}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </FormGroup>
-
-          <TouchableOpacity style={styles.fullBtn} onPress={handleAssign} disabled={submitting}>
-            <Text style={styles.submitText}>{submitting ? 'Assigning...' : 'Assign Subject Teacher'}</Text>
+          <TouchableOpacity style={styles.fullBtn} onPress={handleAssign} disabled={submitting} activeOpacity={0.8}>
+            <Text style={styles.fullBtnText}>{submitting ? 'Assigning...' : 'Assign Subject Teacher'}</Text>
           </TouchableOpacity>
 
-          <Text style={[styles.sectionTitle, { marginTop: 18 }]}>Current Assignments for {cls.name}</Text>
+          <MicroLabel>{`Current assignments · ${cls.name} · ${list.length}`}</MicroLabel>
           {list.length === 0 ? (
             <EmptyState icon="account-search" title="No assignments yet" sub="Assign subjects above." />
           ) : (
             list.map((st: any) => (
               <View key={st.id} style={styles.card}>
-                <View style={styles.cardTitleRow}>
-                  <MaterialCommunityIcons name="account-tie" size={18} color="#F4C430" />
-                  <Text style={styles.cardTitle}>{label(subjects, st.subjectId, 'name')}</Text>
+                <View style={styles.iconTile}>
+                  <MaterialCommunityIcons name="account-tie-outline" size={20} color="#F4C430" />
                 </View>
-                <Text style={styles.cardSub}>
-                  Current: {label(teachers, st.teacherId, 'fullName') || 'Unassigned'}
-                </Text>
-
-                {reassignId === st.id ? (
-                  <View style={{ marginTop: 10, gap: 8 }}>
-                    <Text style={[styles.cardSub, { fontWeight: '700' }]}>Pick a new teacher</Text>
-                    <View style={styles.chipWrap}>
-                      {teachers.map((t: any) => (
-                        <TouchableOpacity
-                          key={t.id}
-                          style={[styles.chip, reassignTeacherId === t.id && styles.chipActive]}
-                          onPress={() => setReassignTeacherId(t.id)}
-                        >
-                          <Text style={[styles.chipText, reassignTeacherId === t.id && styles.chipTextActive]}>{t.fullName}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                    <View style={styles.modalFooter}>
-                      <TouchableOpacity style={styles.cancelBtn} onPress={cancelReassign}>
-                        <Text style={styles.cancelText}>Cancel</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.submitBtn}
-                        onPress={handleSaveReassign}
-                        disabled={reassignSubmitting || reassignTeacherId === st.teacherId}
-                      >
-                        <Text style={styles.submitText}>
-                          {reassignSubmitting ? 'Saving...' : 'Save'}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                ) : (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 8 }}>
-                    <TouchableOpacity onPress={() => openReassign(st)}>
-                      <MaterialCommunityIcons name="account-switch-outline" size={18} color="#1A1B1C" />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => handleRemove(st.id)}>
-                      <MaterialCommunityIcons name="trash-can-outline" size={18} color="#EF4444" />
-                    </TouchableOpacity>
-                  </View>
-                )}
+                <View style={styles.cardBody}>
+                  <Text style={styles.cardTitle}>{label(subjects, st.subjectId, 'name')}</Text>
+                  <Text style={styles.cardMeta}>Teacher · {label(teachers, st.teacherId, 'fullName') || 'Unassigned'}</Text>
+                </View>
+                <View style={styles.cardActions}>
+                  <IconAction name="account-switch-outline" onPress={() => openReassign(st)} />
+                  <IconAction name="trash-can-outline" color="#EF4444" onPress={() => handleRemove(st.id)} />
+                </View>
               </View>
             ))
           )}
-        </>
+        </View>
       ) : (
         <EmptyState icon="school-outline" title="No classes" sub="Create a class first." />
       )}
 
       {/* Bulk assign — one teacher + one subject, many class/sections */}
-      <View style={[styles.card, { marginTop: 22 }]}>
-        <View style={styles.cardHeader}>
-          <MaterialCommunityIcons name="account-multiple-plus-outline" size={18} color="#F4C430" />
-          <Text style={styles.sectionTitle}>Bulk Assign</Text>
+      <View style={styles.bulkCard}>
+        <View style={styles.bulkHeader}>
+          <View style={styles.iconTile}>
+            <MaterialCommunityIcons name="account-multiple-plus-outline" size={20} color="#F4C430" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.cardTitle}>Bulk Assign</Text>
+            <Text style={styles.cardMeta}>One teacher · one subject · many classes</Text>
+          </View>
         </View>
-        <Text style={styles.hintText}>
-          Assign one teacher to one subject across many class/sections in one go. Already-assigned
-          ones are skipped automatically.
-        </Text>
 
-        <FormGroup label="Subject">
-          <View style={styles.chipWrap}>
-            {subjects.map((s: any) => (
-              <TouchableOpacity
-                key={s.id}
-                style={[styles.chip, bulkSubjectId === s.id && styles.chipActive]}
-                onPress={() => setBulkSubjectId(s.id)}
-              >
-                <Text style={[styles.chipText, bulkSubjectId === s.id && styles.chipTextActive]}>{s.name}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </FormGroup>
+        <DropdownSelect
+          label="Subject"
+          value={bulkSubjectId}
+          onChange={setBulkSubjectId}
+          placeholder="Select subject"
+          options={subjectOptions}
+          menuTitle="Subject"
+        />
+        <View style={{ height: 10 }} />
+        <DropdownSelect
+          label="Teacher"
+          value={bulkTeacherId}
+          onChange={setBulkTeacherId}
+          placeholder="Select teacher"
+          options={teacherOptions}
+          menuTitle="Teacher"
+        />
 
-        <FormGroup label="Teacher">
-          <View style={styles.chipWrap}>
-            {teachers.map((t: any) => (
-              <TouchableOpacity
-                key={t.id}
-                style={[styles.chip, bulkTeacherId === t.id && styles.chipActive]}
-                onPress={() => setBulkTeacherId(t.id)}
-              >
-                <Text style={[styles.chipText, bulkTeacherId === t.id && styles.chipTextActive]}>{t.fullName}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </FormGroup>
-
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6, marginBottom: 8 }}>
-          <Text style={styles.cardSub}>
+        <View style={styles.bulkMetaRow}>
+          <Text style={styles.cardMeta}>
             {bulkSelected.size} selected · {bulkExistingSet.size} already assigned
           </Text>
-          <View style={{ flexDirection: 'row', gap: 12 }}>
-            <TouchableOpacity onPress={selectAllVisible}>
-              <Text style={{ color: '#1A1B1C', fontSize: 12, fontWeight: '700' }}>Select all available</Text>
+          <View style={styles.bulkTextActions}>
+            <TouchableOpacity onPress={selectAllVisible} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+              <Text style={styles.bulkActionText}>Select all available</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={clearBulkSelection}>
-              <Text style={{ color: '#6B6B6B', fontSize: 12, fontWeight: '700' }}>Clear</Text>
+            <TouchableOpacity onPress={clearBulkSelection} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+              <Text style={[styles.bulkActionText, { color: '#6B6B6B' }]}>Clear</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -724,45 +1036,28 @@ function AssignTab({ classSections, subjects, teachers, subjectTeachers, onDataC
                 key={c.id}
                 onPress={() => !isExisting && toggleBulkClass(c.id)}
                 activeOpacity={isExisting ? 1 : 0.7}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 10,
-                  paddingVertical: 8,
-                  paddingHorizontal: 10,
-                  borderRadius: 8,
-                  borderWidth: 1,
-                  borderColor: isSelected ? '#F4C430' : '#E8E5DC',
-                  backgroundColor: isSelected ? '#FFF4C7' : '#FFFFFF',
-                  opacity: isExisting ? 0.55 : 1,
-                }}
+                style={[styles.checkboxRow, isSelected && styles.checkboxRowActive, isExisting && { opacity: 0.6 }]}
               >
                 <MaterialCommunityIcons
                   name={isExisting ? 'check-circle' : isSelected ? 'checkbox-marked' : 'checkbox-blank-outline'}
                   size={18}
                   color={isExisting ? '#16A34A' : isSelected ? '#F4C430' : '#9A9A9A'}
                 />
-                <Text style={{ flex: 1, fontSize: 13, fontWeight: '700', color: '#1A1B1C' }}>
-                  {c.name}
-                </Text>
-                {isExisting ? (
-                  <Text style={{ fontSize: 10, color: '#16A34A', fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                    Already
-                  </Text>
-                ) : null}
+                <Text style={styles.checkboxLabel}>{c.name}</Text>
+                {isExisting ? <Text style={styles.checkboxMeta}>Assigned</Text> : null}
               </TouchableOpacity>
             );
           })}
         </View>
 
-        <View style={styles.modalFooter}>
-          <Text style={[styles.cardSub, { flex: 1 }]}>
+        <View style={styles.bulkFooter}>
+          <Text style={[styles.cardMeta, { flex: 1 }]}>
             {bulkSubmitting && bulkProgress
               ? `Working… ${bulkProgress.done + bulkProgress.skipped + bulkProgress.failed}/${bulkSelected.size}`
-              : `Will assign ${bulkSubjectName} → ${bulkTeacherName}`}
+              : `${bulkSubjectName} → ${bulkTeacherName}`}
           </Text>
           <TouchableOpacity
-            style={styles.submitBtn}
+            style={[styles.submitBtn, bulkSelected.size === 0 && { opacity: 0.5 }]}
             onPress={handleBulkAssign}
             disabled={bulkSubmitting || bulkSelected.size === 0}
           >
@@ -772,6 +1067,34 @@ function AssignTab({ classSections, subjects, teachers, subjectTeachers, onDataC
           </TouchableOpacity>
         </View>
       </View>
+
+      <ModalShell
+        visible={!!reassignId}
+        title="Reassign Teacher"
+        onClose={cancelReassign}
+        footer={
+          <>
+            <TouchableOpacity style={styles.cancelBtn} onPress={cancelReassign}><Text style={styles.cancelText}>Cancel</Text></TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.submitBtn, (reassignSubmitting || reassignTeacherId === '') && { opacity: 0.5 }]}
+              onPress={handleSaveReassign}
+              disabled={reassignSubmitting || !reassignTeacherId}
+            >
+              <Text style={styles.submitText}>{reassignSubmitting ? 'Saving...' : 'Save'}</Text>
+            </TouchableOpacity>
+          </>
+        }
+      >
+        <DropdownSelect
+          variant="inline"
+          label="Teacher"
+          value={reassignTeacherId}
+          onChange={setReassignTeacherId}
+          placeholder="Select teacher"
+          options={teacherOptions}
+          menuTitle="Pick a new teacher"
+        />
+      </ModalShell>
     </View>
   );
 }
@@ -801,48 +1124,186 @@ function PeriodsTab({ periods, onDataChange }: any) {
 
   return (
     <View>
-      <View style={styles.headerBar}>
-        <Text style={styles.sectionTitle}>Period Slots</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={() => setModalOpen(true)}><Text style={styles.addBtnText}>+ Add</Text></TouchableOpacity>
-      </View>
+      <SectionHeader title="Period Slots" count={`${periods.length} slots`} actionLabel="Add" onAction={() => setModalOpen(true)} />
       <Text style={styles.hintText}>Period timing slots used by the timetable (e.g. 6–8 per day).</Text>
       {periods.length === 0 ? (
         <EmptyState icon="clock-outline" title="No periods yet" sub="Define period time slots first." />
       ) : (
         periods.map((p: any) => (
           <View key={p.id} style={styles.card}>
-            <View style={styles.cardTitleRow}>
-              <MaterialCommunityIcons name="clock-outline" size={18} color="#F4C430" />
+            <View style={styles.iconTile}>
+              <MaterialCommunityIcons name="clock-outline" size={20} color="#F4C430" />
+            </View>
+            <View style={styles.cardBody}>
               <Text style={styles.cardTitle}>{p.label}</Text>
-              <Text style={styles.timeText}>{p.startTime} – {p.endTime}</Text>
+              <Text style={styles.cardMeta}>{p.startTime} – {p.endTime}</Text>
             </View>
           </View>
         ))
       )}
 
-      <Modal visible={modalOpen} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add Period</Text>
-              <TouchableOpacity onPress={() => setModalOpen(false)}><MaterialCommunityIcons name="close" size={22} color="#6B6B6B" /></TouchableOpacity>
-            </View>
-            <FormGroup label="Label *"><TextInput style={styles.input} placeholder="e.g. Period 1" value={label} onChangeText={setLabel} /></FormGroup>
-            <FormGroup label="Start Time * (24h)"><TextInput style={styles.input} placeholder="09:00" value={startTime} onChangeText={setStartTime} /></FormGroup>
-            <FormGroup label="End Time * (24h)"><TextInput style={styles.input} placeholder="09:50" value={endTime} onChangeText={setEndTime} /></FormGroup>
-            <FormGroup label="Order"><TextInput style={styles.input} placeholder="1" value={sortOrder} onChangeText={setSortOrder} keyboardType="numeric" /></FormGroup>
-            <View style={styles.modalFooter}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setModalOpen(false)}><Text style={styles.cancelText}>Cancel</Text></TouchableOpacity>
-              <TouchableOpacity style={styles.submitBtn} onPress={handleCreate} disabled={submitting}><Text style={styles.submitText}>{submitting ? 'Saving...' : 'Save'}</Text></TouchableOpacity>
-            </View>
+      <ModalShell
+        visible={modalOpen}
+        title="Add Period"
+        onClose={() => setModalOpen(false)}
+        footer={
+          <>
+            <TouchableOpacity style={styles.cancelBtn} onPress={() => setModalOpen(false)}><Text style={styles.cancelText}>Cancel</Text></TouchableOpacity>
+            <TouchableOpacity style={styles.submitBtn} onPress={handleCreate} disabled={submitting}>
+              <Text style={styles.submitText}>{submitting ? 'Saving...' : 'Save'}</Text>
+            </TouchableOpacity>
+          </>
+        }
+      >
+        <FormGroup label="Label *">
+          <TextInput style={styles.input} placeholder="e.g. Period 1" value={label} onChangeText={setLabel} placeholderTextColor="#9CA3AF" />
+        </FormGroup>
+        <View style={styles.nameRow}>
+          <FormGroup label="Start * (24h)">
+            <TextInput style={styles.input} placeholder="09:00" value={startTime} onChangeText={setStartTime} placeholderTextColor="#9CA3AF" />
+          </FormGroup>
+          <FormGroup label="End * (24h)">
+            <TextInput style={styles.input} placeholder="09:50" value={endTime} onChangeText={setEndTime} placeholderTextColor="#9CA3AF" />
+          </FormGroup>
+        </View>
+        <FormGroup label="Order">
+          <TextInput style={styles.input} placeholder="1" value={sortOrder} onChangeText={setSortOrder} keyboardType="numeric" placeholderTextColor="#9CA3AF" />
+        </FormGroup>
+      </ModalShell>
+    </View>
+  );
+}
+
+function SessionsTab({ sessions, onDataChange }: any) {
+  const [modalOpen, setModalOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const current = (sessions || []).find((s: any) => s.isCurrent);
+
+  const handleAdd = async () => {
+    const trimmed = name.trim();
+    if (!trimmed) { Alert.alert('Missing', 'Enter an academic year name, e.g. 2026-27'); return; }
+    setSubmitting(true);
+    try {
+      await createAcademicSessionApi({ name: trimmed, startDate: startDate.trim(), endDate: endDate.trim() });
+      setModalOpen(false);
+      setName('');
+      setStartDate('');
+      setEndDate('');
+      onDataChange();
+    } catch (err: any) {
+      Alert.alert('Error', err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSetCurrent = async (id: string, sessionName: string) => {
+    try {
+      await setCurrentAcademicSessionApi(id);
+      onDataChange();
+      Alert.alert('Current Year', `"${sessionName}" is now the current academic year. New classes, exams and timetables will belong to it.`);
+    } catch (err: any) {
+      Alert.alert('Error', err.message);
+    }
+  };
+
+  const handleDelete = (id: string, sessionName: string) => {
+    Alert.alert('Delete', `Remove academic year "${sessionName}"?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteAcademicSessionApi(id);
+            onDataChange();
+          } catch (err: any) {
+            Alert.alert('Error', err.message);
+          }
+        },
+      },
+    ]);
+  };
+
+  return (
+    <View>
+      <SectionHeader
+        title="Academic Year"
+        count={`${(sessions || []).length} years`}
+        actionLabel="Add"
+        onAction={() => setModalOpen(true)}
+      />
+      <Text style={styles.hintText}>Classes, exams and timetables belong to a year. New records are stamped with the current year.</Text>
+
+      {current ? (
+        <View style={styles.heroCard}>
+          <View style={styles.heroTop}>
+            <MaterialCommunityIcons name="calendar-star" size={20} color="#F4C430" />
+            <Text style={styles.heroValue}>{current.name}</Text>
+          </View>
+          <Text style={styles.heroMicro}>Current academic year</Text>
+          {(current.startDate || current.endDate) ? (
+            <Text style={styles.heroMeta}>{current.startDate || '...'} to {current.endDate || '...'}</Text>
+          ) : null}
+        </View>
+      ) : (
+        <EmptyState icon="calendar-blank-outline" title="No academic year yet" sub="Add the year below — the first one becomes current automatically." />
+      )}
+
+      <MicroLabel>All years</MicroLabel>
+      {(sessions || []).map((s: any) => (
+        <View key={s.id} style={styles.card}>
+          <View style={styles.cardBody}>
+            <Text style={styles.cardTitle}>{s.name}</Text>
+            {(s.startDate || s.endDate) ? <Text style={styles.cardMeta}>{s.startDate || '...'} to {s.endDate || '...'}</Text> : null}
+            {s.isCurrent ? <Text style={styles.cardMeta}>Current</Text> : null}
+          </View>
+          <View style={styles.cardActions}>
+            {!s.isCurrent && (
+              <TouchableOpacity style={styles.smallBtn} onPress={() => handleSetCurrent(s.id, s.name)} activeOpacity={0.7}>
+                <Text style={styles.smallBtnText}>Make Current</Text>
+              </TouchableOpacity>
+            )}
+            {!s.isCurrent && (
+              <IconAction name="trash-can-outline" color="#EF4444" onPress={() => handleDelete(s.id, s.name)} />
+            )}
           </View>
         </View>
-      </Modal>
+      ))}
+
+      <ModalShell
+        visible={modalOpen}
+        title="Add Academic Year"
+        onClose={() => setModalOpen(false)}
+        footer={
+          <>
+            <TouchableOpacity style={styles.cancelBtn} onPress={() => setModalOpen(false)}><Text style={styles.cancelText}>Cancel</Text></TouchableOpacity>
+            <TouchableOpacity style={styles.submitBtn} onPress={handleAdd} disabled={submitting}>
+              <Text style={styles.submitText}>{submitting ? 'Adding...' : 'Add Year'}</Text>
+            </TouchableOpacity>
+          </>
+        }
+      >
+        <FormGroup label="Year Name *">
+          <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="2026-27" placeholderTextColor="#9CA3AF" />
+        </FormGroup>
+        <FormGroup label="Start (YYYY-MM-DD, optional)">
+          <TextInput style={styles.input} value={startDate} onChangeText={setStartDate} placeholder="2026-04-01" placeholderTextColor="#9CA3AF" />
+        </FormGroup>
+        <FormGroup label="End (YYYY-MM-DD, optional)">
+          <TextInput style={styles.input} value={endDate} onChangeText={setEndDate} placeholder="2027-03-31" placeholderTextColor="#9CA3AF" />
+        </FormGroup>
+      </ModalShell>
     </View>
   );
 }
 
 function TermsTab({ terms, onDataChange }: any) {
+  const [modalOpen, setModalOpen] = useState(false);
   const [academicYear, setAcademicYear] = useState('2026-27');
   const [termsInput, setTermsInput] = useState('Semester 1, Semester 2');
   const [submitting, setSubmitting] = useState(false);
@@ -853,6 +1314,7 @@ function TermsTab({ terms, onDataChange }: any) {
     setSubmitting(true);
     try {
       await updateTermsApi({ academicYear, terms: list });
+      setModalOpen(false);
       onDataChange();
       Alert.alert('Saved', 'Academic terms updated. Attendance resets at the start of each term.');
     } catch (err: any) {
@@ -864,31 +1326,60 @@ function TermsTab({ terms, onDataChange }: any) {
 
   return (
     <View>
-      <Text style={styles.sectionTitle}>Academic Terms</Text>
+      <SectionHeader title="Academic Terms" count={`${terms.length} years`} actionLabel="Add" onAction={() => setModalOpen(true)} />
       <Text style={styles.hintText}>Attendance statistics reset at the start of each term.</Text>
-      {terms.map((t: any, i: number) => (
-        <View key={i} style={styles.card}>
-          <Text style={styles.cardTitle}>{t.academicYear}</Text>
-          <Text style={styles.cardSub}>{t.terms.join(', ')}</Text>
-        </View>
-      ))}
-      <FormGroup label="Academic Year"><TextInput style={styles.input} value={academicYear} onChangeText={setAcademicYear} placeholder="2026-27" /></FormGroup>
-      <FormGroup label="Terms (comma separated)"><TextInput style={styles.input} value={termsInput} onChangeText={setTermsInput} placeholder="Semester 1, Semester 2" /></FormGroup>
-      <TouchableOpacity style={styles.fullBtn} onPress={handleSave} disabled={submitting}><Text style={styles.submitText}>{submitting ? 'Saving...' : 'Save Terms'}</Text></TouchableOpacity>
+      {terms.length === 0 ? (
+        <EmptyState icon="text-box-check-outline" title="No terms yet" sub="Add terms for an academic year." />
+      ) : (
+        terms.map((t: any, i: number) => (
+          <View key={i} style={styles.card}>
+            <View style={styles.iconTile}>
+              <MaterialCommunityIcons name="text-box-check-outline" size={20} color="#F4C430" />
+            </View>
+            <View style={styles.cardBody}>
+              <Text style={styles.cardTitle}>{t.academicYear}</Text>
+              <Text style={styles.cardMeta}>{t.terms.join(' · ')}</Text>
+            </View>
+          </View>
+        ))
+      )}
+
+      <ModalShell
+        visible={modalOpen}
+        title="Update Academic Terms"
+        onClose={() => setModalOpen(false)}
+        footer={
+          <>
+            <TouchableOpacity style={styles.cancelBtn} onPress={() => setModalOpen(false)}><Text style={styles.cancelText}>Cancel</Text></TouchableOpacity>
+            <TouchableOpacity style={styles.submitBtn} onPress={handleSave} disabled={submitting}>
+              <Text style={styles.submitText}>{submitting ? 'Saving...' : 'Save Terms'}</Text>
+            </TouchableOpacity>
+          </>
+        }
+      >
+        <FormGroup label="Academic Year">
+          <TextInput style={styles.input} value={academicYear} onChangeText={setAcademicYear} placeholder="2026-27" placeholderTextColor="#9CA3AF" />
+        </FormGroup>
+        <FormGroup label="Terms (comma separated)">
+          <TextInput style={styles.input} value={termsInput} onChangeText={setTermsInput} placeholder="Semester 1, Semester 2" placeholderTextColor="#9CA3AF" />
+        </FormGroup>
+      </ModalShell>
     </View>
   );
 }
 
 function HolidaysTab({ blockedDates, onDataChange }: any) {
+  const [modalOpen, setModalOpen] = useState(false);
   const [date, setDate] = useState('');
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const handleAdd = async () => {
-    if (!date) { Alert.alert('Missing', 'Date is required (YYYY-MM-DD)'); return; }
+    if (!date) { Alert.alert('Missing', 'Date is required'); return; }
     setSubmitting(true);
     try {
       await updateHolidaysApi({ blockedDates: [...(blockedDates || []), { date, reason }] });
+      setModalOpen(false);
       setDate('');
       setReason('');
       onDataChange();
@@ -910,46 +1401,45 @@ function HolidaysTab({ blockedDates, onDataChange }: any) {
 
   return (
     <View>
-      <Text style={styles.sectionTitle}>Holiday Calendar</Text>
+      <SectionHeader title="Holiday Calendar" count={`${blockedDates.length} blocked`} actionLabel="Add" onAction={() => setModalOpen(true)} />
       <Text style={styles.hintText}>No classes on blocked dates — attendance is prevented and reports exclude them.</Text>
       {blockedDates.length === 0 ? (
         <EmptyState icon="calendar-remove" title="No blocked dates" sub="Add holidays, festivals and exam days." />
       ) : (
         blockedDates.map((b: any) => (
           <View key={b.date} style={styles.card}>
-            <View style={styles.cardTitleRow}>
-              <MaterialCommunityIcons name="calendar-remove" size={18} color="#EF4444" />
-              <Text style={styles.cardTitle}>{b.date}</Text>
-              {b.reason ? <Text style={styles.cardSub}> · {b.reason}</Text> : null}
+            <View style={styles.iconTile}>
+              <MaterialCommunityIcons name="calendar-remove" size={20} color="#EF4444" />
             </View>
-            <TouchableOpacity onPress={() => handleRemove(b.date)}>
-              <MaterialCommunityIcons name="trash-can-outline" size={18} color="#EF4444" />
-            </TouchableOpacity>
+            <View style={styles.cardBody}>
+              <Text style={styles.cardTitle}>{b.date}</Text>
+              {b.reason ? <Text style={styles.cardMeta}>{b.reason}</Text> : null}
+            </View>
+            <View style={styles.cardActions}>
+              <IconAction name="trash-can-outline" color="#EF4444" onPress={() => handleRemove(b.date)} />
+            </View>
           </View>
         ))
       )}
-      <FormGroup label="Date (YYYY-MM-DD)"><TextInput style={styles.input} value={date} onChangeText={setDate} placeholder="2026-08-15" /></FormGroup>
-      <FormGroup label="Reason"><TextInput style={styles.input} value={reason} onChangeText={setReason} placeholder="e.g. Independence Day" /></FormGroup>
-      <TouchableOpacity style={styles.fullBtn} onPress={handleAdd} disabled={submitting}><Text style={styles.submitText}>{submitting ? 'Adding...' : 'Add Blocked Date'}</Text></TouchableOpacity>
-    </View>
-  );
-}
 
-function FormGroup({ label, children }: any) {
-  return (
-    <View style={styles.formGroup}>
-      <Text style={styles.label}>{label}</Text>
-      {children}
-    </View>
-  );
-}
-
-function EmptyState({ icon, title, sub }: any) {
-  return (
-    <View style={styles.emptyCard}>
-      <MaterialCommunityIcons name={icon} size={40} color="#6B6B6B" />
-      <Text style={styles.emptyTitle}>{title}</Text>
-      <Text style={styles.emptySub}>{sub}</Text>
+      <ModalShell
+        visible={modalOpen}
+        title="Add Blocked Date"
+        onClose={() => setModalOpen(false)}
+        footer={
+          <>
+            <TouchableOpacity style={styles.cancelBtn} onPress={() => setModalOpen(false)}><Text style={styles.cancelText}>Cancel</Text></TouchableOpacity>
+            <TouchableOpacity style={styles.submitBtn} onPress={handleAdd} disabled={submitting}>
+              <Text style={styles.submitText}>{submitting ? 'Adding...' : 'Add Date'}</Text>
+            </TouchableOpacity>
+          </>
+        }
+      >
+        <DateField label="Date *" value={date} onChange={setDate} placeholder="Pick a date" />
+        <FormGroup label="Reason">
+          <TextInput style={styles.input} value={reason} onChangeText={setReason} placeholder="e.g. Independence Day" placeholderTextColor="#9CA3AF" />
+        </FormGroup>
+      </ModalShell>
     </View>
   );
 }
@@ -988,6 +1478,7 @@ function MarksTab({ classSections, subjects, onDataChange }: any) {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadExams();
   }, []);
 
@@ -1110,265 +1601,390 @@ function MarksTab({ classSections, subjects, onDataChange }: any) {
   };
 
   const examSubjectName = (id: string) => subjects.find((s: any) => s.id === id)?.name || '—';
+  const capitalize = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : '');
+
+  const examSubjectOptions = (marksExam?.subjects || []).map((es: any) => ({
+    key: es.id,
+    label: examSubjectName(es.subjectId),
+  }));
+  const classOptions = classSections.map((c: any) => ({ key: c.id, label: c.name }));
 
   return (
     <View>
-      <View style={styles.headerBar}>
-        <Text style={styles.sectionTitle}>Marks & Exams</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={openCreate}>
-          <Text style={styles.addBtnText}>+ New Exam</Text>
-        </TouchableOpacity>
-      </View>
+      <SectionHeader title="Marks & Exams" count={`${exams.length} exams`} actionLabel="New Exam" onAction={openCreate} />
       <Text style={styles.hintText}>Create an exam, then enter marks per subject for each class.</Text>
 
       {loadingExams ? (
         <View style={{ padding: 30, alignItems: 'center' }}>
-          <ActivityIndicator color="#F4C430" />
+          <ActivityIndicator color="#F4C430" size="large" />
         </View>
       ) : exams.length === 0 ? (
-        <EmptyState icon="certificate-outline" title="No exams yet" sub="Tap + New Exam to create one." />
+        <EmptyState icon="certificate-outline" title="No exams yet" sub="Tap New Exam to create one." />
       ) : (
         exams.map((exam: any) => (
           <View key={exam.id} style={styles.card}>
-            <View style={{ flex: 1 }}>
-              <View style={styles.cardTitleRow}>
-                <MaterialCommunityIcons name="certificate-outline" size={18} color="#F4C430" />
-                <Text style={styles.cardTitle}>{exam.name}</Text>
-              </View>
-              <Text style={styles.cardSub}>
-                {exam.term ? `${exam.term} · ` : ''}{(exam.subjects || []).length} subject(s){exam.startDate ? ` · ${exam.startDate}` : ''}
-              </Text>
-              <View style={styles.badgeRow}>
-                <Text style={[styles.badge, { backgroundColor: exam.status === 'locked' ? '#F3F1EA' : exam.status === 'published' ? '#FFF4C7' : '#FFFFFF', color: exam.status === 'locked' ? '#6B6B6B' : '#F4C430', borderWidth: 1, borderColor: '#E8E5DC' }]}>
-                  {exam.status}
-                </Text>
-              </View>
+            <View style={styles.iconTile}>
+              <MaterialCommunityIcons name="certificate-outline" size={20} color="#F4C430" />
             </View>
-            <View style={{ alignItems: 'flex-end', gap: 8 }}>
-              <TouchableOpacity onPress={() => openMarksEntry(exam)}>
-                <MaterialCommunityIcons name="clipboard-edit-outline" size={18} color="#1A1B1C" />
-              </TouchableOpacity>
-              {exam.status === 'draft' ? (
-                <TouchableOpacity onPress={() => handlePublish(exam)}>
-                  <MaterialCommunityIcons name="check-circle-outline" size={18} color="#16A34A" />
-                </TouchableOpacity>
-              ) : exam.status === 'published' ? (
-                <TouchableOpacity onPress={() => handleLock(exam)}>
-                  <MaterialCommunityIcons name="lock-outline" size={18} color="#DC3545" />
-                </TouchableOpacity>
-              ) : null}
+            <View style={styles.cardBody}>
+              <Text style={styles.cardTitle}>{exam.name}</Text>
+              <Text style={styles.cardMeta}>
+                {[
+                  exam.term,
+                  `${(exam.subjects || []).length} subjects`,
+                  exam.startDate && exam.endDate ? `${exam.startDate} – ${exam.endDate}` : exam.startDate,
+                  capitalize(exam.status),
+                ].filter(Boolean).join(' · ')}
+              </Text>
+            </View>
+            <View style={styles.cardActions}>
+              <IconAction name="clipboard-edit-outline" onPress={() => openMarksEntry(exam)} />
+              {exam.status === 'draft' && (
+                <IconAction name="check-circle-outline" color="#F4C430" onPress={() => handlePublish(exam)} />
+              )}
+              {exam.status === 'published' && (
+                <IconAction name="lock-outline" onPress={() => handleLock(exam)} />
+              )}
             </View>
           </View>
         ))
       )}
 
       {/* Create Exam Modal */}
-      <Modal visible={createOpen} animationType="slide" transparent onRequestClose={() => setCreateOpen(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Create Exam</Text>
-              <TouchableOpacity onPress={() => setCreateOpen(false)}>
-                <MaterialCommunityIcons name="close" size={22} color="#6B6B6B" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={{ maxHeight: 420 }}>
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Name *</Text>
-                <TextInput style={styles.input} placeholder="e.g. Unit Test 1" value={examName} onChangeText={setExamName} />
-              </View>
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Term</Text>
-                <TextInput style={styles.input} placeholder="Term 1 / Mid-term" value={examTerm} onChangeText={setExamTerm} />
-              </View>
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Start date (YYYY-MM-DD)</Text>
-                <TextInput style={styles.input} placeholder="2026-09-10" value={examStart} onChangeText={setExamStart} autoCapitalize="none" />
-              </View>
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>End date (YYYY-MM-DD)</Text>
-                <TextInput style={styles.input} placeholder="2026-09-15" value={examEnd} onChangeText={setExamEnd} autoCapitalize="none" />
-              </View>
-              <Text style={[styles.label, { marginBottom: 6 }]}>Subjects & marks</Text>
-              {subjects.map((s: any) => {
-                const v = examSubjects[s.id] || { max: '100', pass: '35', selected: true };
-                return (
-                  <View key={s.id} style={[styles.card, { alignItems: 'center', paddingVertical: 10 }]}>
-                    <TouchableOpacity
-                      onPress={() => setExamSubjects((p) => ({ ...p, [s.id]: { ...v, selected: !v.selected } }))}
-                      style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}
-                    >
-                      <MaterialCommunityIcons
-                        name={v.selected ? 'checkbox-marked' : 'checkbox-blank-outline'}
-                        size={18}
-                        color={v.selected ? '#F4C430' : '#9A9A9A'}
-                      />
-                      <Text style={[styles.cardTitle, { fontSize: 13 }]}>{s.name}</Text>
-                    </TouchableOpacity>
-                    <View style={{ flexDirection: 'row', gap: 6 }}>
-                      <TextInput
-                        style={[styles.input, { width: 60, height: 36, paddingHorizontal: 6 }]}
-                        value={v.max}
-                        keyboardType="numeric"
-                        editable={v.selected}
-                        onChangeText={(t) => setExamSubjects((p) => ({ ...p, [s.id]: { ...v, max: t } }))}
-                      />
-                      <TextInput
-                        style={[styles.input, { width: 60, height: 36, paddingHorizontal: 6 }]}
-                        value={v.pass}
-                        keyboardType="numeric"
-                        editable={v.selected}
-                        onChangeText={(t) => setExamSubjects((p) => ({ ...p, [s.id]: { ...v, pass: t } }))}
-                      />
-                    </View>
-                  </View>
-                );
-              })}
-            </ScrollView>
-            <View style={styles.modalFooter}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setCreateOpen(false)}>
-                <Text style={styles.cancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.submitBtn} onPress={handleCreate} disabled={submitting}>
-                <Text style={styles.submitText}>{submitting ? 'Creating…' : 'Create'}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+      <ModalShell
+        visible={createOpen}
+        title="Create Exam"
+        onClose={() => setCreateOpen(false)}
+        footer={
+          <>
+            <TouchableOpacity style={styles.cancelBtn} onPress={() => setCreateOpen(false)}>
+              <Text style={styles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.submitBtn} onPress={handleCreate} disabled={submitting}>
+              <Text style={styles.submitText}>{submitting ? 'Creating…' : 'Create'}</Text>
+            </TouchableOpacity>
+          </>
+        }
+      >
+        <FormGroup label="Name *">
+          <TextInput style={styles.input} placeholder="e.g. Unit Test 1" value={examName} onChangeText={setExamName} placeholderTextColor="#9CA3AF" />
+        </FormGroup>
+        <FormGroup label="Term">
+          <TextInput style={styles.input} placeholder="Term 1 / Mid-term" value={examTerm} onChangeText={setExamTerm} placeholderTextColor="#9CA3AF" />
+        </FormGroup>
+        <View style={styles.nameRow}>
+          <DateField label="Start date" value={examStart} onChange={setExamStart} placeholder="YYYY-MM-DD" style={{ flex: 1 }} />
+          <DateField label="End date" value={examEnd} onChange={setExamEnd} placeholder="YYYY-MM-DD" style={{ flex: 1 }} />
         </View>
-      </Modal>
+        <MicroLabel>Subjects & marks</MicroLabel>
+        {subjects.length === 0 ? (
+          <Text style={styles.hintText}>No subjects yet — add them under the Subjects tab first.</Text>
+        ) : subjects.map((s: any) => {
+          const v = examSubjects[s.id] || { max: '100', pass: '35', selected: true };
+          return (
+            <View key={s.id} style={styles.examSubjectRow}>
+              <TouchableOpacity
+                onPress={() => setExamSubjects((p) => ({ ...p, [s.id]: { ...v, selected: !v.selected } }))}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}
+                activeOpacity={0.7}
+              >
+                <MaterialCommunityIcons
+                  name={v.selected ? 'checkbox-marked' : 'checkbox-blank-outline'}
+                  size={18}
+                  color={v.selected ? '#F4C430' : '#9A9A9A'}
+                />
+                <Text style={styles.examSubjectName}>{s.name}</Text>
+              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', gap: 6 }}>
+                <TextInput
+                  style={styles.smallInput}
+                  value={v.max}
+                  keyboardType="numeric"
+                  editable={v.selected}
+                  onChangeText={(t) => setExamSubjects((p) => ({ ...p, [s.id]: { ...v, max: t } }))}
+                />
+                <TextInput
+                  style={styles.smallInput}
+                  value={v.pass}
+                  keyboardType="numeric"
+                  editable={v.selected}
+                  onChangeText={(t) => setExamSubjects((p) => ({ ...p, [s.id]: { ...v, pass: t } }))}
+                />
+              </View>
+            </View>
+          );
+        })}
+      </ModalShell>
 
       {/* Marks Entry Modal */}
-      <Modal visible={marksOpen} animationType="slide" transparent onRequestClose={() => setMarksOpen(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Enter Marks · {marksExam?.name}</Text>
-              <TouchableOpacity onPress={() => setMarksOpen(false)}>
-                <MaterialCommunityIcons name="close" size={22} color="#6B6B6B" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
-              <View style={styles.chipWrap}>
-                {(marksExam?.subjects || []).map((es: any) => (
-                  <TouchableOpacity
-                    key={es.id}
-                    style={[styles.chip, marksExamSubjectId === es.id && styles.chipActive]}
-                    onPress={() => {
-                      setMarksExamSubjectId(es.id);
-                      refreshRoster(marksExam, es.id, marksClassId);
-                    }}
-                  >
-                    <Text style={[styles.chipText, marksExamSubjectId === es.id && styles.chipTextActive]}>
-                      {examSubjectName(es.subjectId)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
-              <View style={styles.chipWrap}>
-                {classSections.map((c: any) => (
-                  <TouchableOpacity
-                    key={c.id}
-                    style={[styles.chip, marksClassId === c.id && styles.chipActive]}
-                    onPress={() => {
-                      setMarksClassId(c.id);
-                      refreshRoster(marksExam, marksExamSubjectId, c.id);
-                    }}
-                  >
-                    <Text style={[styles.chipText, marksClassId === c.id && styles.chipTextActive]}>{c.name}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
+      <ModalShell
+        visible={marksOpen}
+        title={`Enter Marks · ${marksExam?.name || ''}`}
+        onClose={() => setMarksOpen(false)}
+        footer={
+          <>
+            <TouchableOpacity style={styles.cancelBtn} onPress={() => setMarksOpen(false)}>
+              <Text style={styles.cancelText}>Close</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.submitBtn}
+              onPress={handleSaveMarks}
+              disabled={marksSaving || marksRoster.length === 0}
+            >
+              <Text style={styles.submitText}>{marksSaving ? 'Saving…' : 'Save Marks'}</Text>
+            </TouchableOpacity>
+          </>
+        }
+      >
+        <DropdownSelect
+          variant="inline"
+          label="Subject"
+          value={marksExamSubjectId}
+          onChange={(id) => {
+            setMarksExamSubjectId(id);
+            refreshRoster(marksExam, id, marksClassId);
+          }}
+          placeholder="Select subject"
+          options={examSubjectOptions}
+          menuTitle="Subject"
+        />
+        <View style={{ height: 10 }} />
+        <DropdownSelect
+          variant="inline"
+          label="Class / Section"
+          value={marksClassId}
+          onChange={(id) => {
+            setMarksClassId(id);
+            refreshRoster(marksExam, marksExamSubjectId, id);
+          }}
+          placeholder="Select class"
+          options={classOptions}
+          menuTitle="Class / Section"
+        />
 
-            {marksLoading ? (
-              <View style={{ padding: 20 }}><ActivityIndicator color="#F4C430" /></View>
-            ) : marksRoster.length === 0 ? (
-              <EmptyState icon="account-multiple" title="No students" sub="Pick a class with enrolled students." />
-            ) : (
-              <View style={{ maxHeight: 360 }}>
-                <ScrollView>
-                  {marksRoster.map((r) => (
-                    <View key={r.studentId} style={[styles.card, { paddingVertical: 8 }]}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.cardTitle, { fontSize: 13 }]}>{r.fullName}</Text>
-                        <Text style={styles.cardSub}>{r.rollNoOrUSN || '—'}</Text>
-                      </View>
-                      <TextInput
-                        style={[styles.input, { width: 80, height: 36, paddingHorizontal: 8, textAlign: 'right' }]}
-                        keyboardType="numeric"
-                        value={marksDraft[r.studentId] || ''}
-                        onChangeText={(t) => setMarksDraft((p) => ({ ...p, [r.studentId]: t }))}
-                      />
+        <View style={{ marginTop: 12 }}>
+          {marksLoading ? (
+            <View style={{ padding: 20, alignItems: 'center' }}>
+              <ActivityIndicator color="#F4C430" size="large" />
+            </View>
+          ) : marksRoster.length === 0 ? (
+            <EmptyState icon="account-multiple" title="No students" sub="Pick a class with enrolled students." />
+          ) : (
+            <View style={{ maxHeight: 320 }}>
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <MicroLabel>{`${marksRoster.length} students`}</MicroLabel>
+                {marksRoster.map((r) => (
+                  <View key={r.studentId} style={styles.rosterRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.rosterName}>{r.fullName}</Text>
+                      <Text style={styles.cardMeta}>{r.rollNoOrUSN || '—'}</Text>
                     </View>
-                  ))}
-                </ScrollView>
-              </View>
-            )}
-
-            <View style={styles.modalFooter}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setMarksOpen(false)}>
-                <Text style={styles.cancelText}>Close</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.submitBtn}
-                onPress={handleSaveMarks}
-                disabled={marksSaving || marksRoster.length === 0}
-              >
-                <Text style={styles.submitText}>{marksSaving ? 'Saving…' : 'Save Marks'}</Text>
-              </TouchableOpacity>
+                    <TextInput
+                      style={styles.marksInput}
+                      keyboardType="numeric"
+                      value={marksDraft[r.studentId] || ''}
+                      onChangeText={(t) => setMarksDraft((p) => ({ ...p, [r.studentId]: t }))}
+                      placeholder="0"
+                      placeholderTextColor="#9CA3AF"
+                    />
+                  </View>
+                ))}
+              </ScrollView>
             </View>
-          </View>
+          )}
         </View>
-      </Modal>
+      </ModalShell>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  tabRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
-  tabChip: { backgroundColor: '#FFFFFF', borderRadius: BorderRadius.button, borderWidth: 1, borderColor: '#E8E5DC', paddingHorizontal: 14, paddingVertical: 7 },
-  tabChipActive: { backgroundColor: '#F4C430', borderColor: '#F4C430' },
-  tabChipText: { fontSize: 12, fontWeight: '700', color: '#6B6B6B' },
-  tabChipTextActive: { color: '#FFFFFF' },
-  content: { paddingBottom: 60, gap: 6 },
-  headerBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  sectionTitle: { fontSize: 15, fontWeight: '800', color: '#171717', marginBottom: 6 },
-  hintText: { fontSize: 11, color: '#6B6B6B', marginBottom: 10, lineHeight: 15 },
-  addBtn: { backgroundColor: '#F4C430', borderRadius: BorderRadius.button, paddingHorizontal: 16, height: 40, alignItems: 'center', justifyContent: 'center' },
-  addBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 13 },
-  card: {
-    backgroundColor: '#FFFFFF', borderRadius: BorderRadius.card, padding: 14, borderWidth: 1, borderColor: '#E8E5DC',
-    marginBottom: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+  container: { flex: 1, padding: 16 },
+  pageHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  pageTitle: { fontSize: 20, fontWeight: '800', color: '#1A1B1C' },
+  pageSubtitle: { fontSize: 12, color: '#6B6B6B', marginTop: 2 },
+
+  statsCard: {
+    backgroundColor: '#1A1B1C', borderRadius: 5, padding: 16, flexDirection: 'row',
+    justifyContent: 'space-between', alignItems: 'center', borderWidth: 1, borderColor: '#2A2B2C',
+    marginBottom: 12,
   },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flex: 1 },
-  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 },
-  cardTitle: { fontSize: 14, fontWeight: '700', color: '#171717', flexShrink: 1 },
-  cardSub: { fontSize: 12, color: '#6B6B6B', marginTop: 3 },
-  timeText: { fontSize: 12, color: '#F4C430', fontWeight: '700' },
-  badgeRow: { flexDirection: 'row', gap: 6, marginTop: 6, flexWrap: 'wrap' },
-  badge: { backgroundColor: '#FFF4C7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, fontSize: 10, fontWeight: '700', color: '#F4C430' },
-  emptyCard: { backgroundColor: '#FFFFFF', borderRadius: BorderRadius.card, padding: 26, alignItems: 'center', borderWidth: 1, borderColor: '#E8E5DC', marginTop: 12 },
-  emptyTitle: { fontSize: 15, fontWeight: '700', color: '#171717', marginTop: 8 },
-  emptySub: { fontSize: 12, color: '#6B6B6B', textAlign: 'center', marginTop: 4, lineHeight: 16 },
+  statBox: { alignItems: 'center', flex: 1 },
+  statValue: { fontSize: 20, fontWeight: '800', color: '#F4C430' },
+  statLabel: { fontSize: 9, color: '#8A8A8A', marginTop: 3, textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: '700' },
+  statDivider: { width: 1, height: 26, backgroundColor: '#2A2B2C' },
+
+  tabBarWrap: { borderBottomWidth: 1, borderBottomColor: '#E8E5DC', marginBottom: 14 },
+  tabBarRow: { paddingRight: 20 },
+  tabItem: { marginRight: 20, paddingTop: 4 },
+  tabLabel: { fontSize: 13, fontWeight: '700', color: '#6B6B6B', paddingBottom: 9 },
+  tabLabelActive: { color: '#1A1B1C', fontWeight: '800' },
+  tabUnderline: { height: 2.5, borderRadius: 5, backgroundColor: 'transparent' },
+  tabUnderlineActive: { backgroundColor: '#F4C430' },
+
+  content: { paddingBottom: 60 },
+
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  sectionTitle: { fontSize: 16, fontWeight: '800', color: '#1A1B1C' },
+  sectionCount: { fontSize: 11, color: '#6B6B6B', marginTop: 2 },
+  addBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#F4C430',
+    borderRadius: 5, paddingHorizontal: 14, height: 38, justifyContent: 'center',
+  },
+  addBtnText: { color: '#1A1B1C', fontWeight: '800', fontSize: 13 },
+
+  microLabel: {
+    fontSize: 10, color: '#8A8A8A', fontWeight: '800', textTransform: 'uppercase',
+    letterSpacing: 0.6, marginTop: 12, marginBottom: 6,
+  },
+  hintText: { fontSize: 11, color: '#6B6B6B', marginBottom: 12, lineHeight: 15 },
+
+  card: {
+    backgroundColor: '#FFFFFF', borderRadius: 5, padding: 14, borderWidth: 1, borderColor: '#E8E5DC',
+    marginBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 12,
+    shadowColor: '#1A1B1C', shadowOpacity: 0.05, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2,
+  },
+  iconTile: {
+    width: 40, height: 40, borderRadius: 5, backgroundColor: '#1A1B1C',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  cardBody: { flex: 1 },
+  cardTitle: { fontSize: 14, fontWeight: '700', color: '#1A1B1C' },
+  cardMeta: { fontSize: 11.5, color: '#6B6B6B', marginTop: 3, lineHeight: 16 },
+  cardActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  iconBtn: {
+    width: 34, height: 34, borderRadius: 5, backgroundColor: '#F3F4F6',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  inlineRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  unassignText: { color: '#EF4444', fontSize: 12, fontWeight: '700' },
+
+  heroCard: {
+    backgroundColor: '#1A1B1C', borderRadius: 5, padding: 18, borderWidth: 1, borderColor: '#2A2B2C',
+    marginBottom: 4,
+  },
+  heroTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  heroValue: { fontSize: 24, fontWeight: '900', color: '#F4C430' },
+  heroMicro: {
+    fontSize: 10, color: '#8A8A8A', marginTop: 6, textTransform: 'uppercase',
+    letterSpacing: 0.6, fontWeight: '700',
+  },
+  heroMeta: { fontSize: 11, color: '#8A8A8A', marginTop: 4 },
+
+  smallBtn: { backgroundColor: '#1A1B1C', borderRadius: 5, paddingHorizontal: 12, height: 32, justifyContent: 'center', alignItems: 'center' },
+  smallBtnText: { fontSize: 11, fontWeight: '700', color: '#F4C430' },
+
+  bulkCard: {
+    backgroundColor: '#FFFFFF', borderRadius: 5, padding: 16, borderWidth: 1, borderColor: '#E8E5DC',
+    marginTop: 18,
+    shadowColor: '#1A1B1C', shadowOpacity: 0.05, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2,
+  },
+  bulkHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
+  bulkMetaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, marginBottom: 8 },
+  bulkTextActions: { flexDirection: 'row', gap: 14 },
+  bulkActionText: { color: '#1A1B1C', fontSize: 12, fontWeight: '700' },
+  bulkFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 12 },
+
+  checkboxRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, paddingHorizontal: 12,
+    borderRadius: 5, borderWidth: 1, borderColor: '#E8E5DC', backgroundColor: '#FFFFFF',
+  },
+  checkboxRowActive: { backgroundColor: '#FFFDF7', borderColor: '#F4C430' },
+  checkboxLabel: { flex: 1, fontSize: 13, fontWeight: '700', color: '#1A1B1C' },
+  checkboxMeta: { fontSize: 11, color: '#6B6B6B', fontWeight: '600' },
+
+  emptyCard: {
+    backgroundColor: '#FFFFFF', borderRadius: 5, padding: 28, alignItems: 'center',
+    borderWidth: 1, borderColor: '#E8E5DC', marginTop: 8,
+  },
+  emptyIconTile: {
+    width: 56, height: 56, borderRadius: 5, backgroundColor: '#1A1B1C',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  emptyTitle: { fontSize: 15, fontWeight: '800', color: '#1A1B1C', marginTop: 10 },
+  emptySub: { fontSize: 12, color: '#6B6B6B', textAlign: 'center', marginTop: 4, lineHeight: 17 },
+
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 20 },
-  modalContent: { backgroundColor: '#FFFFFF', borderRadius: BorderRadius.modal, padding: 20, gap: 10 },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  modalTitle: { fontSize: 17, fontWeight: '800', color: '#171717' },
-  formGroup: { gap: 4, marginBottom: 10 },
-  label: { fontSize: 12, fontWeight: '700', color: '#171717' },
-  input: { height: 44, borderWidth: 1, borderColor: '#E8E5DC', borderRadius: BorderRadius.input, paddingHorizontal: 12, fontSize: 13, backgroundColor: '#FFFDF7' },
-  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { backgroundColor: '#FFFDF7', borderRadius: BorderRadius.button, paddingHorizontal: 12, paddingVertical: 7 },
-  chipActive: { backgroundColor: '#FFF4C7' },
-  chipText: { fontSize: 12, fontWeight: '600', color: '#6B6B6B' },
-  chipTextActive: { color: '#F4C430', fontWeight: '700' },
-  fullBtn: { backgroundColor: '#F4C430', borderRadius: BorderRadius.button, height: 46, alignItems: 'center', justifyContent: 'center', marginTop: 6 },
-  modalFooter: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 6 },
-  cancelBtn: { height: 40, paddingHorizontal: 16, borderRadius: BorderRadius.button, justifyContent: 'center', alignItems: 'center' },
+  modalContent: {
+    backgroundColor: '#FFFFFF', borderRadius: 5, padding: 20,
+    shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 10,
+  },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  modalTitle: { fontSize: 17, fontWeight: '800', color: '#1A1B1C' },
+  modalFooter: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 14 },
+
+  formGroup: { gap: 4, marginBottom: 12 },
+  nameRow: { flexDirection: 'row', gap: 10 },
+  label: { fontSize: 12, fontWeight: '700', color: '#1A1B1C' },
+  input: {
+    height: 44, borderWidth: 1, borderColor: '#E8E5DC', borderRadius: 5,
+    paddingHorizontal: 12, fontSize: 13, backgroundColor: '#FFFDF7', color: '#1A1B1C',
+  },
+  inputWithIcon: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, height: 44, borderWidth: 1,
+    borderColor: '#E8E5DC', borderRadius: 5, paddingHorizontal: 12, backgroundColor: '#FFFDF7',
+  },
+  inputIconText: { flex: 1, fontSize: 13, color: '#1A1B1C' },
+  inputPlaceholder: { color: '#9CA3AF' },
+
+  fullBtn: {
+    backgroundColor: '#F4C430', borderRadius: 5, height: 46,
+    alignItems: 'center', justifyContent: 'center', marginTop: 4,
+  },
+  fullBtnText: { color: '#1A1B1C', fontWeight: '800', fontSize: 14 },
+  cancelBtn: { height: 40, paddingHorizontal: 16, borderRadius: 5, justifyContent: 'center', alignItems: 'center' },
   cancelText: { color: '#6B6B6B', fontWeight: '700', fontSize: 13 },
-  submitBtn: { height: 40, paddingHorizontal: 20, backgroundColor: '#F4C430', borderRadius: BorderRadius.button, justifyContent: 'center', alignItems: 'center' },
-  submitText: { color: '#FFFFFF', fontWeight: '800', fontSize: 13 },
+  submitBtn: { height: 40, paddingHorizontal: 20, backgroundColor: '#F4C430', borderRadius: 5, justifyContent: 'center', alignItems: 'center' },
+  submitText: { color: '#1A1B1C', fontWeight: '800', fontSize: 13 },
+
+  examSubjectRow: {
+    backgroundColor: '#FFFFFF', borderRadius: 5, borderWidth: 1, borderColor: '#E8E5DC',
+    paddingVertical: 10, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8,
+    marginBottom: 6,
+  },
+  examSubjectName: { fontSize: 13, fontWeight: '700', color: '#1A1B1C' },
+  smallInput: {
+    width: 58, height: 36, borderWidth: 1, borderColor: '#E8E5DC', borderRadius: 5,
+    paddingHorizontal: 6, fontSize: 13, backgroundColor: '#FFFDF7', color: '#1A1B1C', textAlign: 'center',
+  },
+  rosterRow: {
+    backgroundColor: '#FFFFFF', borderRadius: 5, borderWidth: 1, borderColor: '#E8E5DC',
+    paddingVertical: 8, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 10,
+    marginBottom: 6,
+  },
+  rosterName: { fontSize: 13, fontWeight: '700', color: '#1A1B1C' },
+  marksInput: {
+    width: 76, height: 36, borderWidth: 1, borderColor: '#E8E5DC', borderRadius: 5,
+    paddingHorizontal: 8, fontSize: 13, backgroundColor: '#FFFDF7', color: '#1A1B1C', textAlign: 'right',
+  },
+
+  dateModalOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center',
+    justifyContent: 'center', padding: 24,
+  },
+  dateModalCard: {
+    width: '100%', maxWidth: 340, backgroundColor: '#FFFFFF',
+    borderRadius: 5, padding: 16,
+    shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 20,
+    shadowOffset: { width: 0, height: 8 }, elevation: 10,
+  },
+  dateModalTitle: { fontSize: 13, fontWeight: '800', color: '#1A1B1C', marginBottom: 4 },
+  dateMonthNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, marginBottom: 6 },
+  dateMonthBtn: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
+  dateMonthLabel: { flex: 1, textAlign: 'center', fontSize: 14, fontWeight: '800', color: '#1A1B1C' },
+  dateDowRow: { flexDirection: 'row', marginBottom: 4 },
+  dateDowText: { width: '14.28%', textAlign: 'center', fontSize: 10, fontWeight: '800', color: '#9CA3AF' },
+  dateGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+  dateDayCell: { width: '14.28%', height: 40, alignItems: 'center', justifyContent: 'center' },
+  dateDaySelected: { backgroundColor: '#F4C430', borderRadius: 5},
+  dateDayToday: { borderWidth: 1, borderColor: '#F4C430', borderRadius: 5},
+  dateDayText: { fontSize: 13, fontWeight: '600', color: '#1A1B1C' },
+  dateDayTextSelected: { fontWeight: '800', color: '#1A1B1C' },
+  dateModalActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 },
+  dateActionBtns: { flexDirection: 'row', gap: 8 },
+  dateClearText: { fontSize: 13, fontWeight: '700', color: '#6B6B6B' },
+  dateCancelBtn: { height: 38, paddingHorizontal: 16, borderRadius: 5, justifyContent: 'center', alignItems: 'center' },
+  dateCancelText: { fontSize: 13, fontWeight: '700', color: '#6B6B6B' },
+  dateConfirmBtn: { height: 38, paddingHorizontal: 20, borderRadius: 5, backgroundColor: '#F4C430', justifyContent: 'center', alignItems: 'center' },
+  dateConfirmText: { fontSize: 13, fontWeight: '800', color: '#1A1B1C' },
 });

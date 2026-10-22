@@ -14,7 +14,6 @@ import {
   Modal,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { BorderRadius } from '../../../constants/theme';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { ExpenseRecord, PaymentMethod, PaymentStatus } from '../types/finance';
 import { formatINR } from '../utils/financeUtils';
@@ -41,7 +40,7 @@ export const FleetTransportView: React.FC = () => {
   const [litres, setLitres] = useState('');
   const [odometer, setOdometer] = useState('');
   const [maintenanceType, setMaintenanceType] = useState('');
-  const [payMethod, setPayMethod] = useState<PaymentMethod>('card');
+  const [payMethod] = useState<PaymentMethod>('card');
 
   // Edit Modal State
   const [editingItem, setEditingItem] = useState<ExpenseRecord | null>(null);
@@ -426,7 +425,7 @@ export const FleetTransportView: React.FC = () => {
 
 const styles = StyleSheet.create({
   kpiRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
-  kpiCard: { flex: 1, padding: 12, borderRadius: 12, borderWidth: 1 },
+  kpiCard: { flex: 1, padding: 12, borderRadius: 5, borderWidth: 1 },
   kpiHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
   kpiTag: { fontSize: 11, fontWeight: '700' },
   kpiVal: { fontSize: 18, fontWeight: '800', marginVertical: 2 },
@@ -434,40 +433,40 @@ const styles = StyleSheet.create({
 
   topActionsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   filterGroup: { flexDirection: 'row', gap: 6 },
-  filterBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 16, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0' },
+  filterBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 5, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0' },
   filterBtnActive: { backgroundColor: '#EA580C', borderColor: '#EA580C' },
   filterBtnText: { fontSize: 11, color: '#64748B', fontWeight: '600' },
   filterBtnTextActive: { color: '#FFFFFF', fontWeight: '700' },
-  logBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#EA580C', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6 },
+  logBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#EA580C', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 5 },
   logBtnText: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
 
-  searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: BorderRadius.input, paddingHorizontal: 10, borderWidth: 1, borderColor: '#E2E8F0', height: 38, marginBottom: 8 },
+  searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 5, paddingHorizontal: 10, borderWidth: 1, borderColor: '#E2E8F0', height: 38, marginBottom: 8 },
   searchInput: { flex: 1, marginLeft: 6, fontSize: 12, color: '#1A202C' },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 16 },
-  modalContent: { width: '100%', maxWidth: 480, maxHeight: '90%', backgroundColor: '#FFFFFF', borderRadius: 16, padding: 18 },
+  modalContent: { width: '100%', maxWidth: 480, maxHeight: '90%', backgroundColor: '#FFFFFF', borderRadius: 5, padding: 18 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   modalTitle: { fontSize: 17, fontWeight: '800', color: '#1E293B' },
   modalBody: { maxHeight: 440, flexGrow: 0, flexShrink: 1 },
   label: { fontSize: 12, fontWeight: '700', color: '#475569', marginTop: 10, marginBottom: 4 },
-  input: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#CBD5E1', borderRadius: 8, paddingHorizontal: 12, height: 40, fontSize: 13, color: '#1E293B' },
+  input: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#CBD5E1', borderRadius: 5, paddingHorizontal: 12, height: 40, fontSize: 13, color: '#1E293B' },
   toggleRow: { flexDirection: 'row', gap: 8 },
-  toggleBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: '#CBD5E1', backgroundColor: '#FFFFFF', gap: 6 },
+  toggleBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8, borderRadius: 5, borderWidth: 1, borderColor: '#CBD5E1', backgroundColor: '#FFFFFF', gap: 6 },
   toggleActiveFuel: { backgroundColor: '#FEF3C7', borderColor: '#D97706' },
   toggleActiveMaint: { backgroundColor: '#FFEDD5', borderColor: '#EA580C' },
   toggleBtnText: { fontSize: 12, fontWeight: '600', color: '#64748B' },
   toggleTextActiveFuel: { color: '#B45309', fontWeight: '800' },
   toggleTextActiveMaint: { color: '#C2410C', fontWeight: '800' },
   busSelectorRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  busChip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6, backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0' },
+  busChip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 5, backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0' },
   busChipActive: { backgroundColor: '#EA580C', borderColor: '#EA580C' },
   busChipText: { fontSize: 11, color: '#475569', fontWeight: '600' },
   busChipTextActive: { color: '#FFFFFF', fontWeight: '700' },
   row: { flexDirection: 'row', gap: 8 },
   col: { flex: 1 },
   modalFooter: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 14 },
-  cancelBtn: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 8, backgroundColor: '#F1F5F9' },
+  cancelBtn: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 5, backgroundColor: '#F1F5F9' },
   cancelBtnText: { fontSize: 13, fontWeight: '600', color: '#475569' },
-  submitBtn: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: 8, backgroundColor: '#EA580C' },
+  submitBtn: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: 5, backgroundColor: '#EA580C' },
   submitBtnText: { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
 });

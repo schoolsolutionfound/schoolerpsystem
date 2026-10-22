@@ -21,6 +21,7 @@ export const CreateInstitutionSchema = z.object({
   departments: stringArray,
   academicYears: stringArray,
   courses: stringArray,
+  sections: stringArray,
   terms: z.array(termEntrySchema).max(20).default([]),
   blockedDates: z.array(blockedDateSchema).max(365).default([]),
 });
@@ -32,6 +33,7 @@ export const UpdateInstitutionSchema = z.object({
   departments: stringArray.optional(),
   academicYears: stringArray.optional(),
   courses: stringArray.optional(),
+  sections: stringArray.optional(),
   terms: z.array(termEntrySchema).max(20).optional(),
   blockedDates: z.array(blockedDateSchema).max(365).optional(),
 });

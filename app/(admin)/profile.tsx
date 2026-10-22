@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { performLogout } from '../../utils/logout';
 import { useUserStore } from '../../store/useUserStore';
 import { AdminProfileView } from '../../features/admin/components/AdminProfileView';
+import { updateMyProfileApi } from '../../api/users';
 
 export default function AdminProfileScreen() {
   const router = useRouter();
@@ -13,6 +14,8 @@ export default function AdminProfileScreen() {
   const institutionName = useUserStore((s) => s.institutionName) || '';
   const institutionCode = useUserStore((s) => s.institutionCode) || '';
   const designation = useUserStore((s) => s.designation) || '';
+  const phone = useUserStore((s) => s.phone) || '';
+  const setUserProfile = useUserStore((s) => s.setUserProfile);
   const resetUser = useUserStore((s) => s.resetUser);
 
   const handleLogout = () => {
@@ -27,6 +30,33 @@ export default function AdminProfileScreen() {
     ]);
   };
 
+  const handleUpdateProfile = async (patch: {
+    fullName?: string;
+    phone?: string;
+    designation?: string;
+    address?: string;
+  }): Promise<boolean> => {
+    try {
+      const res: any = await updateMyProfileApi(patch);
+      const updated = res?.data ?? res;
+      const nextName = updated?.fullName ?? patch.fullName;
+      const nextPhone = updated?.phone ?? patch.phone;
+      const nextDesignation = updated?.designation ?? patch.designation;
+      if (nextName || nextPhone || nextDesignation) {
+        setUserProfile({
+          ...(nextName ? { fullName: nextName } : {}),
+          ...(nextPhone ? { phone: nextPhone } : {}),
+          ...(nextDesignation ? { designation: nextDesignation } : {}),
+        });
+      }
+      Alert.alert('Profile Updated', 'Your profile has been saved.');
+      return true;
+    } catch (err: any) {
+      Alert.alert('Update Failed', err?.message || 'Could not save profile. Please try again.');
+      return false;
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -39,8 +69,10 @@ export default function AdminProfileScreen() {
         institutionCode={institutionCode}
         roleName="Institution Administrator"
         designation={designation}
+        phone={phone}
         onChangePassword={() => router.push('/change-password')}
         onLogout={handleLogout}
+        onSaveProfile={handleUpdateProfile}
       />
     </SafeAreaView>
   );

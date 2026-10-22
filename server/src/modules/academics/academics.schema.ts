@@ -13,6 +13,31 @@ export const CreateClassSectionSchema = z.object({
 
 export const UpdateClassSectionSchema = CreateClassSectionSchema.partial();
 
+// ---------- Academic Sessions ----------
+
+export const CreateAcademicSessionSchema = z.object({
+  name: z.string().min(1, 'Academic year name is required').max(100),
+  startDate: z
+    .string()
+    .optional()
+    .default('')
+    .refine((v) => v === '' || dateRegex.test(v), 'startDate must be YYYY-MM-DD'),
+  endDate: z
+    .string()
+    .optional()
+    .default('')
+    .refine((v) => v === '' || dateRegex.test(v), 'endDate must be YYYY-MM-DD'),
+});
+
+export const UpdateAcademicSessionSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  startDate: z.string().regex(dateRegex).optional(),
+  endDate: z.string().regex(dateRegex).optional(),
+});
+
+export type CreateAcademicSessionInput = z.infer<typeof CreateAcademicSessionSchema>;
+export type UpdateAcademicSessionInput = z.infer<typeof UpdateAcademicSessionSchema>;
+
 export const CreateSubjectSchema = z.object({
   name: z.string().min(1, 'Subject name is required').max(200),
   code: z.string().max(50).optional().default(''),

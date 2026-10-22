@@ -48,7 +48,9 @@ export async function logoutHandler(request: FastifyRequest, reply: FastifyReply
 
 export async function changePasswordHandler(request: FastifyRequest, reply: FastifyReply) {
   const currentUser = request.user;
-  const body = request.body as { newPassword?: string };
+  // currentPassword is optional: required only for voluntary changes
+  // (mustChangePassword=false); the forced first-login flow omits it.
+  const body = request.body as { newPassword?: string; currentPassword?: string };
 
   if (!currentUser) {
     return reply.status(401).send({
@@ -57,8 +59,15 @@ export async function changePasswordHandler(request: FastifyRequest, reply: Fast
     });
   }
 
+  if (!body?.newPassword) {
+    return reply.status(400).send({
+      success: false,
+      error: { message: 'newPassword is required', code: 'VALIDATION_ERROR' },
+    });
+  }
+
   try {
-    const data = await authService.changePassword(currentUser, body?.newPassword);
+    const data = await authService.changePassword(currentUser, body.newPassword, body.currentPassword);
     return reply.send({
       success: true,
       data,

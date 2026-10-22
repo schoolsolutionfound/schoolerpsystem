@@ -9,6 +9,13 @@ import {
   InstitutionStatusBreakdown,
 } from './institution.repository.js';
 import { CreateInstitutionInput, UpdateInstitutionInput } from './institution.schema.js';
+import {
+  isConfigurableRole,
+  RoleProfileFieldsSchema,
+  type ConfigurableRole,
+  type ProfileFieldsMap,
+  type ProfileFormField,
+} from '../admin/profileFields.schema.js';
 
 function newCsId(): string {
   return `cs_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -19,21 +26,21 @@ async function seedClassSectionsForInstitution(
   institutionType: 'school' | 'college',
   departments: string[],
   academicYears: string[],
-  courses: string[]
+  sections: string[]
 ): Promise<number> {
-  if (!departments.length) return 0;
-
-  const sections = (academicYears || []).map((s) => String(s).trim()).filter(Boolean);
-  const deptList = departments.map((d) => String(d).trim()).filter(Boolean);
-  const yearList = (institutionType === 'college' ? (courses || []) : (academicYears || []))
-    .map((y) => String(y).trim())
-    .filter(Boolean);
+  // School: config.departments = SUBJECTS (never rows), academicYears = class
+  // names, sections = A/B/C letters. College: departments = departments,
+  // academicYears = years (e.g. "1st Year"), sections = optional sections.
+  const deptList = (departments || []).map((d) => String(d).trim()).filter(Boolean);
+  const classList = (academicYears || []).map((y) => String(y).trim()).filter(Boolean);
+  const sectionList = (sections || []).map((s) => String(s).trim()).filter(Boolean);
 
   const rows: { id: string; institutionCode: string; name: string; department: string; academicYear: string; section: string; classTeacherId: string }[] = [];
 
   if (institutionType === 'school') {
-    for (const klass of deptList) {
-      if (sections.length === 0) {
+    if (classList.length === 0) return 0;
+    for (const klass of classList) {
+      if (sectionList.length === 0) {
         rows.push({
           id: newCsId(),
           institutionCode,
@@ -44,7 +51,7 @@ async function seedClassSectionsForInstitution(
           classTeacherId: '',
         });
       } else {
-        for (const sec of sections) {
+        for (const sec of sectionList) {
           rows.push({
             id: newCsId(),
             institutionCode,
@@ -58,9 +65,10 @@ async function seedClassSectionsForInstitution(
       }
     }
   } else {
+    if (deptList.length === 0 || classList.length === 0) return 0;
     for (const dept of deptList) {
-      for (const year of yearList) {
-        if (sections.length === 0) {
+      for (const year of classList) {
+        if (sectionList.length === 0) {
           rows.push({
             id: newCsId(),
             institutionCode,
@@ -71,7 +79,7 @@ async function seedClassSectionsForInstitution(
             classTeacherId: '',
           });
         } else {
-          for (const sec of sections) {
+          for (const sec of sectionList) {
             rows.push({
               id: newCsId(),
               institutionCode,
@@ -211,7 +219,7 @@ export class InstitutionService {
       (created.institutionType as 'school' | 'college') || 'college',
       created.departments || [],
       created.academicYears || [],
-      created.courses || []
+      created.sections || []
     );
 
     return { ...created, seededClassSections: seededCount };
@@ -252,6 +260,32 @@ export class InstitutionService {
   public async getInstitutionByCode(code: string) {
     const item = await this.repo.findByCode(code);
     return item ? enrichInstitution(item) : undefined;
+  }
+
+  /**
+   * Per-role profile form fields configured by the admin (Settings → Form
+   * Fields). Only known, configurable roles survive parsing; anything else
+   * (e.g. admin/dev leftovers) is dropped.
+   */
+  public async getProfileFormFieldsMap(institutionCode: string): Promise<ProfileFieldsMap> {
+    const inst = await this.getInstitutionByCode(institutionCode || '');
+    const raw = (inst as any)?.profileFormFields;
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+
+    const map: ProfileFieldsMap = {};
+    for (const [role, fields] of Object.entries(raw as Record<string, any>)) {
+      if (!isConfigurableRole(role) || !Array.isArray(fields)) continue;
+      const parsed = RoleProfileFieldsSchema.safeParse(fields);
+      if (parsed.success) map[role as ConfigurableRole] = parsed.data;
+    }
+    return map;
+  }
+
+  /** Fields configured for one role (empty array when none / non-configurable). */
+  public async getRoleProfileFormFields(institutionCode: string, role: string): Promise<ProfileFormField[]> {
+    if (!isConfigurableRole(role)) return [];
+    const map = await this.getProfileFormFieldsMap(institutionCode);
+    return map[role as ConfigurableRole] || [];
   }
 
   public async getInstitutionsByCodes(codes: string[]) {

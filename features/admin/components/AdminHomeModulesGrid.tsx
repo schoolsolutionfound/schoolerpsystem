@@ -13,7 +13,7 @@ export const AdminHomeModulesGrid: React.FC<AdminHomeModulesGridProps> = ({ onSe
       <Text style={styles.sectionTitle}>Management Modules</Text>
       <View style={styles.modulesGrid}>
         <TouchableOpacity style={styles.moduleItem} activeOpacity={0.8} onPress={() => onSelectModule?.('students')}>
-          <View style={[styles.moduleIconBox, { backgroundColor: '#FFF4C7' }]}>
+          <View style={[styles.moduleIconBox, { backgroundColor: '#1A1B1C' }]}>
             <MaterialCommunityIcons name="account-group" size={26} color="#F4C430" />
           </View>
           <Text style={styles.moduleName}>Students</Text>
@@ -38,14 +38,14 @@ export const AdminHomeModulesGrid: React.FC<AdminHomeModulesGridProps> = ({ onSe
 
         <TouchableOpacity style={styles.moduleItem} activeOpacity={0.8} onPress={() => onSelectModule?.('academics')}>
           <View style={[styles.moduleIconBox, { backgroundColor: '#FFFDF7' }]}>
-            <MaterialCommunityIcons name="calendar-check" size={26} color="#171717" />
+            <MaterialCommunityIcons name="calendar-check" size={26} color="#1A1B1C" />
           </View>
           <Text style={styles.moduleName}>Attendance</Text>
           <Text style={styles.moduleCount}>Daily Summary</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.moduleItem} activeOpacity={0.8}>
-          <View style={[styles.moduleIconBox, { backgroundColor: '#FFF4C7' }]}>
+          <View style={[styles.moduleIconBox, { backgroundColor: '#1A1B1C' }]}>
             <MaterialCommunityIcons name="file-document-outline" size={26} color="#DB2777" />
           </View>
           <Text style={styles.moduleName}>Results & Grades</Text>
@@ -53,7 +53,7 @@ export const AdminHomeModulesGrid: React.FC<AdminHomeModulesGridProps> = ({ onSe
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.moduleItem} activeOpacity={0.8} onPress={() => onSelectModule?.('announcements')}>
-          <View style={[styles.moduleIconBox, { backgroundColor: '#FFF4C7' }]}>
+          <View style={[styles.moduleIconBox, { backgroundColor: '#1A1B1C' }]}>
             <MaterialCommunityIcons name="bullhorn-outline" size={26} color="#F4C430" />
           </View>
           <Text style={styles.moduleName}>Announcements</Text>
@@ -66,7 +66,7 @@ export const AdminHomeModulesGrid: React.FC<AdminHomeModulesGridProps> = ({ onSe
 
 const styles = StyleSheet.create({
   container: { gap: 6 },
-  sectionTitle: { fontSize: 15, fontWeight: '800', color: '#171717', marginTop: 6 },
+  sectionTitle: { fontSize: 15, fontWeight: '800', color: '#1A1B1C', marginTop: 6 },
   modulesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   moduleItem: {
     width: '48%',
@@ -85,6 +85,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  moduleName: { fontSize: 14, fontWeight: '700', color: '#171717' },
+  moduleName: { fontSize: 14, fontWeight: '700', color: '#1A1B1C' },
   moduleCount: { fontSize: 12, color: '#6B6B6B' },
 });

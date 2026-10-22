@@ -2,6 +2,8 @@ import { FastifyInstance } from 'fastify';
 import {
   getInstitutionConfigHandler,
   updateInstitutionConfigHandler,
+  getProfileFieldsHandler,
+  updateRoleProfileFieldsHandler,
   getDashboardStatsHandler,
   getStudentsHandler,
   createStudentHandler,
@@ -16,6 +18,7 @@ import {
   deleteStudentDocumentHandler,
   addMyDocumentHandler,
   deleteMyDocumentHandler,
+  getMyDocumentsHandler,
   getTeachersHandler,
   createTeacherHandler,
   updateTeacherHandler,
@@ -26,6 +29,7 @@ import {
   updateUserHandler,
   singleFeedHandler,
   bulkFeedHandler,
+  bulkCreateUsersHandler,
   getFeesHandler,
   createFeeHandler,
   updateFeeHandler,
@@ -50,6 +54,10 @@ export async function adminRoutes(fastify: FastifyInstance) {
   fastify.get('/institution-config', { preHandler: [authenticate] }, getInstitutionConfigHandler);
   fastify.put('/institution-config', { preHandler: [requireAdmin], config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, updateInstitutionConfigHandler);
 
+  // Per-role profile form fields (Settings → Form Fields)
+  fastify.get('/profile-fields', { preHandler: [requireAdmin] }, getProfileFieldsHandler);
+  fastify.put('/profile-fields/:role', { preHandler: [requireAdmin], config: { rateLimit: { max: 60, timeWindow: '1 minute' } } }, updateRoleProfileFieldsHandler);
+
   // Dashboard Stats (Maintainer Dashboard — admin only)
   fastify.get('/dashboard-stats', { preHandler: [requireAdmin] }, getDashboardStatsHandler);
 
@@ -69,7 +77,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
   fastify.delete('/students/:id/documents/:docId', { preHandler: [requireAdmin], config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, deleteStudentDocumentHandler);
 
   // Student Self-Document Upload (student auth)
-  fastify.get('/my/documents', { preHandler: [requireRole('student')] }, getStudentDocumentsHandler);
+  fastify.get('/my/documents', { preHandler: [requireRole('student')] }, getMyDocumentsHandler);
   fastify.post('/my/documents', { preHandler: [requireRole('student')], config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, addMyDocumentHandler);
   fastify.delete('/my/documents/:docId', { preHandler: [requireRole('student')], config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, deleteMyDocumentHandler);
 
@@ -82,6 +90,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
   // Unified User Management (all roles)
   fastify.get('/users', { preHandler: [requireAdmin] }, getUsersHandler);
   fastify.post('/users', { preHandler: [requireAdmin], config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, createUserHandler);
+  fastify.post('/bulk-create', { preHandler: [requireAdmin], config: { rateLimit: { max: 5, timeWindow: '1 minute' } } }, bulkCreateUsersHandler);
   fastify.patch('/users/:id', { preHandler: [requireAdmin], config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, updateUserHandler);
   fastify.post('/users/:id/reset-password', { preHandler: [requireAdmin], config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, resetUserPasswordHandler);
 

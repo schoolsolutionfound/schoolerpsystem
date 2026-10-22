@@ -1,6 +1,7 @@
 import { eq, and, desc, sql, gte, lte, inArray, count } from 'drizzle-orm';
 import { db } from '../shared/db/index.js';
 import {
+  academicSessions,
   classSections,
   subjects,
   subjectTeachers,
@@ -14,6 +15,7 @@ import {
   attendanceRecords,
   attendanceEntries,
   homework,
+  AcademicSessionRecord,
   ClassSectionRecord,
   SubjectRecord,
   SubjectTeacherRecord,
@@ -28,6 +30,19 @@ import {
   HomeworkRecord,
 } from '../shared/db/schema.js';
 
+function toAcademicSession(r: AcademicSessionRecord): AcademicSessionRecord {
+  return {
+    id: r.id,
+    institutionCode: r.institutionCode,
+    name: r.name,
+    startDate: r.startDate || '',
+    endDate: r.endDate || '',
+    isCurrent: r.isCurrent ?? false,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+  };
+}
+
 function toClassSection(r: ClassSectionRecord): ClassSectionRecord {
   return {
     id: r.id,
@@ -37,6 +52,7 @@ function toClassSection(r: ClassSectionRecord): ClassSectionRecord {
     academicYear: r.academicYear || '',
     section: r.section || '',
     classTeacherId: r.classTeacherId || '',
+    sessionId: r.sessionId || '',
     createdAt: r.createdAt,
     updatedAt: r.updatedAt,
   };
@@ -78,6 +94,7 @@ function toTimetable(r: TimetableRecord): TimetableRecord {
     classSectionId: r.classSectionId,
     academicYear: r.academicYear || '',
     term: r.term || '',
+    sessionId: r.sessionId || '',
     version: r.version,
     effectiveFrom: r.effectiveFrom,
     createdBy: r.createdBy,
@@ -140,6 +157,7 @@ class InMemoryStore<T extends { id: string }> {
 }
 
 const classSectionMem = new InMemoryStore<ClassSectionRecord>();
+const academicSessionMem = new InMemoryStore<AcademicSessionRecord>();
 const subjectMem = new InMemoryStore<SubjectRecord>();
 const subjectTeacherMem = new InMemoryStore<SubjectTeacherRecord>();
 const periodMem = new InMemoryStore<PeriodRecord>();
@@ -152,6 +170,130 @@ const markMem = new InMemoryStore<MarkRecord>();
 const attendanceEntryMem = new InMemoryStore<AttendanceEntryRecord>();
 
 export class AcademicsRepository {
+  // ---------- Academic Sessions ----------
+  public async listAcademicSessions(institutionCode: string): Promise<AcademicSessionRecord[]> {
+    if (db) {
+      try {
+        const rows = await db
+          .select()
+          .from(academicSessions)
+          .where(eq(academicSessions.institutionCode, institutionCode))
+          .orderBy(desc(academicSessions.startDate));
+        rows.forEach((r) => academicSessionMem.save(toAcademicSession(r)));
+        return rows;
+      } catch (err: any) {
+        console.warn('[PostgreSQL Academics Warning] listAcademicSessions failed:', err.message);
+      }
+    }
+    return academicSessionMem.filter((r) => r.institutionCode.toLowerCase() === institutionCode.toLowerCase());
+  }
+
+  public async getAcademicSessionById(id: string): Promise<AcademicSessionRecord | undefined> {
+    if (db) {
+      try {
+        const rows = await db.select().from(academicSessions).where(eq(academicSessions.id, id)).limit(1);
+        if (rows.length > 0) {
+          const rec = toAcademicSession(rows[0]);
+          academicSessionMem.save(rec);
+          return rec;
+        }
+        return undefined;
+      } catch (err: any) {
+        console.warn('[PostgreSQL Academics Warning] getAcademicSessionById failed:', err.message);
+      }
+    }
+    return academicSessionMem.getById(id);
+  }
+
+  public async getCurrentAcademicSession(institutionCode: string): Promise<AcademicSessionRecord | undefined> {
+    if (db) {
+      try {
+        const rows = await db
+          .select()
+          .from(academicSessions)
+          .where(and(eq(academicSessions.institutionCode, institutionCode), eq(academicSessions.isCurrent, true)))
+          .limit(1);
+        if (rows.length > 0) return toAcademicSession(rows[0]);
+        return undefined;
+      } catch (err: any) {
+        console.warn('[PostgreSQL Academics Warning] getCurrentAcademicSession failed:', err.message);
+      }
+    }
+    return academicSessionMem.filter((r) => r.institutionCode.toLowerCase() === institutionCode.toLowerCase() && r.isCurrent)[0];
+  }
+
+  public async createAcademicSession(data: any): Promise<AcademicSessionRecord> {
+    const record: AcademicSessionRecord = {
+      id: data.id || `as_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      institutionCode: data.institutionCode,
+      name: data.name,
+      startDate: data.startDate || '',
+      endDate: data.endDate || '',
+      isCurrent: data.isCurrent ?? false,
+      createdAt: data.createdAt || new Date(),
+      updatedAt: data.updatedAt || new Date(),
+    };
+    if (db) {
+      const [inserted] = await db.insert(academicSessions).values(record).onConflictDoNothing().returning();
+      if (inserted) return toAcademicSession(inserted);
+      return record;
+    }
+    academicSessionMem.save(record);
+    return record;
+  }
+
+  public async updateAcademicSession(id: string, data: any): Promise<AcademicSessionRecord | undefined> {
+    if (db) {
+      try {
+        const [row] = await db
+          .update(academicSessions)
+          .set({ ...data, updatedAt: new Date() })
+          .where(eq(academicSessions.id, id))
+          .returning();
+        if (row) {
+          const rec = toAcademicSession(row);
+          academicSessionMem.save(rec);
+          return rec;
+        }
+        return undefined;
+      } catch (err: any) {
+        console.warn('[PostgreSQL Academics Warning] updateAcademicSession failed:', err.message);
+      }
+    }
+    const existing = academicSessionMem.getById(id);
+    if (!existing) return undefined;
+    return academicSessionMem.save({ ...existing, ...data, updatedAt: new Date() });
+  }
+
+  public async setAllSessionsNotCurrent(institutionCode: string): Promise<void> {
+    if (db) {
+      try {
+        await db
+          .update(academicSessions)
+          .set({ isCurrent: false, updatedAt: new Date() })
+          .where(eq(academicSessions.institutionCode, institutionCode));
+      } catch (err: any) {
+        console.warn('[PostgreSQL Academics Warning] setAllSessionsNotCurrent failed:', err.message);
+      }
+    }
+    academicSessionMem
+      .filter((r) => r.institutionCode.toLowerCase() === institutionCode.toLowerCase() && r.isCurrent)
+      .forEach((r) => academicSessionMem.save({ ...r, isCurrent: false, updatedAt: new Date() }));
+  }
+
+  public async deleteAcademicSession(id: string): Promise<boolean> {
+    if (db) {
+      try {
+        const rows = await db.delete(academicSessions).where(eq(academicSessions.id, id)).returning({ id: academicSessions.id });
+        academicSessionMem.delete(id);
+        return rows.length > 0;
+      } catch (err: any) {
+        console.warn('[PostgreSQL Academics Warning] deleteAcademicSession failed:', err.message);
+      }
+    }
+    return academicSessionMem.delete(id);
+  }
+
   // ---------- Class Sections ----------
   public async listClassSections(institutionCode: string): Promise<ClassSectionRecord[]> {
     if (db) {
@@ -192,6 +334,7 @@ export class AcademicsRepository {
       academicYear: data.academicYear || '',
       section: data.section || '',
       classTeacherId: data.classTeacherId || '',
+      sessionId: data.sessionId || '',
       createdAt: data.createdAt || new Date(),
       updatedAt: data.updatedAt || new Date(),
     };
@@ -590,6 +733,7 @@ export class AcademicsRepository {
       version: data.version,
       effectiveFrom: data.effectiveFrom,
       createdBy: data.createdBy,
+      sessionId: data.sessionId || '',
       createdAt: data.createdAt || new Date(),
       updatedAt: data.updatedAt || new Date(),
     };
@@ -1193,6 +1337,7 @@ export class AcademicsRepository {
       name: data.name,
       term: data.term || '',
       academicYear: data.academicYear || '',
+      sessionId: data.sessionId || '',
       startDate: data.startDate || null,
       endDate: data.endDate || null,
       status: data.status || 'draft',

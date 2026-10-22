@@ -13,6 +13,7 @@ import { fetchMyFeesApi } from '../../../api/academics';
 import { mapParentFees } from '../../accountant/utils/feeMappers';
 import { IncomeRecord } from '../../accountant/types/finance';
 import { useUserStore } from '../../../store/useUserStore';
+import { FeeCheckoutView, FeeCheckoutLine } from '../../shared/payments/FeeCheckoutView';
 
 export const StudentHomeFeeSummary: React.FC = () => {
   const institutionName = useUserStore((s) => s.institutionName) || 'School';
@@ -20,6 +21,7 @@ export const StudentHomeFeeSummary: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [selectedReceipt, setSelectedReceipt] = useState<IncomeRecord | null>(null);
+  const [checkoutLines, setCheckoutLines] = useState<FeeCheckoutLine[] | null>(null);
 
   const loadFees = useCallback(async () => {
     try {
@@ -58,6 +60,23 @@ export const StudentHomeFeeSummary: React.FC = () => {
   const pendingAmount = fees
     .filter((f) => f.status !== 'paid')
     .reduce((sum, f) => sum + f.amount, 0);
+
+  const pendingCount = fees.filter((f) => f.status !== 'paid').length;
+
+  /** Checkout uses FEE STRUCTURE ids — the server derives amounts from them. */
+  const toCheckoutLine = (fee: IncomeRecord): FeeCheckoutLine => ({
+    id: fee.feeStructureId || fee.id,
+    title: fee.title,
+    amount: fee.amount,
+  });
+
+  const handlePayFee = (fee: IncomeRecord) => setCheckoutLines([toCheckoutLine(fee)]);
+
+  const handlePayAll = () => {
+    const due = fees.filter((f) => f.status !== 'paid');
+    if (due.length === 0) return;
+    setCheckoutLines(due.map(toCheckoutLine));
+  };
 
   if (loading) {
     return (
@@ -98,6 +117,13 @@ export const StudentHomeFeeSummary: React.FC = () => {
           </View>
         )}
       </View>
+
+      {pendingCount > 0 && pendingAmount > 0 ? (
+        <TouchableOpacity style={styles.payAllBtn} onPress={handlePayAll} activeOpacity={0.8}>
+          <MaterialCommunityIcons name="lightning-bolt" size={14} color="#1A1B1C" />
+          <Text style={styles.payAllBtnText}>Pay All Dues • {formatINR(pendingAmount)}</Text>
+        </TouchableOpacity>
+      ) : null}
 
       {/* Fee List */}
       <View style={styles.list}>
@@ -140,9 +166,19 @@ export const StudentHomeFeeSummary: React.FC = () => {
                       <Text style={styles.receiptBtnText}>View Receipt{fee.receiptNo ? ` (${fee.receiptNo})` : ''}</Text>
                     </TouchableOpacity>
                   ) : (
-                    <View style={styles.payNote}>
-                      <MaterialCommunityIcons name="information-outline" size={14} color="#6B6B6B" />
-                      <Text style={styles.payNoteText}>Pay at the school accounts office</Text>
+                    <View style={styles.payRow}>
+                      <TouchableOpacity
+                        style={styles.payNowBtn}
+                        onPress={() => handlePayFee(fee)}
+                        activeOpacity={0.7}
+                      >
+                        <MaterialCommunityIcons name="lightning-bolt" size={13} color="#FFFFFF" />
+                        <Text style={styles.payNowBtnText}>Pay Now</Text>
+                      </TouchableOpacity>
+                      <View style={styles.payNote}>
+                        <MaterialCommunityIcons name="information-outline" size={13} color="#6B6B6B" />
+                        <Text style={styles.payNoteText}>or at the accounts office</Text>
+                      </View>
                     </View>
                   )}
                 </View>
@@ -200,6 +236,16 @@ export const StudentHomeFeeSummary: React.FC = () => {
           </View>
         </Modal>
       )}
+
+      {/* Online checkout — Razorpay, webhook-confirmed */}
+      <FeeCheckoutView
+        visible={checkoutLines !== null}
+        lines={checkoutLines || []}
+        merchantName={institutionName}
+        studentLabel={undefined}
+        onClose={() => setCheckoutLines(null)}
+        onPaid={() => loadFees()}
+      />
     </View>
   );
 };
@@ -271,6 +317,34 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   payNoteText: { fontSize: 11, color: '#6B6B6B', fontFamily: FontFamily.regular },
+  payRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
+  payNowBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#1A1B1C',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+  },
+  payNowBtnText: { fontSize: 11, fontWeight: '800', color: '#FFFFFF', fontFamily: FontFamily.extrabold },
+  payAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#F4C430',
+    borderRadius: BorderRadius.card,
+    paddingVertical: 10,
+    marginBottom: 10,
+  },
+  payAllBtnText: {
+    color: '#1A1B1C',
+    fontSize: 13,
+    fontWeight: '800',
+    fontFamily: FontFamily.extrabold,
+  },
 
   modalOverlay: {
     flex: 1,

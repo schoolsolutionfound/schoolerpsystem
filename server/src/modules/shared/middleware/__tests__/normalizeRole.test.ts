@@ -13,6 +13,13 @@ describe('normalizeRole', () => {
     expect(normalizeRole('INSTITUTION ADMIN')).toBe('admin');
   });
 
+  it('maps "developer" to "dev"', () => {
+    expect(normalizeRole('developer')).toBe('dev');
+    expect(normalizeRole('Developer')).toBe('dev');
+    expect(normalizeRole('DEVELOPER')).toBe('dev');
+    expect(normalizeRole('dev')).toBe('dev');
+  });
+
   it('returns empty string for undefined/null', () => {
     expect(normalizeRole(undefined)).toBe('');
     expect(normalizeRole('')).toBe('');

@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const { cache } = vi.hoisted(() => ({
-  cache: new Map<string, { role: string; institutionCode: string; mustChangePassword: boolean; expiresAt: number }>(),
+  cache: new Map<
+    string,
+    { role: string; institutionCode: string; mustChangePassword: boolean; emailVerified: boolean; expiresAt: number }
+  >(),
 }));
 
 vi.mock('../../db/index.js', () => ({
@@ -27,8 +30,20 @@ vi.mock('../authCache.js', () => ({
     }
     return e;
   },
-  setCachedAuth: (uid: string, role: string, institutionCode: string, mustChangePassword: boolean) => {
-    cache.set(uid, { role, institutionCode, mustChangePassword: Boolean(mustChangePassword), expiresAt: Date.now() + 300000 });
+  setCachedAuth: (
+    uid: string,
+    role: string,
+    institutionCode: string,
+    mustChangePassword: boolean,
+    emailVerified: boolean
+  ) => {
+    cache.set(uid, {
+      role,
+      institutionCode,
+      mustChangePassword: Boolean(mustChangePassword),
+      emailVerified: Boolean(emailVerified),
+      expiresAt: Date.now() + 300000,
+    });
   },
   invalidateCachedAuth: (uid: string) => {
     cache.delete(uid);

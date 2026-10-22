@@ -97,7 +97,7 @@ const topHeaderStyles = StyleSheet.create({
   },
   searchInput: { flex: 1, fontSize: 13, color: '#1F2937', paddingVertical: 0 },
   rightContainer: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  iconBtn: { padding: 8, borderRadius: 20, backgroundColor: '#F3F4F6', position: 'relative' },
+  iconBtn: { padding: 8, borderRadius: 20, position: 'relative' },
   notifBadge: { position: 'absolute', top: 6, right: 6, width: 8, height: 8, borderRadius: 4, backgroundColor: '#EF4444' },
   userBox: {
     flexDirection: 'row',

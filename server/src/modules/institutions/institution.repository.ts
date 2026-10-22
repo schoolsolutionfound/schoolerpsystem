@@ -91,8 +91,14 @@ function toRecord(data: Partial<NewInstitutionRecord> & { institutionCode: strin
     departments: data.departments ?? [],
     academicYears: data.academicYears ?? [],
     courses: data.courses ?? [],
+    sections: data.sections ?? [],
+    classSubjects: data.classSubjects ?? {},
     terms: data.terms ?? [],
     blockedDates: data.blockedDates ?? [],
+    profileFormFields: (data as any).profileFormFields ?? {},
+
+
+
     defaultTempPassword: data.defaultTempPassword || '',
     maintenanceEnabled: (data as any).maintenanceEnabled ?? false,
     maintenanceMinVersion: (data as any).maintenanceMinVersion || '0.0.0',

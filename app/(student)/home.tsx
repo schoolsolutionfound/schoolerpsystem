@@ -194,6 +194,7 @@ export default function HomeScreen() {
         <StudentHomeHeader
           fullName={fullName}
           profilePic={profilePic}
+          showGreeting={activeTab === 'home'}
           onMenuPress={() => setDrawerOpen(true)}
           onNotificationsPress={() => router.push('/notifications')}
           onProfilePress={() => router.push('/(student)/profile')}

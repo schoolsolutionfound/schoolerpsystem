@@ -38,7 +38,7 @@ async function main() {
       await admin.auth().setCustomUserClaims(user.uid, {
         role: acct.role,
         profileCompleted: true,
-        institutionCode: 'SCHOOL001',
+        institutionCode: 'TST001',
       });
       console.log(`  ✓ ${acct.email} → role: ${acct.role}`);
     } catch (err: any) {

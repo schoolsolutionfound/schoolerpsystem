@@ -31,11 +31,18 @@ import { adminRoutes } from './modules/admin/admin.routes.js';
 import { academicsRoutes } from './modules/academics/academics.routes.js';
 import { developerRoutes } from './modules/developer/developer.routes.js';
 import { notificationRoutes } from './modules/notifications/notification.routes.js';
+import { emailWebhookRoutes } from './modules/notifications/email.webhook.routes.js';
+import { emailConfigRoutes } from './modules/notifications/email.config.routes.js';
 import { startNotificationQueue, stopNotificationQueue } from './modules/notifications/notification.queue.js';
 import { libraryRoutes } from './modules/library/library.routes.js';
 import { announcementRoutes } from './modules/announcements/announcement.routes.js';
 import { startAnnouncementScheduler, stopAnnouncementScheduler } from './modules/announcements/announcement.scheduler.js';
+import { payrollRoutes } from './modules/payroll/payroll.routes.js';
+import { startPayrollScheduler, stopPayrollScheduler } from './modules/payroll/payroll.scheduler.js';
 import { admissionsRoutes } from './modules/admissions/admissions.routes.js';
+import { paymentRoutes } from './modules/payments/payment.routes.js';
+import { startPaymentOrderSweeper, stopPaymentOrderSweeper } from './modules/payments/payment.sweeper.js';
+import { isEncryptionReady } from './modules/shared/utils/encryption.js';
 
 const port = Number(process.env.PORT) || 5000;
 const host = process.env.HOST || '0.0.0.0';
@@ -140,25 +147,33 @@ async function main() {
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     });
 
-    await fastify.register(rateLimit, {
-      max: Number(process.env.RATE_LIMIT_MAX) || 300,
-      timeWindow: '1 minute',
-      // With trustProxy set to a specific CIDR, req.ip correctly resolves to
-      // the real client IP from X-Forwarded-For. With trustProxy=false, it
-      // resolves to the socket IP (correct for direct connections).
-      keyGenerator: (req) => req.ip,
-      errorResponseBuilder: (req, context) => {
-        const afterMs = context.after ? Date.parse(context.after as string) : NaN;
-        const retryAfter = Number.isFinite(afterMs) ? Math.max(1, Math.ceil((afterMs - Date.now()) / 1000)) : 60;
-        return {
-          success: false,
-          error: {
-            message: `Too many requests. Try again in ${retryAfter} seconds.`,
-            code: 'RATE_LIMITED',
-          },
-        };
-      },
-    });
+    // Rate limiting is a production safety control only. Local development
+    // bursts past per-route limits (Fast Refresh reloads and logout/login
+    // testing each call POST /auth/login-sync, capped at 30/min), which used
+    // to 429 the app and trigger spurious Firestore fallbacks. Note: route-level
+    // `config.rateLimit` overrides are inert unless this plugin is registered.
+    // To exercise rate limiting locally, run with NODE_ENV=production.
+    if (isProduction) {
+      await fastify.register(rateLimit, {
+        max: Number(process.env.RATE_LIMIT_MAX) || 300,
+        timeWindow: '1 minute',
+        // With trustProxy set to a specific CIDR, req.ip correctly resolves to
+        // the real client IP from X-Forwarded-For. With trustProxy=false, it
+        // resolves to the socket IP (correct for direct connections).
+        keyGenerator: (req) => req.ip,
+        errorResponseBuilder: (req, context) => {
+          const afterMs = context.after ? Date.parse(context.after as string) : NaN;
+          const retryAfter = Number.isFinite(afterMs) ? Math.max(1, Math.ceil((afterMs - Date.now()) / 1000)) : 60;
+          return {
+            success: false,
+            error: {
+              message: `Too many requests. Try again in ${retryAfter} seconds.`,
+              code: 'RATE_LIMITED',
+            },
+          };
+        },
+      });
+    }
 
     // Health check route
     fastify.get('/health', async () => {
@@ -174,9 +189,13 @@ async function main() {
         await apiV1.register(academicsRoutes, { prefix: '/admin' });
         await apiV1.register(developerRoutes, { prefix: '/developer' });
         await apiV1.register(notificationRoutes, { prefix: '/notifications' });
+        await apiV1.register(emailWebhookRoutes, { prefix: '/email/webhook' });
+        await apiV1.register(emailConfigRoutes, { prefix: '/email' });
         await apiV1.register(libraryRoutes, { prefix: '/library' });
         await apiV1.register(announcementRoutes, { prefix: '/announcements' });
         await apiV1.register(admissionsRoutes, { prefix: '/admissions' });
+        await apiV1.register(paymentRoutes, { prefix: '/payments' });
+        await apiV1.register(payrollRoutes, { prefix: '/payroll' });
 
         // 404 handler for /api/v1/* — matches the API error envelope
         apiV1.setNotFoundHandler(async (request, reply) => {
@@ -234,10 +253,20 @@ async function main() {
 
     fastify.addHook('onClose', async () => {
       stopAnnouncementScheduler();
+      stopPaymentOrderSweeper();
+      stopPayrollScheduler();
     });
 
     await fastify.listen({ port, host });
     startAnnouncementScheduler();
+    startPaymentOrderSweeper();
+    startPayrollScheduler();
+
+    if (!isEncryptionReady()) {
+      console.warn(
+        '⚠️  PAYMENT_CONFIG_MASTER_KEY is missing/invalid — per-tenant payment credentials cannot be stored or read.'
+      );
+    }
 
     const proxyLabel =
       trustProxy === false
@@ -249,6 +278,7 @@ async function main() {
     console.log(`🚀 Fastify Backend Server running on http://${host}:${port}`);
     console.log(`   Environment:  ${isProduction ? 'production' : 'development'}`);
     console.log(`   trustProxy:   ${proxyLabel}`);
+    console.log(`   rateLimit:    ${isProduction ? `enabled (${Number(process.env.RATE_LIMIT_MAX) || 300} req/min per IP)` : 'disabled (development)'}`);
     console.log(`   bodyLimit:    ${bodyLimit} bytes`);
     console.log(`   timeouts:     request=${requestTimeout}ms connection=${connectionTimeout}ms`);
 
@@ -260,6 +290,8 @@ async function main() {
       console.log(`\n🛑 Received ${signal}, shutting down gracefully...`);
       stopNotificationQueue();
       stopAnnouncementScheduler();
+      stopPaymentOrderSweeper();
+      stopPayrollScheduler();
       try {
         await fastify.close();
         console.log('✅ Server closed cleanly.');

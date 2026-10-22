@@ -1,5 +1,6 @@
 import { apiClient } from './client';
 import { SingleFeedInput } from '../schemas/feed.schema';
+import type { ProfileFormField } from '../features/shared/formFields/types';
 
 export async function singleFeedApi(payload: SingleFeedInput) {
   return apiClient('/admin/single-feed', {
@@ -15,6 +16,31 @@ export async function bulkFeedApi(records: SingleFeedInput[], options?: { sendEm
   });
 }
 
+export interface BulkCreateRecord {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  password?: string;
+  rollNoOrUSN?: string;
+  department?: string;
+  academicYear?: string;
+  section?: string;
+  employeeId?: string;
+  relation?: string;
+  childEmails?: string[];
+  categoryName?: string;
+  seats?: number;
+}
+
+/** CSV bulk import — one call creates up to 500 users of a single role. */
+export async function bulkCreateUsersApi(role: string, records: BulkCreateRecord[]) {
+  return apiClient('/admin/bulk-create', {
+    method: 'POST',
+    body: JSON.stringify({ role, records }),
+  });
+}
+
 export async function fetchInstitutionConfigApi() {
   return apiClient('/admin/institution-config');
 }
@@ -23,26 +49,64 @@ export async function fetchDashboardStatsApi() {
   return apiClient('/admin/dashboard-stats');
 }
 
-export async function updateInstitutionConfigApi(payload: { departments?: string[]; academicYears?: string[]; courses?: string[]; sections?: string[]; defaultTempPassword?: string; maintenanceEnabled?: boolean; maintenanceMinVersion?: string }) {
+export async function updateInstitutionConfigApi(payload: { departments?: string[]; academicYears?: string[]; courses?: string[]; sections?: string[]; classSubjects?: Record<string, string[]>; defaultTempPassword?: string; maintenanceEnabled?: boolean; maintenanceMinVersion?: string }) {
   return apiClient('/admin/institution-config', {
     method: 'PUT',
     body: JSON.stringify(payload),
   });
 }
 
-export async function fetchStudentsApi() {
-  return apiClient('/admin/students');
+// --- Settings → Form Fields (per-role dynamic profile fields) ---
+
+export async function fetchProfileFieldsApi() {
+  return apiClient<Record<string, ProfileFormField[]>>('/admin/profile-fields', {
+    method: 'GET',
+  });
+}
+
+export async function saveRoleProfileFieldsApi(role: string, fields: ProfileFormField[]) {
+  return apiClient<Record<string, ProfileFormField[]>>(`/admin/profile-fields/${role}`, {
+    method: 'PUT',
+    body: JSON.stringify({ fields }),
+  });
+}
+
+export interface AdminListParams {
+  search?: string;
+  limit?: number;
+  offset?: number;
+}
+
+function listQuery(params?: AdminListParams) {
+  const sp = new URLSearchParams();
+  if (params?.search) sp.set('search', params.search);
+  if (params?.limit != null) sp.set('limit', String(params.limit));
+  if (params?.offset != null) sp.set('offset', String(params.offset));
+  const qs = sp.toString();
+  return qs ? `?${qs}` : '';
+}
+
+export async function fetchStudentsApi(params?: AdminListParams | string) {
+  // Back-compat: bare string still treated as search
+  const p = typeof params === 'string' ? { search: params } : params;
+  return apiClient(`/admin/students${listQuery(p)}`);
 }
 
 export async function createStudentApi(payload: {
   firstName: string;
   lastName: string;
   email: string;
-  rollNoOrUSN: string;
+  rollNoOrUSN?: string;
+  phone?: string;
   department?: string;
   academicYear?: string;
   section?: string;
   password?: string;
+  dob?: string;
+  gender?: string;
+  admissionNo?: string;
+  admissionDate?: string;
+  sessionId?: string;
 }) {
   return apiClient('/admin/students', {
     method: 'POST',
@@ -64,6 +128,11 @@ export async function updateStudentApi(id: string, payload: {
   section?: string;
   phone?: string;
   parentPhone?: string;
+  dob?: string;
+  gender?: string;
+  admissionNo?: string;
+  admissionDate?: string;
+  sessionId?: string;
   tenthPercentage?: string;
   twelfthPercentage?: string;
 }) {
@@ -139,8 +208,16 @@ export async function deleteMyDocumentApi(docId: string) {
   });
 }
 
-export async function fetchTeachersApi() {
-  return apiClient('/admin/teachers');
+export async function fetchTeachersApi(params?: AdminListParams) {
+  return apiClient(`/admin/teachers${listQuery(params)}`);
+}
+
+export interface TeacherAcademicAssignment {
+  /** School: class/section triple matching class_sections rows */
+  classSection?: { department: string; academicYear: string; section: string };
+  /** College: program + semester */
+  program?: string;
+  semester?: string;
 }
 
 export async function createTeacherApi(payload: {
@@ -150,7 +227,13 @@ export async function createTeacherApi(payload: {
   employeeId?: string;
   department?: string;
   password?: string;
-}) {
+  phone?: string;
+  dob?: string;
+  gender?: string;
+  designation?: string;
+  employmentType?: string;
+  joiningDate?: string;
+} & TeacherAcademicAssignment) {
   return apiClient('/admin/teachers', {
     method: 'POST',
     body: JSON.stringify(payload),
@@ -163,7 +246,13 @@ export async function updateTeacherApi(id: string, payload: {
   email?: string;
   employeeId?: string;
   department?: string;
-}) {
+  phone?: string;
+  dob?: string;
+  gender?: string;
+  designation?: string;
+  employmentType?: string;
+  joiningDate?: string;
+} & TeacherAcademicAssignment) {
   return apiClient(`/admin/teachers/${id}`, {
     method: 'PUT',
     body: JSON.stringify(payload),
@@ -176,8 +265,8 @@ export async function deleteTeacherApi(id: string) {
   });
 }
 
-export async function fetchUsersApi() {
-  return apiClient('/admin/users');
+export async function fetchUsersApi(params?: AdminListParams) {
+  return apiClient(`/admin/users${listQuery(params)}`);
 }
 
 export async function createUserApi(payload: {
@@ -194,6 +283,20 @@ export async function createUserApi(payload: {
   section?: string;
   title?: string;
   password?: string;
+  address?: string;
+  city?: string;
+  pincode?: string;
+  alternatePhone?: string;
+  occupation?: string;
+  emergencyContact?: string;
+  preferredLanguage?: string;
+  relation?: string;
+  children?: { studentId: string; relationship?: string; permissions?: string[] }[];
+  notificationPrefs?: { pushEnabled?: boolean; disabledTypes?: string[] };
+  /** admission_officer only — quota category (name + intake) + assigned fee structures */
+  categoryName?: string;
+  seats?: number;
+  feeStructureIds?: string[];
 }) {
   return apiClient('/admin/users', {
     method: 'POST',

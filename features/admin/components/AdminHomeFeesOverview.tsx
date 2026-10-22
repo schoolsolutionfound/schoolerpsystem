@@ -32,7 +32,7 @@ export const AdminHomeFeesOverview: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { gap: 6 },
-  sectionTitle: { fontSize: 15, fontWeight: '800', color: '#171717', marginTop: 6 },
+  sectionTitle: { fontSize: 15, fontWeight: '800', color: '#1A1B1C', marginTop: 6 },
   feesRow: { flexDirection: 'row', gap: 12 },
   feeCard: {
     flex: 1,

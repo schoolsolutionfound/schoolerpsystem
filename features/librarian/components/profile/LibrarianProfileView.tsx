@@ -37,7 +37,7 @@ export const LibrarianProfileView = ({
   // Profile fields state
   const [name, setName] = useState(userName || 'Amina Rahman');
   const [email, setEmail] = useState('amina.rahman@kivquo.edu.org');
-  const [phone, setPhone] = useState('+1 (555) 234-5678');
+  const [phone, setPhone] = useState('');
   const [employeeId, setEmployeeId] = useState('LIB-2024-8891');
   const [libraryBadgeId, setLibraryBadgeId] = useState('BADGE-LIB-001');
   const [designation, setDesignation] = useState('Head of Library Operations');
@@ -195,7 +195,7 @@ export const LibrarianProfileView = ({
               style={styles.formInput}
               value={phone}
               onChangeText={setPhone}
-              placeholder="e.g. +1 (555) 234-5678"
+              placeholder="e.g. +91 98765 43210"
             />
           </View>
 

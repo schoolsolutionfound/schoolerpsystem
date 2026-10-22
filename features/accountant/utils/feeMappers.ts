@@ -191,6 +191,11 @@ export interface ExpenseRow {
   status?: string;
   invoiceNo?: string | null;
   notes?: string | null;
+  dueDate?: string | null;
+  scheduleId?: string | null;
+  userId?: string | null;
+  paidAmount?: string | number | null;
+  payrollType?: string | null;
 }
 
 const VALID_EXPENSE_CATEGORIES: string[] = [
@@ -222,6 +227,12 @@ export function mapExpenseRecords(rows: ExpenseRow[]): ExpenseRecord[] {
       status: normalizeStatus(row.status),
       invoiceNo: row.invoiceNo || '',
       notes: row.notes || undefined,
+      dueDate: row.dueDate || undefined,
+      scheduleId: row.scheduleId || undefined,
+      userId: row.userId || undefined,
+      paidAmount: row.paidAmount === null || row.paidAmount === undefined ? undefined : toNumber(row.paidAmount),
+      payrollType:
+        row.payrollType === 'salary' || row.payrollType === 'bonus' ? row.payrollType : undefined,
     };
   });
 }

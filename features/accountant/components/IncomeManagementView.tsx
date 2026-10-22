@@ -3,9 +3,10 @@
  * @description Fee & Income management panel for the School Finance portal.
  *
  * Features:
- *  - Category filter chips (All / Student Fees / Bus Transport / Hostel Fees / Misc)
+ *  - Summary strip (TOTAL / COLLECTED / PENDING)
+ *  - Category filter dropdown (All / Student Fees / Bus Transport / Hostel Fees / Misc)
  *  - Full-text search by title, payer name, or student ID
- *  - "Record Income" slide-up modal form with validation
+ *  - "Record Income" slide-up modal form with category dropdown + validation
  *  - "Edit / Update Payment" modal to update payment status, amount, method, or date
  *  - Official Fee Receipt viewer (fade modal)
  *  - Delete income record action
@@ -33,6 +34,16 @@ import {
 import { showAlert } from '../../shared/utils/showAlert';
 import { sharedFinanceStyles } from './financeStyles';
 
+const METHOD_LABELS: Record<PaymentMethod, string> = {
+  bank_transfer: 'Bank Transfer',
+  cheque: 'Cheque',
+  upi: 'UPI',
+  cash: 'Cash',
+  card: 'Card',
+};
+
+const methodLabel = (m: PaymentMethod) => METHOD_LABELS[m] || m.toUpperCase();
+
 export const IncomeManagementView: React.FC = () => {
   // Store selectors
   const incomeRecords = useFinanceStore((s) => s.incomeRecords);
@@ -43,6 +54,8 @@ export const IncomeManagementView: React.FC = () => {
   // Filter & search state
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [catOpen, setCatOpen] = useState(false);
 
   // Add modal state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -67,7 +80,7 @@ export const IncomeManagementView: React.FC = () => {
   // Receipt modal state
   const [selectedReceipt, setSelectedReceipt] = useState<IncomeRecord | null>(null);
 
-  // Category filter chips
+  // Category filter options (dropdown)
   const categories: { label: string; value: string }[] = [
     { label: 'All Incomes', value: 'all' },
     { label: 'Student Fees', value: 'student_fee' },
@@ -75,6 +88,7 @@ export const IncomeManagementView: React.FC = () => {
     { label: 'Hostel Fees', value: 'hostel_fee' },
     { label: 'Miscellaneous', value: 'misc' },
   ];
+  const filterLabel = categories.find((c) => c.value === selectedCategory)?.label || 'All Incomes';
 
   // Filter logic
   const filteredRecords = incomeRecords.filter((item) => {
@@ -88,6 +102,14 @@ export const IncomeManagementView: React.FC = () => {
       (item.classSection && item.classSection.toLowerCase().includes(q));
     return matchesCategory && matchesSearch;
   });
+
+  // Summary strip values
+  const totalCollected = incomeRecords.reduce((sum, r) => sum + r.amount, 0);
+  const collectedTotal = incomeRecords
+    .filter((r) => r.status === 'paid')
+    .reduce((sum, r) => sum + r.amount, 0);
+  const pendingRecords = incomeRecords.filter((r) => r.status !== 'paid');
+  const pendingTotal = pendingRecords.reduce((sum, r) => sum + r.amount, 0);
 
   const handleOpenEdit = (item: IncomeRecord) => {
     setEditingItem(item);
@@ -160,16 +182,36 @@ export const IncomeManagementView: React.FC = () => {
 
   return (
     <View style={sharedFinanceStyles.container}>
+      {/* Summary Strip */}
+      <View style={styles.summaryCard}>
+        <View style={styles.summaryCell}>
+          <Text style={styles.summaryNum}>{formatINR(totalCollected)}</Text>
+          <Text style={styles.summaryLabel}>TOTAL</Text>
+        </View>
+        <View style={styles.summaryDivider} />
+        <View style={styles.summaryCell}>
+          <Text style={[styles.summaryNum, { color: '#16A34A' }]}>{formatINR(collectedTotal)}</Text>
+          <Text style={styles.summaryLabel}>COLLECTED</Text>
+        </View>
+        <View style={styles.summaryDivider} />
+        <View style={styles.summaryCell}>
+          <Text style={[styles.summaryNum, { color: '#D97706' }]}>{formatINR(pendingTotal)}</Text>
+          <Text style={styles.summaryLabel}>
+            PENDING{pendingRecords.length ? ` · ${pendingRecords.length}` : ''}
+          </Text>
+        </View>
+      </View>
+
       {/* Top Actions Bar (Search + Record CTA) */}
       <View style={sharedFinanceStyles.actionsBar}>
         <View style={sharedFinanceStyles.searchBox}>
-          <MaterialCommunityIcons name="magnify" size={20} color="#718096" />
+          <MaterialCommunityIcons name="magnify" size={20} color="#6B6B6B" />
           <TextInput
             style={sharedFinanceStyles.searchInput}
             placeholder="Search by fee title, student, or ID..."
             value={searchQuery}
             onChangeText={setSearchQuery}
-            placeholderTextColor="#A0AEC0"
+            placeholderTextColor="#9A9A9A"
           />
         </View>
 
@@ -177,43 +219,65 @@ export const IncomeManagementView: React.FC = () => {
           style={[sharedFinanceStyles.addBtn, styles.addBtnIncome]}
           onPress={() => setIsAddModalOpen(true)}
         >
-          <MaterialCommunityIcons name="plus" size={18} color="#FFFFFF" />
+          <MaterialCommunityIcons name="plus" size={18} color="#171717" />
           <Text style={sharedFinanceStyles.addBtnText}>Record Income</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Category Filter Chips */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={sharedFinanceStyles.chipScrollView}
-      >
-        {categories.map((cat) => (
+      {/* Category Filter Dropdown + Result Count */}
+      <View style={styles.filterRow}>
+        <View style={styles.dropdownWrap}>
           <TouchableOpacity
-            key={cat.value}
-            style={[
-              sharedFinanceStyles.chip,
-              selectedCategory === cat.value && styles.chipActiveIncome,
-            ]}
-            onPress={() => setSelectedCategory(cat.value)}
+            style={styles.dropdownBtn}
+            onPress={() => setFilterOpen((o) => !o)}
+            activeOpacity={0.8}
           >
-            <Text
-              style={[
-                sharedFinanceStyles.chipText,
-                selectedCategory === cat.value && sharedFinanceStyles.chipTextActive,
-              ]}
-            >
-              {cat.label}
+            <MaterialCommunityIcons name="filter-variant" size={16} color="#171717" />
+            <Text style={styles.dropdownText} numberOfLines={1}>
+              {filterLabel}
             </Text>
+            <MaterialCommunityIcons
+              name={filterOpen ? 'chevron-up' : 'chevron-down'}
+              size={16}
+              color="#6B6B6B"
+            />
           </TouchableOpacity>
-        ))}
-      </ScrollView>
+
+          {filterOpen && (
+            <View style={styles.dropdownMenu}>
+              {categories.map((cat) => {
+                const active = selectedCategory === cat.value;
+                return (
+                  <TouchableOpacity
+                    key={cat.value}
+                    style={[styles.dropdownItem, active && styles.dropdownItemActive]}
+                    onPress={() => {
+                      setSelectedCategory(cat.value);
+                      setFilterOpen(false);
+                    }}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={[styles.dropdownItemText, active && styles.dropdownItemTextActive]}>
+                      {cat.label}
+                    </Text>
+                    {active && <MaterialCommunityIcons name="check" size={14} color="#B8860B" />}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
+        </View>
+
+        <Text style={styles.resultCount}>
+          {filteredRecords.length} {filteredRecords.length === 1 ? 'receipt' : 'receipts'}
+        </Text>
+      </View>
 
       {/* Income Records List */}
       <ScrollView style={sharedFinanceStyles.listContainer} showsVerticalScrollIndicator={false}>
         {filteredRecords.length === 0 ? (
           <View style={sharedFinanceStyles.emptyState}>
-            <MaterialCommunityIcons name="cash-remove" size={48} color="#CBD5E1" />
+            <MaterialCommunityIcons name="cash-remove" size={48} color="#9A9A9A" />
             <Text style={sharedFinanceStyles.emptyTitle}>No Incomes Found</Text>
             <Text style={sharedFinanceStyles.emptySubtitle}>
               Try adjusting your search query or record a new income above.
@@ -268,7 +332,8 @@ export const IncomeManagementView: React.FC = () => {
 
                 {/* Meta details */}
                 <Text style={sharedFinanceStyles.metaRow}>
-                  Date: {item.paymentDate} • Mode: {item.paymentMethod.toUpperCase()} • Receipt: {item.receiptNo}
+                  Date: {item.paymentDate} • Mode: {methodLabel(item.paymentMethod)} • Receipt:{' '}
+                  {item.receiptNo || '—'}
                 </Text>
 
                 {/* Action Footer */}
@@ -284,16 +349,16 @@ export const IncomeManagementView: React.FC = () => {
                       style={sharedFinanceStyles.actionIconBtn}
                       onPress={() => handleOpenEdit(item)}
                     >
-                      <MaterialCommunityIcons name="pencil-outline" size={14} color="#0284C7" />
-                      <Text style={[sharedFinanceStyles.actionIconBtnText, { color: '#0284C7' }]}>Update</Text>
+                      <MaterialCommunityIcons name="pencil-outline" size={14} color="#171717" />
+                      <Text style={[sharedFinanceStyles.actionIconBtnText, { color: '#171717' }]}>Update</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
                       style={sharedFinanceStyles.actionIconBtn}
                       onPress={() => setSelectedReceipt(item)}
                     >
-                      <MaterialCommunityIcons name="file-document-outline" size={14} color="#7E57C2" />
-                      <Text style={[sharedFinanceStyles.actionIconBtnText, { color: '#7E57C2' }]}>Receipt</Text>
+                      <MaterialCommunityIcons name="file-document-outline" size={14} color="#B8860B" />
+                      <Text style={[sharedFinanceStyles.actionIconBtnText, { color: '#B8860B' }]}>Receipt</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -318,13 +383,13 @@ export const IncomeManagementView: React.FC = () => {
               <View style={sharedFinanceStyles.modalHeader}>
                 <Text style={sharedFinanceStyles.modalTitle}>Update Payment Statement</Text>
                 <TouchableOpacity onPress={() => setEditingItem(null)}>
-                  <MaterialCommunityIcons name="close" size={24} color="#718096" />
+                  <MaterialCommunityIcons name="close" size={24} color="#6B6B6B" />
                 </TouchableOpacity>
               </View>
 
               <ScrollView style={sharedFinanceStyles.modalBody} showsVerticalScrollIndicator={false}>
                 <Text style={sharedFinanceStyles.label}>Payer / Student</Text>
-                <Text style={[sharedFinanceStyles.input, { lineHeight: 36, backgroundColor: '#F1F5F9', color: '#475569' }]}>
+                <Text style={[sharedFinanceStyles.input, { lineHeight: 36, backgroundColor: '#FFFDF7', color: '#6B6B6B' }]}>
                   {editingItem.payerName} ({editingItem.classSection || 'General'})
                 </Text>
 
@@ -408,7 +473,7 @@ export const IncomeManagementView: React.FC = () => {
             <View style={sharedFinanceStyles.modalHeader}>
               <Text style={sharedFinanceStyles.modalTitle}>Record Fee / Income</Text>
               <TouchableOpacity onPress={() => setIsAddModalOpen(false)}>
-                <MaterialCommunityIcons name="close" size={24} color="#718096" />
+                <MaterialCommunityIcons name="close" size={24} color="#6B6B6B" />
               </TouchableOpacity>
             </View>
 
@@ -422,21 +487,46 @@ export const IncomeManagementView: React.FC = () => {
               />
 
               <Text style={sharedFinanceStyles.label}>Category *</Text>
-              <View style={sharedFinanceStyles.radioRow}>
-                {(['student_fee', 'bus_fee', 'hostel_fee', 'misc'] as IncomeCategory[]).map((cat) => (
-                  <TouchableOpacity
-                    key={cat}
-                    style={[
-                      sharedFinanceStyles.radioBtn,
-                      category === cat && styles.radioBtnActiveIncome,
-                    ]}
-                    onPress={() => setCategory(cat)}
-                  >
-                    <Text style={[sharedFinanceStyles.radioText, category === cat && sharedFinanceStyles.radioTextActive]}>
-                      {getIncomeCategoryLabel(cat)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+              <View style={styles.dropdownWrap}>
+                <TouchableOpacity
+                  style={styles.dropdownBtn}
+                  onPress={() => setCatOpen((o) => !o)}
+                  activeOpacity={0.8}
+                >
+                  <MaterialCommunityIcons name="tag-outline" size={16} color="#6B6B6B" />
+                  <Text style={styles.dropdownText} numberOfLines={1}>
+                    {getIncomeCategoryLabel(category)}
+                  </Text>
+                  <MaterialCommunityIcons
+                    name={catOpen ? 'chevron-up' : 'chevron-down'}
+                    size={16}
+                    color="#6B6B6B"
+                  />
+                </TouchableOpacity>
+
+                {catOpen && (
+                  <View style={styles.dropdownMenu}>
+                    {(['student_fee', 'bus_fee', 'hostel_fee', 'misc'] as IncomeCategory[]).map((cat) => {
+                      const active = category === cat;
+                      return (
+                        <TouchableOpacity
+                          key={cat}
+                          style={[styles.dropdownItem, active && styles.dropdownItemActive]}
+                          onPress={() => {
+                            setCategory(cat);
+                            setCatOpen(false);
+                          }}
+                          activeOpacity={0.75}
+                        >
+                          <Text style={[styles.dropdownItemText, active && styles.dropdownItemTextActive]}>
+                            {getIncomeCategoryLabel(cat)}
+                          </Text>
+                          {active && <MaterialCommunityIcons name="check" size={14} color="#B8860B" />}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                )}
               </View>
 
               <Text style={sharedFinanceStyles.label}>Payer / Student Name *</Text>
@@ -514,7 +604,7 @@ export const IncomeManagementView: React.FC = () => {
           <View style={sharedFinanceStyles.modalOverlay}>
             <View style={sharedFinanceStyles.documentContent}>
               <View style={sharedFinanceStyles.documentHeader}>
-                <MaterialCommunityIcons name="school" size={32} color="#7E57C2" />
+                <MaterialCommunityIcons name="school" size={32} color="#171717" />
                 <Text style={sharedFinanceStyles.documentSchoolName}>SchoolHub Academy</Text>
                 <Text style={sharedFinanceStyles.documentSubHeader}>Official Fee Receipt</Text>
               </View>
@@ -546,7 +636,7 @@ export const IncomeManagementView: React.FC = () => {
                 </View>
                 <View style={sharedFinanceStyles.documentRow}>
                   <Text style={sharedFinanceStyles.documentLabel}>Payment Method:</Text>
-                  <Text style={sharedFinanceStyles.documentVal}>{selectedReceipt.paymentMethod.toUpperCase()}</Text>
+                  <Text style={sharedFinanceStyles.documentVal}>{methodLabel(selectedReceipt.paymentMethod)}</Text>
                 </View>
 
                 <View style={[sharedFinanceStyles.documentTotalBox, styles.receiptTotalBox]}>
@@ -569,13 +659,78 @@ export const IncomeManagementView: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  addBtnIncome: { backgroundColor: '#16A34A' },
-  chipActiveIncome: { backgroundColor: '#16A34A', borderColor: '#16A34A' },
+  addBtnIncome: { backgroundColor: '#F4C430' },
   incomeAmount: { color: '#16A34A' },
-  submitBtnIncome: { backgroundColor: '#16A34A' },
-  radioBtnActiveIncome: { backgroundColor: '#16A34A', borderColor: '#16A34A' },
+  submitBtnIncome: { backgroundColor: '#171717' },
+  radioBtnActiveIncome: { backgroundColor: '#171717', borderColor: '#171717' },
   radioBtnActivePending: { backgroundColor: '#D97706', borderColor: '#D97706' },
   receiptTotalBox: { backgroundColor: '#DCFCE7' },
   receiptTotalVal: { color: '#16A34A' },
-  closeReceiptBtn: { backgroundColor: '#16A34A' },
+  closeReceiptBtn: { backgroundColor: '#171717' },
+
+  // Summary strip
+  summaryCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    paddingVertical: 12,
+    marginBottom: 10,
+  },
+  summaryCell: { flex: 1, alignItems: 'center', paddingHorizontal: 4 },
+  summaryNum: { fontSize: 14, fontWeight: '800', color: '#171717' },
+  summaryLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#6B6B6B',
+    marginTop: 3,
+    letterSpacing: 0.5,
+  },
+  summaryDivider: { width: 1, height: 28, backgroundColor: '#E8E5DC' },
+
+  // Category filter dropdown
+  filterRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  dropdownWrap: { flex: 1, position: 'relative', zIndex: 20 },
+  dropdownBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    borderRadius: 5,
+    paddingHorizontal: 12,
+    height: 42,
+  },
+  dropdownText: { flex: 1, fontSize: 13, fontWeight: '700', color: '#171717' },
+  dropdownMenu: {
+    position: 'absolute',
+    top: 46,
+    left: 0,
+    right: 0,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    borderRadius: 5,
+    paddingVertical: 4,
+    shadowColor: '#171717',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 8,
+    zIndex: 30,
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  dropdownItemActive: { backgroundColor: '#FFF4C7' },
+  dropdownItemText: { fontSize: 13, fontWeight: '600', color: '#171717' },
+  dropdownItemTextActive: { fontWeight: '800', color: '#171717' },
+  resultCount: { fontSize: 11, fontWeight: '700', color: '#6B6B6B' },
 });

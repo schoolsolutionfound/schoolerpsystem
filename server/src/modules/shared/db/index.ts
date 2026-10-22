@@ -17,11 +17,26 @@ export interface InMemoryUser {
   rollNoOrUSN: string;
   mustChangePassword: boolean;
   profileCompleted: boolean;
+  emailVerified: boolean;
   parentPhone?: string;
   phone?: string;
   profilePicUrl?: string;
+  dob?: string;
+  gender?: string;
+  admissionNo?: string;
+  admissionDate?: string;
+  address?: string;
+  city?: string;
+  pincode?: string;
+  guardianName?: string;
+  guardianRelation?: string;
+  guardianEmail?: string;
   tenthPercentage?: string;
   twelfthPercentage?: string;
+  alternatePhone?: string;
+  occupation?: string;
+  emergencyContact?: string;
+  preferredLanguage?: string;
   title?: string;
   department?: string;
   roles?: string[];
@@ -35,6 +50,8 @@ export interface InMemoryUser {
 export interface PaginationOptions {
   limit?: number;
   offset?: number;
+  /** Free-text match against fullName / rollNoOrUSN / admissionNo / email. */
+  search?: string;
 }
 
 const DEFAULT_LIMIT = 100;
@@ -77,11 +94,26 @@ export class UserStore {
       rollNoOrUSN: user.rollNoOrUSN ?? existing?.rollNoOrUSN ?? '',
       mustChangePassword: user.mustChangePassword ?? existing?.mustChangePassword ?? false,
       profileCompleted: user.profileCompleted ?? existing?.profileCompleted ?? false,
+      emailVerified: user.emailVerified ?? existing?.emailVerified ?? true,
       parentPhone: user.parentPhone ?? existing?.parentPhone ?? '',
       phone: user.phone ?? existing?.phone ?? '',
       profilePicUrl: user.profilePicUrl ?? existing?.profilePicUrl ?? '',
+      dob: user.dob ?? existing?.dob ?? '',
+      gender: user.gender ?? existing?.gender ?? '',
+      admissionNo: user.admissionNo ?? existing?.admissionNo ?? '',
+      admissionDate: user.admissionDate ?? existing?.admissionDate ?? '',
+      address: user.address ?? existing?.address ?? '',
+      city: user.city ?? existing?.city ?? '',
+      pincode: user.pincode ?? existing?.pincode ?? '',
+      guardianName: user.guardianName ?? existing?.guardianName ?? '',
+      guardianRelation: user.guardianRelation ?? existing?.guardianRelation ?? '',
+      guardianEmail: user.guardianEmail ?? existing?.guardianEmail ?? '',
       tenthPercentage: user.tenthPercentage ?? existing?.tenthPercentage ?? '',
       twelfthPercentage: user.twelfthPercentage ?? existing?.twelfthPercentage ?? '',
+      alternatePhone: user.alternatePhone ?? existing?.alternatePhone ?? '',
+      occupation: user.occupation ?? existing?.occupation ?? '',
+      emergencyContact: user.emergencyContact ?? existing?.emergencyContact ?? '',
+      preferredLanguage: user.preferredLanguage ?? existing?.preferredLanguage ?? '',
       title: user.title ?? existing?.title ?? '',
       scope: user.scope ?? existing?.scope ?? '{}',
       permissions: user.permissions ?? existing?.permissions ?? '[]',
@@ -146,11 +178,26 @@ function mapUserRow(row: schema.UserRecord): InMemoryUser {
     rollNoOrUSN: row.rollNoOrUSN || '',
     mustChangePassword: row.mustChangePassword ?? false,
     profileCompleted: row.profileCompleted ?? false,
+    emailVerified: row.emailVerified ?? true,
     parentPhone: row.parentPhone || '',
     phone: row.phone || '',
     profilePicUrl: row.profilePicUrl || '',
+    dob: row.dob || '',
+    gender: row.gender || '',
+    admissionNo: row.admissionNo || '',
+    admissionDate: row.admissionDate || '',
+    address: row.address || '',
+    city: row.city || '',
+    pincode: row.pincode || '',
+    guardianName: row.guardianName || '',
+    guardianRelation: row.guardianRelation || '',
+    guardianEmail: row.guardianEmail || '',
     tenthPercentage: row.tenthPercentage || '',
     twelfthPercentage: row.twelfthPercentage || '',
+    alternatePhone: row.alternatePhone || '',
+    occupation: row.occupation || '',
+    emergencyContact: row.emergencyContact || '',
+    preferredLanguage: row.preferredLanguage || '',
     title: row.title || '',
     department: (row as any).department || '',
     roles: Array.isArray(row.roles) && row.roles.length > 0 ? row.roles : (row.role ? [row.role] : []),
@@ -220,15 +267,27 @@ export async function dbFindUsersByInstitution(
   opts?: PaginationOptions
 ): Promise<InMemoryUser[]> {
   const { limit, offset } = normalizePagination(opts);
+  const term = (opts?.search || '').trim();
   if (db) {
-    const where = role
-      ? and(eq(schema.users.institutionCode, institutionCode), eq(schema.users.role, role))
-      : eq(schema.users.institutionCode, institutionCode);
+    const conditions = [eq(schema.users.institutionCode, institutionCode)];
+    if (role) conditions.push(eq(schema.users.role, role));
+    if (term) {
+      const pattern = `%${term}%`;
+      conditions.push(
+        sql`(${schema.users.fullName} ILIKE ${pattern} OR ${schema.users.rollNoOrUSN} ILIKE ${pattern} OR ${schema.users.admissionNo} ILIKE ${pattern} OR ${schema.users.email} ILIKE ${pattern})`
+      );
+    }
+    const where = and(...conditions);
     const results = await db.select().from(schema.users).where(where).limit(limit).offset(offset);
     return results.map(mapUserRow);
   }
+  const needle = term.toLowerCase();
   const all = inMemoryUserStore.getAll().filter(
-    (u) => u.institutionCode.toLowerCase() === institutionCode.toLowerCase() && (!role || u.role === role)
+    (u) =>
+      u.institutionCode.toLowerCase() === institutionCode.toLowerCase() &&
+      (!role || u.role === role) &&
+      (!term ||
+        [u.fullName, u.rollNoOrUSN, u.admissionNo || '', u.email].some((v) => (v || '').toLowerCase().includes(needle)))
   );
   return all.slice(offset, offset + limit);
 }
@@ -511,11 +570,26 @@ export async function dbUpsertUser(
     rollNoOrUSN: user.rollNoOrUSN ?? base?.rollNoOrUSN ?? '',
     mustChangePassword: user.mustChangePassword ?? base?.mustChangePassword ?? false,
     profileCompleted: user.profileCompleted ?? base?.profileCompleted ?? false,
+    emailVerified: user.emailVerified ?? base?.emailVerified ?? true,
     parentPhone: user.parentPhone ?? base?.parentPhone ?? '',
     phone: user.phone ?? base?.phone ?? '',
     profilePicUrl: user.profilePicUrl ?? base?.profilePicUrl ?? '',
+    dob: user.dob ?? base?.dob ?? '',
+    gender: user.gender ?? base?.gender ?? '',
+    admissionNo: user.admissionNo ?? base?.admissionNo ?? '',
+    admissionDate: user.admissionDate ?? base?.admissionDate ?? '',
+    address: user.address ?? base?.address ?? '',
+    city: user.city ?? base?.city ?? '',
+    pincode: user.pincode ?? base?.pincode ?? '',
+    guardianName: user.guardianName ?? base?.guardianName ?? '',
+    guardianRelation: user.guardianRelation ?? base?.guardianRelation ?? '',
+    guardianEmail: user.guardianEmail ?? base?.guardianEmail ?? '',
     tenthPercentage: user.tenthPercentage ?? base?.tenthPercentage ?? '',
     twelfthPercentage: user.twelfthPercentage ?? base?.twelfthPercentage ?? '',
+    alternatePhone: user.alternatePhone ?? base?.alternatePhone ?? '',
+    occupation: user.occupation ?? base?.occupation ?? '',
+    emergencyContact: user.emergencyContact ?? base?.emergencyContact ?? '',
+    preferredLanguage: user.preferredLanguage ?? base?.preferredLanguage ?? '',
     title: user.title ?? base?.title ?? '',
     roles: user.roles ?? base?.roles ?? (user.role ? [user.role] : ['student']),
     scope: user.scope ?? base?.scope ?? '{}',
@@ -541,8 +615,22 @@ export async function dbUpsertUser(
       parentPhone: merged.parentPhone,
       phone: merged.phone,
       profilePicUrl: merged.profilePicUrl,
+      dob: merged.dob,
+      gender: merged.gender,
+      admissionNo: merged.admissionNo,
+      admissionDate: merged.admissionDate,
+      address: merged.address,
+      city: merged.city,
+      pincode: merged.pincode,
+      guardianName: merged.guardianName,
+      guardianRelation: merged.guardianRelation,
+      guardianEmail: merged.guardianEmail,
       tenthPercentage: merged.tenthPercentage,
       twelfthPercentage: merged.twelfthPercentage,
+      alternatePhone: merged.alternatePhone,
+      occupation: merged.occupation,
+      emergencyContact: merged.emergencyContact,
+      preferredLanguage: merged.preferredLanguage,
       title: merged.title,
       scope: safeJsonParse(merged.scope, {}),
       permissions: safeJsonParse(merged.permissions, []),
@@ -564,8 +652,22 @@ export async function dbUpsertUser(
         parentPhone: merged.parentPhone,
         phone: merged.phone,
         profilePicUrl: merged.profilePicUrl,
+        dob: merged.dob,
+        gender: merged.gender,
+        admissionNo: merged.admissionNo,
+        admissionDate: merged.admissionDate,
+        address: merged.address,
+        city: merged.city,
+        pincode: merged.pincode,
+        guardianName: merged.guardianName,
+        guardianRelation: merged.guardianRelation,
+        guardianEmail: merged.guardianEmail,
         tenthPercentage: merged.tenthPercentage,
         twelfthPercentage: merged.twelfthPercentage,
+        alternatePhone: merged.alternatePhone,
+        occupation: merged.occupation,
+        emergencyContact: merged.emergencyContact,
+        preferredLanguage: merged.preferredLanguage,
         title: merged.title,
         roles: merged.roles,
         scope: safeJsonParse(merged.scope, {}),
@@ -597,8 +699,22 @@ export async function dbUpdateUser(id: string, fields: Partial<InMemoryUser>, ex
     if (fields.profileCompleted !== undefined) updateData.profileCompleted = fields.profileCompleted;
     if (fields.mustChangePassword !== undefined) updateData.mustChangePassword = fields.mustChangePassword;
     if (fields.profilePicUrl !== undefined) updateData.profilePicUrl = fields.profilePicUrl;
+    if (fields.dob !== undefined) updateData.dob = fields.dob;
+    if (fields.gender !== undefined) updateData.gender = fields.gender;
+    if (fields.admissionNo !== undefined) updateData.admissionNo = fields.admissionNo;
+    if (fields.admissionDate !== undefined) updateData.admissionDate = fields.admissionDate;
+    if (fields.address !== undefined) updateData.address = fields.address;
+    if (fields.city !== undefined) updateData.city = fields.city;
+    if (fields.pincode !== undefined) updateData.pincode = fields.pincode;
+    if (fields.guardianName !== undefined) updateData.guardianName = fields.guardianName;
+    if (fields.guardianRelation !== undefined) updateData.guardianRelation = fields.guardianRelation;
+    if (fields.guardianEmail !== undefined) updateData.guardianEmail = fields.guardianEmail;
     if (fields.tenthPercentage !== undefined) updateData.tenthPercentage = fields.tenthPercentage;
     if (fields.twelfthPercentage !== undefined) updateData.twelfthPercentage = fields.twelfthPercentage;
+    if (fields.alternatePhone !== undefined) updateData.alternatePhone = fields.alternatePhone;
+    if (fields.occupation !== undefined) updateData.occupation = fields.occupation;
+    if (fields.emergencyContact !== undefined) updateData.emergencyContact = fields.emergencyContact;
+    if (fields.preferredLanguage !== undefined) updateData.preferredLanguage = fields.preferredLanguage;
     if (fields.graduatedAt !== undefined) updateData.graduatedAt = fields.graduatedAt;
     updateData.updatedAt = new Date();
 
@@ -620,6 +736,9 @@ export async function dbUpdateUser(id: string, fields: Partial<InMemoryUser>, ex
 
 export async function dbDeleteUserById(id: string): Promise<boolean> {
   if (db) {
+    // Drop parent ↔ child links where this user is the parent or the child.
+    await db.delete(schema.parentLinks).where(eq(schema.parentLinks.parentId, id));
+    await db.delete(schema.parentLinks).where(eq(schema.parentLinks.studentId, id));
     const deleted = await db.delete(schema.users).where(eq(schema.users.id, id)).returning();
     if (deleted.length > 0) invalidateCachedAuth(deleted[0].firebaseUid);
     return deleted.length > 0;

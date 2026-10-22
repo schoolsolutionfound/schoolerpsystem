@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Modal } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { BorderRadius } from '../../../constants/theme';
 import {
   fetchMyClassSectionApi,
   fetchClassTimetableApi,
@@ -72,13 +71,17 @@ export const ClassTeacherTimetableBuilder: React.FC<ClassTeacherTimetableBuilder
   }, [classSectionId, classSectionName]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
   }, [load]);
 
   const getSubjectOptions = (day: number, periodId: string) => {
     const key = `${day}:${periodId}`;
     const current = grid[key];
-    const assignedSubjectIds = new Set(assignments.map((a: any) => a.subjectId));
+    const forClass = classSection
+      ? assignments.filter((a: any) => a.classSectionId === classSection.id)
+      : assignments;
+    const assignedSubjectIds = new Set(forClass.map((a: any) => a.subjectId));
     const usedInThisSlot = subjects.filter((s: any) => assignedSubjectIds.has(s.id));
     return usedInThisSlot.map((s: any) => ({
       id: s.id,
@@ -261,7 +264,7 @@ export const ClassTeacherTimetableBuilder: React.FC<ClassTeacherTimetableBuilder
                     setPicker(null);
                   }}
                 >
-                  <MaterialCommunityIcons name="book-open-variant" size={16} color="#F4C430" />
+                  <MaterialCommunityIcons name="book-open-variant" size={16} color="#1A1B1C" />
                   <Text style={styles.optionText}>{opt.label.replace(' ✓', '')}</Text>
                   {grid[picker.key] === opt.id && <MaterialCommunityIcons name="check" size={16} color="#16A34A" />}
                 </TouchableOpacity>
@@ -287,34 +290,34 @@ export const ClassTeacherTimetableBuilder: React.FC<ClassTeacherTimetableBuilder
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { padding: 16, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#E8E5DC' },
-  title: { fontSize: 15, fontWeight: '800', color: '#171717' },
+  title: { fontSize: 15, fontWeight: '800', color: '#1A1B1C' },
   sub: { fontSize: 11, color: '#6B6B6B', marginTop: 4, lineHeight: 15 },
-  effectiveLabel: { fontSize: 11, color: '#F4C430', fontWeight: '700', marginTop: 6 },
+  effectiveLabel: { fontSize: 11, color: '#6B6B6B', fontWeight: '700', marginTop: 6 },
   viewRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
   viewChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#FFFDF7',
-    borderRadius: 16,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 5,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderWidth: 1,
     borderColor: '#E8E5DC',
   },
-  viewChipActive: { backgroundColor: '#FFF4C7', borderColor: '#F4C430' },
+  viewChipActive: { backgroundColor: '#1A1B1C', borderColor: '#1A1B1C' },
   viewChipText: { fontSize: 12, fontWeight: '700', color: '#6B6B6B' },
   viewChipTextActive: { color: '#F4C430' },
   listContainer: { padding: 16, gap: 12, paddingBottom: 20 },
   listDayCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.card,
+    borderRadius: 5,
     borderWidth: 1,
     borderColor: '#E8E5DC',
     overflow: 'hidden',
   },
   listDayTitle: {
-    backgroundColor: '#FFF4C7',
+    backgroundColor: '#1A1B1C',
     color: '#F4C430',
     fontSize: 13,
     fontWeight: '800',
@@ -328,38 +331,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderTopWidth: 0.5,
-    borderTopColor: '#FFFDF7',
+    borderTopColor: '#E8E5DC',
   },
   listTimeCol: { width: 52 },
-  listTime: { fontSize: 13, fontWeight: '800', color: '#F4C430' },
+  listTime: { fontSize: 13, fontWeight: '800', color: '#1A1B1C' },
   listTimeEnd: { fontSize: 10, color: '#6B6B6B' },
   listInfoCol: { flex: 1 },
-  listSubject: { fontSize: 13, fontWeight: '700', color: '#171717' },
+  listSubject: { fontSize: 13, fontWeight: '700', color: '#1A1B1C' },
   listMeta: { fontSize: 11, color: '#6B6B6B', marginTop: 2 },
   listFree: { fontSize: 13, color: '#6B6B6B' },
   centerBox: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 80 },
-  emptyCard: { backgroundColor: '#FFFFFF', borderRadius: BorderRadius.card, padding: 30, alignItems: 'center', borderWidth: 1, borderColor: '#E8E5DC', margin: 16, marginTop: 40 },
-  emptyTitle: { fontSize: 15, fontWeight: '700', color: '#171717', marginTop: 8 },
+  emptyCard: { backgroundColor: '#FFFFFF', borderRadius: 5, padding: 30, alignItems: 'center', borderWidth: 1, borderColor: '#E8E5DC', margin: 16, marginTop: 40 },
+  emptyTitle: { fontSize: 15, fontWeight: '700', color: '#1A1B1C', marginTop: 8 },
   emptySub: { fontSize: 12, color: '#6B6B6B', textAlign: 'center', marginTop: 4, lineHeight: 16 },
   gridHeaderRow: { flexDirection: 'row' },
   gridRow: { flexDirection: 'row' },
   cell: { width: 72, minHeight: 56, justifyContent: 'center', alignItems: 'center', borderWidth: 0.5, borderColor: '#E8E5DC', backgroundColor: '#FFFFFF' },
-  dayHeaderCell: { backgroundColor: '#FFF4C7' },
+  dayHeaderCell: { backgroundColor: '#1A1B1C' },
   dayHeaderText: { fontSize: 12, fontWeight: '800', color: '#F4C430' },
   periodCell: { backgroundColor: '#FFFDF7', width: 80, alignItems: 'flex-start', paddingLeft: 10 },
-  periodLabel: { fontSize: 11, fontWeight: '700', color: '#171717' },
+  periodLabel: { fontSize: 11, fontWeight: '700', color: '#1A1B1C' },
   periodTime: { fontSize: 10, color: '#6B6B6B', marginTop: 2 },
   slotCell: { gap: 2, paddingHorizontal: 4 },
-  slotCellFilled: { backgroundColor: '#FFF4C7' },
-  slotSubject: { fontSize: 11, fontWeight: '700', color: '#F4C430', textAlign: 'center' },
-  slotHint: { fontSize: 9, color: '#F4C430' },
+  slotCellFilled: { backgroundColor: '#F4C430' },
+  slotSubject: { fontSize: 11, fontWeight: '800', color: '#1A1B1C', textAlign: 'center' },
+  slotHint: { fontSize: 9, color: '#1A1B1C' },
   footer: { padding: 14, backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#E8E5DC' },
-  saveBtn: { backgroundColor: '#F4C430', borderRadius: BorderRadius.button, height: 48, alignItems: 'center', justifyContent: 'center' },
-  saveText: { color: '#FFFFFF', fontWeight: '800', fontSize: 14 },
+  saveBtn: { backgroundColor: '#F4C430', borderRadius: 5, height: 48, alignItems: 'center', justifyContent: 'center' },
+  saveText: { color: '#1A1B1C', fontWeight: '800', fontSize: 14 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 30 },
-  modalContent: { backgroundColor: '#FFFFFF', borderRadius: BorderRadius.modal, padding: 18 },
-  modalTitle: { fontSize: 16, fontWeight: '800', color: '#171717', marginBottom: 10 },
+  modalContent: { backgroundColor: '#FFFFFF', borderRadius: 5, padding: 18 },
+  modalTitle: { fontSize: 16, fontWeight: '800', color: '#1A1B1C', marginBottom: 10 },
   optionRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12 },
-  optionText: { fontSize: 14, color: '#171717', flex: 1 },
+  optionText: { fontSize: 14, color: '#1A1B1C', flex: 1 },
   hint: { fontSize: 12, color: '#6B6B6B', lineHeight: 17 },
 });

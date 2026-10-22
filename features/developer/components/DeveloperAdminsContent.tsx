@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
+import { useRouter } from 'expo-router';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   useAdminsQuery,
   useInstitutionsQuery,
@@ -20,6 +22,7 @@ import { ErrorState } from '../../shared/components/ErrorState';
 import { Colors, BorderRadius } from '../../../constants/theme';
 
 export function DeveloperAdminsContent() {
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedInstFilter, setSelectedInstFilter] = useState<string>('all');
 
@@ -95,7 +98,9 @@ export function DeveloperAdminsContent() {
         ) : filteredAdmins.length === 0 ? (
           <EmptyState
             title={searchTerm ? 'No Matching Admins' : 'No Institution Admins Found'}
-            description={searchTerm ? `No admins match "${searchTerm}".` : 'No admins configured yet.'}
+            description={searchTerm ? `No admins match "${searchTerm}".` : 'Tap + to create your first Institution Admin.'}
+            actionTitle={searchTerm ? undefined : 'Create Admin'}
+            onAction={searchTerm ? undefined : () => router.push('/(developer)/admins/create')}
           />
         ) : (
           <FlatList
@@ -104,7 +109,7 @@ export function DeveloperAdminsContent() {
             renderItem={({ item }) => (
               <InstitutionAdminCard
                 admin={item}
-                onEdit={() => {}}
+                onEdit={() => router.push(`/(developer)/admins/edit/${item.id}` as any)}
                 onDelete={() => handleDeleteAdmin(item.id, item.fullName)}
               />
             )}
@@ -113,6 +118,14 @@ export function DeveloperAdminsContent() {
           />
         )}
       </View>
+
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => router.push('/(developer)/admins/create')}
+        activeOpacity={0.8}
+      >
+        <MaterialCommunityIcons name="plus" size={28} color="#FFFFFF" />
+      </TouchableOpacity>
     </View>
   );
 }
@@ -127,5 +140,21 @@ const styles = StyleSheet.create({
   chipText: { fontSize: 12, color: Colors.light.icon, fontWeight: '600' },
   activeChipText: { color: '#FFFFFF' },
   contentWrap: { flex: 1, paddingHorizontal: 16 },
-  listContainer: { paddingBottom: 24 },
+  listContainer: { paddingBottom: 80 },
+  fab: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.light.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
 });

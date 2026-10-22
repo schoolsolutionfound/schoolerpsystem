@@ -1,14 +1,11 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, Animated, StatusBar, Image, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Animated, StatusBar, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { onAuthStateChanged } from 'firebase/auth';
-import LottieView from 'lottie-react-native';
 import { auth } from '../firebaseConfig';
 import { useUserStore } from '../store/useUserStore';
 import { getHomeRouteForRole } from '../features/shared/utils/routeGuards';
 import { FontFamily } from '../constants/fonts';
-
-const { width } = Dimensions.get('window');
 
 export default function AppSplashScreen() {
   const router = useRouter();
@@ -28,6 +25,8 @@ export default function AppSplashScreen() {
   const isProfileSynced = useUserStore((state) => state.isProfileSynced);
   const userRole = useUserStore((state) => state.userRole);
   const isEmailVerified = useUserStore((state) => state.isEmailVerified);
+  const mustChangePassword = useUserStore((state) => state.mustChangePassword);
+  const profileCompleted = useUserStore((state) => state.profileCompleted);
 
   const [authStateResolved, setAuthStateResolved] = useState(false);
 
@@ -97,10 +96,16 @@ export default function AppSplashScreen() {
     let finalRoute: any = '/auth';
 
     if (user) {
-      if (userRole === 'student' && !isEmailVerified) {
-        finalRoute = '/verify-email';
-      } else if (userRole === 'loading') {
+      if (userRole === 'loading') {
         return;
+      }
+      // First-login order: password reset → complete profile → verify email.
+      if (mustChangePassword) {
+        finalRoute = '/change-password';
+      } else if (!profileCompleted) {
+        finalRoute = '/complete-profile';
+      } else if (!isEmailVerified) {
+        finalRoute = '/verify-email';
       } else {
         finalRoute = getHomeRouteForRole(userRole);
       }
@@ -119,21 +124,11 @@ export default function AppSplashScreen() {
     }, remaining);
 
     return () => { clearTimeout(timer); clearTimeout(failsafe); };
-  }, [authStateResolved, isProfileSynced, _hasHydrated, userRole, isEmailVerified, router]);
+  }, [authStateResolved, isProfileSynced, _hasHydrated, userRole, isEmailVerified, mustChangePassword, profileCompleted, router]);
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
-
-      {/* Lottie animation */}
-      <View style={styles.lottieContainer}>
-        <LottieView
-          source={{ uri: 'https://assets9.lottiefiles.com/packages/lf20_u4yrau.json' }}
-          autoPlay
-          loop
-          style={styles.lottie}
-        />
-      </View>
 
       {/* Center content */}
       <View style={styles.content}>
@@ -190,19 +185,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFDF7',
-  },
-  lottieContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: Dimensions.get('window').height * 0.45,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  lottie: {
-    width: width * 0.75,
-    height: width * 0.75,
   },
   content: {
     flex: 1,

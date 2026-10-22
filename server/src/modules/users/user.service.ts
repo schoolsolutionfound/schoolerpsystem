@@ -1,12 +1,22 @@
 import { userRepository, IUserRepository } from './user.repository.js';
 import { AuthenticatedUser } from '../shared/middleware/auth.js';
 import { dbFindStudentByUsnInInstitution } from '../shared/db/index.js';
+import { getParentLinks, insertParentLinks, DEFAULT_PARENT_PERMISSIONS } from './parent-links.js';
+import { institutionService } from '../institutions/institution.service.js';
+import { validateCustomFields, mergeCustomFields } from './profile-fields.validation.js';
+import type { ProfileFormField } from '../admin/profileFields.schema.js';
 
 export interface CompleteProfileInput {
   phone?: string;
   parentPhone?: string;
   profilePicUrl?: string;
   institutionType?: 'school' | 'college';
+  address?: string;
+  city?: string;
+  pincode?: string;
+  guardianName?: string;
+  guardianRelation?: string;
+  guardianEmail?: string;
   tenthPercentage?: string;
   twelfthPercentage?: string;
   employeeId?: string;
@@ -17,6 +27,12 @@ export interface CompleteProfileInput {
   experience?: string;
   libraryBadgeId?: string;
   designation?: string;
+  dob?: string;
+  gender?: string;
+  specialization?: string;
+  emergencyContact?: string;
+  /** Settings → Form Fields values, keyed by field id. */
+  customFields?: Record<string, any>;
 }
 
 function parseScope(val: any): Record<string, any> {
@@ -27,7 +43,7 @@ function parseScope(val: any): Record<string, any> {
   return typeof val === 'object' ? val : {};
 }
 
-const RELATION_CANONICAL: Record<string, string> = {
+export const RELATION_CANONICAL: Record<string, string> = {
   father: 'Father',
   mother: 'Mother',
   guardian: 'Guardian',
@@ -47,6 +63,14 @@ export class UserService {
       };
     }
 
+    const scope = parseScope(user.scope);
+    // Settings → Form Fields: the role's configured extra fields plus this
+    // user's saved values (both also flow through the scope spread below, but
+    // are returned explicitly so clients never depend on spread ordering).
+    const profileFormFields = await institutionService
+      .getRoleProfileFormFields(user.institutionCode || '', user.role || '')
+      .catch(() => [] as ProfileFormField[]);
+
     return {
       id: user.id,
       firebaseUid: user.firebaseUid,
@@ -63,19 +87,42 @@ export class UserService {
       profilePicUrl: user.profilePicUrl,
       tenthPercentage: user.tenthPercentage,
       twelfthPercentage: user.twelfthPercentage,
+      dob: user.dob,
+      gender: user.gender,
+      admissionNo: user.admissionNo,
+      admissionDate: user.admissionDate,
+      address: user.address,
+      city: user.city,
+      pincode: user.pincode,
+      emergencyContact: user.emergencyContact || '',
+      guardianName: user.guardianName,
+      guardianRelation: user.guardianRelation,
+      guardianEmail: user.guardianEmail,
       designation: user.title || '',
-      ...parseScope(user.scope),
+      profileFormFields,
+      customFields: (scope.customFields && typeof scope.customFields === 'object' ? scope.customFields : {}),
+      ...scope,
     };
+  }
+
+  /** Settings → Form Fields config for the calling user's role + institution. */
+  public async getMyProfileFields(currentUser: AuthenticatedUser) {
+    const user = await this.repo.findByUid(currentUser.uid);
+    const instCode = (currentUser.institutionCode || user?.institutionCode || '').trim();
+    const role = user?.role || currentUser.role || '';
+    return institutionService.getRoleProfileFormFields(instCode, role);
   }
 
   public async completeProfile(currentUser: AuthenticatedUser, payload: CompleteProfileInput) {
     const role = (currentUser.role || 'student').toLowerCase();
 
-    if (role === 'student') {
-      if (!payload.parentPhone) {
-        throw { statusCode: 400, code: 'MISSING_FIELD', message: 'Parent phone number is required for students' };
-      }
+    const phone = (payload.phone || '').trim();
+    if (phone && !/^\+?[\d\s-]{7,20}$/.test(phone)) {
+      throw { statusCode: 400, code: 'INVALID_PHONE', message: 'Phone number must be 7-20 digits (may include +, spaces or dashes)' };
     }
+
+    const canonicalGuardianRelation =
+      role === 'student' ? RELATION_CANONICAL[(payload.guardianRelation || '').trim().toLowerCase()] || '' : '';
 
     const requestedUsn = (payload.linkedStudentUSN || '').trim();
     const requestedRelation = (payload.relation || '').trim();
@@ -102,7 +149,8 @@ export class UserService {
       }
     }
 
-    let storedUsn = requestedUsn;
+    let linkStudentId: string | undefined;
+    let linkInstitutionCode = '';
 
     const existing = await this.repo.findByUid(currentUser.uid);
     const existingScope = parseScope(existing?.scope);
@@ -124,30 +172,57 @@ export class UserService {
 
       // Once linked, the child cannot be re-pointed through self-service —
       // that is the account-linking forgery vector. Admins change it server-side.
-      const currentUsn = (existingScope.linkedStudentUSN || '').trim();
-      if (currentUsn && currentUsn.toLowerCase() !== requestedUsn.toLowerCase()) {
+      const currentLinks = existing ? await getParentLinks(existing.id) : [];
+      const legacyUsn = String(existingScope.linkedStudentUSN || '').trim();
+      const isSameChild =
+        (currentLinks.length > 0 && currentLinks[0].studentId === student.id) ||
+        (currentLinks.length === 0 &&
+          legacyUsn !== '' &&
+          legacyUsn.toLowerCase() === requestedUsn.toLowerCase());
+      if ((currentLinks.length > 0 || legacyUsn) && !isSameChild) {
         throw {
           statusCode: 403,
           code: 'LINK_CHANGE_FORBIDDEN',
           message: 'This account is already linked to a student. Contact your administrator to change the link.',
         };
       }
-      // Preserve the original casing on re-submit (SQL USN match is case-sensitive).
-      if (currentUsn) {
-        storedUsn = currentUsn;
-      }
+      linkStudentId = student.id;
+      linkInstitutionCode = institutionCode;
     }
 
-    const scopeObj = {
+    // Settings → Form Fields: validate the role's configured fields (required
+    // + per-type checks). Values are persisted inside scope.customFields keyed
+    // by stable field id, so label/type edits never orphan saved data.
+    const instCode = (currentUser.institutionCode || existing?.institutionCode || '').trim();
+    const roleFields = await institutionService.getRoleProfileFormFields(instCode, role).catch(() => [] as ProfileFormField[]);
+    let validatedCustomFields: Record<string, any> = {};
+    if (roleFields.length > 0) {
+      const result = validateCustomFields(roleFields, payload.customFields ?? {});
+      if (!result.ok) {
+        throw { statusCode: 400, code: 'INVALID_CUSTOM_FIELDS', message: result.message };
+      }
+      validatedCustomFields = result.values;
+    }
+
+    const scopeObj: Record<string, any> = {
       ...existingScope,
       ...(payload.employeeId ? { employeeId: payload.employeeId } : {}),
       ...(payload.department ? { department: payload.department } : {}),
-      ...(storedUsn ? { linkedStudentUSN: storedUsn } : {}),
       ...(canonicalRelation ? { relation: canonicalRelation } : {}),
       ...(payload.qualification ? { qualification: payload.qualification } : {}),
       ...(payload.experience ? { experience: payload.experience } : {}),
       ...(payload.libraryBadgeId ? { libraryBadgeId: payload.libraryBadgeId } : {}),
+      ...(payload.specialization ? { specialization: payload.specialization } : {}),
     };
+    if (roleFields.length > 0) {
+      scopeObj.customFields = mergeCustomFields(
+        existingScope.customFields as Record<string, any> | undefined,
+        validatedCustomFields
+      );
+    }
+    // Linking lives in parent_links now — keep scope free of the legacy key
+    // for accounts we touch (legacy readers fall back only when rows are absent).
+    delete scopeObj.linkedStudentUSN;
 
     const updatedUser = await this.repo.upsertUser({
       firebaseUid: currentUser.uid,
@@ -156,16 +231,118 @@ export class UserService {
       phone: payload.phone || payload.parentPhone || '',
       profilePicUrl: payload.profilePicUrl,
       institutionType: payload.institutionType || 'college',
+      address: payload.address,
+      city: payload.city,
+      pincode: payload.pincode,
+      guardianName: role === 'student' ? payload.guardianName : undefined,
+      guardianRelation: role === 'student' ? canonicalGuardianRelation : undefined,
+      guardianEmail: role === 'student' ? payload.guardianEmail : undefined,
       tenthPercentage: role === 'student' ? payload.tenthPercentage : undefined,
       twelfthPercentage: role === 'student' ? payload.twelfthPercentage : undefined,
       title: payload.designation || existing?.title || '',
+      dob: payload.dob || existing?.dob || '',
+      gender: payload.gender || existing?.gender || '',
+      emergencyContact: payload.emergencyContact || existing?.emergencyContact || '',
       scope: JSON.stringify(scopeObj),
       profileCompleted: true,
     });
 
+    const parentId = existing?.id || (updatedUser as any)?.id;
+    if (linkStudentId && parentId) {
+      await insertParentLinks(linkInstitutionCode, parentId, [
+        {
+          studentId: linkStudentId,
+          relationship: canonicalRelation || 'Guardian',
+          permissions: DEFAULT_PARENT_PERMISSIONS,
+          isPrimary: true,
+        },
+      ]);
+    }
+
     return {
       message: 'Profile completed successfully',
       user: updatedUser,
+    };
+  }
+
+  /**
+   * Self-service profile edit for already-completed accounts (admin/developer/
+   * staff). Only safe display fields — never role, institution, or parent links.
+   */
+  public async updateMyProfile(
+    currentUser: AuthenticatedUser,
+    payload: {
+      fullName?: string;
+      phone?: string;
+      designation?: string;
+      profilePicUrl?: string;
+      address?: string;
+      city?: string;
+      pincode?: string;
+      emergencyContact?: string;
+      /** Settings → Form Fields values; only fields flagged editable apply. */
+      customFields?: Record<string, any>;
+    }
+  ) {
+    const existing = await this.repo.findByUid(currentUser.uid);
+    if (!existing) {
+      throw {
+        statusCode: 403,
+        code: 'ACCOUNT_NOT_PROVISIONED',
+        message: 'No account is provisioned for this user. Contact your administrator.',
+      };
+    }
+
+    const fullName = (payload.fullName ?? '').trim();
+    if (payload.fullName !== undefined && fullName.length < 2) {
+      throw { statusCode: 400, code: 'INVALID_NAME', message: 'Full name must be at least 2 characters.' };
+    }
+    if (payload.phone !== undefined && payload.phone && !/^\+?[\d\s-]{7,20}$/.test(payload.phone.trim())) {
+      throw { statusCode: 400, code: 'INVALID_PHONE', message: 'Phone number looks invalid.' };
+    }
+
+    const existingScope = parseScope(existing.scope);
+
+    let scopeBlob = JSON.stringify(existingScope);
+    if (payload.customFields !== undefined) {
+      const roleFields = await institutionService
+        .getRoleProfileFormFields(existing.institutionCode || '', existing.role || '')
+        .catch(() => [] as ProfileFormField[]);
+      const result = validateCustomFields(roleFields, payload.customFields, { onlyEditable: true });
+      if (!result.ok) {
+        throw { statusCode: 400, code: 'INVALID_CUSTOM_FIELDS', message: result.message };
+      }
+      scopeBlob = JSON.stringify({
+        ...existingScope,
+        customFields: mergeCustomFields(
+          existingScope.customFields as Record<string, any> | undefined,
+          result.values
+        ),
+      });
+    }
+
+    const updatedUser = await this.repo.upsertUser({
+      firebaseUid: currentUser.uid,
+      email: existing.email,
+      ...(payload.fullName !== undefined && fullName ? { fullName } : {}),
+      ...(payload.phone !== undefined ? { phone: payload.phone.trim() } : {}),
+      ...(payload.designation !== undefined ? { title: payload.designation.trim() } : {}),
+      ...(payload.profilePicUrl !== undefined ? { profilePicUrl: payload.profilePicUrl } : {}),
+      ...(payload.address !== undefined ? { address: payload.address.trim() } : {}),
+      ...(payload.city !== undefined ? { city: payload.city.trim() } : {}),
+      ...(payload.pincode !== undefined ? { pincode: payload.pincode.trim() } : {}),
+      ...(payload.emergencyContact !== undefined ? { emergencyContact: payload.emergencyContact.trim() } : {}),
+      scope: scopeBlob,
+      profileCompleted: true,
+    });
+
+    return {
+      message: 'Profile updated successfully',
+      user: updatedUser,
+      fullName: updatedUser?.fullName ?? existing.fullName,
+      phone: updatedUser?.phone ?? existing.phone,
+      designation: updatedUser?.title ?? existing.title,
+      profilePicUrl: updatedUser?.profilePicUrl ?? existing.profilePicUrl,
     };
   }
 }

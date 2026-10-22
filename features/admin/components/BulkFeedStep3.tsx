@@ -33,7 +33,7 @@ export const BulkFeedStep3: React.FC<BulkFeedStep3Props> = ({
     <ScrollView contentContainerStyle={styles.scrollSuccess} showsVerticalScrollIndicator={false}>
       <View style={styles.topHeader}>
         <TouchableOpacity onPress={onResetStep} style={styles.backBtn}>
-          <MaterialCommunityIcons name="chevron-left" size={24} color="#171717" />
+          <MaterialCommunityIcons name="chevron-left" size={24} color="#1A1B1C" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{failureCount > 0 ? 'Import Complete' : 'Import Successful'}</Text>
         <View style={{ width: 24 }} />
@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
   scrollSuccess: { paddingHorizontal: 20, paddingVertical: 14, alignItems: 'center', width: '100%' },
   topHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, width: '100%' },
   backBtn: { padding: 4 },
-  headerTitle: { fontSize: 18, fontFamily: FontFamily.bold, color: '#171717' },
+  headerTitle: { fontSize: 18, fontFamily: FontFamily.bold, color: '#1A1B1C' },
   successIconWrapper: { marginVertical: 20 },
   successCircleBig: {
     width: 96,
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   successCirclePartial: { backgroundColor: '#F59E0B' },
-  successTitle: { fontSize: 22, fontFamily: FontFamily.extrabold, color: '#171717', textAlign: 'center' },
+  successTitle: { fontSize: 22, fontFamily: FontFamily.extrabold, color: '#1A1B1C', textAlign: 'center' },
   successSub: { fontSize: 13, fontFamily: FontFamily.regular, color: '#6B6B6B', textAlign: 'center', marginTop: 4, marginBottom: 20 },
   statsCard: {
     width: '100%',
@@ -182,12 +182,12 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#FFF4C7',
+    backgroundColor: '#1A1B1C',
     justifyContent: 'center',
     alignItems: 'center',
   },
   statLabel: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B6B6B' },
-  statNum: { fontSize: 18, fontFamily: FontFamily.extrabold, color: '#171717' },
+  statNum: { fontSize: 18, fontFamily: FontFamily.extrabold, color: '#1A1B1C' },
   statDivider: { height: 1, backgroundColor: '#FFFDF7' },
   errorToggle: {
     flexDirection: 'row',

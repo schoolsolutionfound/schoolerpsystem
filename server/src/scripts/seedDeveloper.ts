@@ -12,7 +12,10 @@ async function seedDeveloper() {
   const email = process.env.DEV_EMAIL || 'developer@schoolerp.com';
   const fullName = 'Platform Developer';
   const firebaseUid = 'dev_uid_local_123';
-  const role = 'Developer'; // Strictly following docs/roles.md
+  // Canonical role value is 'dev' (matches Role.Developer, client guards, and seeds).
+  // Do NOT use 'Developer' — client isDeveloper()/route guards only accept 'dev'/'developer'
+  // normalized to 'dev', and capital-D breaks the mobile redirect loop.
+  const role = 'dev';
 
   console.log(`[Seed Script] Updating Developer account role to '${role}' in PostgreSQL...`);
   try {

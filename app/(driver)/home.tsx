@@ -112,6 +112,7 @@ export default function DriverHomeScreen() {
         <DriverHomeHeader
           fullName={fullName}
           profilePic={profilePic}
+          showGreeting={activeTab === 'trips'}
           onMenuPress={() => setDrawerOpen(true)}
           onNotificationsPress={() => {}}
           onProfilePress={() => setActiveTab('profile')}
@@ -155,6 +156,7 @@ export default function DriverHomeScreen() {
         email={email}
         profilePic={profilePic}
         institutionName={institutionName}
+        onChangePassword={() => router.push('/change-password')}
         onLogout={handleLogout}
       />
     </View>

@@ -19,6 +19,7 @@ interface DriverDrawerProps {
   email: string;
   profilePic?: string;
   institutionName: string;
+  onChangePassword: () => void;
   onLogout: () => void;
 }
 
@@ -28,6 +29,7 @@ const MENU_ITEMS = [
 ] as const;
 
 const SECONDARY_ITEMS = [
+  { key: 'change-password', label: 'Change Password', icon: 'lock-reset-outline', color: '#F4C430' },
   { key: 'logout', label: 'Logout', icon: 'logout', color: '#DC3545' },
 ] as const;
 
@@ -37,6 +39,7 @@ export const DriverDrawer: React.FC<DriverDrawerProps> = ({
   fullName,
   email,
   institutionName,
+  onChangePassword,
   onLogout,
 }) => {
   const { width } = useWindowDimensions();
@@ -92,7 +95,14 @@ export const DriverDrawer: React.FC<DriverDrawerProps> = ({
               <TouchableOpacity
                 key={item.key}
                 style={styles.menuItem}
-                onPress={() => { closeDrawer(); onLogout(); }}
+                onPress={() => {
+                  closeDrawer();
+                  if (item.key === 'change-password') {
+                    onChangePassword();
+                  } else if (item.key === 'logout') {
+                    onLogout();
+                  }
+                }}
               >
                 <MaterialCommunityIcons name={item.icon as any} size={20} color={item.color} />
                 <Text style={[styles.menuText, { color: item.color }]}>{item.label}</Text>

@@ -59,6 +59,71 @@ export interface ExpenseRecord {
   status: PaymentStatus;
   invoiceNo: string;
   notes?: string;
+  scheduleId?: string;
+  userId?: string;
+  paidAmount?: number;
+  payrollType?: PayrollType;
+}
+
+export type PayrollFrequency = 'monthly' | 'weekly' | 'daily' | 'days_of_month';
+
+export type PayrollType = 'salary' | 'bonus';
+
+export interface PayrollStaff {
+  id: string;
+  fullName: string;
+  role: string;
+  phone?: string | null;
+  profilePicUrl?: string | null;
+}
+
+export interface CreatePayrollScheduleInput {
+  userIds: string[];
+  amount: number;
+  frequency: PayrollFrequency;
+  dayOfMonth?: number;
+  daysOfMonth?: number[];
+  weekday?: number;
+  startDate?: string;
+  notes?: string;
+}
+
+export interface PayrollSchedule {
+  id: string;
+  institutionCode: string;
+  userId: string;
+  payeeName: string;
+  role: string;
+  department?: string | null;
+  amount: number;
+  frequency: PayrollFrequency;
+  dayOfMonth?: number | null;
+  daysOfMonth?: number[] | null;
+  weekday?: number | null;
+  startDate: string;
+  active: boolean;
+  notes?: string | null;
+  lastGeneratedKey?: string | null;
+  createdBy?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  pendingAmount: number;
+  pendingPeriods: number;
+  paidTotal: number;
+  nextDue: string | null;
+}
+
+export interface PayrollBalance {
+  pendingAmount: number;
+  pendingPeriods: number;
+  paidTotal: number;
+  nextDue: string | null;
+}
+
+export interface PayrollScheduleDetail {
+  schedule: PayrollSchedule;
+  rows: ExpenseRecord[];
+  balance: PayrollBalance;
 }
 
 export interface FinanceCategoryStat {

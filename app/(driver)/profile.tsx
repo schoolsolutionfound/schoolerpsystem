@@ -5,6 +5,8 @@ import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useUserStore } from '../../store/useUserStore';
 import { performLogout } from '../../utils/logout';
+import { ProfileCustomFields } from '../../features/shared/formFields/ProfileCustomFields';
+import { useProfileCustomFields } from '../../features/shared/formFields/useProfileCustomFields';
 
 export default function DriverProfileScreen() {
   const router = useRouter();
@@ -13,6 +15,7 @@ export default function DriverProfileScreen() {
   const phone = useUserStore((s) => s.phone) || '';
   const institutionName = useUserStore((s) => s.institutionName) || '';
   const resetUser = useUserStore((s) => s.resetUser);
+  const { fields: roleFields, values: roleFieldValues, save: saveRoleFields } = useProfileCustomFields();
 
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = () => {
@@ -69,6 +72,24 @@ export default function DriverProfileScreen() {
             </View>
           </View>
 
+          {roleFields.length > 0 && (
+            <View style={styles.customFieldsWrap}>
+              <ProfileCustomFields fields={roleFields} values={roleFieldValues} onSave={saveRoleFields} />
+            </View>
+          )}
+
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <MaterialCommunityIcons name="account-cog-outline" size={16} color="#0EA5E9" />
+              <Text style={styles.sectionTitle}>Account</Text>
+            </View>
+            <TouchableOpacity style={styles.menuRow} onPress={() => router.push('/change-password')}>
+              <MaterialCommunityIcons name="lock-reset" size={20} color="#F4C430" />
+              <Text style={styles.menuText}>Change Password</Text>
+              <MaterialCommunityIcons name="chevron-right" size={20} color="#6B6B6B" style={{ marginLeft: 'auto' }} />
+            </TouchableOpacity>
+          </View>
+
           <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
             <MaterialCommunityIcons name="logout" size={17} color="#DC3545" />
             <Text style={styles.logoutText}>Logout</Text>
@@ -83,6 +104,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFFEFE' },
   safe: { flex: 1 },
   scroll: { paddingBottom: 40 },
+  customFieldsWrap: { marginHorizontal: 12, marginTop: 12 },
   heroSection: {
     backgroundColor: '#1A1B1C',
     alignItems: 'center',
@@ -134,6 +156,15 @@ const styles = StyleSheet.create({
   },
   infoLabel: { fontSize: 12, color: '#8A8A8A', fontWeight: '600' },
   infoValue: { fontSize: 13, fontWeight: '700', color: '#1A1B1C' },
+  menuRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F1EA',
+  },
+  menuText: { fontSize: 14, fontWeight: '600', color: '#1A1B1C' },
   logoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',

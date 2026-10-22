@@ -20,6 +20,7 @@ import { AppInput } from '../../../../features/shared/components/AppInput';
 import { AppButton } from '../../../../features/shared/components/AppButton';
 import { LoadingView } from '../../../../features/shared/components/LoadingView';
 import { ErrorState } from '../../../../features/shared/components/ErrorState';
+import { ROLES } from '../../../../features/developer/validation/admin.schema';
 import { Colors, BorderRadius } from '../../../../constants/theme';
 
 const TITLE_PRESETS = ['Principal', 'Vice Principal', 'HOD', 'Coordinator', 'Academic Dean', 'Custom'];
@@ -222,14 +223,14 @@ export default function EditInstitutionAdminScreen() {
 
         <Text style={styles.sectionTitle}>Role</Text>
         <View style={styles.chipRowWrap}>
-          {['admin', 'teacher', 'student', 'principal', 'parent', 'accountant', 'hod', 'librarian'].map((role) => (
+          {ROLES.map((role) => (
             <TouchableOpacity
               key={role}
               style={[styles.chip, selectedRole === role && styles.activeChip]}
               onPress={() => setSelectedRole(role)}
             >
               <Text style={[styles.chipText, selectedRole === role && styles.activeChipText]}>
-                {role.charAt(0).toUpperCase() + role.slice(1)}
+                {role.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
               </Text>
             </TouchableOpacity>
           ))}

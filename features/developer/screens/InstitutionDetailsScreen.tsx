@@ -8,22 +8,13 @@ import { AppCard } from '../../shared/components/AppCard';
 import { AppBadge } from '../../shared/components/AppBadge';
 import { LoadingView } from '../../shared/components/LoadingView';
 import { ErrorState } from '../../shared/components/ErrorState';
-import { EmptyState } from '../../shared/components/EmptyState';
 import { useInstitutionDetailsQuery } from '../hooks/useDeveloperQueries';
 
 interface InstitutionDetailsScreenProps {
   id: string;
 }
 
-type TabType =
-  | 'overview'
-  | 'subscription'
-  | 'teachers'
-  | 'students'
-  | 'departments'
-  | 'courses'
-  | 'fees'
-  | 'settings';
+type TabType = 'overview' | 'subscription';
 
 export function InstitutionDetailsScreen({ id }: InstitutionDetailsScreenProps) {
   const router = useRouter();
@@ -34,12 +25,6 @@ export function InstitutionDetailsScreen({ id }: InstitutionDetailsScreenProps) 
   const tabs: { key: TabType; label: string; icon: keyof typeof MaterialCommunityIcons.glyphMap }[] = [
     { key: 'overview', label: 'Overview', icon: 'information-outline' },
     { key: 'subscription', label: 'Subscription', icon: 'card-account-details-outline' },
-    { key: 'teachers', label: 'Teachers', icon: 'account-tie-outline' },
-    { key: 'students', label: 'Students', icon: 'school-outline' },
-    { key: 'departments', label: 'Departments', icon: 'domain' },
-    { key: 'courses', label: 'Courses', icon: 'book-open-variant' },
-    { key: 'fees', label: 'Fees', icon: 'cash-multiple' },
-    { key: 'settings', label: 'Settings', icon: 'cog-outline' },
   ];
 
   return (
@@ -156,14 +141,6 @@ export function InstitutionDetailsScreen({ id }: InstitutionDetailsScreenProps) 
                 <AppBadge label={institution.subscriptionStatus} type={institution.subscriptionStatus} />
               </View>
             </AppCard>
-          )}
-
-          {activeTab !== 'overview' && activeTab !== 'subscription' && (
-            <EmptyState
-              title={`${tabs.find((t) => t.key === activeTab)?.label} Module Coming Soon`}
-              description={`The ${tabs.find((t) => t.key === activeTab)?.label} management domain for ${institution.institutionName} will be available in upcoming sprint releases.`}
-              iconName={tabs.find((t) => t.key === activeTab)?.icon}
-            />
           )}
         </View>
       )}

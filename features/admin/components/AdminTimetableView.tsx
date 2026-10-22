@@ -1,86 +1,124 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { BorderRadius } from '../../../constants/theme';
 import { ClassTeacherTimetableBuilder } from '../../teacher/components/ClassTeacherTimetableBuilder';
+import { DropdownSelect } from './DropdownSelect';
 
 interface AdminTimetableViewProps {
   classSections: any[];
+  subjects?: any[];
+  subjectTeachers?: any[];
+  periods?: any[];
+  teachers?: any[];
 }
 
-export const AdminTimetableView: React.FC<AdminTimetableViewProps> = ({ classSections }) => {
+export const AdminTimetableView: React.FC<AdminTimetableViewProps> = ({
+  classSections,
+  subjects = [],
+  subjectTeachers = [],
+  periods = [],
+  teachers = [],
+}) => {
   const [selectedId, setSelectedId] = useState<string>(classSections[0]?.id || '');
 
   const cls = classSections.find((c: any) => c.id === selectedId) || null;
+  const assignedCount = cls ? subjectTeachers.filter((a: any) => a.classSectionId === cls.id).length : 0;
 
-  return (
-    <View style={styles.container}>
-      <Text style={styles.sectionTitle}>Select Class / Section</Text>
-      {classSections.length === 0 ? (
+  if (classSections.length === 0) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.sectionHeader}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.sectionTitle}>Timetable</Text>
+            <Text style={styles.sectionCount}>Weekly schedule by class</Text>
+          </View>
+        </View>
         <View style={styles.emptyCard}>
-          <MaterialCommunityIcons name="school-outline" size={40} color="#6B6B6B" />
+          <View style={styles.emptyIconTile}>
+            <MaterialCommunityIcons name="timetable" size={30} color="#F4C430" />
+          </View>
           <Text style={styles.emptyTitle}>No classes yet</Text>
           <Text style={styles.emptySub}>Create a class/section first, then come back to build its timetable.</Text>
         </View>
-      ) : (
-        <>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-            {classSections.map((c: any) => {
-              const selected = c.id === selectedId;
-              return (
-                <TouchableOpacity
-                  key={c.id}
-                  style={[styles.chip, selected && styles.chipSelected]}
-                  onPress={() => setSelectedId(c.id)}
-                >
-                  <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{c.name}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+      </View>
+    );
+  }
 
-          {cls ? (
-            <View style={styles.builderWrap}>
-              <ClassTeacherTimetableBuilder key={cls.id} classSectionId={cls.id} classSectionName={cls.name} />
-            </View>
-          ) : (
-            <View style={styles.emptyCard}>
-              <MaterialCommunityIcons name="timetable" size={40} color="#6B6B6B" />
-              <Text style={styles.emptyTitle}>Select a class</Text>
-            </View>
-          )}
+  return (
+    <View style={styles.container}>
+      <View style={styles.sectionHeader}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.sectionTitle}>Timetable</Text>
+          <Text style={styles.sectionCount}>
+            {subjects.length} subjects · {periods.length} periods · {teachers.length} teachers
+          </Text>
+        </View>
+      </View>
+
+      <DropdownSelect
+        label="Class / Section"
+        value={selectedId}
+        onChange={setSelectedId}
+        placeholder="Select class"
+        options={classSections.map((c: any) => ({ key: c.id, label: c.name }))}
+        menuTitle="Class / Section"
+        leadingIcon="school-outline"
+      />
+
+      {cls ? (
+        <>
+          <Text style={styles.assignMeta}>
+            {assignedCount} subject{assignedCount === 1 ? '' : 's'} assigned · tap any cell to schedule
+          </Text>
+          <View style={styles.builderWrap}>
+            <ClassTeacherTimetableBuilder key={cls.id} classSectionId={cls.id} classSectionName={cls.name} />
+          </View>
         </>
+      ) : (
+        <View style={styles.emptyCard}>
+          <View style={styles.emptyIconTile}>
+            <MaterialCommunityIcons name="timetable" size={30} color="#F4C430" />
+          </View>
+          <Text style={styles.emptyTitle}>Select a class</Text>
+          <Text style={styles.emptySub}>Pick a class/section above to view or build its weekly timetable.</Text>
+        </View>
       )}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, paddingBottom: 40 },
-  sectionTitle: { fontSize: 15, fontWeight: '800', color: '#171717', marginBottom: 10 },
-  chipRow: { gap: 8, paddingBottom: 4 },
-  chip: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.button,
-    borderWidth: 1,
-    borderColor: '#E8E5DC',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    marginRight: 6,
+  container: { flex: 1 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  sectionTitle: { fontSize: 16, fontWeight: '800', color: '#1A1B1C' },
+  sectionCount: { fontSize: 11, color: '#6B6B6B', marginTop: 2 },
+  assignMeta: {
+    fontSize: 10,
+    color: '#8A8A8A',
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginTop: 12,
+    marginBottom: 2,
   },
-  chipSelected: { backgroundColor: '#F4C430', borderColor: '#F4C430' },
-  chipText: { fontSize: 12, fontWeight: '700', color: '#6B6B6B' },
-  chipTextSelected: { color: '#FFFFFF' },
-  builderWrap: { flex: 1, marginTop: 14 },
+  builderWrap: { flex: 1, marginTop: 10 },
   emptyCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.card,
+    borderRadius: 5,
     padding: 30,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#E8E5DC',
     marginTop: 20,
   },
-  emptyTitle: { fontSize: 15, fontWeight: '700', color: '#171717', marginTop: 10 },
+  emptyIconTile: {
+    width: 56,
+    height: 56,
+    borderRadius: 5,
+    backgroundColor: '#1A1B1C',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyTitle: { fontSize: 15, fontWeight: '800', color: '#1A1B1C', marginTop: 10 },
   emptySub: { fontSize: 12, color: '#6B6B6B', textAlign: 'center', marginTop: 4, lineHeight: 16 },
 });

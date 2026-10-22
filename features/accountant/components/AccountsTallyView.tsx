@@ -1,323 +1,366 @@
 /**
  * @file AccountsTallyView.tsx
- * @description Dedicated Accounts & Financial Health page with visual charts, deficit/surplus tally, and cash flow ratios.
+ * @description Dedicated Accounts & Financial Health page: charcoal hero balance card,
+ * working time-range filter, health KPIs, category breakdowns with share bars, real PDF export.
  */
 
 import React, { useState } from 'react';
-import { View, StyleSheet, Text, ScrollView, TouchableOpacity } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { BorderRadius } from '../../../constants/theme';
+import { View, StyleSheet, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { formatINR } from '../utils/financeUtils';
+import { generateIncomeExpenseStatementPdf } from '../utils/financePdfGenerator';
 import { showAlert } from '../../shared/utils/showAlert';
+
+type TimeRange = 'month' | 'year' | 'all';
+
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+const RANGE_OPTIONS: { key: TimeRange; label: string }[] = [
+  { key: 'month', label: 'This Month' },
+  { key: 'year', label: 'This Year' },
+  { key: 'all', label: 'All Time' },
+];
 
 export const AccountsTallyView: React.FC = () => {
   const incomeRecords = useFinanceStore((s) => s.incomeRecords);
   const expenseRecords = useFinanceStore((s) => s.expenseRecords);
 
-  const [timeRange, setTimeRange] = useState<'month' | 'term' | 'year'>('month');
+  const [timeRange, setTimeRange] = useState<TimeRange>('month');
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
-  // Calculations
-  const totalIncome = incomeRecords
+  const now = new Date();
+  const monthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const yearPrefix = `${now.getFullYear()}`;
+
+  const inWindow = (paymentDate?: string, dueDate?: string): boolean => {
+    if (timeRange === 'all') return true;
+    const key = paymentDate || dueDate || '';
+    if (!key) return false;
+    if (timeRange === 'month') return key.startsWith(monthPrefix);
+    return key.startsWith(yearPrefix);
+  };
+
+  const scopedIncome = incomeRecords.filter((r) => inWindow(r.paymentDate, r.dueDate));
+  const scopedExpense = expenseRecords.filter((r) => inWindow(r.paymentDate, r.dueDate));
+
+  const totalIncome = scopedIncome
     .filter((r) => r.status === 'paid')
     .reduce((sum, r) => sum + r.amount, 0);
 
-  const totalExpenses = expenseRecords
+  const totalExpenses = scopedExpense
     .filter((r) => r.status === 'paid')
     .reduce((sum, r) => sum + r.amount, 0);
 
-  const pendingReceivables = incomeRecords
+  const pendingReceivables = scopedIncome
     .filter((r) => r.status !== 'paid')
     .reduce((sum, r) => sum + r.amount, 0);
 
   const netBalance = totalIncome - totalExpenses;
   const isSurplus = netBalance >= 0;
 
-  // Breakdown metrics
-  const tuitionIncome = incomeRecords.filter((r) => r.category === 'student_fee' && r.status === 'paid').reduce((s, r) => s + r.amount, 0);
-  const transportIncome = incomeRecords.filter((r) => r.category === 'bus_fee' && r.status === 'paid').reduce((s, r) => s + r.amount, 0);
+  const periodLabel =
+    timeRange === 'month'
+      ? `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`
+      : timeRange === 'year'
+        ? `Year ${now.getFullYear()}`
+        : 'All recorded data';
+
+  // Category breakdowns
+  const tuitionIncome = scopedIncome.filter((r) => r.category === 'student_fee' && r.status === 'paid').reduce((s, r) => s + r.amount, 0);
+  const transportIncome = scopedIncome.filter((r) => r.category === 'bus_fee' && r.status === 'paid').reduce((s, r) => s + r.amount, 0);
   const otherIncome = totalIncome - tuitionIncome - transportIncome;
 
-  const salaryExpense = expenseRecords.filter((r) => r.category === 'salary' && r.status === 'paid').reduce((s, r) => s + r.amount, 0);
-  const fleetExpense = expenseRecords.filter((r) => (r.category === 'bus_fuel' || r.category === 'bus_maintenance' || r.category === 'bus_expense') && r.status === 'paid').reduce((s, r) => s + r.amount, 0);
+  const salaryExpense = scopedExpense.filter((r) => r.category === 'salary' && r.status === 'paid').reduce((s, r) => s + r.amount, 0);
+  const fleetExpense = scopedExpense.filter((r) => (r.category === 'bus_fuel' || r.category === 'bus_maintenance' || r.category === 'bus_expense') && r.status === 'paid').reduce((s, r) => s + r.amount, 0);
   const utilityExpense = totalExpenses - salaryExpense - fleetExpense;
 
+  // Health metrics
   const collectionRatio = totalIncome + pendingReceivables > 0 ? Math.round((totalIncome / (totalIncome + pendingReceivables)) * 100) : 100;
+  const expenseRatio = totalIncome > 0 ? Math.round((totalExpenses / totalIncome) * 100) : 0;
+  const netMargin = totalIncome > 0 ? Math.round((netBalance / totalIncome) * 100) : 0;
 
-  const handleExportStatement = () => {
-    showAlert(
-      'Account Statement Export',
-      `Audit Statement for Term 1 (2026-27) generated.\n\nTotal Inflow: ${formatINR(totalIncome)}\nTotal Outflow: ${formatINR(totalExpenses)}\nNet Balance: ${formatINR(netBalance)}`
-    );
+  const inflowPct =
+    totalIncome + totalExpenses > 0 ? (totalIncome / (totalIncome + totalExpenses)) * 100 : 50;
+
+  const sharePct = (part: number, total: number): number => {
+    if (part <= 0 || total <= 0) return 0;
+    return Math.max(4, Math.round((part / total) * 100));
   };
+
+  const handleExportStatement = async () => {
+    if (isGeneratingPdf) return;
+    setIsGeneratingPdf(true);
+    try {
+      await generateIncomeExpenseStatementPdf({
+        totalIncome,
+        totalExpense: totalExpenses,
+        netTally: netBalance,
+        incomeRecords: scopedIncome,
+        expenseRecords: scopedExpense,
+      });
+    } catch (err: any) {
+      showAlert('Export Failed', err?.message || 'Could not generate financial statement PDF.');
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
+  const renderBreakdownRow = (
+    name: string,
+    amount: number,
+    total: number,
+    color: string
+  ) => (
+    <View key={name} style={styles.breakdownRowWrap}>
+      <View style={styles.breakdownRowTop}>
+        <View style={styles.breakdownInfo}>
+          <Text style={styles.breakdownName}>{name}</Text>
+        </View>
+        <View style={styles.breakdownVal}>
+          <Text style={styles.breakdownAmount}>{formatINR(amount)}</Text>
+          <View style={styles.pctChip}>
+            <Text style={styles.pctChipText}>{total > 0 ? sharePct(amount, total) : 0}%</Text>
+          </View>
+        </View>
+      </View>
+      <View style={styles.shareTrack}>
+        <View style={[styles.shareFill, { width: `${sharePct(amount, total)}%`, backgroundColor: color }]} />
+      </View>
+    </View>
+  );
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      {/* Time Filter & Export Bar */}
+      {/* Time filter + Export */}
       <View style={styles.topBar}>
-        <View style={styles.filterGroup}>
-          {(['month', 'term', 'year'] as const).map((t) => (
+        <View style={styles.segmented}>
+          {RANGE_OPTIONS.map((t) => (
             <TouchableOpacity
-              key={t}
-              style={[styles.filterChip, timeRange === t && styles.filterChipActive]}
-              onPress={() => setTimeRange(t)}
+              key={t.key}
+              style={[styles.segBtn, timeRange === t.key && styles.segBtnActive]}
+              onPress={() => setTimeRange(t.key)}
+              activeOpacity={0.85}
             >
-              <Text style={[styles.filterChipText, timeRange === t && styles.filterChipTextActive]}>
-                {t === 'month' ? 'This Month' : t === 'term' ? 'Term 1' : 'Annual (2026)'}
+              <Text style={[styles.segBtnText, timeRange === t.key && styles.segBtnTextActive]}>
+                {t.label}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        <TouchableOpacity style={styles.exportBtn} onPress={handleExportStatement}>
-          <MaterialCommunityIcons name="file-pdf-box" size={16} color="#FFFFFF" />
-          <Text style={styles.exportBtnText}>Audit PDF</Text>
+        <TouchableOpacity
+          style={[styles.exportBtn, { opacity: isGeneratingPdf ? 0.7 : 1 }]}
+          onPress={handleExportStatement}
+          disabled={isGeneratingPdf}
+        >
+          {isGeneratingPdf ? <ActivityIndicator size="small" color="#171717" /> : null}
+          <Text style={styles.exportBtnText}>{isGeneratingPdf ? 'Generating…' : 'Audit PDF'}</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Main Net Financial Health Card */}
-      <View style={[styles.netHealthCard, isSurplus ? styles.surplusCard : styles.deficitCard]}>
-        <View style={styles.netTopRow}>
-          <View style={[styles.statusPill, isSurplus ? styles.surplusPill : styles.deficitPill]}>
-            <MaterialCommunityIcons
-              name={isSurplus ? 'trending-up' : 'trending-down'}
-              size={14}
-              color={isSurplus ? '#16A34A' : '#DC2626'}
-            />
-            <Text style={[styles.statusPillText, isSurplus ? styles.surplusPillText : styles.deficitPillText]}>
-              {isSurplus ? 'NET SURPLUS' : 'NET DEFICIT'}
-            </Text>
-          </View>
-          <Text style={styles.tallyPeriodText}>Fiscal Period: Aug - Sep 2026</Text>
+      {/* Hero net balance card */}
+      <View style={styles.heroCard}>
+        <Text style={styles.heroPeriod}>{periodLabel}</Text>
+
+        <Text style={styles.heroLabel}>NET BALANCE</Text>
+        <Text style={styles.heroAmount}>
+          {isSurplus ? '+' : '−'} {formatINR(Math.abs(netBalance))}
+        </Text>
+
+        <View style={styles.heroTrack}>
+          <View style={[styles.heroFillGreen, { width: `${inflowPct}%` }]} />
+          <View style={[styles.heroFillRed, { width: `${100 - inflowPct}%` }]} />
         </View>
-
-        <Text style={[styles.netAmountVal, isSurplus ? styles.surplusText : styles.deficitText]}>
-          {isSurplus ? '+' : '-'}{formatINR(Math.abs(netBalance))}
-        </Text>
-        <Text style={styles.netDescription}>
-          {isSurplus
-            ? 'Operating with a positive financial reserve after settling salaries & operational vouchers.'
-            : 'Expenditures exceed realized cash inflows. Collect pending fee receivables to restore balance.'}
-        </Text>
-
-        {/* Visual Progress Bar Inflow vs Outflow */}
-        <View style={styles.visualBarContainer}>
-          <View style={styles.barLabelRow}>
-            <Text style={styles.barLabelLeft}>Inflow: {formatINR(totalIncome)}</Text>
-            <Text style={styles.barLabelRight}>Outflow: {formatINR(totalExpenses)}</Text>
+        <View style={styles.heroLegendRow}>
+          <View style={styles.heroLegendItem}>
+            <View style={[styles.legendDot, { backgroundColor: '#F4C430' }]} />
+            <Text style={styles.heroLegendText}>Inflow {formatINR(totalIncome)}</Text>
           </View>
-          <View style={styles.progressBarTrack}>
-            <View
-              style={[
-                styles.progressBarFill,
-                {
-                  width: `${Math.min(
-                    100,
-                    totalIncome + totalExpenses > 0
-                      ? Math.round((totalIncome / (totalIncome + totalExpenses)) * 100)
-                      : 50
-                  )}%`,
-                  backgroundColor: '#16A34A',
-                },
-              ]}
-            />
+          <View style={styles.heroLegendItem}>
+            <View style={[styles.legendDot, { backgroundColor: 'rgba(255,255,255,0.45)' }]} />
+            <Text style={styles.heroLegendText}>Outflow {formatINR(totalExpenses)}</Text>
           </View>
         </View>
       </View>
 
-      {/* 4 Financial Performance Metric Cards */}
+      {/* Health KPIs */}
       <View style={styles.kpiGrid}>
         <View style={styles.kpiBox}>
-          <View style={[styles.kpiIconWrap, { backgroundColor: '#DCFCE7' }]}>
-            <MaterialCommunityIcons name="arrow-bottom-left" size={18} color="#16A34A" />
-          </View>
-          <Text style={styles.kpiTitle}>Total Inflow</Text>
-          <Text style={[styles.kpiNumber, { color: '#16A34A' }]}>{formatINR(totalIncome)}</Text>
-          <Text style={styles.kpiSub}>Fee Collections</Text>
-        </View>
-
-        <View style={styles.kpiBox}>
-          <View style={[styles.kpiIconWrap, { backgroundColor: '#FEE2E2' }]}>
-            <MaterialCommunityIcons name="arrow-top-right" size={18} color="#DC2626" />
-          </View>
-          <Text style={styles.kpiTitle}>Total Outflow</Text>
-          <Text style={[styles.kpiNumber, { color: '#DC2626' }]}>{formatINR(totalExpenses)}</Text>
-          <Text style={styles.kpiSub}>Payroll & Fleet</Text>
-        </View>
-
-        <View style={styles.kpiBox}>
-          <View style={[styles.kpiIconWrap, { backgroundColor: '#FEF3C7' }]}>
-            <MaterialCommunityIcons name="clock-outline" size={18} color="#D97706" />
-          </View>
           <Text style={styles.kpiTitle}>Pending Receivables</Text>
-          <Text style={[styles.kpiNumber, { color: '#D97706' }]}>{formatINR(pendingReceivables)}</Text>
-          <Text style={styles.kpiSub}>Unpaid Student Dues</Text>
+          <Text numberOfLines={1} style={[styles.kpiNumber, { color: '#171717' }]}>{formatINR(pendingReceivables)}</Text>
+          <Text style={styles.kpiSub}>Unpaid student dues</Text>
         </View>
 
         <View style={styles.kpiBox}>
-          <View style={[styles.kpiIconWrap, { backgroundColor: '#EDE7F6' }]}>
-            <MaterialCommunityIcons name="percent" size={18} color="#7E57C2" />
-          </View>
           <Text style={styles.kpiTitle}>Collection Rate</Text>
-          <Text style={[styles.kpiNumber, { color: '#7E57C2' }]}>{collectionRatio}%</Text>
-          <Text style={styles.kpiSub}>Efficiency Index</Text>
+          <Text numberOfLines={1} style={[styles.kpiNumber, { color: '#171717' }]}>{collectionRatio}%</Text>
+          <Text style={styles.kpiSub}>Collected vs billed</Text>
+        </View>
+
+        <View style={styles.kpiBox}>
+          <Text style={styles.kpiTitle}>Expense Ratio</Text>
+          <Text numberOfLines={1} style={[styles.kpiNumber, { color: '#171717' }]}>{expenseRatio}%</Text>
+          <Text style={styles.kpiSub}>Spend vs income</Text>
+        </View>
+
+        <View style={styles.kpiBox}>
+          <Text style={styles.kpiTitle}>Net Margin</Text>
+          <Text numberOfLines={1} style={[styles.kpiNumber, { color: '#171717' }]}>{netMargin}%</Text>
+          <Text style={styles.kpiSub}>Income retained</Text>
         </View>
       </View>
 
-      {/* Revenue Breakdown by Category */}
+      {/* Income Sources Breakdown */}
       <View style={styles.sectionCard}>
         <View style={styles.sectionHeader}>
-          <MaterialCommunityIcons name="chart-pie" size={18} color="#7E57C2" />
-          <Text style={styles.sectionTitle}>Income Sources Breakdown</Text>
-        </View>
-
-        <View style={styles.breakdownList}>
-          <View style={styles.breakdownRow}>
-            <View style={styles.breakdownInfo}>
-              <View style={[styles.catIndicator, { backgroundColor: '#7E57C2' }]} />
-              <Text style={styles.breakdownName}>Student Tuition & Lab Fees</Text>
-            </View>
-            <Text style={styles.breakdownAmount}>{formatINR(tuitionIncome)}</Text>
-          </View>
-
-          <View style={styles.breakdownRow}>
-            <View style={styles.breakdownInfo}>
-              <View style={[styles.catIndicator, { backgroundColor: '#EA580C' }]} />
-              <Text style={styles.breakdownName}>Bus Transport Fees</Text>
-            </View>
-            <Text style={styles.breakdownAmount}>{formatINR(transportIncome)}</Text>
-          </View>
-
-          <View style={styles.breakdownRow}>
-            <View style={styles.breakdownInfo}>
-              <View style={[styles.catIndicator, { backgroundColor: '#0284C7' }]} />
-              <Text style={styles.breakdownName}>Hostel Boarding & Misc</Text>
-            </View>
-            <Text style={styles.breakdownAmount}>{formatINR(otherIncome)}</Text>
+          <Text style={styles.sectionTitle}>Income Sources</Text>
+          <View style={styles.sectionTotal}>
+            <Text style={styles.sectionTotalText}>{formatINR(totalIncome)}</Text>
           </View>
         </View>
+
+        {renderBreakdownRow('Student Tuition & Lab Fees', tuitionIncome, totalIncome, '#F4C430')}
+        {renderBreakdownRow('Bus Transport Fees', transportIncome, totalIncome, '#B8860B')}
+        {renderBreakdownRow('Hostel Boarding & Misc', otherIncome, totalIncome, '#171717')}
       </View>
 
-      {/* Expenditure Breakdown by Category */}
+      {/* Expenditure Breakdown */}
       <View style={styles.sectionCard}>
         <View style={styles.sectionHeader}>
-          <MaterialCommunityIcons name="chart-bar" size={18} color="#DC2626" />
           <Text style={styles.sectionTitle}>Expenditure Distribution</Text>
-        </View>
-
-        <View style={styles.breakdownList}>
-          <View style={styles.breakdownRow}>
-            <View style={styles.breakdownInfo}>
-              <View style={[styles.catIndicator, { backgroundColor: '#DC2626' }]} />
-              <Text style={styles.breakdownName}>Faculty & Staff Payroll</Text>
-            </View>
-            <Text style={styles.breakdownAmount}>{formatINR(salaryExpense)}</Text>
-          </View>
-
-          <View style={styles.breakdownRow}>
-            <View style={styles.breakdownInfo}>
-              <View style={[styles.catIndicator, { backgroundColor: '#D97706' }]} />
-              <Text style={styles.breakdownName}>Fleet Fuel & Bus Maintenance</Text>
-            </View>
-            <Text style={styles.breakdownAmount}>{formatINR(fleetExpense)}</Text>
-          </View>
-
-          <View style={styles.breakdownRow}>
-            <View style={styles.breakdownInfo}>
-              <View style={[styles.catIndicator, { backgroundColor: '#059669' }]} />
-              <Text style={styles.breakdownName}>Campus Electricity & Utilities</Text>
-            </View>
-            <Text style={styles.breakdownAmount}>{formatINR(utilityExpense)}</Text>
+          <View style={styles.sectionTotal}>
+            <Text style={styles.sectionTotalText}>{formatINR(totalExpenses)}</Text>
           </View>
         </View>
+
+        {renderBreakdownRow('Faculty & Staff Payroll', salaryExpense, totalExpenses, '#171717')}
+        {renderBreakdownRow('Fleet Fuel & Bus Maintenance', fleetExpense, totalExpenses, '#6B6B6B')}
+        {renderBreakdownRow('Campus Electricity & Utilities', utilityExpense, totalExpenses, '#B8860B')}
       </View>
     </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8F9FB' },
-  content: { paddingHorizontal: 16, paddingVertical: 12, gap: 12 },
-  topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  filterGroup: { flexDirection: 'row', gap: 6 },
-  filterChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 16,
+  container: { flex: 1, backgroundColor: '#FFFDF7' },
+  content: { paddingHorizontal: 16, paddingVertical: 12, gap: 12, paddingBottom: 28 },
+
+  topBar: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  segmented: {
+    flex: 1,
+    flexDirection: 'row',
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
+    borderRadius: 5,
+    padding: 3,
+    gap: 3,
   },
-  filterChipActive: { backgroundColor: '#7E57C2', borderColor: '#7E57C2' },
-  filterChipText: { fontSize: 11, fontWeight: '600', color: '#64748B' },
-  filterChipTextActive: { color: '#FFFFFF', fontWeight: '700' },
+  segBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+    borderRadius: 5,
+  },
+  segBtnActive: { backgroundColor: '#171717' },
+  segBtnText: { fontSize: 11, fontWeight: '700', color: '#6B6B6B' },
+  segBtnTextActive: { color: '#FFFFFF' },
   exportBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#7E57C2',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
+    backgroundColor: '#F4C430',
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 5,
   },
-  exportBtnText: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
+  exportBtnText: { color: '#171717', fontSize: 11, fontWeight: '800' },
 
-  netHealthCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.card,
+  heroCard: {
+    backgroundColor: '#171717',
+    borderRadius: 5,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#171717',
   },
-  surplusCard: { borderLeftWidth: 4, borderLeftColor: '#16A34A' },
-  deficitCard: { borderLeftWidth: 4, borderLeftColor: '#DC2626' },
-  netTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  statusPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-  surplusPill: { backgroundColor: '#DCFCE7' },
-  deficitPill: { backgroundColor: '#FEE2E2' },
-  statusPillText: { fontSize: 10, fontWeight: '800' },
-  surplusPillText: { color: '#16A34A' },
-  deficitPillText: { color: '#DC2626' },
-  tallyPeriodText: { fontSize: 10, color: '#94A3B8' },
-  netAmountVal: { fontSize: 26, fontWeight: '900', marginVertical: 4 },
-  surplusText: { color: '#16A34A' },
-  deficitText: { color: '#DC2626' },
-  netDescription: { fontSize: 12, color: '#64748B', lineHeight: 17, marginBottom: 12 },
-
-  visualBarContainer: { paddingTop: 10, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
-  barLabelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
-  barLabelLeft: { fontSize: 11, fontWeight: '700', color: '#16A34A' },
-  barLabelRight: { fontSize: 11, fontWeight: '700', color: '#DC2626' },
-  progressBarTrack: { height: 8, backgroundColor: '#DC2626', borderRadius: 4, overflow: 'hidden' },
-  progressBarFill: { height: '100%', borderRadius: 4 },
+  heroPeriod: { fontSize: 11, color: 'rgba(255,255,255,0.55)', fontWeight: '600' },
+  heroLabel: {
+    fontSize: 10,
+    color: '#F4C430',
+    fontWeight: '800',
+    letterSpacing: 1.2,
+    marginTop: 14,
+  },
+  heroAmount: { fontSize: 30, fontWeight: '900', color: '#FFFFFF', marginTop: 2, marginBottom: 14 },
+  heroTrack: {
+    height: 8,
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 5,
+    overflow: 'hidden',
+  },
+  heroFillGreen: { height: '100%', backgroundColor: '#F4C430' },
+  heroFillRed: { height: '100%', backgroundColor: 'rgba(255,255,255,0.18)' },
+  heroLegendRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
+  heroLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendDot: { width: 7, height: 7, borderRadius: 4 },
+  heroLegendText: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.8)' },
 
   kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   kpiBox: {
     width: '48.5%',
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 5,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
   },
-  kpiIconWrap: { width: 32, height: 32, borderRadius: 8, justifyContent: 'center', alignItems: 'center', marginBottom: 6 },
-  kpiTitle: { fontSize: 11, color: '#64748B', fontWeight: '600' },
-  kpiNumber: { fontSize: 16, fontWeight: '800', marginVertical: 2 },
-  kpiSub: { fontSize: 10, color: '#94A3B8' },
+  kpiTitle: { fontSize: 11, color: '#6B6B6B', fontWeight: '600' },
+  kpiNumber: { fontSize: 17, fontWeight: '900', marginVertical: 2 },
+  kpiSub: { fontSize: 10, color: '#9A9A9A' },
 
   sectionCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.card,
+    borderRadius: 5,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
   },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-  sectionTitle: { fontSize: 14, fontWeight: '800', color: '#1E293B' },
-  breakdownList: { gap: 10 },
-  breakdownRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  breakdownInfo: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  catIndicator: { width: 8, height: 8, borderRadius: 4 },
-  breakdownName: { fontSize: 12, color: '#475569', fontWeight: '600' },
-  breakdownAmount: { fontSize: 13, fontWeight: '800', color: '#0F172A' },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
+  sectionTitle: { fontSize: 14, fontWeight: '800', color: '#171717', flex: 1 },
+  sectionTotal: {
+    backgroundColor: '#F7F5EE',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 5,
+  },
+  sectionTotalText: { fontSize: 11, fontWeight: '800', color: '#171717' },
+
+  breakdownRowWrap: { marginBottom: 12 },
+  breakdownRowWrapLast: { marginBottom: 0 },
+  breakdownRowTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  breakdownInfo: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1, paddingRight: 8 },
+  breakdownName: { fontSize: 12, color: '#6B6B6B', fontWeight: '600', flexShrink: 1 },
+  breakdownVal: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  breakdownAmount: { fontSize: 13, fontWeight: '800', color: '#171717' },
+  pctChip: {
+    backgroundColor: '#F7F5EE',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 5,
+  },
+  pctChipText: { fontSize: 10, fontWeight: '800', color: '#6B6B6B' },
+  shareTrack: {
+    height: 6,
+    backgroundColor: '#F7F5EE',
+    borderRadius: 5,
+    overflow: 'hidden',
+  },
+  shareFill: { height: '100%', borderRadius: 5 },
 });

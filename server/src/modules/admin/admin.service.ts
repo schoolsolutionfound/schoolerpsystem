@@ -1,6 +1,8 @@
 import { adminRepository, IAdminRepository } from './admin.repository.js';
 import { institutionService } from '../institutions/institution.service.js';
 import { academicsRepository } from '../academics/academics.repository.js';
+import { getPrimaryParentChild, insertParentLinks, getFamilyChildPairs, DEFAULT_PARENT_PERMISSIONS } from '../users/parent-links.js';
+import { RELATION_CANONICAL } from '../users/user.service.js';
 import {
   dbFindUsersByInstitution,
   dbCountUsersByInstitution,
@@ -9,17 +11,29 @@ import {
   dbCountAttendanceSessionsByInstitution,
   dbFindUserById,
   dbFindUserByIdOrUid,
-  dbFindStudentByUsnInInstitution,
+  dbFindByEmail,
   dbFindStudentClassSectionId,
   dbUpdateUser,
   dbDeleteUserById,
+  dbInsertAuditEvent,
   db,
   withTransaction,
+  type InMemoryUser,
 } from '../shared/db/index.js';
 import { studentClasses, users, studentDocuments, feeStructures, feePayments, expenseRecords } from '../shared/db/schema.js';
-import { and as andSql, eq as eqSql, desc as descSql } from 'drizzle-orm';
+import { and as andSql, eq as eqSql, desc as descSql, inArray as inArraySql } from 'drizzle-orm';
 import { admin, isFirebaseAdminInitialized } from '../shared/config/firebase.js';
 import { resolveProvisionPassword, validatePasswordStrength } from '../shared/utils/password.js';
+import { upsertPreferences } from '../notifications/notification.repository.js';
+import { sendParentInvite, sendLoginCredentialsInvite } from '../notifications/email.service.js';
+import { nextReceiptNo } from '../payments/receipt.js';
+import {
+  isConfigurableRole,
+  normalizeProfileFormField,
+  RoleProfileFieldsSchema,
+  type ConfigurableRole,
+  type ProfileFieldsMap,
+} from './profileFields.schema.js';
 
 /**
  * Resolve a class_sections row from a (institutionCode, department, academicYear, section) triple
@@ -84,12 +98,19 @@ export interface CreateStudentPayload {
   firstName: string;
   lastName: string;
   email: string;
-  rollNoOrUSN: string;
+  /** Optional — schools may backfill later from the edit screen. */
+  rollNoOrUSN?: string;
+  phone?: string;
   department?: string;
   academicYear?: string;
   section?: string;
   password?: string;
   parentPhone?: string;
+  dob?: string;
+  gender?: string;
+  admissionNo?: string;
+  admissionDate?: string;
+  sessionId?: string;
   institutionCode: string;
 }
 
@@ -101,10 +122,27 @@ export interface CreateTeacherPayload {
   department?: string;
   password?: string;
   institutionCode: string;
+  phone?: string;
+  dob?: string;
+  gender?: string;
+  designation?: string;
+  employmentType?: string;
+  joiningDate?: string;
+  /** School: assigned class/section triple. Merged into scope via buildClassScope. */
+  classSection?: { department: string; academicYear: string; section: string };
+  /** College: program/degree + semester assignment (stored in scope). */
+  program?: string;
+  semester?: string;
 }
 
 const SCHOOL_ROLES = ['admin', 'principal', 'teacher', 'student', 'parent', 'accountant', 'librarian', 'driver', 'admission_officer'] as const;
 const COLLEGE_ROLES = ['admin', 'hod', 'teacher', 'student', 'parent', 'accountant', 'librarian', 'driver', 'admission_officer'] as const;
+
+export interface ParentChildLinkInput {
+  studentId: string;
+  relationship?: string;
+  permissions?: string[];
+}
 
 export interface CreateUserPayload {
   fullName: string;
@@ -123,6 +161,29 @@ export interface CreateUserPayload {
   institutionCode: string;
   institutionName?: string;
   institutionType?: 'school' | 'college';
+  address?: string;
+  city?: string;
+  pincode?: string;
+  alternatePhone?: string;
+  occupation?: string;
+  emergencyContact?: string;
+  preferredLanguage?: string;
+  /** driver only */
+  vehicleNumber?: string;
+  licenseNumber?: string;
+  /** parent only — Father | Mother | Guardian */
+  relation?: string;
+  /** parent only — at least one student, keyed by student id (no USN) */
+  children?: ParentChildLinkInput[];
+  /** parent only — push toggles + disabled notification types */
+  notificationPrefs?: { pushEnabled?: boolean; disabledTypes?: string[] };
+  /** admission_officer only — quota category (name + intake) */
+  categoryName?: string;
+  seats?: number;
+  /** admission_officer only — already-created classes (school) / departments (college) */
+  classSections?: string[];
+  /** admission_officer only — assigned fee structures (class + amount) */
+  feeStructureIds?: string[];
 }
 
 export interface UpdateUserPayload {
@@ -138,8 +199,49 @@ export interface UpdateUserPayload {
   title?: string;
 }
 
+/** One CSV row for POST /admin/bulk-create — role is fixed per request. */
+export interface BulkCreateRecord {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  password?: string;
+  rollNoOrUSN?: string;
+  department?: string;
+  academicYear?: string;
+  section?: string;
+  employeeId?: string;
+  /** parent only — Father | Mother | Guardian */
+  relation?: string;
+  /** parent only — student emails to link */
+  childEmails?: string[];
+  /** admission_officer only */
+  categoryName?: string;
+  /** admission_officer only */
+  seats?: number;
+}
+
 export class AdminService {
   constructor(private repo: IAdminRepository = adminRepository) {}
+
+  /** Fire-and-forget audit entry — audit failures never break the operation. */
+  private recordAudit(
+    actorEmail: string | undefined,
+    action: string,
+    targetType: 'institution' | 'admin' | 'platform' | 'user',
+    targetId?: string,
+    targetLabel?: string,
+    details?: Record<string, any>
+  ) {
+    void dbInsertAuditEvent({
+      actorEmail: actorEmail || 'unknown',
+      action,
+      targetType,
+      targetId,
+      targetLabel,
+      details,
+    });
+  }
 
   private async createFirebaseUser(email: string, password: string, displayName?: string): Promise<string> {
     if (!isFirebaseAdminInitialized) {
@@ -215,7 +317,8 @@ export class AdminService {
       departments: inst.departments || this.getDefaultAcademicConfig(inst.institutionType).departments,
       academicYears: inst.academicYears || this.getDefaultAcademicConfig(inst.institutionType).academicYears,
       courses: inst.courses || this.getDefaultAcademicConfig(inst.institutionType).courses,
-      sections: (inst as any).sections || this.getDefaultAcademicConfig(inst.institutionType).sections,
+      sections: inst.sections || this.getDefaultAcademicConfig(inst.institutionType).sections,
+      classSubjects: inst.classSubjects || {},
       terms: inst.terms || this.getDefaultAcademicConfig(inst.institutionType).terms,
       blockedDates: inst.blockedDates || [],
       // Boolean only — the default password value itself never leaves the server.
@@ -227,7 +330,7 @@ export class AdminService {
 
   public async updateInstitutionConfig(
     institutionCode: string,
-    payload: { departments?: string[]; academicYears?: string[]; courses?: string[]; sections?: string[]; terms?: any[]; blockedDates?: any[]; defaultTempPassword?: string; maintenanceEnabled?: boolean; maintenanceMinVersion?: string }
+    payload: { departments?: string[]; academicYears?: string[]; courses?: string[]; sections?: string[]; classSubjects?: Record<string, string[]>; terms?: any[]; blockedDates?: any[]; defaultTempPassword?: string; maintenanceEnabled?: boolean; maintenanceMinVersion?: string }
   ) {
     const inst = await institutionService.getInstitutions().then((list) =>
       list.find((i) => i.institutionCode.toLowerCase() === (institutionCode || '').toLowerCase())
@@ -241,6 +344,7 @@ export class AdminService {
       if (payload.terms !== undefined) update.terms = payload.terms;
       if (payload.blockedDates !== undefined) update.blockedDates = payload.blockedDates;
       if (payload.sections !== undefined) update.sections = payload.sections;
+      if (payload.classSubjects !== undefined) update.classSubjects = payload.classSubjects;
       if (payload.defaultTempPassword !== undefined) {
         const next = payload.defaultTempPassword;
         if (next !== '') {
@@ -257,6 +361,55 @@ export class AdminService {
     }
 
     return this.getInstitutionConfig(institutionCode);
+  }
+
+  // --- Per-role profile form fields (Settings → Form Fields) ---
+
+  /** Full { role: fields[] } map for the institution (admin UI). */
+  public async getProfileFields(institutionCode: string): Promise<ProfileFieldsMap> {
+    return institutionService.getProfileFormFieldsMap(institutionCode);
+  }
+
+  /** Fields configured for a single role (used by profile APIs). */
+  public async getRoleProfileFields(institutionCode: string, role: string) {
+    return institutionService.getRoleProfileFormFields(institutionCode, role);
+  }
+
+  /** Replaces the field list for one role. admin/dev roles are not configurable. */
+  public async updateRoleProfileFields(institutionCode: string, role: string, fields: unknown) {
+    const normalizedRole = (role || '').toLowerCase().trim();
+    if (!isConfigurableRole(normalizedRole)) {
+      throw {
+        statusCode: 400,
+        code: 'ROLE_NOT_CONFIGURABLE',
+        message: 'Form fields can only be configured for institution roles (not admin or developer).',
+      };
+    }
+
+    const parsed = RoleProfileFieldsSchema.safeParse(fields);
+    if (!parsed.success) {
+      throw {
+        statusCode: 400,
+        code: 'VALIDATION_ERROR',
+        message: parsed.error.errors?.[0]?.message || 'Invalid form field definition.',
+      };
+    }
+
+    const inst = await institutionService.getInstitutions().then((list) =>
+      list.find((i) => i.institutionCode.toLowerCase() === (institutionCode || '').toLowerCase())
+    );
+    if (!inst) {
+      throw { statusCode: 404, code: 'INSTITUTION_NOT_FOUND', message: 'No institution found for this account.' };
+    }
+
+    const current = await this.getProfileFields(institutionCode);
+    const next: ProfileFieldsMap = {
+      ...current,
+      [normalizedRole]: parsed.data.map(normalizeProfileFormField),
+    };
+    await institutionService.updateInstitution(inst.id, { profileFormFields: next } as any);
+
+    return next;
   }
 
   // --- Dashboard Stats ---
@@ -289,17 +442,43 @@ export class AdminService {
   }
 
   // --- Student Management ---
-  public async getStudents(institutionCode: string, limit = 100, offset = 0) {
+
+  /**
+   * Attach `sessionId` of each student's earliest enrollment (their joined
+   * session) to plain user objects returned by the users table queries.
+   */
+  private async attachJoinedSessions<T extends { id: string }>(items: T[]): Promise<(T & { sessionId: string })[]> {
+    if (!db || items.length === 0) return items.map((i) => ({ ...i, sessionId: '' }));
+    try {
+      const rows = await db
+        .select({
+          studentId: studentClasses.studentId,
+          sessionId: studentClasses.sessionId,
+          effectiveFrom: studentClasses.effectiveFrom,
+        })
+        .from(studentClasses)
+        .where(inArraySql(studentClasses.studentId, items.map((i) => i.id)));
+      rows.sort((a, b) => (a.effectiveFrom || '').localeCompare(b.effectiveFrom || ''));
+      const joined = new Map<string, string>();
+      for (const r of rows) {
+        if (!joined.has(r.studentId)) joined.set(r.studentId, r.sessionId || '');
+      }
+      return items.map((i) => ({ ...i, sessionId: joined.get(i.id) || '' }));
+    } catch {
+      return items.map((i) => ({ ...i, sessionId: '' }));
+    }
+  }
+  public async getStudents(institutionCode: string, limit = 100, offset = 0, search = '') {
     const [items, total] = await Promise.all([
-      dbFindUsersByInstitution(institutionCode, 'student', { limit, offset }),
+      dbFindUsersByInstitution(institutionCode, 'student', { limit, offset, search: search || undefined }),
       dbCountUsersByInstitution(institutionCode, 'student'),
     ]);
-    return { data: items, total, limit, offset };
+    return { data: await this.attachJoinedSessions(items), total, limit, offset };
   }
 
   public async createStudent(payload: CreateStudentPayload) {
-    if (!payload.email || !payload.firstName || !payload.lastName || !payload.rollNoOrUSN) {
-      throw { statusCode: 400, code: 'INVALID_INPUT', message: 'Missing required student fields (email, firstName, lastName, rollNoOrUSN)' };
+    if (!payload.email || !payload.firstName || !payload.lastName) {
+      throw { statusCode: 400, code: 'INVALID_INPUT', message: 'Missing required student fields (email, firstName, lastName)' };
     }
 
     const inst = await institutionService.getInstitutions().then((list) =>
@@ -321,6 +500,20 @@ export class AdminService {
       )
     );
 
+    // Academic session the student is admitted under. Admin may backfill
+    // past joiners (e.g. 2024-25); defaults to the current session.
+    let sessionId = '';
+    if (payload.sessionId) {
+      const picked = await academicsRepository.getAcademicSessionById(payload.sessionId);
+      if (!picked || (picked.institutionCode || '').toLowerCase() !== (payload.institutionCode || '').toLowerCase()) {
+        throw { statusCode: 400, code: 'SESSION_NOT_FOUND', message: 'Selected academic session not found.' };
+      }
+      sessionId = picked.id;
+    } else {
+      const currentSession = await academicsRepository.getCurrentAcademicSession(payload.institutionCode);
+      sessionId = currentSession?.id || '';
+    }
+
     const writeStudent = async (tx: any) => {
       const createdUser = await this.repo.upsertUser(
         {
@@ -331,8 +524,13 @@ export class AdminService {
           institutionCode: payload.institutionCode,
           institutionName,
           institutionType,
-          rollNoOrUSN: payload.rollNoOrUSN,
+          rollNoOrUSN: payload.rollNoOrUSN || '',
+          phone: payload.phone || '',
           parentPhone: payload.parentPhone || '',
+          dob: payload.dob || '',
+          gender: payload.gender || '',
+          admissionNo: payload.admissionNo || '',
+          admissionDate: payload.admissionDate || '',
           mustChangePassword: true,
           profileCompleted: false,
           scope: scopeObj,
@@ -361,8 +559,10 @@ export class AdminService {
             institutionCode: payload.institutionCode,
             studentId: createdUser.id,
             classSectionId: scope.classSectionId,
-            rollNo: payload.rollNoOrUSN,
+            rollNo: payload.rollNoOrUSN || '',
             academicYear: scope.academicYear || '',
+            sessionId,
+            effectiveFrom: payload.admissionDate || undefined,
             isActive: true,
           });
         }
@@ -379,7 +579,7 @@ export class AdminService {
     if (!user || user.role !== 'student' || user.institutionCode !== institutionCode) {
       throw { statusCode: 404, code: 'STUDENT_NOT_FOUND', message: 'Student not found.' };
     }
-    return user;
+    return (await this.attachJoinedSessions([user]))[0];
   }
 
   public async updateStudent(id: string, payload: {
@@ -392,6 +592,11 @@ export class AdminService {
     section?: string;
     phone?: string;
     parentPhone?: string;
+    dob?: string;
+    gender?: string;
+    admissionNo?: string;
+    admissionDate?: string;
+    sessionId?: string;
     tenthPercentage?: string;
     twelfthPercentage?: string;
   }, institutionCode: string) {
@@ -410,6 +615,10 @@ export class AdminService {
     if (payload.rollNoOrUSN !== undefined) updateFields.rollNoOrUSN = payload.rollNoOrUSN;
     if (payload.phone !== undefined) updateFields.phone = payload.phone;
     if (payload.parentPhone !== undefined) updateFields.parentPhone = payload.parentPhone;
+    if (payload.dob !== undefined) updateFields.dob = payload.dob;
+    if (payload.gender !== undefined) updateFields.gender = payload.gender;
+    if (payload.admissionNo !== undefined) updateFields.admissionNo = payload.admissionNo;
+    if (payload.admissionDate !== undefined) updateFields.admissionDate = payload.admissionDate;
     if (payload.tenthPercentage !== undefined) updateFields.tenthPercentage = payload.tenthPercentage;
     if (payload.twelfthPercentage !== undefined) updateFields.twelfthPercentage = payload.twelfthPercentage;
 
@@ -424,7 +633,23 @@ export class AdminService {
       updateFields.scope = JSON.stringify(newScope);
     }
 
-    return dbUpdateUser(id, updateFields);
+    if (payload.sessionId) {
+      const picked = await academicsRepository.getAcademicSessionById(payload.sessionId);
+      if (!picked || (picked.institutionCode || '').toLowerCase() !== institutionCode.toLowerCase()) {
+        throw { statusCode: 400, code: 'SESSION_NOT_FOUND', message: 'Selected academic session not found.' };
+      }
+      if (db) {
+        await db
+          .update(studentClasses)
+          .set({ sessionId: picked.id, updatedAt: new Date() })
+          .where(andSql(eqSql(studentClasses.studentId, id), eqSql(studentClasses.isActive, true)));
+      }
+    }
+
+    const updatedUser = await dbUpdateUser(id, updateFields);
+    return payload.sessionId
+      ? { ...(updatedUser || existing), sessionId: payload.sessionId }
+      : updatedUser;
   }
 
   public async deleteStudent(id: string, institutionCode: string) {
@@ -476,6 +701,7 @@ export class AdminService {
         }
 
         const id = `sc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        const currentSession = await academicsRepository.getCurrentAcademicSession(institutionCode);
         await q.insert(studentClasses).values({
           id,
           institutionCode,
@@ -483,6 +709,7 @@ export class AdminService {
           classSectionId: targetClassSectionId,
           rollNo: user.rollNoOrUSN || '',
           academicYear,
+          sessionId: currentSession?.id || '',
           effectiveFrom: now,
           isActive: true,
         });
@@ -620,9 +847,9 @@ export class AdminService {
   }
 
   // --- Teacher Management ---
-  public async getTeachers(institutionCode: string, limit = 100, offset = 0) {
+  public async getTeachers(institutionCode: string, limit = 100, offset = 0, search = '') {
     const [items, total] = await Promise.all([
-      dbFindUsersByInstitution(institutionCode, 'teacher', { limit, offset }),
+      dbFindUsersByInstitution(institutionCode, 'teacher', { limit, offset, search: search || undefined }),
       dbCountUsersByInstitution(institutionCode, 'teacher'),
     ]);
     return { data: items, total, limit, offset };
@@ -642,10 +869,30 @@ export class AdminService {
     const resolved = resolveProvisionPassword(payload.password, inst?.defaultTempPassword);
     const firebaseUid = await this.createFirebaseUser(payload.email, resolved.password, displayName);
 
-    const scopeObj = JSON.stringify({
+    const scopeObj: Record<string, any> = {
       employeeId: payload.employeeId || '',
       department: payload.department || '',
-    });
+      ...(payload.designation ? { designation: payload.designation } : {}),
+      ...(payload.employmentType ? { employmentType: payload.employmentType } : {}),
+      ...(payload.joiningDate ? { joiningDate: payload.joiningDate } : {}),
+      ...(payload.program ? { program: payload.program } : {}),
+      ...(payload.semester ? { semester: payload.semester } : {}),
+    };
+    const cs = payload.classSection;
+    if (cs && ((cs.department || '').trim() || (cs.academicYear || '').trim() || (cs.section || '').trim())) {
+      const built = await buildClassScope(
+        payload.institutionCode,
+        (cs.department || '').toString(),
+        (cs.academicYear || '').toString(),
+        (cs.section || '').toString()
+      );
+      Object.assign(scopeObj, built);
+      scopeObj.classSection = {
+        department: (cs.department || '').toString(),
+        academicYear: (cs.academicYear || '').toString(),
+        section: (cs.section || '').toString(),
+      };
+    }
 
     const createdUser = await this.repo.upsertUser({
       firebaseUid,
@@ -654,9 +901,13 @@ export class AdminService {
       role: 'teacher',
       institutionCode: payload.institutionCode,
       institutionName,
+      title: payload.designation || '',
+      phone: payload.phone || '',
+      dob: payload.dob || '',
+      gender: payload.gender || '',
       mustChangePassword: true,
       profileCompleted: false,
-      scope: scopeObj,
+      scope: JSON.stringify(scopeObj),
     });
 
     return resolved.tempPassword ? { ...createdUser, tempPassword: resolved.tempPassword } : createdUser;
@@ -668,6 +919,15 @@ export class AdminService {
     email?: string;
     employeeId?: string;
     department?: string;
+    phone?: string;
+    dob?: string;
+    gender?: string;
+    designation?: string;
+    employmentType?: string;
+    joiningDate?: string;
+    classSection?: { department: string; academicYear: string; section: string };
+    program?: string;
+    semester?: string;
   }, institutionCode: string) {
     const existing = await dbFindUserById(id);
     if (!existing || existing.role !== 'teacher' || existing.institutionCode !== institutionCode) {
@@ -681,13 +941,45 @@ export class AdminService {
       updateFields.fullName = `${first} ${last}`.trim();
     }
     if (payload.email) updateFields.email = payload.email;
+    if (payload.phone !== undefined) updateFields.phone = payload.phone;
+    if (payload.dob !== undefined) updateFields.dob = payload.dob;
+    if (payload.gender !== undefined) updateFields.gender = payload.gender;
+    if (payload.designation !== undefined) updateFields.title = payload.designation;
 
-    if (payload.employeeId !== undefined || payload.department !== undefined) {
+    const scopeTouched =
+      payload.employeeId !== undefined ||
+      payload.department !== undefined ||
+      payload.designation !== undefined ||
+      payload.employmentType !== undefined ||
+      payload.joiningDate !== undefined ||
+      payload.program !== undefined ||
+      payload.semester !== undefined ||
+      (payload.classSection && true);
+
+    if (scopeTouched) {
       const scope = typeof existing.scope === 'string' ? JSON.parse(existing.scope || '{}') : (existing.scope || {});
-      const newScope = {
-        employeeId: payload.employeeId ?? scope.employeeId ?? '',
-        department: payload.department ?? scope.department ?? '',
-      };
+      const newScope: Record<string, any> = { ...scope };
+      if (payload.employeeId !== undefined) newScope.employeeId = payload.employeeId;
+      if (payload.department !== undefined) newScope.department = payload.department;
+      if (payload.designation !== undefined) newScope.designation = payload.designation;
+      if (payload.employmentType !== undefined) newScope.employmentType = payload.employmentType;
+      if (payload.joiningDate !== undefined) newScope.joiningDate = payload.joiningDate;
+      if (payload.program !== undefined) newScope.program = payload.program;
+      if (payload.semester !== undefined) newScope.semester = payload.semester;
+      if (payload.classSection) {
+        const built = await buildClassScope(
+          institutionCode,
+          (payload.classSection.department || '').toString(),
+          (payload.classSection.academicYear || '').toString(),
+          (payload.classSection.section || '').toString()
+        );
+        Object.assign(newScope, built);
+        newScope.classSection = {
+          department: (payload.classSection.department || '').toString(),
+          academicYear: (payload.classSection.academicYear || '').toString(),
+          section: (payload.classSection.section || '').toString(),
+        };
+      }
       updateFields.scope = JSON.stringify(newScope);
     }
 
@@ -713,15 +1005,54 @@ export class AdminService {
   }
 
   // --- Unified User Management (all roles) ---
-  public async getUsers(institutionCode: string, limit = 100, offset = 0) {
-    const [items, total] = await Promise.all([
-      dbFindUsersByInstitution(institutionCode, undefined, { limit, offset }),
-      dbCountUsersByInstitution(institutionCode),
-    ]);
-    return { data: items, total, limit, offset };
+  /** Attach children (name + relationship) to parent rows from parent_links. */
+  private async attachParentChildren(
+    institutionCode: string,
+    items: InMemoryUser[]
+  ): Promise<InMemoryUser[]> {
+    const parentRows = items.filter((u) => (u.role || '').toLowerCase() === 'parent');
+    if (parentRows.length === 0) return items;
+
+    const pairs = await getFamilyChildPairs(
+      institutionCode,
+      parentRows.map((p) => p.id)
+    );
+    const nameCache = new Map<string, string>();
+    await Promise.all(
+      Array.from(new Set(pairs.map((p) => p.studentId))).map(async (sid) => {
+        const s = await dbFindUserById(sid);
+        nameCache.set(sid, s?.fullName || '');
+      })
+    );
+    const childrenByParent = new Map<
+      string,
+      { studentId: string; name: string; relationship: string }[]
+    >();
+    for (const p of pairs) {
+      const list = childrenByParent.get(p.parentId) || [];
+      list.push({
+        studentId: p.studentId,
+        name: nameCache.get(p.studentId) || '',
+        relationship: p.relationship,
+      });
+      childrenByParent.set(p.parentId, list);
+    }
+    return items.map((u) => {
+      if ((u.role || '').toLowerCase() !== 'parent') return u;
+      const children = childrenByParent.get(u.id) || [];
+      return { ...u, children, childrenCount: children.length };
+    });
   }
 
-  public async createUser(payload: CreateUserPayload) {
+  public async getUsers(institutionCode: string, limit = 100, offset = 0, search = '') {
+    const [items, total] = await Promise.all([
+      dbFindUsersByInstitution(institutionCode, undefined, { limit, offset, search: search || undefined }),
+      dbCountUsersByInstitution(institutionCode),
+    ]);
+    return { data: await this.attachParentChildren(institutionCode, items), total, limit, offset };
+  }
+
+  public async createUser(payload: CreateUserPayload, actorEmail?: string) {
     if (!payload.fullName || !payload.email || !payload.role) {
       throw { statusCode: 400, code: 'INVALID_INPUT', message: 'fullName, email, and role are required' };
     }
@@ -759,7 +1090,73 @@ export class AdminService {
     }
     const primaryRole = assignedRoles[0] || normalizedRole;
 
-    const resolved = resolveProvisionPassword(payload.password, inst?.defaultTempPassword);
+    // --- Parent-specific validation (invite flow, links keyed by studentId) ---
+    const isParent = primaryRole === 'parent';
+    let parentRelation = '';
+    let parentChildren: {
+      studentId: string;
+      name: string;
+      relationship: string;
+      permissions: string[];
+    }[] = [];
+    if (isParent) {
+      parentRelation = RELATION_CANONICAL[(payload.relation || '').trim().toLowerCase()] || '';
+      if (!parentRelation) {
+        throw {
+          statusCode: 400,
+          code: 'INVALID_RELATION',
+          message: 'relation must be one of: Father, Mother, Guardian.',
+        };
+      }
+      const requested = Array.isArray(payload.children) ? payload.children.filter((c) => c && c.studentId) : [];
+      if (requested.length === 0) {
+        throw {
+          statusCode: 400,
+          code: 'NO_CHILDREN',
+          message: 'Link at least one student to this parent account.',
+        };
+      }
+      const seen = new Set<string>();
+      for (const child of requested) {
+        if (seen.has(child.studentId)) continue;
+        seen.add(child.studentId);
+        const student = await dbFindUserById(child.studentId);
+        if (
+          !student ||
+          (student.role || '').toLowerCase() !== 'student' ||
+          (student.institutionCode || '').toLowerCase() !== payload.institutionCode.toLowerCase()
+        ) {
+          throw {
+            statusCode: 400,
+            code: 'STUDENT_NOT_FOUND',
+            message: 'One of the linked students was not found in this institution.',
+          };
+        }
+        parentChildren.push({
+          studentId: student.id,
+          name: student.fullName || '',
+          relationship:
+            RELATION_CANONICAL[(child.relationship || '').trim().toLowerCase()] || parentRelation,
+          permissions:
+            Array.isArray(child.permissions) && child.permissions.length > 0
+              ? child.permissions
+              : DEFAULT_PARENT_PERMISSIONS,
+        });
+      }
+    }
+
+    // Parents never pick a password — the server mints a temp password that is
+    // emailed as an invite (surfaced once in dev when SES is not configured).
+    const resolved = resolveProvisionPassword(
+      isParent ? undefined : payload.password,
+      isParent ? undefined : inst?.defaultTempPassword
+    );
+    if (resolved.source === 'provided') {
+      const check = validatePasswordStrength(resolved.password);
+      if (!check.ok) {
+        throw { statusCode: 400, code: 'WEAK_PASSWORD', message: check.message };
+      }
+    }
     const firebaseUid = await this.createFirebaseUser(payload.email, resolved.password, payload.fullName);
 
     const hasClassTriple = Boolean(
@@ -768,7 +1165,7 @@ export class AdminService {
         (payload.section || '').toString().trim()
     );
 
-    const scopeObj: Record<string, string> = hasClassTriple
+    const scopeObj: Record<string, any> = hasClassTriple
       ? await buildClassScope(
           payload.institutionCode,
           (payload.department || '').toString(),
@@ -777,6 +1174,25 @@ export class AdminService {
         )
       : {};
     if (payload.employeeId) scopeObj.employeeId = payload.employeeId;
+    if (payload.vehicleNumber) scopeObj.vehicleNumber = payload.vehicleNumber;
+    if (payload.licenseNumber) scopeObj.licenseNumber = payload.licenseNumber;
+    // Admission officer: quota category (name + seats) and assigned fee
+    // structures — stored in users.scope (jsonb).
+    if (assignedRoles.includes('admission_officer')) {
+      if ((payload.categoryName || '').trim()) scopeObj.categoryName = payload.categoryName!.trim();
+      if (typeof payload.seats === 'number' && Number.isFinite(payload.seats)) scopeObj.seats = payload.seats;
+      const picked = Array.isArray(payload.classSections)
+        ? payload.classSections.map((c) => (c || '').trim()).filter(Boolean)
+        : [];
+      if (picked.length) scopeObj.classSections = picked;
+      const feeIds = Array.isArray(payload.feeStructureIds)
+        ? payload.feeStructureIds.map((f) => (f || '').trim()).filter(Boolean)
+        : [];
+      if (feeIds.length) scopeObj.feeStructureIds = feeIds;
+    }
+    // Parent linking lives in parent_links — scope only carries the relation
+    // label for legacy display paths (linkedStudentUSN is never written).
+    if (isParent) scopeObj.relation = parentRelation;
 
     const createdUser = await this.repo.upsertUser({
       firebaseUid,
@@ -791,10 +1207,69 @@ export class AdminService {
       rollNoOrUSN: payload.rollNoOrUSN || '',
       parentPhone: primaryRole === 'student' ? (payload.parentPhone || '') : undefined,
       phone: payload.phone || '',
+      address: payload.address,
+      city: payload.city,
+      pincode: payload.pincode,
+      alternatePhone: payload.alternatePhone,
+      occupation: payload.occupation,
+      emergencyContact: payload.emergencyContact,
+      preferredLanguage: payload.preferredLanguage,
       mustChangePassword: true,
       profileCompleted: false,
       scope: JSON.stringify(scopeObj),
     });
+
+    this.recordAudit(actorEmail, 'user.created', 'user', createdUser.id, `${payload.email} @ ${payload.institutionCode}`, {
+      role: primaryRole,
+      institutionCode: payload.institutionCode,
+      passwordSource: resolved.source,
+    });
+
+    if (isParent) {
+      await insertParentLinks(
+        payload.institutionCode,
+        createdUser.id,
+        parentChildren.map((c) => ({
+          studentId: c.studentId,
+          relationship: c.relationship,
+          permissions: c.permissions,
+        }))
+      );
+      await upsertPreferences(createdUser.id, payload.institutionCode, {
+        pushEnabled: payload.notificationPrefs?.pushEnabled !== false,
+        disabledTypes: Array.isArray(payload.notificationPrefs?.disabledTypes)
+          ? payload.notificationPrefs!.disabledTypes
+          : [],
+      });
+
+      const invite = await sendParentInvite({
+        institutionCode: payload.institutionCode,
+        institutionName: payload.institutionName || inst?.institutionName || '',
+        email: payload.email,
+        fullName: payload.fullName,
+        tempPassword: resolved.tempPassword || resolved.password,
+        childNames: parentChildren.map((c) => c.name).filter(Boolean),
+      });
+      const childrenOut = parentChildren.map((c) => ({
+        studentId: c.studentId,
+        name: c.name,
+        relationship: c.relationship,
+        permissions: c.permissions,
+      }));
+      if (invite.sent) {
+        return { ...createdUser, children: childrenOut, childrenCount: childrenOut.length, inviteSent: true };
+      }
+      if (invite.reason === 'SES_NOT_CONFIGURED') {
+        return {
+          ...createdUser,
+          children: childrenOut,
+          childrenCount: childrenOut.length,
+          inviteSent: false,
+          tempPassword: resolved.tempPassword || resolved.password,
+        };
+      }
+      return { ...createdUser, children: childrenOut, childrenCount: childrenOut.length, inviteSent: false };
+    }
 
     return resolved.tempPassword ? { ...createdUser, tempPassword: resolved.tempPassword } : createdUser;
   }
@@ -942,6 +1417,9 @@ export class AdminService {
 
     let successCount = 0;
     let failureCount = 0;
+    let overwrittenCount = 0;
+    let emailsSent = 0;
+    let emailsFailed = 0;
     const errors: string[] = [];
     // One-time lookup: institutionCode -> admin-set default temp password.
     const institutionDefaults = new Map<string, string>();
@@ -967,7 +1445,36 @@ export class AdminService {
         const displayName = `${record.firstName} ${record.lastName}`.trim();
         const instDefault = institutionDefaults.get((record.institutionCode || '').toLowerCase()) || '';
         const resolved = resolveProvisionPassword(record.dummyPassword, instDefault);
-        const firebaseUid = await this.createFirebaseUser(record.email, resolved.password, displayName);
+
+        // Overwrite mode: reuse the existing Firebase + DB identity instead of
+        // failing with EMAIL_EXISTS. Password is rotated to the resolved temp
+        // so the CSV/default password is authoritative after import.
+        let firebaseUid: string;
+        let didOverwrite = false;
+        const existingDbUser = await dbFindByEmail(record.email);
+        try {
+          firebaseUid = await this.createFirebaseUser(record.email, resolved.password, displayName);
+        } catch (createErr: any) {
+          if (createErr?.code === 'EMAIL_EXISTS' && options?.overwriteUsers) {
+            const existingAuth = await admin.auth().getUserByEmail(record.email).catch(() => null);
+            if (!existingAuth) throw createErr;
+            firebaseUid = existingAuth.uid;
+            await admin.auth().updateUser(firebaseUid, {
+              password: resolved.password,
+              displayName,
+            });
+            didOverwrite = true;
+            overwrittenCount++;
+          } else if (createErr?.code === 'EMAIL_EXISTS') {
+            throw {
+              statusCode: 409,
+              code: 'EMAIL_EXISTS',
+              message: `Email "${record.email}" already exists. Enable "Overwrite existing users" to update it.`,
+            };
+          } else {
+            throw createErr;
+          }
+        }
 
         const scopeObj = JSON.stringify(
           await buildClassScope(
@@ -1029,6 +1536,23 @@ export class AdminService {
 
         await (db ? withTransaction(writeRecord) : writeRecord(null));
         successCount++;
+
+        // Credential email — only actually send when requested AND we have a
+        // password to share. Count real sends; never fabricate emailsSent.
+        if (options?.sendEmails) {
+          const passwordToEmail = resolved.tempPassword || resolved.password;
+          const invite = await sendLoginCredentialsInvite({
+            institutionCode: record.institutionCode,
+            institutionName: record.institutionName || existingDbUser?.institutionName || '',
+            email: record.email,
+            fullName: displayName,
+            role: record.role || 'student',
+            tempPassword: passwordToEmail,
+          });
+          if (invite.sent) emailsSent++;
+          else emailsFailed++;
+        }
+
         if (resolved.source === 'institution_default') defaultPasswordsUsed++;
         if (resolved.tempPassword) tempPasswords.push({ email: record.email, tempPassword: resolved.tempPassword });
       } catch (error: any) {
@@ -1041,13 +1565,360 @@ export class AdminService {
       totalProcessed: records.length,
       successCount,
       failureCount,
-      emailsSent: options?.sendEmails ? successCount : 0,
+      overwrittenCount,
+      // Real counts only — 0 when sendEmails was off, or when SES is not
+      // configured / sends failed (see emailNotSentReason via tempPasswords).
+      emailsSent,
+      emailsFailed,
       errors,
       defaultPasswordsUsed,
       // One-time reveal: passwords generated for rows that had neither a CSV
       // password nor an institution default. Never persisted anywhere else.
       tempPasswords,
     };
+  }
+
+  /**
+   * CSV bulk import for a single role (student | teacher | parent | staff).
+   * Kept lean on purpose: one institution lookup, one batched email-existence
+   * check, class-scope resolution cached per distinct triple, Firebase creates
+   * in small parallel chunks, then per-row DB upserts. No per-row institution
+   * reads and no invite emails — parent temp passwords are returned instead.
+   */
+  public async bulkCreateUsers(
+    institutionCode: string,
+    requestedRole: string,
+    records: BulkCreateRecord[],
+    actorEmail?: string
+  ) {
+    const inst = await institutionService.getInstitutions().then((list) =>
+      list.find((i) => i.institutionCode.toLowerCase() === (institutionCode || '').toLowerCase())
+    );
+    const instType: 'school' | 'college' = (inst?.institutionType || 'school') as 'school' | 'college';
+    const validRoles = instType === 'college' ? COLLEGE_ROLES : SCHOOL_ROLES;
+    const role = (requestedRole || '').toLowerCase().trim();
+    if (!validRoles.includes(role as any)) {
+      throw {
+        statusCode: 400,
+        code: 'INVALID_ROLE',
+        message: `"${role}" is not valid for a ${instType} institution. Allowed: ${validRoles.join(', ')}`,
+      };
+    }
+
+    const isParent = role === 'parent';
+    const defaultTemp = inst?.defaultTempPassword || '';
+    const institutionName = inst?.institutionName || institutionCode;
+    const errors: { row: number; message: string }[] = [];
+    const skipped: string[] = [];
+    const tempPasswords: { email: string; tempPassword: string }[] = [];
+
+    interface PreparedRow {
+      row: number;
+      email: string;
+      firstName: string;
+      lastName: string;
+      displayName: string;
+      phone?: string;
+      password?: string;
+      rollNoOrUSN?: string;
+      department?: string;
+      academicYear?: string;
+      section?: string;
+      employeeId?: string;
+      relation?: string;
+      childEmails: string[];
+      categoryName?: string;
+      seats?: number;
+    }
+
+    // Row numbers refer to the CSV file (header = row 1).
+    const prepared: PreparedRow[] = [];
+    const seenEmails = new Set<string>();
+    records.forEach((rec, idx) => {
+      const row = idx + 2;
+      const email = (rec.email || '').toLowerCase().trim();
+      const firstName = (rec.firstName || '').trim();
+      const lastName = (rec.lastName || '').trim();
+      if (!email || !firstName || !lastName) {
+        errors.push({ row, message: 'Missing required fields (firstName, lastName, email)' });
+        return;
+      }
+      if (seenEmails.has(email)) {
+        errors.push({ row, message: `Duplicate email in file: ${email}` });
+        return;
+      }
+      seenEmails.add(email);
+      const childEmails = (rec.childEmails || [])
+        .map((e) => (e || '').toLowerCase().trim())
+        .filter(Boolean);
+      if (isParent) {
+        const relation = RELATION_CANONICAL[(rec.relation || '').trim().toLowerCase()] || '';
+        if (!relation) {
+          errors.push({ row, message: 'relation must be one of: Father, Mother, Guardian' });
+          return;
+        }
+        if (childEmails.length === 0) {
+          errors.push({ row, message: 'childEmails must list at least one student email' });
+          return;
+        }
+        prepared.push({
+          row,
+          email,
+          firstName,
+          lastName,
+          displayName: `${firstName} ${lastName}`.trim(),
+          phone: rec.phone || undefined,
+          relation,
+          childEmails,
+        });
+        return;
+      }
+      prepared.push({
+        row,
+        email,
+        firstName,
+        lastName,
+        displayName: `${firstName} ${lastName}`.trim(),
+        phone: rec.phone || undefined,
+        password: rec.password || undefined,
+        rollNoOrUSN: rec.rollNoOrUSN || undefined,
+        department: rec.department || undefined,
+        academicYear: rec.academicYear || undefined,
+        section: rec.section || undefined,
+        employeeId: rec.employeeId || undefined,
+        categoryName: rec.categoryName || undefined,
+        seats: rec.seats,
+        childEmails,
+      });
+    });
+
+    // One batched existence check instead of a query per row.
+    let ready = prepared;
+    if (prepared.length > 0) {
+      const existingEmails = new Set(
+        (await this.findUsersByEmails(prepared.map((r) => r.email))).map((u) => (u.email || '').toLowerCase())
+      );
+      ready = prepared.filter((r) => {
+        if (existingEmails.has(r.email)) {
+          skipped.push(r.email);
+          return false;
+        }
+        return true;
+      });
+    }
+
+    // Resolve passwords (row password > institution default > random temp).
+    for (const r of ready) {
+      const resolved = resolveProvisionPassword(
+        isParent ? undefined : r.password,
+        isParent ? undefined : defaultTemp
+      );
+      r.password = resolved.password;
+      if (resolved.tempPassword) tempPasswords.push({ email: r.email, tempPassword: resolved.tempPassword });
+    }
+
+    // Class-scope resolution is cached per distinct triple so the whole file
+    // shares (at most) a handful of class_sections lookups.
+    const scopeCache = new Map<string, Promise<Record<string, string>>>();
+    const cachedClassScope = (dept?: string, yr?: string, sec?: string) => {
+      const key = `${(dept || '').toLowerCase()}|${(yr || '').toLowerCase()}|${(sec || '').toLowerCase()}`;
+      if (!scopeCache.has(key)) {
+        scopeCache.set(key, buildClassScope(institutionCode, dept || '', yr || '', sec || ''));
+      }
+      return scopeCache.get(key)!;
+    };
+
+    const created: {
+      row: number;
+      email: string;
+      id: string;
+      scopeObj: Record<string, any>;
+      classSectionId?: string;
+      relation?: string;
+      childEmails: string[];
+      rollNoOrUSN?: string;
+    }[] = [];
+    let createdCount = 0;
+    const CHUNK = 5;
+    for (let i = 0; i < ready.length; i += CHUNK) {
+      const chunk = ready.slice(i, i + CHUNK);
+      const results = await Promise.allSettled(
+        chunk.map(async (r) => {
+          const firebaseUid = await this.createFirebaseUser(r.email, r.password!, r.displayName);
+          return { r, firebaseUid };
+        })
+      );
+      for (let j = 0; j < results.length; j++) {
+        const result = results[j];
+        const r = chunk[j];
+        if (result.status === 'rejected') {
+          const reason: any = result.reason;
+          const msg = reason?.message || 'Failed to create login account';
+          if (reason?.code === 'EMAIL_EXISTS' || /already exists/i.test(msg)) {
+            skipped.push(r.email);
+          } else {
+            errors.push({ row: r.row, message: msg });
+          }
+          continue;
+        }
+        const { firebaseUid } = result.value;
+        try {
+          let scopeObj: Record<string, any> = {};
+          let classSectionId: string | undefined;
+          if (role === 'student' || role === 'teacher') {
+            const built = await cachedClassScope(r.department, r.academicYear, r.section);
+            classSectionId = built.classSectionId;
+            scopeObj = { ...built };
+          }
+          if (role === 'teacher') {
+            scopeObj.employeeId = r.employeeId || '';
+            scopeObj.department = r.department || '';
+          }
+          if (isParent) scopeObj.relation = r.relation || '';
+          if (role === 'admission_officer') {
+            if (r.categoryName) scopeObj.categoryName = r.categoryName;
+            if (typeof r.seats === 'number' && Number.isFinite(r.seats)) scopeObj.seats = r.seats;
+          }
+
+          const createdUser = await this.repo.upsertUser({
+            firebaseUid,
+            email: r.email,
+            fullName: r.displayName,
+            role,
+            roles: [role],
+            institutionCode,
+            institutionName,
+            institutionType: instType,
+            rollNoOrUSN: r.rollNoOrUSN || '',
+            phone: r.phone || '',
+            mustChangePassword: true,
+            profileCompleted: false,
+            scope: JSON.stringify(scopeObj),
+          });
+          createdCount++;
+          created.push({
+            row: r.row,
+            email: r.email,
+            id: createdUser.id,
+            scopeObj,
+            classSectionId,
+            relation: r.relation,
+            childEmails: r.childEmails,
+            rollNoOrUSN: r.rollNoOrUSN,
+          });
+        } catch (err: any) {
+          errors.push({ row: r.row, message: err?.message || 'Failed to save user record' });
+        }
+      }
+    }
+
+    // Student → class membership rows, batched into one insert.
+    const studentClassRows = created
+      .filter((c) => c.classSectionId)
+      .map((c) => ({
+        institutionCode,
+        studentId: c.id,
+        classSectionId: c.classSectionId!,
+        rollNo: c.rollNoOrUSN || '',
+        academicYear: (c.scopeObj?.academicYear || '') as string,
+        isActive: true,
+      }));
+    if (db && studentClassRows.length > 0) {
+      try {
+        await db.insert(studentClasses).values(studentClassRows).onConflictDoNothing();
+      } catch {
+        // Non-fatal — membership can be fixed later from the student editor.
+      }
+    }
+
+    // Parent → child links: resolve every referenced student email in ONE
+    // query, then insert links per new parent.
+    if (isParent && created.length > 0) {
+      const allChildEmails = [...new Set(created.flatMap((c) => c.childEmails))];
+      const childUsers = allChildEmails.length ? await this.findUsersByEmails(allChildEmails) : [];
+      const childByEmail = new Map(
+        childUsers
+          .filter((u) => (u.role || '').toLowerCase() === 'student')
+          .map((u) => [(u.email || '').toLowerCase(), u])
+      );
+      for (const c of created) {
+        const links: { studentId: string; relationship: string; permissions: string[] }[] = [];
+        const missing: string[] = [];
+        for (const childEmail of c.childEmails) {
+          const student = childByEmail.get(childEmail);
+          if (!student) {
+            missing.push(childEmail);
+            continue;
+          }
+          links.push({
+            studentId: student.id,
+            relationship: c.relation || '',
+            permissions: [...DEFAULT_PARENT_PERMISSIONS],
+          });
+        }
+        if (missing.length) {
+          errors.push({
+            row: c.row,
+            message:
+              links.length === 0
+                ? `Parent created but no linked children (unknown student emails: ${missing.join(', ')})`
+                : `Some children were not found: ${missing.join(', ')}`,
+          });
+          if (links.length === 0) continue;
+        }
+        try {
+          await insertParentLinks(institutionCode, c.id, links);
+          await upsertPreferences(c.id, institutionCode, { pushEnabled: true, disabledTypes: [] });
+        } catch (err: any) {
+          errors.push({ row: c.row, message: `Parent created but linking children failed: ${err?.message || err}` });
+        }
+      }
+    }
+
+    this.recordAudit(
+      actorEmail,
+      'users.bulk_created',
+      'user',
+      undefined,
+      `${role} x${createdCount} @ ${institutionCode}`,
+      { role, created: createdCount, skipped: skipped.length, failed: errors.length, total: records.length }
+    );
+
+    return {
+      total: records.length,
+      created: createdCount,
+      skipped: skipped.length,
+      skippedEmails: skipped,
+      failed: errors.length,
+      errors,
+      // One-time reveal — parents never pick a password; other roles only get
+      // a temp when neither a CSV password nor institution default applied.
+      tempPasswords,
+      note: isParent
+        ? 'Parent invite emails are not sent in bulk — share the temp passwords shown.'
+        : undefined,
+    };
+  }
+
+  /** Batched email lookup (one IN query; small in-memory fallback). */
+  private async findUsersByEmails(
+    emails: string[]
+  ): Promise<Pick<InMemoryUser, 'id' | 'email' | 'role' | 'fullName'>[]> {
+    const cleaned = [...new Set(emails.map((e) => (e || '').toLowerCase().trim()).filter(Boolean))];
+    if (cleaned.length === 0) return [];
+    if (!db) {
+      const out: Pick<InMemoryUser, 'id' | 'email' | 'role' | 'fullName'>[] = [];
+      for (const email of cleaned) {
+        const found = await dbFindByEmail(email);
+        if (found) out.push({ id: found.id, email: found.email, role: found.role, fullName: found.fullName });
+      }
+      return out;
+    }
+    const rows = await db
+      .select({ id: users.id, email: users.email, role: users.role, fullName: users.fullName })
+      .from(users)
+      .where(inArraySql(users.email, cleaned));
+    return rows.map((r) => ({ id: r.id, email: r.email, role: r.role, fullName: r.fullName }));
   }
 
   // Fee Management Methods
@@ -1103,21 +1974,26 @@ export class AdminService {
   async createFeePayment(institutionCode: string, data: any) {
     if (!db) throw Object.assign(new Error('Database not available'), { statusCode: 500 });
     const id = `fp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    const receiptNo = `REC-${Date.now().toString().slice(-6)}`;
-    const [result] = await db.insert(feePayments).values({
-      id,
-      institutionCode,
-      feeStructureId: data.feeStructureId,
-      studentId: data.studentId,
-      amount: String(data.amount),
-      paymentMethod: data.paymentMethod || 'upi',
-      paymentDate: data.paymentDate,
-      status: data.status || 'paid',
-      receiptNo,
-      notes: data.notes,
-      createdBy: data.createdBy,
-    }).returning();
-    return result;
+    // Receipt number comes from the per-institution sequence, allocated inside
+    // the same transaction as the insert so concurrent collections can never
+    // produce duplicate receipt numbers (the old timestamp generator could).
+    return withTransaction(async (tx) => {
+      const receiptNo = await nextReceiptNo(tx, institutionCode);
+      const [result] = await tx.insert(feePayments).values({
+        id,
+        institutionCode,
+        feeStructureId: data.feeStructureId,
+        studentId: data.studentId,
+        amount: String(data.amount),
+        paymentMethod: data.paymentMethod || 'upi',
+        paymentDate: data.paymentDate,
+        status: data.status || 'paid',
+        receiptNo,
+        notes: data.notes,
+        createdBy: data.createdBy,
+      }).returning();
+      return result;
+    });
   }
 
   async updateFeePayment(id: string, institutionCode: string, data: any) {
@@ -1216,16 +2092,10 @@ export class AdminService {
       throw { statusCode: 403, code: 'FORBIDDEN', message: 'Only parents can view fee statements' };
     }
 
-    let scope: any = {};
-    try {
-      scope = typeof parent.scope === 'string' ? JSON.parse(parent.scope || '{}') : (parent.scope || {});
-    } catch {
-      scope = {};
-    }
-    const linkedUsn = scope?.linkedStudentUSN || '';
-    if (!linkedUsn) return [];
+    const link = await getPrimaryParentChild(parent.id);
+    if (!link) return [];
 
-    const student = await dbFindStudentByUsnInInstitution(institutionCode, linkedUsn);
+    const student = await dbFindUserById(link.studentId);
     if (!student) return [];
 
     return this.buildFeeStatement(institutionCode, student.id, student);

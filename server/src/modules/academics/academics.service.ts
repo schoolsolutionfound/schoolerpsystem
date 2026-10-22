@@ -1,5 +1,6 @@
 import { academicsRepository } from './academics.repository.js';
-import { db, withTransaction, dbFindUsersByInstitution, dbFindUserByIdOrUid, dbFindStudentByUsnInInstitution, dbFindStudentsByClassScope, dbCountStudentsByClassScope } from '../shared/db/index.js';
+import { db, withTransaction, dbFindUsersByInstitution, dbFindUserByIdOrUid, dbFindStudentsByClassScope, dbCountStudentsByClassScope } from '../shared/db/index.js';
+import { getPrimaryParentChild } from '../users/parent-links.js';
 import { eq as eqSql, and as andSql } from 'drizzle-orm';
 import { studentClasses, users as usersTable, subjectTeachers } from '../shared/db/schema.js';
 import {
@@ -17,12 +18,69 @@ import {
   SaveMarksInput,
   CreateHomeworkInput,
   UpdateHomeworkInput,
+  CreateAcademicSessionInput,
+  UpdateAcademicSessionInput,
   ATTENDANCE_STATUSES,
 } from './academics.schema.js';
 
 const TEACHER_ROLES = ['teacher', 'hod', 'admin', 'principal'];
 
 export class AcademicsService {
+  // ---------- Academic Sessions ----------
+  public async listAcademicSessions(institutionCode: string) {
+    return academicsRepository.listAcademicSessions(institutionCode);
+  }
+
+  public async getCurrentAcademicSession(institutionCode: string) {
+    return academicsRepository.getCurrentAcademicSession(institutionCode);
+  }
+
+  public async createAcademicSession(institutionCode: string, input: CreateAcademicSessionInput) {
+    const existing = await academicsRepository.listAcademicSessions(institutionCode);
+    if (existing.some((s) => s.name.toLowerCase() === input.name.toLowerCase())) {
+      throw { statusCode: 409, code: 'DUPLICATE_SESSION', message: `Academic year "${input.name}" already exists` };
+    }
+    // First session of the institution becomes current automatically.
+    const isFirst = existing.length === 0;
+    const created = await academicsRepository.createAcademicSession({ ...input, institutionCode, isCurrent: isFirst });
+    if (isFirst) {
+      // ensure flag persisted even if default was false
+      await academicsRepository.updateAcademicSession(created.id, { isCurrent: true });
+      created.isCurrent = true;
+    }
+    return created;
+  }
+
+  public async updateAcademicSession(institutionCode: string, id: string, input: UpdateAcademicSessionInput) {
+    const existing = await academicsRepository.getAcademicSessionById(id);
+    if (!existing || existing.institutionCode.toLowerCase() !== institutionCode.toLowerCase()) {
+      throw { statusCode: 404, code: 'SESSION_NOT_FOUND', message: 'Academic year not found' };
+    }
+    return academicsRepository.updateAcademicSession(id, input);
+  }
+
+  public async setAcademicSessionCurrent(institutionCode: string, id: string) {
+    const existing = await academicsRepository.getAcademicSessionById(id);
+    if (!existing || existing.institutionCode.toLowerCase() !== institutionCode.toLowerCase()) {
+      throw { statusCode: 404, code: 'SESSION_NOT_FOUND', message: 'Academic year not found' };
+    }
+    await academicsRepository.setAllSessionsNotCurrent(institutionCode);
+    await academicsRepository.updateAcademicSession(id, { isCurrent: true });
+    return academicsRepository.getAcademicSessionById(id);
+  }
+
+  public async deleteAcademicSession(institutionCode: string, id: string) {
+    const existing = await academicsRepository.getAcademicSessionById(id);
+    if (!existing || existing.institutionCode.toLowerCase() !== institutionCode.toLowerCase()) {
+      throw { statusCode: 404, code: 'SESSION_NOT_FOUND', message: 'Academic year not found' };
+    }
+    if (existing.isCurrent) {
+      throw { statusCode: 400, code: 'SESSION_IS_CURRENT', message: 'Cannot delete the current academic year. Make another year current first.' };
+    }
+    await academicsRepository.deleteAcademicSession(id);
+    return { deleted: true };
+  }
+
   // ---------- Class Sections ----------
   public async listClassSections(institutionCode: string, opts?: { limit: number; offset: number }) {
     if (opts) {
@@ -39,7 +97,8 @@ export class AcademicsService {
         throw { statusCode: 400, code: 'INVALID_CLASS_TEACHER', message: 'classTeacherId does not reference a valid teacher in this institution' };
       }
     }
-    return academicsRepository.createClassSection({ ...input, institutionCode });
+    const currentSession = await academicsRepository.getCurrentAcademicSession(institutionCode);
+    return academicsRepository.createClassSection({ ...input, institutionCode, sessionId: currentSession?.id || '' });
   }
 
   public async updateClassSection(institutionCode: string, id: string, input: UpdateClassSectionInput) {
@@ -305,20 +364,32 @@ export class AcademicsService {
     return this.buildStudentSummary(student.id, fromDate, toDate);
   }
 
-  public async getParentView(institutionCode: string, parentUserId: string) {
+  /**
+   * Resolve the primary child of a parent account via `parent_links`
+   * (legacy scope.USN fallback lives inside the helper).
+   */
+  private async resolvePrimaryChild(institutionCode: string, parentUserId: string) {
     const parent = await this.findUser(institutionCode, parentUserId);
     if (!parent || parent.role.toLowerCase() !== 'parent') {
       throw { statusCode: 403, code: 'FORBIDDEN', message: 'Only parents can use this endpoint' };
     }
-    const scope = this.parseScope(parent.scope);
-    const linkedUsn = scope?.linkedStudentUSN || '';
-    if (!linkedUsn) {
-      throw { statusCode: 404, code: 'NO_LINKED_STUDENT', message: 'No linked student found. Complete your profile with the student USN.' };
+    const link = await getPrimaryParentChild(parent.id);
+    if (!link) {
+      throw { statusCode: 404, code: 'NO_LINKED_STUDENT', message: 'No linked student found.' };
     }
-    const student = await dbFindStudentByUsnInInstitution(institutionCode, linkedUsn);
-    if (!student) {
+    const student = await dbFindUserByIdOrUid(link.studentId);
+    if (
+      !student ||
+      student.role.toLowerCase() !== 'student' ||
+      (student.institutionCode || '').toLowerCase() !== (institutionCode || '').toLowerCase()
+    ) {
       throw { statusCode: 404, code: 'STUDENT_NOT_FOUND', message: 'Linked student was not found in this institution' };
     }
+    return { link, student };
+  }
+
+  public async getParentView(institutionCode: string, parentUserId: string) {
+    const { link, student } = await this.resolvePrimaryChild(institutionCode, parentUserId);
     const summary = await this.buildStudentSummary(student.id);
     const studentScope = this.parseScope(student.scope);
     const result = {
@@ -326,7 +397,7 @@ export class AcademicsService {
       childId: student.id,
       childName: student.fullName || '',
       childEmail: student.email || '',
-      childUSN: student.rollNoOrUSN || linkedUsn,
+      childUSN: student.rollNoOrUSN || '',
       childPhone: student.phone || '',
       childProfilePic: student.profilePicUrl || '',
       childDepartment: studentScope.department || student.department || '',
@@ -335,42 +406,18 @@ export class AcademicsService {
       childClassSectionName: studentScope.classSectionName || '',
       childTenthPercentage: student.tenthPercentage || '',
       childTwelfthPercentage: student.twelfthPercentage || '',
-      relation: scope?.relation || '',
+      relation: link.relationship || '',
     };
     return result;
   }
 
   public async getParentMarks(institutionCode: string, parentUserId: string) {
-    const parent = await this.findUser(institutionCode, parentUserId);
-    if (!parent || parent.role.toLowerCase() !== 'parent') {
-      throw { statusCode: 403, code: 'FORBIDDEN', message: 'Only parents can use this endpoint' };
-    }
-    const scope = this.parseScope(parent.scope);
-    const linkedUsn = scope?.linkedStudentUSN || '';
-    if (!linkedUsn) {
-      throw { statusCode: 404, code: 'NO_LINKED_STUDENT', message: 'No linked student found.' };
-    }
-    const student = await dbFindStudentByUsnInInstitution(institutionCode, linkedUsn);
-    if (!student) {
-      throw { statusCode: 404, code: 'STUDENT_NOT_FOUND', message: 'Linked student was not found in this institution' };
-    }
+    const { student } = await this.resolvePrimaryChild(institutionCode, parentUserId);
     return this.getStudentMarks(institutionCode, student.id);
   }
 
   public async getParentTimetable(institutionCode: string, parentUserId: string, dateStr: string) {
-    const parent = await this.findUser(institutionCode, parentUserId);
-    if (!parent || parent.role.toLowerCase() !== 'parent') {
-      throw { statusCode: 403, code: 'FORBIDDEN', message: 'Only parents can use this endpoint' };
-    }
-    const scope = this.parseScope(parent.scope);
-    const linkedUsn = scope?.linkedStudentUSN || '';
-    if (!linkedUsn) {
-      throw { statusCode: 404, code: 'NO_LINKED_STUDENT', message: 'No linked student found.' };
-    }
-    const student = await dbFindStudentByUsnInInstitution(institutionCode, linkedUsn);
-    if (!student) {
-      throw { statusCode: 404, code: 'STUDENT_NOT_FOUND', message: 'Linked student was not found in this institution' };
-    }
+    const { student } = await this.resolvePrimaryChild(institutionCode, parentUserId);
     return this.getMyTimetable(institutionCode, student.id, dateStr);
   }
 
@@ -508,6 +555,7 @@ export class AcademicsService {
       });
     }
 
+    const currentSession = await academicsRepository.getCurrentAcademicSession(institutionCode);
     const timetable = await academicsRepository.createTimetable({
       institutionCode,
       classSectionId: input.classSectionId,
@@ -516,6 +564,7 @@ export class AcademicsService {
       version,
       effectiveFrom: input.effectiveFrom,
       createdBy: createdByUserId,
+      sessionId: currentSession?.id || '',
     });
 
     const slots = await academicsRepository.replaceSlotsForTimetable(timetable.id, slotRows);
@@ -1110,12 +1159,14 @@ export class AcademicsService {
     }
 
     const writeExam = async (tx: any) => {
+      const currentSession = await academicsRepository.getCurrentAcademicSession(institutionCode);
       const created = await academicsRepository.createExam(
         {
           institutionCode,
           name: input.name,
           term: input.term || '',
           academicYear: input.academicYear || '',
+          sessionId: currentSession?.id || '',
           startDate: input.startDate || null,
           endDate: input.endDate || null,
           status: 'draft',

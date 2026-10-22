@@ -7,7 +7,6 @@
  */
 
 import { Platform, StyleSheet } from 'react-native';
-import { BorderRadius } from '../../../constants/theme';
 import { FontFamily } from '../../../constants/fonts';
 
 export const sharedFinanceStyles = StyleSheet.create({
@@ -21,7 +20,7 @@ export const sharedFinanceStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.input,
+    borderRadius: 5,
     paddingHorizontal: 12,
     borderWidth: 1,
     borderColor: '#E8E5DC',
@@ -32,18 +31,18 @@ export const sharedFinanceStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
-    borderRadius: BorderRadius.button,
+    borderRadius: 5,
     height: 42,
     gap: 6,
   },
-  addBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 13, fontFamily: FontFamily.bold },
+  addBtnText: { color: '#171717', fontWeight: '700', fontSize: 13, fontFamily: FontFamily.bold },
 
   // ── Category Filter Chips ────────────────────────────────────────────────────
   chipScrollView: { flexDirection: 'row', marginBottom: 10, maxHeight: 36 },
   chip: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 20,
+    borderRadius: 5,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E8E5DC',
@@ -61,7 +60,7 @@ export const sharedFinanceStyles = StyleSheet.create({
   // ── Record Card (Modern multi-tier layout - zero overlap) ────────────────────
   cardItem: {
     backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.card,
+    borderRadius: 5,
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
@@ -82,11 +81,11 @@ export const sharedFinanceStyles = StyleSheet.create({
   iconBox: {
     width: 32,
     height: 32,
-    borderRadius: 8,
+    borderRadius: 5,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  catChip: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  catChip: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 5 },
   catChipText: { fontSize: 11, fontWeight: '700', fontFamily: FontFamily.bold },
   itemAmount: { fontSize: 17, fontWeight: '800', fontFamily: FontFamily.extrabold },
 
@@ -120,7 +119,7 @@ export const sharedFinanceStyles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#F7F5EE',
   },
-  statusTag: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4 },
+  statusTag: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 5 },
   statusPaid: { backgroundColor: '#DCFCE7' },
   statusPending: { backgroundColor: 'rgba(220,53,69,0.08)' },
   statusText: { fontSize: 10, fontWeight: '800', fontFamily: FontFamily.extrabold },
@@ -131,12 +130,12 @@ export const sharedFinanceStyles = StyleSheet.create({
   actionIconBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#F7F5EE',
     borderWidth: 1,
     borderColor: '#E8E5DC',
     paddingHorizontal: 8,
     paddingVertical: 5,
-    borderRadius: 6,
+    borderRadius: 5,
     gap: 4,
   },
   actionIconBtnText: { fontSize: 11, fontWeight: '700', color: '#6B6B6B', fontFamily: FontFamily.bold },
@@ -153,7 +152,7 @@ export const sharedFinanceStyles = StyleSheet.create({
     width: Platform.OS === 'web' ? 520 : '100%',
     maxHeight: '88%',
     backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.modal,
+    borderRadius: 5,
     padding: 20,
   },
   modalHeader: {
@@ -173,7 +172,7 @@ export const sharedFinanceStyles = StyleSheet.create({
     backgroundColor: '#F5F5F5',
     borderWidth: 1,
     borderColor: '#E8E5DC',
-    borderRadius: BorderRadius.input,
+    borderRadius: 5,
     paddingHorizontal: 12,
     height: 40,
     fontSize: 13,
@@ -188,7 +187,7 @@ export const sharedFinanceStyles = StyleSheet.create({
   radioBtn: {
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 6,
+    borderRadius: 5,
     borderWidth: 1,
     borderColor: '#E8E5DC',
     backgroundColor: '#FFFFFF',
@@ -200,14 +199,14 @@ export const sharedFinanceStyles = StyleSheet.create({
   cancelBtn: {
     paddingHorizontal: 14,
     paddingVertical: 9,
-    borderRadius: BorderRadius.button,
+    borderRadius: 5,
     backgroundColor: '#F5F5F5',
   },
   cancelBtnText: { fontSize: 13, fontWeight: '600', color: '#6B6B6B', fontFamily: FontFamily.semibold },
   submitBtn: {
     paddingHorizontal: 16,
     paddingVertical: 9,
-    borderRadius: BorderRadius.button,
+    borderRadius: 5,
   },
   submitBtnText: { fontSize: 13, fontWeight: '700', color: '#FFFFFF', fontFamily: FontFamily.bold },
 
@@ -215,7 +214,7 @@ export const sharedFinanceStyles = StyleSheet.create({
   documentContent: {
     width: Platform.OS === 'web' ? 400 : '90%',
     backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.modal,
+    borderRadius: 5,
     padding: 20,
   },
   documentHeader: { alignItems: 'center' },
@@ -234,7 +233,7 @@ export const sharedFinanceStyles = StyleSheet.create({
   documentVal: { fontSize: 12, fontWeight: '700', color: '#1A1B1C', fontFamily: FontFamily.bold },
   documentTotalBox: {
     padding: 10,
-    borderRadius: 8,
+    borderRadius: 5,
     alignItems: 'center',
     marginTop: 10,
   },
@@ -242,7 +241,7 @@ export const sharedFinanceStyles = StyleSheet.create({
   documentTotalVal: { fontSize: 20, fontWeight: '800', marginTop: 2, fontFamily: FontFamily.extrabold },
   closeDocumentBtn: {
     paddingVertical: 10,
-    borderRadius: BorderRadius.button,
+    borderRadius: 5,
     alignItems: 'center',
     marginTop: 16,
   },

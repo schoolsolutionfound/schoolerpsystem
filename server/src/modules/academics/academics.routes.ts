@@ -4,6 +4,11 @@ import {
   createClassSectionHandler,
   updateClassSectionHandler,
   deleteClassSectionHandler,
+  listAcademicSessionsHandler,
+  createAcademicSessionHandler,
+  updateAcademicSessionHandler,
+  setAcademicSessionCurrentHandler,
+  deleteAcademicSessionHandler,
   listSubjectsHandler,
   createSubjectHandler,
   listSubjectTeachersHandler,
@@ -52,6 +57,13 @@ import {
 import { authenticate, requireAdmin, requireTeacherOrAdmin, requireStaff, requireRole } from '../shared/middleware/auth.js';
 
 export async function academicsRoutes(fastify: FastifyInstance) {
+  // Academic Sessions (years)
+  fastify.get('/academic-sessions', { preHandler: [authenticate] }, (req, reply) => listAcademicSessionsHandler(req, reply));
+  fastify.post('/academic-sessions', { preHandler: [requireAdmin] }, (req, reply) => createAcademicSessionHandler(req, reply));
+  fastify.put('/academic-sessions/:id', { preHandler: [requireAdmin] }, (req, reply) => updateAcademicSessionHandler(req as any, reply));
+  fastify.post('/academic-sessions/:id/set-current', { preHandler: [requireAdmin] }, (req, reply) => setAcademicSessionCurrentHandler(req as any, reply));
+  fastify.delete('/academic-sessions/:id', { preHandler: [requireAdmin] }, (req, reply) => deleteAcademicSessionHandler(req as any, reply));
+
   // Class Sections
   fastify.get('/class-sections', { preHandler: [authenticate] }, (req, reply) => listClassSectionsHandler(req, reply));
   fastify.post('/class-sections', { preHandler: [requireAdmin] }, (req, reply) => createClassSectionHandler(req, reply));

@@ -56,7 +56,7 @@ export const getExpenseCategoryColor = (
     case 'bus_expense':     return { bg: '#FEF3C7', text: '#92400E' };
     case 'hostel_expense':  return { bg: '#FCE7F3', text: '#9D174D' };
     case 'utility':         return { bg: '#E0F2FE', text: '#075985' };
-    case 'maintenance':     return { bg: '#F3E8FF', text: '#6B21A8' };
+    case 'maintenance':     return { bg: '#171717', text: '#F4C430' };
     case 'other':           return { bg: '#F1F5F9', text: '#475569' };
   }
 };

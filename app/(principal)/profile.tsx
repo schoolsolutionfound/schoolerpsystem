@@ -7,6 +7,8 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { useUserStore } from '../../store/useUserStore';
 import { BorderRadius } from '../../constants/theme';
+import { ProfileCustomFields } from '../../features/shared/formFields/ProfileCustomFields';
+import { useProfileCustomFields } from '../../features/shared/formFields/useProfileCustomFields';
 
 export default function PrincipalProfileScreen() {
   const router = useRouter();
@@ -18,6 +20,7 @@ export default function PrincipalProfileScreen() {
   const qualification = useUserStore((s) => s.qualification) || '';
   const experience = useUserStore((s) => s.experience) || '';
   const resetUser = useUserStore((s) => s.resetUser);
+  const { fields: roleFields, values: roleFieldValues, save: saveRoleFields } = useProfileCustomFields();
 
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to log out?', [
@@ -90,6 +93,10 @@ export default function PrincipalProfileScreen() {
               <Text style={styles.infoValue}>{institutionCode || '—'}</Text>
             </View>
           </View>
+
+          {roleFields.length > 0 && (
+            <ProfileCustomFields fields={roleFields} values={roleFieldValues} onSave={saveRoleFields} />
+          )}
 
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Account</Text>

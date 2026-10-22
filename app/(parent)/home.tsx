@@ -162,8 +162,6 @@ export default function ParentHomeScreen() {
             />
           </ScrollView>
         );
-      case 'announcements':
-        return <UserAnnouncementFeedView />;
       case 'attendance':
         return <ParentAttendanceView />;
       case 'fees':
@@ -189,6 +187,7 @@ export default function ParentHomeScreen() {
         <ParentHomeHeader
           fullName={fullName}
           profilePic={profilePic}
+          showGreeting={activeTab === 'home'}
           onMenuPress={() => setDrawerOpen(true)}
           onNotificationsPress={() => router.push('/notifications')}
           onProfilePress={() => router.push('/(parent)/profile')}

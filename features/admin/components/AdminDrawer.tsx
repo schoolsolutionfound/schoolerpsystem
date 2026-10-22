@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   ScrollView,
   Animated,
-  Dimensions,
   Easing,
   Image,
   useWindowDimensions,
@@ -16,22 +15,27 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
+import { useUserStore } from '../../../store/useUserStore';
 
 interface AdminDrawerProps {
   visible: boolean;
   onClose: () => void;
-  onNavigate: (tab: 'dashboard' | 'institution' | 'students' | 'teachers' | 'users' | 'academics' | 'announcements' | 'profile') => void;
+  onNavigate: (tab: 'dashboard' | 'institution' | 'students' | 'parents' | 'teachers' | 'users' | 'academics' | 'announcements' | 'payments' | 'settings' | 'profile') => void;
   onLogout: () => void;
+  router?: any;
 }
 
-const PRIMARY: { key: 'dashboard' | 'institution' | 'students' | 'teachers' | 'users' | 'academics' | 'announcements' | 'profile'; label: string; icon: string }[] = [
-  { key: 'dashboard', label: 'Dashboard', icon: 'view-dashboard-outline' },
+const PRIMARY: { key: 'dashboard' | 'institution' | 'students' | 'parents' | 'teachers' | 'users' | 'academics' | 'announcements' | 'payments' | 'settings' | 'profile'; label: string; icon: string; route?: string; adminOnly?: boolean }[] = [
+  { key: 'dashboard', label: 'Dashboard', icon: 'view-dashboard-outline', route: '/(admin)' },
   { key: 'announcements', label: 'Announcements', icon: 'bullhorn-outline' },
   { key: 'institution', label: 'Institution', icon: 'office-building' },
   { key: 'students', label: 'Students', icon: 'account-school-outline' },
+  { key: 'parents', label: 'Parents', icon: 'account-multiple-outline' },
   { key: 'teachers', label: 'Teachers', icon: 'human-male-board' },
   { key: 'users', label: 'Users', icon: 'account-group-outline' },
   { key: 'academics', label: 'Academics', icon: 'school-outline' },
+  { key: 'payments', label: 'Payment Settings', icon: 'credit-card-outline' },
+  { key: 'settings', label: 'Settings', icon: 'cog-outline', adminOnly: true },
   { key: 'profile', label: 'Profile', icon: 'account-circle-outline' },
 ];
 
@@ -45,17 +49,21 @@ export const AdminDrawer: React.FC<AdminDrawerProps> = ({
   onClose,
   onNavigate,
   onLogout,
+  router,
 }) => {
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
+  const localRouter = router || useRouter();
+  const userRole = useUserStore((state) => state.userRole);
+  const menuItems = PRIMARY.filter((item) => !item.adminOnly || userRole === 'admin');
 
-  const slideX = useRef(new Animated.Value(-width)).current;
-  const fade = useRef(new Animated.Value(0)).current;
+  const [slideX] = useState(() => new Animated.Value(-width));
+  const [fade] = useState(() => new Animated.Value(0));
   const [mounted, setMounted] = useState(visible);
 
   useEffect(() => {
     if (visible) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setMounted(true);
       Animated.parallel([
         Animated.timing(slideX, {
@@ -91,12 +99,17 @@ export const AdminDrawer: React.FC<AdminDrawerProps> = ({
 
   const handleTabPress = (tab: typeof PRIMARY[number]['key']) => {
     onClose();
-    setTimeout(() => onNavigate(tab), 120);
+    const item = PRIMARY.find(i => i.key === tab);
+    if (item?.route) {
+      setTimeout(() => localRouter.push(item.route as any), 120);
+    } else {
+      setTimeout(() => onNavigate(tab), 120);
+    }
   };
 
   const handleRoutePress = (route: string) => {
     onClose();
-    setTimeout(() => router.push(route as any), 120);
+    setTimeout(() => localRouter.push(route as any), 120);
   };
 
   const handleLogout = () => {
@@ -144,7 +157,7 @@ export const AdminDrawer: React.FC<AdminDrawerProps> = ({
               showsVerticalScrollIndicator={false}
             >
               <Text style={styles.sectionLabel}>WORKSPACE</Text>
-              {PRIMARY.map((item) => (
+              {menuItems.map((item) => (
                 <TouchableOpacity
                   key={item.key}
                   style={styles.menuItem}

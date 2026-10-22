@@ -18,6 +18,7 @@ import { fetchParentFeesApi } from '../../../api/academics';
 import { mapParentFees } from '../../accountant/utils/feeMappers';
 import { IncomeRecord } from '../../accountant/types/finance';
 import { generateParentFeeReceiptPdf } from '../utils/receiptPdfGenerator';
+import { FeeCheckoutView, FeeCheckoutLine } from '../../shared/payments/FeeCheckoutView';
 
 export const ParentFeesView: React.FC = () => {
   const institutionName = useUserStore((s) => s.institutionName) || 'School';
@@ -29,13 +30,9 @@ export const ParentFeesView: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
-  const [selectedFee, setSelectedFee] = useState<IncomeRecord | null>(null);
-  const [showPayModal, setShowPayModal] = useState(false);
+  const [checkoutLines, setCheckoutLines] = useState<FeeCheckoutLine[] | null>(null);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [viewingReceipt, setViewingReceipt] = useState<IncomeRecord | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [paymentSuccess, setPaymentSuccess] = useState(false);
-  const [txnId, setTxnId] = useState('');
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const loadFees = useCallback(async () => {
@@ -93,22 +90,21 @@ export const ParentFeesView: React.FC = () => {
 
   const pendingCount = fees.filter((f) => f.status !== 'paid').length;
 
+  /** Checkout needs FEE STRUCTURE ids — amounts are always server-derived from them. */
+  const toCheckoutLine = (fee: IncomeRecord): FeeCheckoutLine => ({
+    id: fee.feeStructureId || fee.id,
+    title: fee.title,
+    amount: fee.amount,
+  });
+
   const handleOpenPay = (fee: IncomeRecord) => {
-    setSelectedFee(fee);
-    setPaymentSuccess(false);
-    setTxnId('');
-    setShowPayModal(true);
+    setCheckoutLines([toCheckoutLine(fee)]);
   };
 
-  const handleProcessPayment = () => {
-    if (!selectedFee) return;
-    setIsProcessing(true);
-    setTimeout(() => {
-      setIsProcessing(false);
-      setPaymentSuccess(true);
-      setTxnId(`PAY-${Date.now().toString().slice(-8)}`);
-      loadFees();
-    }, 800);
+  const handlePayAllDues = () => {
+    const due = fees.filter((f) => f.status !== 'paid');
+    if (due.length === 0) return;
+    setCheckoutLines(due.map(toCheckoutLine));
   };
 
   const handleOpenReceipt = (fee: IncomeRecord) => {
@@ -182,6 +178,14 @@ export const ParentFeesView: React.FC = () => {
               ? `${pendingCount} item${pendingCount === 1 ? '' : 's'} pending`
               : 'All fees are cleared.'}
         </Text>
+        {pendingCount > 0 && totalDue > 0 ? (
+          <TouchableOpacity style={styles.payAllBtn} onPress={handlePayAllDues} activeOpacity={0.8}>
+            <MaterialCommunityIcons name="lightning-bolt" size={14} color="#1A1B1C" />
+            <Text style={styles.payAllBtnText}>
+              Pay All Dues • ₹{totalDue.toLocaleString('en-IN')}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       {fees.length === 0 ? (
@@ -257,77 +261,15 @@ export const ParentFeesView: React.FC = () => {
         </>
       )}
 
-      {/* Payment Info Modal (no fake gateway) */}
-      <Modal visible={showPayModal} transparent animationType="fade">
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <View style={styles.modalTitleGroup}>
-                <MaterialCommunityIcons name="bank-outline" size={22} color="#F4C430" />
-                <Text style={styles.modalTitle}>Pay School Fee</Text>
-              </View>
-              <TouchableOpacity onPress={() => setShowPayModal(false)}>
-                <MaterialCommunityIcons name="close" size={22} color="#6B6B6B" />
-              </TouchableOpacity>
-            </View>
-
-            {paymentSuccess ? (
-              <View style={styles.successBox}>
-                <View style={styles.successIconCircle}>
-                  <MaterialCommunityIcons name="check" size={32} color="#16A34A" />
-                </View>
-                <Text style={styles.successTitle}>Payment Recorded</Text>
-                <Text style={styles.successSub}>
-                  ₹{selectedFee?.amount.toLocaleString('en-IN')} noted for {selectedFee?.title}.
-                </Text>
-                <Text style={styles.successRef}>
-                  Txn ID: {txnId}
-                </Text>
-                <TouchableOpacity
-                  style={styles.modalDoneBtn}
-                  onPress={() => setShowPayModal(false)}
-                >
-                  <Text style={styles.modalDoneBtnText}>Done</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View>
-                <View style={styles.billBreakdown}>
-                  <Text style={styles.billLabel}>Paying for</Text>
-                  <Text style={styles.billItem}>{selectedFee?.title}</Text>
-                  <View style={styles.billDivider} />
-                  <View style={styles.billRow}>
-                    <Text style={styles.billTotalText}>Total Payable</Text>
-                    <Text style={styles.billTotalAmount}>
-                      ₹{selectedFee?.amount.toLocaleString('en-IN')}
-                    </Text>
-                  </View>
-                </View>
-
-                <Text style={styles.infoNote}>
-                  Online payment gateway is not enabled yet. Please pay at the school accounts
-                  office or contact them for UPI/bank details. Your due amount is shown above.
-                </Text>
-
-                <TouchableOpacity
-                  style={styles.confirmPayBtn}
-                  onPress={handleProcessPayment}
-                  disabled={isProcessing}
-                >
-                  {isProcessing ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" />
-                  ) : (
-                    <>
-                      <MaterialCommunityIcons name="information" size={18} color="#FFFFFF" />
-                      <Text style={styles.confirmPayBtnText}>I&apos;ll Pay at School</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        </View>
-      </Modal>
+      {/* Online checkout — Razorpay, webhook-confirmed (server status is truth) */}
+      <FeeCheckoutView
+        visible={checkoutLines !== null}
+        lines={checkoutLines || []}
+        merchantName={institutionName}
+        studentLabel={childName || linkedStudentUSN}
+        onClose={() => setCheckoutLines(null)}
+        onPaid={() => loadFees()}
+      />
 
       {/* Official Receipt Modal */}
       <Modal visible={showReceiptModal} transparent animationType="slide">
@@ -520,71 +462,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 16,
   },
-  modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 20,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  modalTitleGroup: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  modalTitle: { fontSize: 16, fontWeight: '800', color: '#1A1B1C' },
-  billBreakdown: {
-    backgroundColor: '#F5F5F5',
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#E8E5DC',
-    marginBottom: 16,
-  },
-  billLabel: { fontSize: 11, color: '#6B6B6B', fontWeight: '600', fontFamily: FontFamily.semibold },
-  billItem: { fontSize: 15, fontWeight: '800', color: '#1A1B1C', marginTop: 4, fontFamily: FontFamily.extrabold },
-  billDivider: { height: 1, backgroundColor: '#E8E5DC', marginVertical: 10 },
-  billRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  billTotalText: { fontSize: 13, fontWeight: '700', color: '#1A1B1C', fontFamily: FontFamily.bold },
-  billTotalAmount: { fontSize: 18, fontWeight: '900', color: '#F4C430', fontFamily: FontFamily.extrabold },
-  infoNote: {
-    fontSize: 12,
-    color: '#6B6B6B',
-    lineHeight: 18,
-    marginBottom: 14,
-    fontFamily: FontFamily.regular,
-  },
-  confirmPayBtn: {
+  payAllBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
     backgroundColor: '#F4C430',
     borderRadius: 12,
-    paddingVertical: 14,
-    gap: 8,
-  },
-  confirmPayBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800', fontFamily: FontFamily.extrabold },
-  successBox: { alignItems: 'center', paddingVertical: 16 },
-  successIconCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: 'rgba(22,163,74,0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  successTitle: { fontSize: 18, fontWeight: '800', color: '#1A1B1C', fontFamily: FontFamily.extrabold },
-  successSub: { fontSize: 13, color: '#6B6B6B', textAlign: 'center', marginTop: 6, fontFamily: FontFamily.regular },
-  successRef: { fontSize: 11, color: '#16A34A', fontWeight: '700', textAlign: 'center', marginTop: 4, fontFamily: FontFamily.bold },
-  modalDoneBtn: {
-    backgroundColor: '#16A34A',
-    borderRadius: 12,
-    paddingHorizontal: 28,
     paddingVertical: 12,
-    marginTop: 18,
+    paddingHorizontal: 16,
+    marginTop: 14,
   },
-  modalDoneBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 14 },
+  payAllBtnText: {
+    color: '#1A1B1C',
+    fontSize: 14,
+    fontWeight: '800',
+    fontFamily: FontFamily.extrabold,
+  },
   receiptModalCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 20,

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Text, ScrollView, TextInput, TouchableOpacity, Alert, Platform } from 'react-native';
+import { View, StyleSheet, Text, ScrollView, TextInput, TouchableOpacity, Alert, Platform, Modal, FlatList, RefreshControl } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
+import { createClassSectionApi } from '../../../api/academics';
 
 interface AdminInstitutionViewProps {
   config: {
@@ -13,6 +14,7 @@ interface AdminInstitutionViewProps {
     academicYears: string[];
     courses: string[];
     sections: string[];
+    classSubjects?: Record<string, string[]>;
     hasDefaultPassword?: boolean;
   };
   onSaveConfig: (updated: {
@@ -20,21 +22,37 @@ interface AdminInstitutionViewProps {
     academicYears: string[];
     courses: string[];
     sections: string[];
+    classSubjects?: Record<string, string[]>;
     defaultTempPassword?: string;
   }) => Promise<void>;
+  refreshing?: boolean;
+  onRefresh?: () => void;
+  classSections?: { name?: string }[];
+  academicSessions?: any[];
+  onDataChanged?: () => void;
 }
 
-export const AdminInstitutionView: React.FC<AdminInstitutionViewProps> = ({ config, onSaveConfig }) => {
+export const AdminInstitutionView: React.FC<AdminInstitutionViewProps> = ({ config, onSaveConfig, refreshing = false, onRefresh, classSections = [], academicSessions = [], onDataChanged }) => {
   const isSchool = config.institutionType === 'school';
+  const currentSession = (academicSessions || []).find((s: any) => s.isCurrent);
   const [departments, setDepartments] = useState<string[]>(config.departments || []);
   const [academicYears, setAcademicYears] = useState<string[]>(config.academicYears || []);
   const [courses, setCourses] = useState<string[]>(config.courses || []);
-  const [sections] = useState<string[]>(config.sections || []);
+  const [sections, setSections] = useState<string[]>(config.sections || []);
 
   const [newDept, setNewDept] = useState('');
-  const [newYear, setNewYear] = useState('');
+  const [newSection, setNewSection] = useState('');
   const [newCourse, setNewCourse] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Class → subjects mapping (persisted in institution config)
+  const [classSubjects, setClassSubjects] = useState<Record<string, string[]>>(config.classSubjects || {});
+  const [classModalOpen, setClassModalOpen] = useState(false);
+  const [editingClass, setEditingClass] = useState<string | null>(null);
+  const [modalClassName, setModalClassName] = useState('');
+  const [modalSubjects, setModalSubjects] = useState<string[]>([]);
+  const [modalAutoSections, setModalAutoSections] = useState(true);
+  const [subjectSearch, setSubjectSearch] = useState('');
 
   // Empty = untouched (existing value kept). "Clear" button sends an explicit ''.
   const [defaultTempPassword, setDefaultTempPassword] = useState('');
@@ -51,10 +69,128 @@ export const AdminInstitutionView: React.FC<AdminInstitutionViewProps> = ({ conf
     setItem('');
   };
 
-  const removeItem = (index: number, list: string[], setList: (l: string[]) => void) => {
-    const updated = [...list];
-    updated.splice(index, 1);
-    setList(updated);
+  const removeItem = (index: number, list: string[], setList: (l: string[]) => void, label: string) => {
+    Alert.alert('Remove', `Remove "${list[index]}" from ${label}?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: () => {
+          const updated = [...list];
+          updated.splice(index, 1);
+          setList(updated);
+        },
+      },
+    ]);
+  };
+
+  const removeClass = (index: number) => {
+    const className = academicYears[index];
+    Alert.alert('Remove', `Remove "${className}"${classSubjects[className]?.length ? ' and its departments' : ''}?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: () => {
+          setAcademicYears(academicYears.filter((_, i) => i !== index));
+          setClassSubjects((prev) => {
+            const next = { ...prev };
+            delete next[className];
+            return next;
+          });
+        },
+      },
+    ]);
+  };
+
+  const openClassModal = () => {
+    setEditingClass(null);
+    setModalClassName('');
+    setModalSubjects([]);
+    setModalAutoSections(true);
+    setSubjectSearch('');
+    setClassModalOpen(true);
+  };
+
+  const openEditClass = (name: string) => {
+    setEditingClass(name);
+    setModalClassName(name);
+    setModalSubjects(classSubjects[name] || []);
+    setSubjectSearch('');
+    setClassModalOpen(true);
+  };
+
+  const toggleModalSubject = (subj: string) => {
+    setModalSubjects((prev) => (prev.includes(subj) ? prev.filter((s) => s !== subj) : [...prev, subj]));
+  };
+
+  const saveClass = async () => {
+    if (editingClass) {
+      setClassSubjects((prev) => ({ ...prev, [editingClass]: modalSubjects }));
+      setClassModalOpen(false);
+      setEditingClass(null);
+      return;
+    }
+    const base = modalClassName.trim();
+    if (!base) {
+      Alert.alert('Missing', 'Enter a class name.');
+      return;
+    }
+    if (isSchool) {
+      const useSections = modalAutoSections && sections.length > 0;
+      const sectionList = useSections ? sections : [''];
+      const newRecords = sectionList.map((sec) => ({
+        name: useSections ? `${base} ${sec}` : base,
+        department: base,
+        academicYear: useSections ? sec : '',
+        section: useSections ? sec : '',
+      }));
+      const existing = new Set([
+        ...academicYears,
+        ...(classSections || []).map((c) => c?.name).filter(Boolean),
+      ]);
+      const dupes = newRecords.filter((r) => existing.has(r.name));
+      if (dupes.length > 0) {
+        Alert.alert('Duplicate', `"${dupes[0].name}" already exists.`);
+        return;
+      }
+
+      // 1) Create real class_sections rows so Academics, timetable, attendance
+      //    and student linking (buildClassScope) can use these classes.
+      const failed: string[] = [];
+      for (const rec of newRecords) {
+        try {
+          await createClassSectionApi(rec);
+        } catch {
+          failed.push(rec.name);
+        }
+      }
+
+      // 2) Mirror into institution config (classes list + subjects per class).
+      setAcademicYears([...academicYears, ...newRecords.map((r) => r.name)]);
+      setClassSubjects((prev) => {
+        const next = { ...prev };
+        newRecords.forEach((r) => { next[r.name] = modalSubjects; });
+        return next;
+      });
+
+      setClassModalOpen(false);
+      onDataChanged?.();
+      if (failed.length > 0) {
+        Alert.alert(
+          'Partially Saved',
+          `Class list updated, but failed to create class records: ${failed.join(', ')}. Check Academics and try again.`
+        );
+      }
+      return;
+    }
+    if (academicYears.includes(base)) {
+      Alert.alert('Duplicate', `"${base}" already exists.`);
+      return;
+    }
+    setAcademicYears([...academicYears, base]);
+    setClassSubjects((prev) => ({ ...prev, [base]: modalSubjects }));
+    setClassModalOpen(false);
   };
 
   const handleSave = async () => {
@@ -80,8 +216,9 @@ export const AdminInstitutionView: React.FC<AdminInstitutionViewProps> = ({ conf
         academicYears: string[];
         courses: string[];
         sections: string[];
+        classSubjects: Record<string, string[]>;
         defaultTempPassword?: string;
-      } = { departments, academicYears, courses, sections };
+      } = { departments, academicYears, courses, sections, classSubjects };
       if (trimmedPw) {
         payload.defaultTempPassword = trimmedPw;
       } else if (clearDefaultPassword) {
@@ -101,46 +238,72 @@ export const AdminInstitutionView: React.FC<AdminInstitutionViewProps> = ({ conf
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Header Info */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Institution Information</Text>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Institution Name:</Text>
-          <Text style={styles.infoValue}>{config.institutionName}</Text>
-        </View>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Institution Code:</Text>
-          <Text style={[styles.infoValue, styles.codeText]}>{config.institutionCode}</Text>
-        </View>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Status:</Text>
+    <ScrollView
+      contentContainerStyle={styles.container}
+      showsVerticalScrollIndicator={false}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1A1B1C" colors={['#1A1B1C']} />}
+    >
+      {/* Institution Info */}
+      <View style={styles.infoCard}>
+        <View style={styles.infoHeader}>
+          <View style={styles.infoHeaderLeft}>
+            <View style={styles.instIcon}>
+              <MaterialCommunityIcons name={isSchool ? 'school' : 'bank-outline'} size={22} color="#1A1B1C" />
+            </View>
+            <View>
+              <Text style={styles.instName}>{config.institutionName}</Text>
+              <Text style={styles.instCode}>{config.institutionCode}</Text>
+            </View>
+          </View>
           <View style={styles.statusBadge}>
             <Text style={styles.statusBadgeText}>{config.subscriptionStatus || 'Active'}</Text>
           </View>
+        </View>
+        <View style={styles.infoDivider} />
+        {currentSession ? (
+          <View style={styles.infoYearRow}>
+            <MaterialCommunityIcons name="calendar-star" size={13} color="#9CA3AF" />
+            <Text style={styles.infoYearText}>Academic Year: {currentSession.name}</Text>
+          </View>
+        ) : null}
+        <View style={styles.infoStatsRow}>
+          <View style={styles.infoStat}>
+            <Text style={styles.infoStatValue}>{departments.length}</Text>
+            <Text style={styles.infoStatLabel}>{isSchool ? 'Subjects' : 'Departments'}</Text>
+          </View>
+          <View style={styles.infoStatDivider} />
+          <View style={styles.infoStat}>
+            <Text style={styles.infoStatValue}>{academicYears.length}</Text>
+            <Text style={styles.infoStatLabel}>{isSchool ? 'Classes' : 'Years'}</Text>
+          </View>
+          {!isSchool && (
+            <>
+              <View style={styles.infoStatDivider} />
+              <View style={styles.infoStat}>
+                <Text style={styles.infoStatValue}>{courses.length}</Text>
+                <Text style={styles.infoStatLabel}>Courses</Text>
+              </View>
+            </>
+          )}
         </View>
       </View>
 
       {/* Default password for newly created users */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Default Password for New Users</Text>
-        <Text style={styles.pwHint}>
-          Used when a CSV row has no password and for users created without entering one. Never shown again after
-          saving. Users are asked to change it at first login. Leave empty to keep the current setting.
-        </Text>
+        <Text style={styles.cardTitle}>Default Password</Text>
         {config.hasDefaultPassword && !clearDefaultPassword && (
-          <View style={styles.pwStatusRow}>
-            <MaterialCommunityIcons name="shield-check" size={16} color="#16A34A" />
-            <Text style={styles.pwStatusText}>A default password is currently set.</Text>
+          <View style={[styles.pwStatusRow, styles.pwStatusSet]}>
+            <MaterialCommunityIcons name="shield-check" size={14} color="#1A1B1C" />
+            <Text style={styles.pwStatusText}>Currently set</Text>
             <TouchableOpacity onPress={() => setClearDefaultPassword(true)}>
               <Text style={styles.pwClearText}>Clear</Text>
             </TouchableOpacity>
           </View>
         )}
         {clearDefaultPassword && (
-          <View style={styles.pwStatusRow}>
-            <MaterialCommunityIcons name="shield-off" size={16} color="#D97706" />
-            <Text style={styles.pwStatusText}>Will be cleared on save. New users get individual passwords.</Text>
+          <View style={[styles.pwStatusRow, styles.pwStatusWillClear]}>
+            <MaterialCommunityIcons name="shield-off" size={14} color="#B45309" />
+            <Text style={[styles.pwStatusText, { color: '#B45309' }]}>Will be cleared on save</Text>
             <TouchableOpacity onPress={() => setClearDefaultPassword(false)}>
               <Text style={styles.pwClearText}>Undo</Text>
             </TouchableOpacity>
@@ -148,7 +311,8 @@ export const AdminInstitutionView: React.FC<AdminInstitutionViewProps> = ({ conf
         )}
         <TextInput
           style={styles.input}
-          placeholder={config.hasDefaultPassword && !clearDefaultPassword ? 'Enter a new default password to replace' : 'e.g. School#1234'}
+          placeholder={config.hasDefaultPassword && !clearDefaultPassword ? 'Enter new password to replace' : 'e.g. SchoolF1234'}
+          placeholderTextColor="#9CA3AF"
           value={defaultTempPassword}
           onChangeText={(v) => {
             setDefaultTempPassword(v);
@@ -158,157 +322,493 @@ export const AdminInstitutionView: React.FC<AdminInstitutionViewProps> = ({ conf
           autoCapitalize="none"
           autoCorrect={false}
         />
-        <Text style={styles.pwRules}>Min 8 characters with uppercase, lowercase and a digit.</Text>
+        <Text style={styles.pwRules}>Min 8 chars, uppercase, lowercase & digit. Changed at first login.</Text>
       </View>
 
-      {/* Departments Section */}
+      {/* Subjects (school) / Departments (college) */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Departments Setup</Text>
+        <View style={styles.cardHeaderRow}>
+          <Text style={styles.cardTitle}>{isSchool ? 'Subjects' : 'Departments'}</Text>
+          <View style={styles.countBadge}>
+            <Text style={styles.countBadgeText}>{departments.length}</Text>
+          </View>
+        </View>
         <View style={styles.inputRow}>
           <TextInput
             style={styles.input}
             placeholder={isSchool ? 'e.g. English' : 'e.g. Computer Science'}
+            placeholderTextColor="#9CA3AF"
             value={newDept}
             onChangeText={setNewDept}
+            onSubmitEditing={() => addItem(newDept, setNewDept, departments, setDepartments)}
+            returnKeyType="done"
           />
           <TouchableOpacity style={styles.addBtn} onPress={() => addItem(newDept, setNewDept, departments, setDepartments)}>
-            <Text style={styles.addBtnText}>+ Add</Text>
+            <MaterialCommunityIcons name="plus" size={16} color="#1A1B1C" />
+            <Text style={styles.addBtnText}>Add</Text>
           </TouchableOpacity>
         </View>
-        <View style={styles.chipContainer}>
-          {departments.map((dept, idx) => (
-            <View key={idx} style={styles.chip}>
-              <Text style={styles.chipText}>{dept}</Text>
-              <TouchableOpacity onPress={() => removeItem(idx, departments, setDepartments)}>
-                <MaterialCommunityIcons name="close-circle" size={16} color="#F4C430" />
-              </TouchableOpacity>
-            </View>
-          ))}
-        </View>
+        {departments.length === 0 ? (
+          <View style={styles.emptyBox}>
+            <MaterialCommunityIcons name={isSchool ? 'book-open-page-variant-outline' : 'office-building-outline'} size={28} color="#D1CDBF" />
+            <Text style={styles.emptyHint}>No {isSchool ? 'subjects' : 'departments'} added yet</Text>
+          </View>
+        ) : (
+          <View style={styles.listBox}>
+            {departments.map((dept, idx) => (
+              <View key={idx} style={styles.listItem}>
+                <View style={styles.listItemLeft}>
+                  <View style={styles.listItemNum}>
+                    <Text style={styles.listItemNumText}>{idx + 1}</Text>
+                  </View>
+                  <Text style={styles.listItemText}>{dept}</Text>
+                </View>
+                <TouchableOpacity onPress={() => removeItem(idx, departments, setDepartments, isSchool ? 'subjects' : 'departments')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <MaterialCommunityIcons name="close" size={16} color="#9CA3AF" />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
       </View>
 
-      {/* Academic Years Section */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>{isSchool ? 'Classes Setup' : 'Academic Years Setup'}</Text>
-        <View style={styles.inputRow}>
-          <TextInput
-            style={styles.input}
-            placeholder={isSchool ? 'e.g. Class 10' : 'e.g. 1st Year'}
-            value={newYear}
-            onChangeText={setNewYear}
-          />
-          <TouchableOpacity style={styles.addBtn} onPress={() => addItem(newYear, setNewYear, academicYears, setAcademicYears)}>
-            <Text style={styles.addBtnText}>+ Add</Text>
-          </TouchableOpacity>
-        </View>
-        <View style={styles.chipContainer}>
-          {academicYears.map((year, idx) => (
-            <View key={idx} style={[styles.chip, { backgroundColor: '#FFFDF7' }]}>
-              <Text style={[styles.chipText, { color: '#171717' }]}>{year}</Text>
-              <TouchableOpacity onPress={() => removeItem(idx, academicYears, setAcademicYears)}>
-                <MaterialCommunityIcons name="close-circle" size={16} color="#171717" />
-              </TouchableOpacity>
+      {/* Sections (school only) */}
+      {isSchool && (
+        <View style={styles.card}>
+          <View style={styles.cardHeaderRow}>
+            <Text style={styles.cardTitle}>Sections</Text>
+            <View style={styles.countBadge}>
+              <Text style={styles.countBadgeText}>{sections.length}</Text>
             </View>
-          ))}
+          </View>
+          <View style={styles.inputRow}>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. A"
+              placeholderTextColor="#9CA3AF"
+              value={newSection}
+              onChangeText={setNewSection}
+              onSubmitEditing={() => addItem(newSection, setNewSection, sections, setSections)}
+              returnKeyType="done"
+            />
+            <TouchableOpacity style={styles.addBtn} onPress={() => addItem(newSection, setNewSection, sections, setSections)}>
+              <MaterialCommunityIcons name="plus" size={16} color="#1A1B1C" />
+              <Text style={styles.addBtnText}>Add</Text>
+            </TouchableOpacity>
+          </View>
+          {sections.length === 0 ? (
+            <View style={styles.emptyBox}>
+              <MaterialCommunityIcons name="tag-multiple-outline" size={28} color="#D1CDBF" />
+              <Text style={styles.emptyHint}>No sections added yet</Text>
+            </View>
+          ) : (
+            <View style={styles.listBox}>
+              {sections.map((sec, idx) => (
+                <View key={idx} style={styles.listItem}>
+                  <View style={styles.listItemLeft}>
+                    <View style={styles.listItemNum}>
+                      <Text style={styles.listItemNumText}>{idx + 1}</Text>
+                    </View>
+                    <Text style={styles.listItemText}>Section {sec}</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => removeItem(idx, sections, setSections, 'sections')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <MaterialCommunityIcons name="close" size={16} color="#9CA3AF" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
+      )}
+
+      {/* Academic Years / Classes Section */}
+      <View style={styles.card}>
+        <View style={styles.cardHeaderRow}>
+          <Text style={styles.cardTitle}>{isSchool ? 'Classes' : 'Academic Years'}</Text>
+          <View style={styles.countBadge}>
+            <Text style={styles.countBadgeText}>{academicYears.length}</Text>
+          </View>
+        </View>
+        <TouchableOpacity style={styles.addBtnFull} onPress={openClassModal}>
+          <MaterialCommunityIcons name="plus" size={16} color="#1A1B1C" />
+          <Text style={styles.addBtnText}>{isSchool ? 'Add Class' : 'Add Academic Year'}</Text>
+        </TouchableOpacity>
+        {academicYears.length === 0 ? (
+          <View style={styles.emptyBox}>
+            <MaterialCommunityIcons name="format-list-numbered" size={28} color="#D1CDBF" />
+            <Text style={styles.emptyHint}>No {isSchool ? 'classes' : 'academic years'} added yet</Text>
+          </View>
+        ) : (
+          <View style={styles.listBox}>
+            {academicYears.map((year, idx) => {
+              const subs = classSubjects[year] || [];
+              return (
+                <TouchableOpacity key={idx} style={styles.classItem} activeOpacity={0.7} onPress={() => openEditClass(year)}>
+                  <View style={styles.classItemHeader}>
+                    <View style={styles.listItemLeft}>
+                      <View style={styles.listItemNum}>
+                        <Text style={styles.listItemNumText}>{idx + 1}</Text>
+                      </View>
+                      <Text style={styles.listItemText}>{year}</Text>
+                    </View>
+                    <View style={styles.classItemRight}>
+                      <MaterialCommunityIcons name="chevron-right" size={18} color="#9CA3AF" />
+                      <TouchableOpacity onPress={() => removeClass(idx)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                        <MaterialCommunityIcons name="close" size={16} color="#9CA3AF" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                  {subs.length > 0 && (
+                    <View style={styles.classSubjects}>
+                      {subs.map((s, si) => (
+                        <View key={si} style={styles.subjectTag}>
+                          <Text style={styles.subjectTagText}>{s}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
       </View>
 
       {/* Courses Section (college only) */}
       {!isSchool && (
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Courses Setup</Text>
+          <View style={styles.cardHeaderRow}>
+            <Text style={styles.cardTitle}>Courses</Text>
+            <View style={styles.countBadge}>
+              <Text style={styles.countBadgeText}>{courses.length}</Text>
+            </View>
+          </View>
           <View style={styles.inputRow}>
             <TextInput
               style={styles.input}
               placeholder="e.g. B.Tech"
+              placeholderTextColor="#9CA3AF"
               value={newCourse}
               onChangeText={setNewCourse}
             />
             <TouchableOpacity style={styles.addBtn} onPress={() => addItem(newCourse, setNewCourse, courses, setCourses)}>
-              <Text style={styles.addBtnText}>+ Add</Text>
+              <MaterialCommunityIcons name="plus" size={16} color="#1A1B1C" />
+              <Text style={styles.addBtnText}>Add</Text>
             </TouchableOpacity>
           </View>
-          <View style={styles.chipContainer}>
-            {courses.map((course, idx) => (
-              <View key={idx} style={[styles.chip, { backgroundColor: '#FEF3C7' }]}>
-                <Text style={[styles.chipText, { color: '#D97706' }]}>{course}</Text>
-                <TouchableOpacity onPress={() => removeItem(idx, courses, setCourses)}>
-                  <MaterialCommunityIcons name="close-circle" size={16} color="#D97706" />
-                </TouchableOpacity>
-              </View>
-            ))}
-          </View>
+          {courses.length === 0 ? (
+            <Text style={styles.emptyHint}>No courses added yet</Text>
+          ) : (
+            <View style={styles.chipContainer}>
+              {courses.map((course, idx) => (
+                <View key={idx} style={styles.chip}>
+                  <Text style={styles.chipText}>{course}</Text>
+                  <TouchableOpacity onPress={() => removeItem(idx, courses, setCourses, 'courses')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <MaterialCommunityIcons name="close-circle" size={14} color="#1A1B1C" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
       )}
 
       {/* Save Button */}
       <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving}>
+        <MaterialCommunityIcons name="content-save-outline" size={18} color="#1A1B1C" />
         <Text style={styles.saveBtnText}>{saving ? 'Saving...' : 'Save Academic Structure'}</Text>
       </TouchableOpacity>
+
+      {/* Add / Edit Class Modal */}
+      <Modal visible={classModalOpen} transparent animationType="fade" onRequestClose={() => setClassModalOpen(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {editingClass ? `Edit ${editingClass}` : isSchool ? 'Add Class' : 'Add Academic Year'}
+              </Text>
+              <TouchableOpacity onPress={() => setClassModalOpen(false)}>
+                <MaterialCommunityIcons name="close" size={20} color="#6B6B6B" />
+              </TouchableOpacity>
+            </View>
+
+            {!editingClass && (
+              <>
+                <Text style={styles.modalLabel}>{isSchool ? 'Class Name' : 'Year Name'}</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder={isSchool ? 'e.g. Class 1' : 'e.g. 1st Year'}
+                  placeholderTextColor="#9CA3AF"
+                  value={modalClassName}
+                  onChangeText={setModalClassName}
+                />
+                {isSchool && (
+                  <>
+                    <TouchableOpacity
+                      style={styles.checkRow}
+                      onPress={() => setModalAutoSections((v) => !v)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={[styles.checkBox, modalAutoSections && styles.checkBoxActive]}>
+                        {modalAutoSections && <MaterialCommunityIcons name="check" size={13} color="#1A1B1C" />}
+                      </View>
+                      <Text style={styles.checkLabel}>Add sections automatically</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.modalHint}>
+                      Creates:{' '}
+                      {modalAutoSections && sections.length > 0
+                        ? sections.map((sec) => `${modalClassName.trim() || 'Class'} ${sec}`).join(', ')
+                        : modalClassName.trim() || 'Class'}
+                    </Text>
+                  </>
+                )}
+              </>
+            )}
+
+            <Text style={styles.modalLabel}>{isSchool ? 'Subjects' : 'Departments'}</Text>
+            {departments.length === 0 ? (
+              <Text style={styles.emptyHint}>Add {isSchool ? 'subjects' : 'departments'} in the section above first.</Text>
+            ) : (
+              <>
+                <View style={styles.subjectSearchBox}>
+                  <MaterialCommunityIcons name="magnify" size={16} color="#6B6B6B" />
+                  <TextInput
+                    style={styles.subjectSearchInput}
+                    placeholder={`Search ${isSchool ? 'subjects' : 'departments'}...`}
+                    placeholderTextColor="#9CA3AF"
+                    value={subjectSearch}
+                    onChangeText={setSubjectSearch}
+                  />
+                  {subjectSearch ? (
+                    <TouchableOpacity onPress={() => setSubjectSearch('')}>
+                      <MaterialCommunityIcons name="close" size={14} color="#6B6B6B" />
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+                <View style={styles.subjectListContainer}>
+                  <FlatList
+                    data={departments.filter((subj) => subj.toLowerCase().includes(subjectSearch.toLowerCase()))}
+                    keyExtractor={(item, idx) => idx.toString()}
+                    renderItem={({ item: subj, index: idx }) => {
+                      const selected = modalSubjects.includes(subj);
+                      return (
+                        <TouchableOpacity
+                          key={idx}
+                          style={[styles.subjectOption, selected && styles.subjectOptionActive]}
+                          onPress={() => toggleModalSubject(subj)}
+                        >
+                          <View style={[styles.checkBox, selected && styles.checkBoxActive]}>
+                            {selected && <MaterialCommunityIcons name="check" size={13} color="#1A1B1C" />}
+                          </View>
+                          <Text style={[styles.subjectOptionText, selected && styles.subjectOptionTextActive]}>{subj}</Text>
+                        </TouchableOpacity>
+                      );
+                    }}
+                    showsVerticalScrollIndicator={true}
+                  />
+                </View>
+              </>
+            )}
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setClassModalOpen(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalSaveBtn} onPress={saveClass}>
+                <Text style={styles.modalSaveText}>{editingClass ? 'Save Changes' : isSchool ? 'Save Class' : 'Save Year'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { padding: 16, gap: 14, paddingBottom: 40 },
+  container: { padding: 16, gap: 12, paddingBottom: 40 },
+  infoCard: {
+    backgroundColor: '#1A1B1C',
+    borderRadius: BorderRadius.card,
+    padding: 18,
+    gap: 14,
+  },
+  infoHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  infoHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+  instIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F4C430', alignItems: 'center', justifyContent: 'center' },
+  instName: { fontSize: 16, fontWeight: '800', color: '#FFFFFF' },
+  instCode: { fontSize: 12, color: '#9CA3AF', fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', marginTop: 2 },
+  statusBadge: { backgroundColor: '#F4C430', paddingHorizontal: 10, paddingVertical: 4, borderRadius: BorderRadius.chip},
+  statusBadgeText: { fontSize: 11, fontWeight: '800', color: '#1A1B1C', letterSpacing: 0.3 },
+  infoDivider: { height: 1, backgroundColor: '#2E2F30' },
+  infoYearRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
+  infoYearText: { fontSize: 12, color: '#9CA3AF', fontWeight: '600' },
+  infoStatsRow: { flexDirection: 'row', alignItems: 'center' },
+  infoStat: { flex: 1, alignItems: 'center', gap: 2 },
+  infoStatDivider: { width: 1, height: 28, backgroundColor: '#2E2F30' },
+  infoStatValue: { fontSize: 18, fontWeight: '800', color: '#F4C430' },
+  infoStatLabel: { fontSize: 11, color: '#9CA3AF', fontWeight: '600' },
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: BorderRadius.card,
-    padding: 18,
+    padding: 16,
     borderWidth: 1,
     borderColor: '#E8E5DC',
-    gap: 14,
+    gap: 12,
   },
-  cardTitle: { fontSize: 15, fontWeight: '800', color: '#171717' },
-  pwHint: { fontSize: 12, color: '#6B6B6B', lineHeight: 17 },
-  pwStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  pwStatusText: { fontSize: 12, fontWeight: '600', color: '#374151', flex: 1 },
-  pwClearText: { fontSize: 12, fontWeight: '800', color: '#F4C430' },
+  cardHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  cardTitle: { fontSize: 14, fontWeight: '800', color: '#1A1B1C' },
+  countBadge: { backgroundColor: '#1A1B1C', paddingHorizontal: 8, paddingVertical: 2, borderRadius: BorderRadius.chip},
+  countBadgeText: { fontSize: 11, fontWeight: '800', color: '#F4C430' },
+  emptyHint: { fontSize: 12, color: '#9CA3AF', fontStyle: 'italic', paddingVertical: 4 },
+  emptyBox: { alignItems: 'center', gap: 6, paddingVertical: 20, backgroundColor: '#FAFAF7', borderRadius: BorderRadius.card, borderWidth: 1, borderColor: '#E8E5DC', borderStyle: 'dashed' },
+  listBox: { borderRadius: BorderRadius.card, borderWidth: 1, borderColor: '#E8E5DC', overflow: 'hidden' },
+  listItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 11, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F0EDE4' },
+  listItemLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
+  listItemNum: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#F4C430', alignItems: 'center', justifyContent: 'center' },
+  listItemNumText: { fontSize: 11, fontWeight: '800', color: '#1A1B1C' },
+  listItemText: { fontSize: 13, fontWeight: '600', color: '#1A1B1C', flex: 1 },
+  pwStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 7, borderRadius: BorderRadius.chip},
+  pwStatusSet: { backgroundColor: '#F4C430' },
+  pwStatusWillClear: { backgroundColor: '#FEF3C7' },
+  pwStatusText: { fontSize: 12, fontWeight: '600', color: '#1A1B1C', flex: 1 },
+  pwClearText: { fontSize: 12, fontWeight: '800', color: '#1A1B1C', textDecorationLine: 'underline' },
   pwRules: { fontSize: 11, color: '#9CA3AF' },
-  infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 28 },
-  infoLabel: { fontSize: 13, color: '#6B6B6B', fontWeight: '500', flexShrink: 1 },
-  infoValue: { fontSize: 13, fontWeight: '700', color: '#171717', flexShrink: 1, textAlign: 'right' },
-  codeText: { fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', color: '#F4C430' },
-  statusBadge: { backgroundColor: '#DCFCE7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: BorderRadius.chip },
-  statusBadgeText: { fontSize: 11, fontWeight: '800', color: '#16A34A' },
   inputRow: { flexDirection: 'row', gap: 8 },
   input: {
     flex: 1,
-    height: 44,
+    height: 42,
     borderWidth: 1,
     borderColor: '#E8E5DC',
     borderRadius: BorderRadius.input,
     paddingHorizontal: 12,
     fontSize: 13,
     backgroundColor: '#FFFDF7',
+    color: '#1A1B1C',
   },
   addBtn: {
     backgroundColor: '#F4C430',
-    height: 44,
-    paddingHorizontal: 18,
+    height: 42,
+    paddingHorizontal: 14,
     borderRadius: BorderRadius.button,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 4,
   },
-  addBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 13 },
+  addBtnText: { color: '#1A1B1C', fontWeight: '800', fontSize: 13 },
   chipContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#FFF4C7',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    backgroundColor: '#F4C430',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: BorderRadius.chip,
   },
-  chipText: { fontSize: 12, fontWeight: '700', color: '#F4C430' },
+  chipText: { fontSize: 12, fontWeight: '700', color: '#1A1B1C' },
+  addBtnFull: {
+    backgroundColor: '#F4C430',
+    height: 42,
+    borderRadius: BorderRadius.button,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
+  },
+  classItem: { borderBottomWidth: 1, borderBottomColor: '#F0EDE4', backgroundColor: '#FFFFFF' },
+  classItemHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 11 },
+  classItemRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  classSubjects: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 12, paddingBottom: 10, paddingLeft: 46 },
+  subjectTag: { backgroundColor: '#F4C430', paddingHorizontal: 8, paddingVertical: 3, borderRadius: BorderRadius.chip},
+  subjectTagText: { fontSize: 11, fontWeight: '700', color: '#1A1B1C' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
+  modalCard: { backgroundColor: '#FFFFFF', borderRadius: BorderRadius.modal, padding: 20, gap: 12 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  modalTitle: { fontSize: 17, fontWeight: '800', color: '#1A1B1C' },
+  modalLabel: { fontSize: 12, fontWeight: '700', color: '#1A1B1C' },
+  modalHint: { fontSize: 11, color: '#6B6B6B', marginTop: -6 },
+  checkRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
+  checkBox: {
+    width: 18,
+    height: 18,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: '#9CA3AF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkBoxActive: {
+    backgroundColor: '#F4C430',
+    borderColor: '#F4C430',
+  },
+  checkLabel: { fontSize: 13, fontWeight: '600', color: '#1A1B1C' },
+  modalInput: {
+    height: 42,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    borderRadius: BorderRadius.input,
+    paddingHorizontal: 12,
+    fontSize: 13,
+    backgroundColor: '#FFFDF7',
+    color: '#1A1B1C',
+  },
+  subjectGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  subjectSearchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    borderRadius: BorderRadius.input,
+    paddingHorizontal: 12,
+    height: 44,
+    marginBottom: 8,
+  },
+  subjectSearchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: '#1A1B1C',
+    backgroundColor: 'transparent',
+    outlineWidth: 0,
+  },
+  subjectListContainer: {
+    maxHeight: 220,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    borderRadius: BorderRadius.card,
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
+  },
+  subjectOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0EDE4',
+  },
+  subjectOptionActive: { backgroundColor: '#FFFDF7' },
+  subjectOptionText: { fontSize: 13, fontWeight: '600', color: '#1A1B1C' },
+  subjectOptionTextActive: { fontWeight: '700' },
+  modalFooter: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 4 },
+  modalCancelBtn: { height: 40, paddingHorizontal: 16, borderRadius: BorderRadius.button, justifyContent: 'center', alignItems: 'center' },
+  modalCancelText: { color: '#6B6B6B', fontWeight: '700', fontSize: 13 },
+  modalSaveBtn: { height: 40, paddingHorizontal: 20, backgroundColor: '#F4C430', borderRadius: BorderRadius.button, justifyContent: 'center', alignItems: 'center' },
+  modalSaveText: { color: '#1A1B1C', fontWeight: '800', fontSize: 13 },
   saveBtn: {
     backgroundColor: '#F4C430',
     height: 48,
     borderRadius: BorderRadius.button,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
     marginTop: 4,
   },
-  saveBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 15 },
+  saveBtnText: { color: '#1A1B1C', fontWeight: '800', fontSize: 14 },
 });

@@ -1,15 +1,6 @@
 import React from 'react';
-import { View, StyleSheet, SafeAreaView } from 'react-native';
-import { IncomeManagementView } from '../../features/accountant/components/IncomeManagementView';
+import { Redirect } from 'expo-router';
 
 export default function AccountantIncomeScreen() {
-  return (
-    <SafeAreaView style={styles.container}>
-      <IncomeManagementView />
-    </SafeAreaView>
-  );
+  return <Redirect href={{ pathname: '/(accountant)/home', params: { tab: 'income' } }} />;
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8F9FB' },
-});

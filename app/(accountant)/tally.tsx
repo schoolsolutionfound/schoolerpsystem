@@ -1,15 +1,6 @@
 import React from 'react';
-import { View, StyleSheet, SafeAreaView } from 'react-native';
-import { IncomeExpenseTallyView } from '../../features/accountant/components/IncomeExpenseTallyView';
+import { Redirect } from 'expo-router';
 
 export default function AccountantTallyScreen() {
-  return (
-    <SafeAreaView style={styles.container}>
-      <IncomeExpenseTallyView />
-    </SafeAreaView>
-  );
+  return <Redirect href={{ pathname: '/(accountant)/home', params: { tab: 'accounts' } }} />;
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8F9FB' },
-});

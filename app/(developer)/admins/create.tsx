@@ -51,6 +51,7 @@ export default function CreateInstitutionAdminScreen() {
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [selectedInst, setSelectedInst] = useState<Institution | null>(null);
   const [selectedTitle, setSelectedTitle] = useState('HOD');
@@ -97,7 +98,8 @@ export default function CreateInstitutionAdminScreen() {
     const payload = {
       fullName: fullName.trim(),
       email: email.trim(),
-      password: password || undefined,
+      phone: phone.trim() || undefined,
+      password,
       role: selectedRole,
       institutionCode: selectedInstCode,
       title: finalTitle,
@@ -161,7 +163,15 @@ export default function CreateInstitutionAdminScreen() {
           autoCapitalize="none"
         />
         <AppInput
-          label="Initial Password"
+          label="Phone (optional)"
+          placeholder="e.g. +91 98765 43210"
+          value={phone}
+          onChangeText={setPhone}
+          iconName="phone-outline"
+          keyboardType="phone-pad"
+        />
+        <AppInput
+          label="Initial Password *"
           placeholder="Set temporary password"
           value={password}
           onChangeText={setPassword}
@@ -188,7 +198,7 @@ export default function CreateInstitutionAdminScreen() {
               onPress={() => setSelectedRole(role)}
             >
               <Text style={[styles.chipText, selectedRole === role && styles.activeChipText]}>
-                {role.charAt(0).toUpperCase() + role.slice(1)}
+                {role.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
               </Text>
             </TouchableOpacity>
           ))}

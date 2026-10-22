@@ -32,7 +32,7 @@ export const BulkFeedStep2: React.FC<BulkFeedStep2Props> = ({
     <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
       <View style={styles.topHeader}>
         <TouchableOpacity onPress={onBack} style={styles.backBtn}>
-          <MaterialCommunityIcons name="chevron-left" size={24} color="#171717" />
+          <MaterialCommunityIcons name="chevron-left" size={24} color="#1A1B1C" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Preview Data</Text>
         <View style={{ width: 24 }} />
@@ -78,7 +78,7 @@ export const BulkFeedStep2: React.FC<BulkFeedStep2Props> = ({
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.optionTitle}>Send login credentials via email</Text>
-            <Text style={styles.optionSub}>Students/Teachers will receive email with their login details.</Text>
+            <Text style={styles.optionSub}>Sends an email with the temporary password when email (SES) is configured. Otherwise passwords are shown once after import.</Text>
           </View>
         </TouchableOpacity>
 
@@ -92,7 +92,7 @@ export const BulkFeedStep2: React.FC<BulkFeedStep2Props> = ({
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.optionTitle}>Overwrite existing users</Text>
-            <Text style={styles.optionSub}>If email already exists, it will update the existing user details.</Text>
+            <Text style={styles.optionSub}>If the email already exists, the account password is reset to this import and profile details are updated. Leave off to skip duplicates.</Text>
           </View>
         </TouchableOpacity>
       </View>
@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
   scroll: { paddingHorizontal: 20, paddingVertical: 14, gap: 16 },
   topHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   backBtn: { padding: 4 },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: '#171717' },
+  headerTitle: { fontSize: 18, fontWeight: '700', color: '#1A1B1C' },
   previewHeaderCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -134,11 +134,11 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#FFF4C7',
+    backgroundColor: '#1A1B1C',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  previewCardTitle: { fontSize: 15, fontWeight: '700', color: '#171717' },
+  previewCardTitle: { fontSize: 15, fontWeight: '700', color: '#1A1B1C' },
   previewCardSub: { fontSize: 12, color: '#F4C430', fontWeight: '600', marginTop: 2 },
   previewNoticeText: { fontSize: 13, color: '#6B6B6B', marginVertical: 4 },
   tableCard: {
@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   avatarTextSmall: { fontSize: 12, fontWeight: '700' },
-  rowNameText: { flex: 1, fontSize: 13, fontWeight: '600', color: '#171717', marginLeft: 10 },
+  rowNameText: { flex: 1, fontSize: 13, fontWeight: '600', color: '#1A1B1C', marginLeft: 10 },
   rowRollText: { width: 70, fontSize: 12, color: '#6B6B6B' },
   typeBadge: {
     paddingHorizontal: 8,
@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
   typeBadgeText: { fontSize: 11, fontWeight: '700' },
   tableFooterHint: { fontSize: 11, color: '#6B6B6B', textAlign: 'center', marginVertical: 4 },
   sectionCard: { gap: 12 },
-  sectionHeader: { fontSize: 14, fontWeight: '700', color: '#171717', marginBottom: 4 },
+  sectionHeader: { fontSize: 14, fontWeight: '700', color: '#1A1B1C', marginBottom: 4 },
   checkboxRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   checkboxActive: { backgroundColor: '#F4C430', borderColor: '#F4C430' },
-  optionTitle: { fontSize: 13, fontWeight: '700', color: '#171717' },
+  optionTitle: { fontSize: 13, fontWeight: '700', color: '#1A1B1C' },
   optionSub: { fontSize: 11, color: '#6B6B6B', marginTop: 2 },
   primaryActionBtn: {
     backgroundColor: '#F4C430',

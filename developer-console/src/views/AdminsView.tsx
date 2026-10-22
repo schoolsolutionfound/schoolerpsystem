@@ -5,6 +5,29 @@ import { InstitutionSelect } from '../components/InstitutionSelect';
 
 const PAGE_SIZE = 50;
 
+// Must match mobile PERMISSION_GROUPS (features/(developer)/admins create+edit)
+// — canonical Resource:Action format stored on users.permissions.
+const PERMISSION_GROUPS = [
+  {
+    category: 'Student Management',
+    permissions: ['Students:Read', 'Students:Create', 'Students:Update', 'Students:Delete'],
+  },
+  {
+    category: 'Teacher Management',
+    permissions: ['Teachers:Read', 'Teachers:Create', 'Teachers:Update'],
+  },
+  {
+    category: 'Classroom & Academic',
+    permissions: ['Attendance:Manage', 'Reports:View'],
+  },
+  {
+    category: 'Institution Settings',
+    permissions: ['Settings:Manage', 'Fees:Manage'],
+  },
+];
+const KNOWN_PERMISSIONS = new Set(PERMISSION_GROUPS.flatMap((g) => g.permissions));
+const DEFAULT_PERMISSIONS = ['Students:Read', 'Teachers:Read'];
+
 export const AdminsView: React.FC = () => {
   const [admins, setAdmins] = useState<any[]>([]);
   const [defaultInstCode, setDefaultInstCode] = useState('');
@@ -24,7 +47,7 @@ export const AdminsView: React.FC = () => {
   const [title, setTitle] = useState('');
   const [scopeDepts, setScopeDepts] = useState('');
   const [scopeYears, setScopeYears] = useState('');
-  const [permissionsText, setPermissionsText] = useState('');
+  const [permissions, setPermissions] = useState<string[]>(DEFAULT_PERMISSIONS);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [authWarning, setAuthWarning] = useState('');
@@ -88,7 +111,7 @@ export const AdminsView: React.FC = () => {
     setTitle('Institution Admin');
     setScopeDepts('');
     setScopeYears('');
-    setPermissionsText('Manage Students, Manage Teachers, Attendance, Institution Settings');
+    setPermissions(DEFAULT_PERMISSIONS);
     setError('');
   };
 
@@ -113,9 +136,16 @@ export const AdminsView: React.FC = () => {
     const scope = admin.scope || {};
     setScopeDepts(Array.isArray(scope.departments) ? scope.departments.join(', ') : '');
     setScopeYears(Array.isArray(scope.academicYears) ? scope.academicYears.join(', ') : '');
-    setPermissionsText(Array.isArray(admin.permissions) ? admin.permissions.join(', ') : '');
+    // Keep stored values as-is — unknown/legacy entries are preserved on save.
+    setPermissions(Array.isArray(admin.permissions) ? admin.permissions : []);
     setError('');
     setModalOpen(true);
+  };
+
+  const togglePermission = (perm: string) => {
+    setPermissions((prev) =>
+      prev.includes(perm) ? prev.filter((p) => p !== perm) : [...prev, perm]
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -130,7 +160,6 @@ export const AdminsView: React.FC = () => {
 
     const departments = scopeDepts.split(',').map((s) => s.trim()).filter(Boolean);
     const academicYears = scopeYears.split(',').map((s) => s.trim()).filter(Boolean);
-    const permissions = permissionsText.split(',').map((s) => s.trim()).filter(Boolean);
 
     const payload: AdminPayload = {
       fullName,
@@ -304,7 +333,9 @@ export const AdminsView: React.FC = () => {
                     <td><code>{admin.institutionName || admin.institutionCode}</code></td>
                     <td>
                       <span className={`badge ${admin.role === 'admin' ? 'badge-college' : 'badge-school'}`}>
-                        {admin.role ? admin.role.charAt(0).toUpperCase() + admin.role.slice(1) : 'Institution Admin'}
+                        {admin.role
+                          ? admin.role.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
+                          : 'Institution Admin'}
                       </span>
                     </td>
                     <td>
@@ -433,6 +464,7 @@ export const AdminsView: React.FC = () => {
                   <option value="hod">HOD</option>
                   <option value="librarian">Librarian</option>
                   <option value="driver">Driver</option>
+                  <option value="admission_officer">Admission Officer</option>
                 </select>
               </div>
 
@@ -471,14 +503,49 @@ export const AdminsView: React.FC = () => {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Permissions (comma-separated)</label>
-                <input
-                  type="text"
-                  className="input"
-                  placeholder="e.g. Manage Students, Manage Teachers, Attendance"
-                  value={permissionsText}
-                  onChange={(e) => setPermissionsText(e.target.value)}
-                />
+                <label className="form-label">Permissions</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  {PERMISSION_GROUPS.map((group) => (
+                    <div
+                      key={group.category}
+                      style={{
+                        border: '1px solid var(--color-border, #E5E7EB)',
+                        borderRadius: 'var(--radius-input)',
+                        padding: '10px',
+                      }}
+                    >
+                      <div style={{ fontSize: '11px', fontWeight: 700, marginBottom: '6px', color: 'var(--color-text-muted)' }}>
+                        {group.category}
+                      </div>
+                      {group.permissions.map((perm) => (
+                        <label
+                          key={perm}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            fontSize: '12px',
+                            padding: '3px 0',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={permissions.includes(perm)}
+                            onChange={() => togglePermission(perm)}
+                          />
+                          {perm}
+                        </label>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+                {permissions.filter((p) => !KNOWN_PERMISSIONS.has(p)).length > 0 && (
+                  <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '6px', display: 'block' }}>
+                    {permissions.filter((p) => !KNOWN_PERMISSIONS.has(p)).length} custom
+                    permission(s) will be kept unchanged.
+                  </span>
+                )}
               </div>
 
               {!editingAdmin && (
@@ -492,7 +559,8 @@ export const AdminsView: React.FC = () => {
                     required
                   />
                   <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '4px' }}>
-                    User will be prompted to change password on first mobile login.
+                    Must be 8+ characters with uppercase, lowercase, and a digit. User will be
+                    prompted to change password on first mobile login.
                   </span>
                 </div>
               )}

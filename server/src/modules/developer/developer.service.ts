@@ -212,9 +212,11 @@ export class DeveloperService {
           departments: splitList(deptsI),
           academicYears: splitList(yearsI),
           courses: splitList(coursesI),
+          sections: [],
           terms: [],
           blockedDates: [],
         });
+
         summary.imported++;
       } catch (err: any) {
         summary.skipped++;

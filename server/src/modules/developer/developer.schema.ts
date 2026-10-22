@@ -10,6 +10,7 @@ export const ADMIN_ROLES = [
   'hod',
   'librarian',
   'driver',
+  'admission_officer',
 ] as const;
 
 export const adminRoleEnum = z.enum(ADMIN_ROLES);
@@ -29,10 +30,20 @@ const scopeSchema = z
   })
   .optional();
 
+// Must match PATCH /users/me phone regex.
+const phoneSchema = z
+  .string()
+  .trim()
+  .max(20)
+  .refine((v) => v === '' || /^\+?[\d\s-]{7,20}$/.test(v), {
+    message: 'Phone number must be 7-20 digits (may include +, spaces or dashes)',
+  })
+  .optional();
+
 export const CreateAdminSchema = z.object({
   fullName: z.string().trim().min(1, 'Full name is required').max(100),
   email: z.string().trim().email('Invalid email address').max(255),
-  phone: z.string().trim().max(20).optional(),
+  phone: phoneSchema,
   password: passwordSchema,
   institutionCode: z.string().trim().min(1, 'Institution code is required').max(50),
   // Required: omitting the role used to silently create an ADMIN (the
@@ -46,7 +57,7 @@ export const CreateAdminSchema = z.object({
 export const UpdateAdminSchema = z.object({
   fullName: z.string().trim().min(1).max(100).optional(),
   email: z.string().trim().email('Invalid email address').max(255).optional(),
-  phone: z.string().trim().max(20).optional(),
+  phone: phoneSchema,
   institutionCode: z.string().trim().min(1).max(50).optional(),
   role: adminRoleEnum.optional(),
   title: z.string().trim().max(100).optional(),

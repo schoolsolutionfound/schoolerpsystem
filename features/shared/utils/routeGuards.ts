@@ -11,8 +11,8 @@ const ROLE_ROUTES: Record<string, string> = {
   hod: '/(hod)/home',
   librarian: '/(librarian)/home',
   driver: '/(driver)/home',
-  admission_officer: '/(admin)/admissions',
-  'admission officer': '/(admin)/admissions',
+  admission_officer: '/(admin)/home',
+  'admission officer': '/(admin)/home',
 };
 
 const ROLE_GROUP: Record<string, string> = {

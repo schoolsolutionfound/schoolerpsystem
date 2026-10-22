@@ -38,6 +38,39 @@ export async function deleteClassSectionApi(id: string) {
   });
 }
 
+// ---------- Academic Sessions (years) ----------
+export async function fetchAcademicSessionsApi() {
+  return apiClient('/admin/academic-sessions');
+}
+
+export async function createAcademicSessionApi(payload: { name: string; startDate?: string; endDate?: string }) {
+  return apiClient('/admin/academic-sessions', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateAcademicSessionApi(id: string, payload: Partial<{ name: string; startDate: string; endDate: string }>) {
+  return apiClient(`/admin/academic-sessions/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function setCurrentAcademicSessionApi(id: string) {
+  return apiClient(`/admin/academic-sessions/${id}/set-current`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+}
+
+export async function deleteAcademicSessionApi(id: string) {
+  return apiClient(`/admin/academic-sessions/${id}`, {
+    method: 'DELETE',
+    body: JSON.stringify({}),
+  });
+}
+
 // ---------- Subjects ----------
 export async function fetchSubjectsApi() {
   return apiClient('/admin/subjects');

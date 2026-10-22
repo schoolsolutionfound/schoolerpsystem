@@ -9,6 +9,7 @@ export interface AuthenticatedUser {
   role?: string;
   displayName?: string;
   institutionCode?: string;
+  emailVerified?: boolean;
 }
 
 declare module 'fastify' {
@@ -31,6 +32,27 @@ const PASSWORD_GATE_EXEMPT_ROUTES = new Set([
   '/api/v1/auth/logout',
   '/api/v1/auth/change-password',
   '/api/v1/users/me',
+  '/api/v1/users/complete-profile',
+]);
+
+/**
+ * Routes an unverified user may still hit when EMAIL_VERIFICATION_ENFORCED is
+ * on. Kept minimal: the verify screen needs to resend and poll status, the
+ * user needs logout, and login-sync is the post-auth bootstrap the client runs
+ * before it knows verification is outstanding. The first-login chain routes
+ * (change-password → complete-profile) are included so a fresh account can
+ * finish onboarding BEFORE verifying — verification is the last step.
+ */
+const EMAIL_GATE_EXEMPT_ROUTES = new Set([
+  '/api/v1/auth/login-sync',
+  '/api/v1/auth/logout',
+  // The verify route MUST be exempt — it is the one call an unverified user
+  // makes, so gating it would make verification impossible.
+  '/api/v1/auth/verify-email/verify',
+  '/api/v1/auth/verify-email/resend',
+  '/api/v1/auth/verify-email/status',
+  '/api/v1/users/me',
+  '/api/v1/auth/change-password',
   '/api/v1/users/complete-profile',
 ]);
 
@@ -89,12 +111,14 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
   let dbUserRole = tokenRole;
   let institutionCode = '';
   let mustChangePassword = false;
+  let emailVerified = true;
 
   const cached = getCachedAuth(firebaseUid);
   if (cached) {
     dbUserRole = cached.role || tokenRole;
     institutionCode = cached.institutionCode;
     mustChangePassword = cached.mustChangePassword;
+    emailVerified = cached.emailVerified;
   } else {
     try {
       const dbUser = await dbFindByUid(firebaseUid);
@@ -102,7 +126,8 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
         dbUserRole = dbUser.role || tokenRole || '';
         institutionCode = dbUser.institutionCode || '';
         mustChangePassword = Boolean(dbUser.mustChangePassword);
-        setCachedAuth(firebaseUid, dbUserRole, institutionCode, mustChangePassword);
+        emailVerified = dbUser.emailVerified ?? true;
+        setCachedAuth(firebaseUid, dbUserRole, institutionCode, mustChangePassword, emailVerified);
       }
     } catch (err: any) {
       // Fail closed: a DB outage must not silently produce an empty-tenant principal.
@@ -140,11 +165,34 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
     }
   }
 
+  // Email-verification gate (Phase 2). Off unless EMAIL_VERIFICATION_ENFORCED
+  // is truthy, so the ~28 pre-existing accounts (all defaulting to
+  // email_verified=true... but any that were flagged) never break on deploy.
+  // Exempt the routes the verify screen itself needs: resend, status, logout,
+  // and login-sync (which is how the client boots post-auth).
+  const enforceEmailVerification =
+    process.env.EMAIL_VERIFICATION_ENFORCED === 'true' ||
+    process.env.EMAIL_VERIFICATION_ENFORCED === '1';
+
+  if (enforceEmailVerification && !emailVerified) {
+    const routeUrl = (request.routeOptions?.url || request.url || '').split('?')[0];
+    if (!EMAIL_GATE_EXEMPT_ROUTES.has(routeUrl)) {
+      return reply.status(403).send({
+        success: false,
+        error: {
+          message: 'Please verify your email address before continuing.',
+          code: 'EMAIL_VERIFICATION_REQUIRED',
+        },
+      });
+    }
+  }
+
   request.user = {
     uid: firebaseUid,
     email: email,
     role: dbUserRole,
     institutionCode,
+    emailVerified,
   };
 }
 
@@ -164,8 +212,8 @@ export async function requireDeveloper(request: FastifyRequest, reply: FastifyRe
 
   const role = normalizeRole(request.user.role);
 
-  // Accept both spellings: 'dev' (short form) and 'developer' (docs/roles.md form).
-  if (role !== 'dev' && role !== 'developer') {
+  // normalizeRole folds 'developer' → 'dev'.
+  if (role !== 'dev') {
     return reply.status(403).send({
       success: false,
       error: {
@@ -179,6 +227,9 @@ export async function requireDeveloper(request: FastifyRequest, reply: FastifyRe
 export function normalizeRole(role: string | undefined): string {
   const normalized = (role || '').toLowerCase().trim();
   if (normalized === 'institution admin') return 'admin';
+  // Canonical developer role is 'dev'; fold the docs spelling so guards and
+  // client checks stay consistent.
+  if (normalized === 'developer') return 'dev';
   return normalized;
 }
 

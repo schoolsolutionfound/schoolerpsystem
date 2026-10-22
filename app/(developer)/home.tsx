@@ -8,16 +8,15 @@ import { useUserStore } from '../../store/useUserStore';
 import { DeveloperDashboardContent } from '../../features/developer/components/DeveloperDashboardContent';
 import { InstitutionListScreen } from '../../features/developer/screens/InstitutionListScreen';
 import { DeveloperAdminsContent } from '../../features/developer/components/DeveloperAdminsContent';
-import { DeveloperPlansContent } from '../../features/developer/components/DeveloperPlansContent';
 import { DeveloperProfileContent } from '../../features/developer/components/DeveloperProfileContent';
+import { updateMyProfileApi } from '../../api/users';
 
-type DevTab = 'home' | 'institutions' | 'admins' | 'plans' | 'profile';
+type DevTab = 'home' | 'institutions' | 'admins' | 'profile';
 
 const TABS: { key: DevTab; label: string; icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'] }[] = [
   { key: 'home', label: 'Home', icon: 'home-variant-outline' },
   { key: 'institutions', label: 'Institutions', icon: 'domain' },
   { key: 'admins', label: 'Admins', icon: 'account-group-outline' },
-  { key: 'plans', label: 'Plans', icon: 'card-bulleted-outline' },
   { key: 'profile', label: 'Profile', icon: 'account-circle-outline' },
 ];
 
@@ -26,7 +25,29 @@ export default function DeveloperHomeScreen() {
   const [activeTab, setActiveTab] = useState<DevTab>('home');
   const fullName = useUserStore((state) => state.fullName) || 'Super Admin';
   const email = useUserStore((state) => state.email) || '';
+  const phone = useUserStore((state) => state.phone) || '';
+  const setUserProfile = useUserStore((state) => state.setUserProfile);
   const resetUser = useUserStore((state) => state.resetUser);
+
+  const handleUpdateProfile = async (patch: { fullName?: string; phone?: string }): Promise<boolean> => {
+    try {
+      const res: any = await updateMyProfileApi(patch);
+      const updated = res?.data ?? res;
+      const nextName = updated?.fullName ?? patch.fullName;
+      const nextPhone = updated?.phone ?? patch.phone;
+      if (nextName || nextPhone) {
+        setUserProfile({
+          ...(nextName ? { fullName: nextName } : {}),
+          ...(nextPhone ? { phone: nextPhone } : {}),
+        });
+      }
+      Alert.alert('Profile Updated', 'Your profile has been saved.');
+      return true;
+    } catch (err: any) {
+      Alert.alert('Update Failed', err?.message || 'Could not save profile. Please try again.');
+      return false;
+    }
+  };
 
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to log out of Developer Panel?', [
@@ -50,13 +71,14 @@ export default function DeveloperHomeScreen() {
           {activeTab === 'home' && <DeveloperDashboardContent />}
           {activeTab === 'institutions' && <InstitutionListScreen />}
           {activeTab === 'admins' && <DeveloperAdminsContent />}
-          {activeTab === 'plans' && <DeveloperPlansContent />}
           {activeTab === 'profile' && (
             <DeveloperProfileContent
               fullName={fullName}
               email={email}
+              phone={phone}
               onChangePassword={() => router.push('/change-password')}
               onLogout={handleLogout}
+              onSaveProfile={handleUpdateProfile}
             />
           )}
         </View>

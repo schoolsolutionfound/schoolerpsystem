@@ -6,6 +6,7 @@ import { BellIcon } from '../../notifications/components/BellIcon';
 interface AdminHeaderProps {
   fullName: string;
   profilePic?: string;
+  showGreeting?: boolean;
   onMenuPress: () => void;
   onNotificationsPress: () => void;
   onProfilePress: () => void;
@@ -21,6 +22,7 @@ const getGreeting = (): string => {
 export const AdminHeader: React.FC<AdminHeaderProps> = ({
   fullName,
   profilePic,
+  showGreeting = true,
   onMenuPress,
   onNotificationsPress,
   onProfilePress,
@@ -32,34 +34,36 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
     <View style={styles.container}>
       <View style={styles.topHeader}>
         <TouchableOpacity style={styles.iconBtn} onPress={onMenuPress}>
-          <Feather name="menu" size={22} color="#171717" />
+          <Feather name="menu" size={22} color="#1A1B1C" />
         </TouchableOpacity>
 
         <Image source={require('../../../assets/text-logo.png')} style={styles.logoImage} resizeMode="contain" />
 
         <TouchableOpacity style={styles.iconBtn} onPress={onNotificationsPress}>
-          <BellIcon size={22} color="#171717" />
+          <BellIcon size={22} color="#1A1B1C" />
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity style={styles.userGreetingRow} onPress={onProfilePress} activeOpacity={0.7}>
-        <View style={styles.avatarWrap}>
-          {profilePic ? (
-            <Image source={{ uri: profilePic }} style={styles.avatarImage} />
-          ) : (
-            <View style={styles.avatarPlaceholder}>
-              <MaterialCommunityIcons name="shield-crown" size={30} color="#F4C430" />
-            </View>
-          )}
-        </View>
+      {showGreeting && (
+        <TouchableOpacity style={styles.userGreetingRow} onPress={onProfilePress} activeOpacity={0.7}>
+          <View style={styles.avatarWrap}>
+            {profilePic ? (
+              <Image source={{ uri: profilePic }} style={styles.avatarImage} />
+            ) : (
+              <View style={styles.avatarPlaceholder}>
+                <MaterialCommunityIcons name="shield-crown" size={30} color="#F4C430" />
+              </View>
+            )}
+          </View>
 
-        <View style={styles.greetingTextWrap}>
-          <Text style={styles.greetingText}>{greeting},</Text>
-          <Text style={styles.userNameText}>{firstName}</Text>
-        </View>
+          <View style={styles.greetingTextWrap}>
+            <Text style={styles.greetingText}>{greeting},</Text>
+            <Text style={styles.userNameText}>{firstName}</Text>
+          </View>
 
-        <MaterialCommunityIcons name="chevron-right" size={20} color="#6B6B6B" />
-      </TouchableOpacity>
+          <MaterialCommunityIcons name="chevron-right" size={20} color="#6B6B6B" />
+        </TouchableOpacity>
+      )}
     </View>
   );
 };
@@ -81,11 +85,8 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E8E5DC',
   },
   dotBadge: {
     position: 'absolute',
@@ -120,5 +121,5 @@ const styles = StyleSheet.create({
   },
   greetingTextWrap: { flex: 1 },
   greetingText: { fontSize: 14, color: '#6B6B6B', marginBottom: 2 },
-  userNameText: { fontSize: 22, fontWeight: '800', color: '#171717' },
+  userNameText: { fontSize: 22, fontWeight: '800', color: '#1A1B1C' },
 });

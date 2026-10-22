@@ -16,6 +16,8 @@ vi.mock('../announcement.repository.js', () => ({
 }));
 
 vi.mock('../../shared/db/index.js', () => ({
+  db: null,
+  dbFindUserById: vi.fn(),
   dbFindUserByIdOrUid: vi.fn(),
   dbFindStudentByUsnInInstitution: vi.fn(),
   dbFindStudentClassSectionId: vi.fn(),
@@ -24,12 +26,14 @@ vi.mock('../../shared/db/index.js', () => ({
 import { announcementService, AnnouncementActor } from '../announcement.service.js';
 import { announcementRepository } from '../announcement.repository.js';
 import {
+  dbFindUserById,
   dbFindUserByIdOrUid,
   dbFindStudentByUsnInInstitution,
   dbFindStudentClassSectionId,
 } from '../../shared/db/index.js';
 
 const repo = announcementRepository as any;
+const findUserById = vi.mocked(dbFindUserById);
 const findUser = vi.mocked(dbFindUserByIdOrUid);
 const findStudentByUsn = vi.mocked(dbFindStudentByUsnInInstitution);
 const findEnrollment = vi.mocked(dbFindStudentClassSectionId);
@@ -108,8 +112,14 @@ describe('resolveViewerClassSections (fix 1: class targeting delivery)', () => {
     expect(findEnrollment).not.toHaveBeenCalled();
   });
 
-  it('resolves a parent through their linked student USN', async () => {
+  it('resolves a parent through their linked student (parent_links / legacy scope)', async () => {
     findUser.mockResolvedValue({ id: 'par1', institutionCode: INST, scope: '{"linkedStudentUSN":"USN7"}' } as any);
+    findUserById.mockResolvedValue({
+      id: 'par1',
+      role: 'parent',
+      institutionCode: INST,
+      scope: '{"linkedStudentUSN":"USN7"}',
+    } as any);
     findStudentByUsn.mockResolvedValue({ id: 'stu2' } as any);
     findEnrollment.mockResolvedValue('cs5');
 
@@ -122,6 +132,7 @@ describe('resolveViewerClassSections (fix 1: class targeting delivery)', () => {
 
   it('returns [] for a parent without a linked student', async () => {
     findUser.mockResolvedValue({ id: 'par1', institutionCode: INST, scope: '{}' } as any);
+    findUserById.mockResolvedValue({ id: 'par1', role: 'parent', institutionCode: INST, scope: '{}' } as any);
 
     const result = await announcementService.resolveViewerClassSections(INST, 'uid-parent', 'parent');
 

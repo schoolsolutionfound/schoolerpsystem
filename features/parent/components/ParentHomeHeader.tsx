@@ -7,6 +7,7 @@ import { FontFamily } from '../../../constants/fonts';
 interface ParentHomeHeaderProps {
   fullName: string;
   profilePic?: string;
+  showGreeting?: boolean;
   onMenuPress: () => void;
   onNotificationsPress: () => void;
   onProfilePress: () => void;
@@ -22,6 +23,7 @@ const getGreeting = (): string => {
 export const ParentHomeHeader: React.FC<ParentHomeHeaderProps> = ({
   fullName,
   profilePic,
+  showGreeting = true,
   onMenuPress,
   onNotificationsPress,
   onProfilePress,
@@ -43,24 +45,26 @@ export const ParentHomeHeader: React.FC<ParentHomeHeaderProps> = ({
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity style={styles.userGreetingRow} onPress={onProfilePress} activeOpacity={0.7}>
-        <View style={styles.avatarWrap}>
-          {profilePic ? (
-            <Image source={{ uri: profilePic }} style={styles.avatarImage} />
-          ) : (
-            <View style={styles.avatarPlaceholder}>
-              <MaterialCommunityIcons name="account-heart" size={32} color="#1A1B1C" />
-            </View>
-          )}
-        </View>
+      {showGreeting && (
+        <TouchableOpacity style={styles.userGreetingRow} onPress={onProfilePress} activeOpacity={0.7}>
+          <View style={styles.avatarWrap}>
+            {profilePic ? (
+              <Image source={{ uri: profilePic }} style={styles.avatarImage} />
+            ) : (
+              <View style={styles.avatarPlaceholder}>
+                <MaterialCommunityIcons name="account-heart" size={32} color="#1A1B1C" />
+              </View>
+            )}
+          </View>
 
-        <View style={styles.greetingTextWrap}>
-          <Text style={styles.greetingText}>{greeting},</Text>
-          <Text style={styles.userNameText}>{firstName}</Text>
-        </View>
+          <View style={styles.greetingTextWrap}>
+            <Text style={styles.greetingText}>{greeting},</Text>
+            <Text style={styles.userNameText}>{firstName}</Text>
+          </View>
 
-        <MaterialCommunityIcons name="chevron-right" size={20} color="#6B6B6B" />
-      </TouchableOpacity>
+          <MaterialCommunityIcons name="chevron-right" size={20} color="#6B6B6B" />
+        </TouchableOpacity>
+      )}
     </View>
   );
 };
@@ -82,11 +86,8 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E8E5DC',
   },
   dotBadge: {
     position: 'absolute',

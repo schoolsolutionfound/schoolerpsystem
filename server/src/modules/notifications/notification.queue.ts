@@ -8,6 +8,8 @@ import {
   deactivateToken,
 } from './notification.repository.js';
 import { sendExpoPushes, buildPushMessages, processTickets } from './expo.provider.js';
+import { sendEmail, EmailSendError, isSesConfigured } from './email.provider.js';
+import { getEmailConfig, isSuppressed, findUserByUid } from './email.repository.js';
 
 // ============================================================================
 // In-Process Notification Queue
@@ -44,6 +46,15 @@ const CAMPAIGN_SWEEP_INTERVAL_MS = 5000;
 
 let processTimer: ReturnType<typeof setInterval> | null = null;
 let lastCampaignSweepAt = 0;
+
+function escapeHtml(s: string): string {
+  return String(s || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
 export function startNotificationQueue(): void {
   if (state.running) return;
@@ -97,10 +108,12 @@ export async function processPendingNotifications(): Promise<void> {
   // happened.
   const pushRows: NotificationRecord[] = [];
   const inAppIds: string[] = [];
+  const emailRows: NotificationRecord[] = [];
   const unsupportedByChannel = new Map<string, string[]>();
   for (const row of pending) {
     if (row.channel === 'push') pushRows.push(row);
     else if (row.channel === 'in_app') inAppIds.push(row.id);
+    else if (row.channel === 'email') emailRows.push(row);
     else unsupportedByChannel.set(row.channel, [
       ...(unsupportedByChannel.get(row.channel) || []),
       row.id,
@@ -121,6 +134,11 @@ export async function processPendingNotifications(): Promise<void> {
   for (let i = 0; i < pushRows.length; i += BATCH_SIZE) {
     const batch = pushRows.slice(i, i + BATCH_SIZE);
     await processBatch(batch);
+    state.batchesProcessed++;
+  }
+
+  for (let i = 0; i < emailRows.length; i += BATCH_SIZE) {
+    await processEmailBatch(emailRows.slice(i, i + BATCH_SIZE));
     state.batchesProcessed++;
   }
 }
@@ -147,7 +165,6 @@ async function resolveFailures(ids: string[], batch: NotificationRecord[]): Prom
 
 async function processBatch(batch: NotificationRecord[]): Promise<void> {
   if (batch.length === 0) return;
-
   const notificationIds = batch.map((n) => n.id);
   const recipientIds = [...new Set(batch.map((n) => n.recipientId))];
 
@@ -191,6 +208,66 @@ async function processBatch(batch: NotificationRecord[]): Promise<void> {
     console.error('[Notification Queue] Batch processing error:', error.message);
     // Transient batch failure — apply the same retry budget to the whole batch.
     state.totalFailed += await resolveFailures(notificationIds, batch);
+  }
+}
+
+/**
+ * Deliver email-channel notifications via SES.
+ *
+ * Per row we resolve the recipient's address and the tenant's sending identity,
+ * check the suppression list (so we never spend money re-mailing a bounced
+ * address), and send. Failures are classified so the retry budget is only spent
+ * on transient errors — a permanent one (bad address, suppressed, SES disabled)
+ * is terminal immediately and suppresses the address.
+ */
+async function processEmailBatch(batch: NotificationRecord[]): Promise<void> {
+  if (batch.length === 0) return;
+
+  for (const row of batch) {
+    const recipient = await findUserByUid(row.recipientId);
+    const to = (recipient?.email || '').trim().toLowerCase();
+
+    if (!to) {
+      await markFailed([row.id], 'No email address on file for recipient');
+      state.totalFailed++;
+      continue;
+    }
+
+    if (await isSuppressed(row.institutionCode, to)) {
+      await markFailed([row.id], 'Address suppressed after prior bounce/complaint');
+      state.totalFailed++;
+      continue;
+    }
+
+    const sender = await getEmailConfig(row.institutionCode);
+    if (!sender?.fromEmail || !isSesConfigured()) {
+      // Nothing actionable per row — leave pending so the retry budget applies
+      // and a later config change can still deliver these.
+      await resolveFailures([row.id], batch);
+      continue;
+    }
+
+    try {
+      await sendEmail({
+        to,
+        subject: row.title,
+        html: escapeHtml(row.body),
+        text: row.body,
+        fromEmail: sender.fromEmail,
+        fromName: sender.fromName,
+        replyTo: sender.replyTo,
+        configurationSet: sender.configurationSet,
+      });
+      await markSent([row.id]);
+      state.totalSent++;
+    } catch (err: any) {
+      if (err instanceof EmailSendError && err.kind === 'permanent') {
+        await markFailed([row.id], err.message);
+        state.totalFailed++;
+      } else {
+        await resolveFailures([row.id], batch);
+      }
+    }
   }
 }
 

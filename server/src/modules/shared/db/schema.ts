@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean, varchar, jsonb, integer, numeric, date, index, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, boolean, varchar, jsonb, integer, numeric, bigint, date, index, uniqueIndex } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
 export const institutions = pgTable('institutions', {
@@ -12,8 +12,16 @@ export const institutions = pgTable('institutions', {
   departments: jsonb('departments').$type<string[]>().default([]),
   academicYears: jsonb('academic_years').$type<string[]>().default([]),
   courses: jsonb('courses').$type<string[]>().default([]),
+  sections: jsonb('sections').$type<string[]>().default([]),
+  classSubjects: jsonb('class_subjects').$type<Record<string, string[]>>().default({}),
   terms: jsonb('terms').$type<{ academicYear: string; terms: string[] }[]>().default([]),
   blockedDates: jsonb('blocked_dates').$type<{ date: string; reason: string }[]>().default([]),
+  // Per-role profile form fields configured by the institution admin from
+  // Settings → Form Fields. Shape: { [role]: ProfileFormField[] } — see
+  // modules/admin/profileFields.schema.ts. The 5 account basics (First Name,
+  // Last Name, Email, Phone Number, Password) are always collected at
+  // creation and are NOT part of this config.
+  profileFormFields: jsonb('profile_form_fields').$type<Record<string, any[]>>().default({}),
   // Admin-set default password for newly provisioned users (row password in
   // CSV/feed overrides it; never returned by API responses — only hasDefaultPassword).
   defaultTempPassword: varchar('default_temp_password', { length: 64 }).default(''),
@@ -38,11 +46,29 @@ export const users = pgTable('users', {
   rollNoOrUSN: varchar('roll_no_usn', { length: 100 }).default(''),
   mustChangePassword: boolean('must_change_password').default(false),
   profileCompleted: boolean('profile_completed').default(false),
+  // Email verification state. Defaults true so pre-existing seeded/provisioned
+  // accounts keep working; new signups set it false until the token is consumed.
+  emailVerified: boolean('email_verified').notNull().default(true),
+  emailVerifiedAt: timestamp('email_verified_at'),
   parentPhone: varchar('parent_phone', { length: 20 }).default(''),
   phone: varchar('student_phone', { length: 20 }).default(''),
   profilePicUrl: text('profile_pic_url').default(''),
+  dob: varchar('dob', { length: 20 }).default(''),
+  gender: varchar('gender', { length: 20 }).default(''),
+  admissionNo: varchar('admission_no', { length: 100 }).default(''),
+  admissionDate: varchar('admission_date', { length: 20 }).default(''),
+  address: text('address').default(''),
+  city: varchar('city', { length: 100 }).default(''),
+  pincode: varchar('pincode', { length: 10 }).default(''),
+  guardianName: varchar('guardian_name', { length: 200 }).default(''),
+  guardianRelation: varchar('guardian_relation', { length: 50 }).default(''),
+  guardianEmail: varchar('guardian_email', { length: 255 }).default(''),
   tenthPercentage: varchar('tenth_percentage', { length: 10 }).default(''),
   twelfthPercentage: varchar('twelfth_percentage', { length: 10 }).default(''),
+  alternatePhone: varchar('alternate_phone', { length: 20 }).default(''),
+  occupation: varchar('occupation', { length: 120 }).default(''),
+  emergencyContact: varchar('emergency_contact', { length: 255 }).default(''),
+  preferredLanguage: varchar('preferred_language', { length: 50 }).default(''),
   title: text('title').default(''),
   scope: jsonb('scope').$type<Record<string, any>>().default({}),
   roles: jsonb('roles').$type<string[]>().default([]),
@@ -65,7 +91,7 @@ export interface AuditEventRecord {
   id: string;
   actorEmail: string;
   action: string;
-  targetType: 'institution' | 'admin' | 'platform';
+  targetType: 'institution' | 'admin' | 'platform' | 'user';
   targetId?: string;
   targetLabel?: string;
   details?: Record<string, any>;
@@ -91,6 +117,30 @@ export type AuditEventRow = typeof auditEvents.$inferSelect;
 
 const idPrefix = (prefix: string) => () => `${prefix}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
+/**
+ * Academic sessions ("years") — e.g. "2026-27".
+ * One row per institution per year; `isCurrent` marks the active year that
+ * new class sections, enrollments, exams and timetables are stamped with.
+ * NOTE: class_sections.academicYear stores the SECTION letter for schools —
+ * do NOT confuse it with this table's year concept.
+ */
+export const academicSessions = pgTable('academic_sessions', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('as')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  name: varchar('name', { length: 100 }).notNull(),
+  startDate: varchar('start_date', { length: 20 }).default(''),
+  endDate: varchar('end_date', { length: 20 }).default(''),
+  isCurrent: boolean('is_current').notNull().default(false),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  instCodeIdx: index('idx_academic_sessions_inst').on(table.institutionCode),
+  nameUnique: uniqueIndex('uq_academic_sessions_inst_name').on(table.institutionCode, table.name),
+}));
+
+export type AcademicSessionRecord = typeof academicSessions.$inferSelect;
+export type NewAcademicSessionRecord = typeof academicSessions.$inferInsert;
+
 export const classSections = pgTable('class_sections', {
   id: text('id').primaryKey().$defaultFn(idPrefix('cs')),
   institutionCode: varchar('institution_code', { length: 100 }).notNull(),
@@ -99,6 +149,7 @@ export const classSections = pgTable('class_sections', {
   academicYear: varchar('academic_year', { length: 100 }).default(''),
   section: varchar('section', { length: 50 }).default(''),
   classTeacherId: text('class_teacher_id').default(''),
+  sessionId: varchar('session_id', { length: 100 }).default(''),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 }, (table) => ({
@@ -168,6 +219,7 @@ export const timetables = pgTable('timetables', {
   version: integer('version').notNull().default(1),
   effectiveFrom: date('effective_from').notNull(),
   createdBy: text('created_by').notNull(),
+  sessionId: varchar('session_id', { length: 100 }).default(''),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 }, (table) => ({
@@ -252,6 +304,7 @@ export const studentClasses = pgTable('student_classes', {
   classSectionId: text('class_section_id').notNull(),
   rollNo: varchar('roll_no', { length: 50 }).default(''),
   academicYear: varchar('academic_year', { length: 50 }).default(''),
+  sessionId: varchar('session_id', { length: 100 }).default(''),
   effectiveFrom: date('effective_from').notNull().default('2024-01-01'),
   effectiveTo: date('effective_to'),
   isActive: boolean('is_active').notNull().default(true),
@@ -273,6 +326,33 @@ export type StudentClassRecord = typeof studentClasses.$inferSelect;
 export type NewStudentClassRecord = typeof studentClasses.$inferInsert;
 
 /**
+ * Parent → student links: the source of truth for which children a parent may
+ * access, with a per-child relationship and permission list. Replaces the
+ * legacy single-child `users.scope.linkedStudentUSN` value, which is still
+ * READ as a fallback for rows created before this table existed.
+ */
+export const parentLinks = pgTable('parent_links', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('pl')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  parentId: text('parent_id').notNull(),
+  studentId: text('student_id').notNull(),
+  relationship: varchar('relationship', { length: 50 }).default(''),
+  permissions: jsonb('permissions').$type<string[]>().default([]),
+  isPrimary: boolean('is_primary').notNull().default(false),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  parentIdx: index('idx_parent_links_parent').on(table.parentId),
+  studentIdx: index('idx_parent_links_student').on(table.studentId),
+  instIdx: index('idx_parent_links_inst').on(table.institutionCode),
+  pairUnique: uniqueIndex('uq_parent_links_parent_student').on(table.parentId, table.studentId),
+}));
+
+export type ParentLinkRecord = typeof parentLinks.$inferSelect;
+export type NewParentLinkRecord = typeof parentLinks.$inferInsert;
+
+/**
  * Marks module — exams per (class, term) with per-subject scores per student.
  *
  * exams        — one row per exam ("Unit Test 1", "Term 1 Final", etc.)
@@ -285,6 +365,7 @@ export const exams = pgTable('exams', {
   name: varchar('name', { length: 200 }).notNull(),
   term: varchar('term', { length: 100 }).default(''),
   academicYear: varchar('academic_year', { length: 50 }).default(''),
+  sessionId: varchar('session_id', { length: 100 }).default(''),
   startDate: date('start_date'),
   endDate: date('end_date'),
   status: varchar('status', { length: 20 }).notNull().default('draft'), // draft | published | locked
@@ -418,6 +499,9 @@ export const feePayments = pgTable('fee_payments', {
   paymentDate: date('payment_date'),
   status: varchar('status', { length: 20 }).notNull().default('pending'),
   receiptNo: varchar('receipt_no', { length: 50 }),
+  // Set when this payment was settled through an online gateway order.
+  paymentOrderId: text('payment_order_id'),
+  gatewayPaymentId: text('gateway_payment_id'),
   notes: text('notes'),
   createdBy: text('created_by'),
   createdAt: timestamp('created_at').defaultNow(),
@@ -427,10 +511,118 @@ export const feePayments = pgTable('fee_payments', {
   studentIdx: index('idx_fee_payments_student').on(table.studentId),
   feeStructureIdx: index('idx_fee_payments_fee_structure').on(table.feeStructureId),
   statusIdx: index('idx_fee_payments_status').on(table.status),
+  paymentOrderIdx: index('idx_fee_payments_payment_order').on(table.paymentOrderId),
 }));
 
 export type FeePaymentRecord = typeof feePayments.$inferSelect;
 export type NewFeePaymentRecord = typeof feePayments.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// Online payments (Razorpay MVP — see PAYMENTS.md)
+// ---------------------------------------------------------------------------
+
+/**
+ * Per-tenant gateway credentials. Secrets are AES-256-GCM encrypted at rest
+ * (shared/utils/encryption.ts) and are NEVER returned by any API response —
+ * only the public key_id is exposed to clients for checkout.
+ */
+export const institutionPaymentConfig = pgTable('institution_payment_config', {
+  institutionCode: varchar('institution_code', { length: 100 }).primaryKey(),
+  gateway: varchar('gateway', { length: 30 }).notNull().default('razorpay'),
+  keyId: varchar('key_id', { length: 255 }).notNull(),
+  keySecretEnc: text('key_secret_enc').notNull(),
+  webhookSecretEnc: text('webhook_secret_enc').notNull(),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export type InstitutionPaymentConfigRecord = typeof institutionPaymentConfig.$inferSelect;
+export type NewInstitutionPaymentConfigRecord = typeof institutionPaymentConfig.$inferInsert;
+
+/**
+ * One order per checkout attempt. amount_paise is ALWAYS derived server-side
+ * from fee_structures — never from client input.
+ *
+ * The partial unique index enforces at most ONE open order per student per
+ * tenant, which is the race guard against double-paying the same fee lines.
+ */
+export const paymentOrders = pgTable('payment_orders', {
+  id: text('id').primaryKey().$defaultFn(() => `po_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  studentId: text('student_id').notNull(),
+  payerUid: text('payer_uid').notNull(),
+  payerRole: varchar('payer_role', { length: 30 }).notNull(),
+  currency: varchar('currency', { length: 10 }).notNull().default('INR'),
+  amountPaise: bigint('amount_paise', { mode: 'number' }).notNull(),
+  status: varchar('status', { length: 30 }).notNull().default('created'),
+  gateway: varchar('gateway', { length: 30 }).notNull().default('razorpay'),
+  gatewayOrderId: text('gateway_order_id'),
+  gatewayPaymentId: text('gateway_payment_id'),
+  method: varchar('method', { length: 30 }),
+  // Snapshot of the fee lines this order covers (id + amount at creation
+  // time) so webhook crediting never re-reads mutable fee_structures.
+  feeStructureIds: jsonb('fee_structure_ids').$type<{ id: string; amountPaise: number }[]>().notNull().default([]),
+  expiresAt: timestamp('expires_at').notNull(),
+  paidAt: timestamp('paid_at'),
+  webhookEventId: text('webhook_event_id'),
+  failureReason: text('failure_reason'),
+  // PII-minimised gateway payload subset for audit (no contact/email/card data).
+  gatewayCallback: jsonb('gateway_callback').$type<Record<string, unknown>>(),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  instCodeIdx: index('idx_payment_orders_inst').on(table.institutionCode),
+  studentIdx: index('idx_payment_orders_student').on(table.studentId),
+  statusIdx: index('idx_payment_orders_status').on(table.status),
+  gatewayOrderIdIdx: index('idx_payment_orders_gateway_order').on(table.gatewayOrderId),
+  webhookEventIdx: uniqueIndex('uq_payment_orders_webhook_event').on(table.webhookEventId),
+  gatewayOrderIdUq: uniqueIndex('uq_payment_orders_gateway_order').on(table.gatewayOrderId),
+  // At most one open (payable) order per student per tenant.
+  openOrderUq: uniqueIndex('uq_payment_orders_open_per_student')
+    .on(table.institutionCode, table.studentId)
+    .where(sql`status IN ('created', 'authorized')`),
+}));
+
+export type PaymentOrderRecord = typeof paymentOrders.$inferSelect;
+export type NewPaymentOrderRecord = typeof paymentOrders.$inferInsert;
+
+/** One row per gateway attempt — audit trail + reconciliation source. */
+export const paymentTransactions = pgTable('payment_transactions', {
+  id: text('id').primaryKey().$defaultFn(() => `pt_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  paymentOrderId: text('payment_order_id').notNull(),
+  gateway: varchar('gateway', { length: 30 }).notNull().default('razorpay'),
+  gatewayPaymentId: text('gateway_payment_id'),
+  amountPaise: bigint('amount_paise', { mode: 'number' }).notNull(),
+  method: varchar('method', { length: 30 }),
+  status: varchar('status', { length: 30 }).notNull().default('initiated'),
+  failureCode: varchar('failure_code', { length: 50 }),
+  failureReason: text('failure_reason'),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  instCodeIdx: index('idx_payment_transactions_inst').on(table.institutionCode),
+  orderIdx: index('idx_payment_transactions_order').on(table.paymentOrderId),
+  gatewayPaymentIdx: index('idx_payment_transactions_gateway_payment').on(table.gatewayPaymentId),
+}));
+
+export type PaymentTransactionRecord = typeof paymentTransactions.$inferSelect;
+export type NewPaymentTransactionRecord = typeof paymentTransactions.$inferInsert;
+
+/**
+ * Per-institution receipt sequence, consumed with SELECT ... FOR UPDATE
+ * inside the payment transaction so receipt numbers are unique under
+ * concurrency (replaces the timestamp-derived REC- generator).
+ */
+export const paymentReceiptSequences = pgTable('payment_receipt_sequences', {
+  institutionCode: varchar('institution_code', { length: 100 }).primaryKey(),
+  period: varchar('period', { length: 20 }).notNull().default('YYYYMM'),
+  nextSeq: integer('next_seq').notNull().default(0),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export type PaymentReceiptSequenceRecord = typeof paymentReceiptSequences.$inferSelect;
+export type NewPaymentReceiptSequenceRecord = typeof paymentReceiptSequences.$inferInsert;
 
 export const expenseRecords = pgTable('expense_records', {
   id: text('id').primaryKey().$defaultFn(idPrefix('exp')),
@@ -449,16 +641,60 @@ export const expenseRecords = pgTable('expense_records', {
   invoiceNo: varchar('invoice_no', { length: 50 }),
   notes: text('notes'),
   createdBy: text('created_by'),
+  // Payroll linkage (generated salary periods + bonuses).
+  scheduleId: varchar('schedule_id', { length: 64 }),
+  userId: varchar('user_id', { length: 128 }),
+  periodKey: varchar('period_key', { length: 64 }),
+  dueDate: date('due_date'),
+  paidAmount: numeric('paid_amount', { precision: 12, scale: 2 }).notNull().default('0'),
+  payrollType: varchar('payroll_type', { length: 20 }),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 }, (table) => ({
   instCodeIdx: index('idx_expense_records_inst').on(table.institutionCode),
   categoryIdx: index('idx_expense_records_category').on(table.category),
   statusIdx: index('idx_expense_records_status').on(table.status),
+  scheduleIdx: index('idx_expense_records_schedule').on(table.scheduleId).where(sql`schedule_id is not null`),
+  uqPeriodKeyIdx: uniqueIndex('uq_expense_period_key').on(table.scheduleId, table.periodKey)
+    .where(sql`schedule_id is not null and period_key is not null`),
 }));
 
 export type ExpenseRecordRow = typeof expenseRecords.$inferSelect;
 export type NewExpenseRecordRow = typeof expenseRecords.$inferInsert;
+
+// =====================================================================
+// PAYROLL SCHEDULES (recurring staff salary generation)
+// =====================================================================
+
+export const payrollSchedules = pgTable('payroll_schedules', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('psc')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  userId: varchar('user_id', { length: 128 }).notNull(),
+  payeeName: varchar('payee_name', { length: 255 }).notNull(),
+  role: varchar('role', { length: 50 }).notNull().default(''),
+  department: varchar('department', { length: 100 }),
+  amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
+  frequency: varchar('frequency', { length: 20 }).notNull(),
+  dayOfMonth: integer('day_of_month'),
+  daysOfMonth: jsonb('days_of_month').$type<number[]>().notNull().default([]),
+  weekday: integer('weekday'),
+  startDate: date('start_date').notNull(),
+  active: boolean('active').notNull().default(true),
+  notes: text('notes'),
+  lastGeneratedKey: varchar('last_generated_key', { length: 32 }),
+  createdBy: text('created_by'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  instCodeIdx: index('idx_payroll_schedules_inst').on(table.institutionCode),
+  userIdx: index('idx_payroll_schedules_user').on(table.userId),
+  uqActiveUserIdx: uniqueIndex('uq_payroll_schedules_active_user')
+    .on(table.institutionCode, table.userId)
+    .where(sql`active`),
+}));
+
+export type PayrollScheduleRow = typeof payrollSchedules.$inferSelect;
+export type NewPayrollScheduleRow = typeof payrollSchedules.$inferInsert;
 
 // =====================================================================// NOTIFICATION MODULE SCHEMAS
 // =====================================================================
@@ -914,3 +1150,89 @@ export const admissions = pgTable('admissions', {
 
 export type AdmissionRecord = typeof admissions.$inferSelect;
 export type NewAdmissionRecord = typeof admissions.$inferInsert;
+
+/**
+ * Email verification tokens (Phase 2 — custom provider).
+ *
+ * Only the SHA-256 HASH of the token is stored, never the plaintext, so a DB
+ * leak cannot be replayed to verify arbitrary addresses. Tokens are
+ * single-use (consumedAt set atomically) and short-lived (expiresAt).
+ */
+export const emailVerificationTokens = pgTable('email_verification_tokens', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('evt')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  email: varchar('email', { length: 255 }).notNull(),
+  // Firebase uid of the account being verified (may be empty for pure-address checks).
+  firebaseUid: text('firebase_uid').default(''),
+  tokenHash: text('token_hash').notNull(),
+  // OTP attempt counter — a wrong code increments this; at the limit the code
+  // is consumed so brute-forcing a 6-digit space is bounded to N tries.
+  attempts: integer('attempts').notNull().default(0),
+  // Sent-at marker used for the per-account resend rate limit.
+  sentAt: timestamp('sent_at').defaultNow(),
+  expiresAt: timestamp('expires_at').notNull(),
+  consumedAt: timestamp('consumed_at'),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  // Lookup by token on verify — hash is the fast path, uniqueness is belt-and-braces.
+  tokenHashIdx: uniqueIndex('uq_evt_token_hash').on(table.tokenHash),
+  // Rate-limit scan: how many sends in the last hour for this address.
+  emailSentIdx: index('idx_evt_email_sent').on(table.email, table.sentAt),
+  // Cleanup of expired rows.
+  expiresIdx: index('idx_evt_expires').on(table.expiresAt),
+}));
+
+export type EmailVerificationTokenRecord = typeof emailVerificationTokens.$inferSelect;
+export type NewEmailVerificationTokenRecord = typeof emailVerificationTokens.$inferInsert;
+
+/**
+ * Bounce / complaint suppression list.
+ *
+ * An address lands here when SES reports a hard bounce or complaint. Sends to
+ * a suppressed address are refused at enqueue time so we stop paying for, and
+ * stop harming our reputation with, undeliverable destinations.
+ */
+export const emailSuppressions = pgTable('email_suppressions', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('sup')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  email: varchar('email', { length: 255 }).notNull(),
+  // 'bounce' | 'complaint' | 'manual' — why the address was suppressed.
+  reason: varchar('reason', { length: 20 }).notNull().default('bounce'),
+  // SES message/event id that caused this, for traceability.
+  sesEventId: varchar('ses_event_id', { length: 128 }).default(''),
+  detail: text('detail').default(''),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  // One suppression row per address per tenant.
+  emailUq: uniqueIndex('uq_sup_email_inst').on(table.institutionCode, table.email),
+  emailIdx: index('idx_sup_email').on(table.email),
+}));
+
+export type EmailSuppressionRecord = typeof emailSuppressions.$inferSelect;
+export type NewEmailSuppressionRecord = typeof emailSuppressions.$inferInsert;
+
+/**
+ * Per-tenant outbound email identity (Phase 2).
+ *
+ * SES credentials stay in env (IAM is account-level, not per-tenant); what is
+ * per-tenant is the FROM identity — the verified domain/address each school
+ * sends as, plus its SES configuration set (used for per-tenant metrics,
+ * suppression tracking and dedicated IP pools).
+ */
+export const institutionEmailConfig = pgTable('institution_email_config', {
+  institutionCode: varchar('institution_code', { length: 100 }).primaryKey(),
+  // Verified SES sender, e.g. "no-reply@school.edu". Falls back to env default.
+  fromEmail: varchar('from_email', { length: 255 }).notNull(),
+  fromName: varchar('from_name', { length: 200 }).notNull().default(''),
+  replyTo: varchar('reply_to', { length: 255 }).default(''),
+  // SES configuration set for per-tenant event/metric publication.
+  configurationSet: varchar('configuration_set', { length: 128 }).default(''),
+  // Optional verified domain used to derive the from address when fromEmail empty.
+  domain: varchar('domain', { length: 255 }).default(''),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export type InstitutionEmailConfigRecord = typeof institutionEmailConfig.$inferSelect;
+export type NewInstitutionEmailConfigRecord = typeof institutionEmailConfig.$inferInsert;

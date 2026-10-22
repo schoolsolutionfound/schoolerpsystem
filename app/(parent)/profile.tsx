@@ -10,6 +10,8 @@ import { useUserStore } from '../../store/useUserStore';
 import { BorderRadius } from '../../constants/theme';
 import { FontFamily } from '../../constants/fonts';
 import { uploadProfilePictureApi } from '../../api/upload';
+import { ProfileCustomFields } from '../../features/shared/formFields/ProfileCustomFields';
+import { useProfileCustomFields } from '../../features/shared/formFields/useProfileCustomFields';
 
 export default function ParentProfileScreen() {
   const router = useRouter();
@@ -25,6 +27,7 @@ export default function ParentProfileScreen() {
   const childName = useUserStore((s) => s.childName) || '';
   const resetUser = useUserStore((s) => s.resetUser);
   const setUserProfile = useUserStore((s) => s.setUserProfile);
+  const { fields: roleFields, values: roleFieldValues, save: saveRoleFields } = useProfileCustomFields();
   const insets = useSafeAreaInsets();
 
   const [refreshing, setRefreshing] = useState(false);
@@ -216,6 +219,12 @@ export default function ParentProfileScreen() {
             </View>
           </View>
 
+          {roleFields.length > 0 && (
+            <View style={styles.customFieldsWrap}>
+              <ProfileCustomFields fields={roleFields} values={roleFieldValues} onSave={saveRoleFields} />
+            </View>
+          )}
+
           {/* Account */}
           <View style={styles.card}>
             <View style={styles.cardHeader}>
@@ -245,6 +254,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFFEFE' },
   safe: { flex: 1 },
   scroll: { paddingBottom: 40 },
+  customFieldsWrap: { marginHorizontal: 12, marginTop: 12 },
 
   // Hero Section
   heroSection: {

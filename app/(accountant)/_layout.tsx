@@ -5,6 +5,7 @@ export default function AccountantLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="home" />
       <Stack.Screen name="profile" />
+      <Stack.Screen name="payroll/[id]" />
     </Stack>
   );
 }

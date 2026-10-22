@@ -1,8 +1,17 @@
 import { z } from 'zod';
 
+// Must match server shared/utils/password.ts (min 8 + upper/lower/digit).
+const passwordSchema = z
+  .string()
+  .min(8, 'Password must be at least 8 characters')
+  .max(100, 'Password must be at most 100 characters')
+  .regex(/[A-Z]/, 'Password must contain an uppercase letter')
+  .regex(/[a-z]/, 'Password must contain a lowercase letter')
+  .regex(/[0-9]/, 'Password must contain a digit');
+
 export const ChangePasswordSchema = z.object({
-  newPassword: z.string().min(6, 'Password must be at least 6 characters long'),
-  confirmPassword: z.string().min(6, 'Confirm password is required'),
+  newPassword: passwordSchema,
+  confirmPassword: z.string().min(8, 'Confirm password is required'),
 }).refine((data) => data.newPassword === data.confirmPassword, {
   message: "Passwords don't match",
   path: ['confirmPassword'],

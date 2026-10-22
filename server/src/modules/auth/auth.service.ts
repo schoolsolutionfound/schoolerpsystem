@@ -2,7 +2,8 @@ import { authRepository, IAuthRepository } from './auth.repository.js';
 import { admin, isFirebaseAdminInitialized } from '../shared/config/firebase.js';
 import { AuthenticatedUser } from '../shared/middleware/auth.js';
 import { institutionService } from '../institutions/institution.service.js';
-import { dbFindStudentByUsnInInstitution } from '../shared/db/index.js';
+import { dbFindUserById } from '../shared/db/index.js';
+import { getPrimaryParentChild } from '../users/parent-links.js';
 import { validatePasswordStrength } from '../shared/utils/password.js';
 
 function parseScope(val: any): Record<string, any> {
@@ -61,9 +62,30 @@ export class AuthService {
       profilePicUrl: user.profilePicUrl || '',
       tenthPercentage: user.tenthPercentage || '',
       twelfthPercentage: user.twelfthPercentage || '',
+      dob: user.dob || '',
+      gender: user.gender || '',
+      admissionNo: user.admissionNo || '',
+      admissionDate: user.admissionDate || '',
+      address: user.address || '',
+      city: user.city || '',
+      pincode: user.pincode || '',
+      guardianName: user.guardianName || '',
+      guardianRelation: user.guardianRelation || '',
+      guardianEmail: user.guardianEmail || '',
       mustChangePassword: user.mustChangePassword,
       profileCompleted: user.profileCompleted,
+      // Phase 2: real verification state so the client can gate on it.
+      // Default true keeps pre-existing accounts working.
+      isEmailVerified: user.emailVerified ?? true,
       designation: user.title || '',
+      // Settings → Form Fields: role's configured fields + saved values.
+      profileFormFields: await institutionService
+        .getRoleProfileFormFields(user.institutionCode || '', user.role || '')
+        .catch(() => []),
+      customFields: (() => {
+        const scope = parseScope(user.scope);
+        return scope.customFields && typeof scope.customFields === 'object' ? scope.customFields : {};
+      })(),
       ...parseScope(user.scope),
       ...await this.resolveParentChild(user),
     };
@@ -71,13 +93,19 @@ export class AuthService {
 
   private async resolveParentChild(user: any): Promise<Record<string, any>> {
     if (user.role?.toLowerCase() !== 'parent') return {};
-    const scope = parseScope(user.scope);
-    const linkedUsn = scope.linkedStudentUSN || '';
-    if (!linkedUsn) return {};
     try {
-      const student = await dbFindStudentByUsnInInstitution(user.institutionCode || '', linkedUsn);
+      const link = await getPrimaryParentChild(user.id);
+      if (!link) return {};
+      const student = await dbFindUserById(link.studentId);
       if (!student) return {};
-      return { childId: student.id, childName: student.fullName || '' };
+      return {
+        childId: student.id,
+        childName: student.fullName || '',
+        // Display-only mirror of the child's current roll number so legacy
+        // clients keep seeing the same shape they got from scope before.
+        linkedStudentUSN: student.rollNoOrUSN || '',
+        relation: link.relationship || '',
+      };
     } catch {
       return {};
     }
@@ -95,7 +123,69 @@ export class AuthService {
     return { message: 'Logged out successfully' };
   }
 
-  public async changePassword(currentUser: AuthenticatedUser, newPassword?: string) {
+  /**
+   * Verify an email/password pair against Firebase Identity Toolkit.
+   *
+   * The Admin SDK has no password-verification method, so this calls
+   * `accounts:signInWithPassword` with a service-account OAuth access token.
+   * Returns true only on a successful sign-in; any other outcome (wrong
+   * password, user not found, disabled account, network failure) is false.
+   *
+   * Fail-closed: if the service account or network is unavailable we return
+   * false rather than true, so an outage can never be mistaken for a correct
+   * password.
+   */
+  private async verifyCurrentPassword(email: string, password: string): Promise<boolean> {
+    try {
+      const projectId = process.env.FIREBASE_PROJECT_ID || admin.app().options.projectId;
+      if (!projectId || !email) return false;
+
+      const accessToken = await admin.credential.applicationDefault().getAccessToken();
+      const res = await fetch(
+        `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${process.env.FIREBASE_WEB_API_KEY || ''}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken.access_token}`,
+          },
+          body: JSON.stringify({ email, password, returnSecureToken: false }),
+        }
+      );
+      return res.ok;
+    } catch (err: any) {
+      console.warn('[Auth Service] Password verification failed:', err.message);
+      return false;
+    }
+  }
+
+  public async changePassword(currentUser: AuthenticatedUser, newPassword?: string, currentPassword?: string) {
+    // Voluntary change (mustChangePassword=false) requires the caller to supply
+    // the current password, which we verify server-side. Forced first-login flow
+    // (mustChangePassword=true) skips this — the user only knows the temp
+    // password, and must be allowed to rotate it.
+    //
+    // How the check works: firebase-admin exposes no API to verify an
+    // email/password pair, so we call the Identity Toolkit REST endpoint
+    // `accounts:signInWithPassword` with the service-account OAuth token. That
+    // is the same endpoint the client SDK uses, so the verification semantics
+    // (lockout, disabled accounts, password correctness) match sign-in exactly.
+    // Nothing is stored client- or server-side beyond the request itself, and a
+    // wrong password returns INVALID_CREDENTIAL before any write happens.
+    if (currentPassword) {
+      if (!isFirebaseAdminInitialized) {
+        throw {
+          statusCode: 503,
+          code: 'PASSWORD_VERIFY_UNAVAILABLE',
+          message: 'Password verification is unavailable. Please try again later.',
+        };
+      }
+      const ok = await this.verifyCurrentPassword(currentUser.email, currentPassword);
+      if (!ok) {
+        throw { statusCode: 400, code: 'INVALID_CURRENT_PASSWORD', message: 'Current password is incorrect.' };
+      }
+    }
+
     const check = validatePasswordStrength(newPassword || '');
     if (!check.ok) {
       throw { statusCode: 400, code: 'INVALID_PASSWORD', message: check.message };

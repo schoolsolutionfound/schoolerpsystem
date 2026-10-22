@@ -33,8 +33,12 @@ export default function AuthScreen() {
 
     setLoading(true);
     try {
-      if (auth?.config) auth.config.apiKey = 'AIzaSyAcEE-UveuoG4Fgy48AE20q1a38aQmkqDY';
-      if (auth?.app?.options) auth.app.options.apiKey = 'AIzaSyAcEE-UveuoG4Fgy48AE20q1a38aQmkqDY';
+      // Use env config only — never hardcode API keys in source.
+      const envApiKey = process.env.EXPO_PUBLIC_FIREBASE_API_KEY;
+      if (envApiKey) {
+        if (auth?.config) auth.config.apiKey = envApiKey;
+        if (auth?.app?.options) auth.app.options.apiKey = envApiKey;
+      }
       await signInWithEmailAndPassword(auth, email, password);
     } catch (e: any) {
       // Generic message only — never reveal whether the email exists (user enumeration).

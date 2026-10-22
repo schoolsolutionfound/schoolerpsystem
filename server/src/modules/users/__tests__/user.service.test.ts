@@ -1,11 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('../../shared/db/index.js', () => ({
+  db: null,
+  dbFindUserById: vi.fn(),
   dbFindStudentByUsnInInstitution: vi.fn(),
 }));
 
 import { UserService } from '../user.service.js';
 import { dbFindStudentByUsnInInstitution } from '../../shared/db/index.js';
+import { getParentLinks, __resetParentLinksForTests } from '../parent-links.js';
 
 const findStudent = vi.mocked(dbFindStudentByUsnInInstitution);
 
@@ -42,6 +45,7 @@ function makeAuth(overrides: Record<string, any> = {}) {
 
 beforeEach(() => {
   findStudent.mockReset();
+  __resetParentLinksForTests();
 });
 
 describe('completeProfile — parent link validation (H2)', () => {
@@ -95,8 +99,11 @@ describe('completeProfile — parent link validation (H2)', () => {
 
     expect(result.message).toBe('Profile completed successfully');
     const scope = JSON.parse(upsertUser.mock.calls[0][0].scope);
-    expect(scope.linkedStudentUSN).toBe('GIS2026001');
+    expect(scope.linkedStudentUSN).toBeUndefined();
     expect(scope.relation).toBe('Mother');
+    const links = await getParentLinks('u1');
+    expect(links).toHaveLength(1);
+    expect(links[0]).toMatchObject({ studentId: 's1', relationship: 'Mother', isPrimary: true });
   });
 
   it('blocks re-linking to a different student once linked', async () => {
@@ -112,7 +119,7 @@ describe('completeProfile — parent link validation (H2)', () => {
     expect(upsertUser).not.toHaveBeenCalled();
   });
 
-  it('allows idempotent re-submit of the same USN (case-insensitive), preserving original casing', async () => {
+  it('allows idempotent re-submit of the same USN (case-insensitive) and keeps the link in parent_links', async () => {
     findStudent.mockResolvedValue({ id: 's1', role: 'student', rollNoOrUSN: 'GIS2026001' } as any);
     const { repo, upsertUser } = makeRepo(
       makeUser({ scope: JSON.stringify({ linkedStudentUSN: 'GIS2026001' }) })
@@ -122,16 +129,19 @@ describe('completeProfile — parent link validation (H2)', () => {
     await svc.completeProfile(makeAuth(), { linkedStudentUSN: 'gis2026001' });
 
     const scope = JSON.parse(upsertUser.mock.calls[0][0].scope);
-    expect(scope.linkedStudentUSN).toBe('GIS2026001');
+    expect(scope.linkedStudentUSN).toBeUndefined();
+    const links = await getParentLinks('u1');
+    expect(links).toHaveLength(1);
+    expect(links[0].studentId).toBe('s1');
   });
 
-  it('still enforces parentPhone for students', async () => {
-    const { repo } = makeRepo(makeUser({ role: 'student' }));
+  it('no longer hard-requires guardian fields for students (now settings-driven)', async () => {
+    const { repo, upsertUser } = makeRepo(makeUser({ role: 'student' }));
     const svc = new UserService(repo);
 
-    await expect(
-      svc.completeProfile(makeAuth({ role: 'student' }), {})
-    ).rejects.toMatchObject({ statusCode: 400, code: 'MISSING_FIELD' });
+    const result = await svc.completeProfile(makeAuth({ role: 'student' }), {});
+    expect(result.message).toBe('Profile completed successfully');
+    expect(upsertUser.mock.calls[0][0].profileCompleted).toBe(true);
   });
 
   it('rejects parent link when user has no institution', async () => {
@@ -142,5 +152,47 @@ describe('completeProfile — parent link validation (H2)', () => {
       svc.completeProfile(makeAuth({ institutionCode: '' }), { linkedStudentUSN: 'GIS2026001' })
     ).rejects.toMatchObject({ statusCode: 403, code: 'NO_INSTITUTION' });
     expect(findStudent).not.toHaveBeenCalled();
+  });
+});
+
+describe('completeProfile — phone handling', () => {
+  it('allows admins to complete without a phone (phone is a creation-time basic)', async () => {
+    const { repo, upsertUser } = makeRepo(makeUser({ role: 'admin', email: 'admin@test.com' }));
+    const svc = new UserService(repo);
+
+    const result = await svc.completeProfile(makeAuth({ role: 'admin', email: 'admin@test.com' }), {});
+    expect(result.message).toBe('Profile completed successfully');
+    expect(upsertUser.mock.calls[0][0].profileCompleted).toBe(true);
+  });
+
+  it('rejects a malformed phone number for admins', async () => {
+    const { repo } = makeRepo(makeUser({ role: 'admin' }));
+    const svc = new UserService(repo);
+
+    await expect(
+      svc.completeProfile(makeAuth({ role: 'admin' }), { phone: 'abc' })
+    ).rejects.toMatchObject({ statusCode: 400, code: 'INVALID_PHONE' });
+  });
+
+  it('rejects a malformed phone from non-admin roles as well', async () => {
+    const { repo } = makeRepo(makeUser({ role: 'teacher' }));
+    const svc = new UserService(repo);
+
+    await expect(
+      svc.completeProfile(makeAuth({ role: 'teacher' }), { phone: '12' })
+    ).rejects.toMatchObject({ statusCode: 400, code: 'INVALID_PHONE' });
+  });
+
+  it('accepts a valid phone for admins and marks the profile complete', async () => {
+    const { repo, upsertUser } = makeRepo(makeUser({ role: 'admin' }));
+    const svc = new UserService(repo);
+
+    const result = await svc.completeProfile(makeAuth({ role: 'admin' }), {
+      phone: '+91 98765 43210',
+    });
+
+    expect(result.message).toBe('Profile completed successfully');
+    expect(upsertUser.mock.calls[0][0].profileCompleted).toBe(true);
+    expect(upsertUser.mock.calls[0][0].phone).toBe('+91 98765 43210');
   });
 });

@@ -12,7 +12,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Platform, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { BorderRadius } from '../../../constants/theme';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { formatINR } from '../utils/financeUtils';
 
@@ -71,13 +70,13 @@ export const FinanceSummaryCards: React.FC<FinanceSummaryCardsProps> = ({ onSele
 
       {/* Net Financial Tally Card */}
       <TouchableOpacity
-        style={[styles.card, { borderLeftColor: '#7E57C2' }]}
+        style={[styles.card, { borderLeftColor: '#F4C430' }]}
         activeOpacity={0.8}
         onPress={() => onSelectTab?.('tally')}
       >
         <View style={styles.cardHeader}>
-          <View style={[styles.iconContainer, { backgroundColor: '#F3E8FF' }]}>
-            <MaterialCommunityIcons name="scale-balance" size={20} color="#7E57C2" />
+          <View style={[styles.iconContainer, { backgroundColor: '#FFF4C7' }]}>
+            <MaterialCommunityIcons name="scale-balance" size={20} color="#171717" />
           </View>
           <Text style={styles.cardTag}>Net Tally</Text>
         </View>
@@ -120,11 +119,11 @@ const styles = StyleSheet.create({
   card: {
     width: Platform.OS === 'web' ? '23.5%' : '48%',
     backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.card,
+    borderRadius: 5,
     padding: 12,
     borderLeftWidth: 4,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -141,26 +140,26 @@ const styles = StyleSheet.create({
   iconContainer: {
     width: 32,
     height: 32,
-    borderRadius: 8,
+    borderRadius: 5,
     justifyContent: 'center',
     alignItems: 'center',
   },
   cardTag: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#718096',
+    color: '#6B6B6B',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   cardValue: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#1A202C',
+    color: '#171717',
     marginVertical: 2,
   },
   cardSubtitle: {
     fontSize: 11,
-    color: '#718096',
+    color: '#6B6B6B',
     marginTop: 1,
   },
 });

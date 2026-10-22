@@ -137,7 +137,7 @@ export const MemberFormModal = ({
                 value={phone}
                 onChangeText={setPhone}
                 keyboardType="phone-pad"
-                placeholder="e.g. +1 555-0192"
+                placeholder="e.g. +91 98765 43210"
               />
             </View>
 

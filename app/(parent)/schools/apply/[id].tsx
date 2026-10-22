@@ -87,7 +87,7 @@ export default function AdmissionFormScreen() {
         </View>
         
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Child's Full Name *</Text>
+          <Text style={styles.label}>Child&apos;s Full Name *</Text>
           <TextInput
             style={styles.input}
             value={formData.childFullName}

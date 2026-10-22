@@ -1,6 +1,7 @@
 import { db } from '../shared/db/index.js';
 import * as schema from '../shared/db/schema.js';
 import { eq, and, or, desc, sql, inArray, count, gte, lte, isNull, isNotNull } from 'drizzle-orm';
+import { getFamilyChildPairs } from '../users/parent-links.js';
 import {
   NotificationRecord,
   NewNotificationRecord,
@@ -540,7 +541,7 @@ export async function getUserIdsByParentChildren(institutionCode: string, parent
   const d = requireDb();
   const unique = Array.from(new Set(parentIds.filter(Boolean)));
   const rows = await d
-    .select({ scope: schema.users.scope })
+    .select({ id: schema.users.id })
     .from(schema.users)
     .where(
       and(
@@ -548,28 +549,12 @@ export async function getUserIdsByParentChildren(institutionCode: string, parent
         or(inArray(schema.users.id, unique), inArray(schema.users.firebaseUid, unique))
       )
     );
+  if (rows.length === 0) return [];
 
-  const linkedUsns: string[] = [];
-  for (const row of rows) {
-    try {
-      const scope = typeof row.scope === 'string' ? JSON.parse(row.scope) : row.scope;
-      if (scope?.linkedStudentUSN) linkedUsns.push(scope.linkedStudentUSN);
-    } catch {
-      // skip malformed scope
-    }
-  }
-  if (linkedUsns.length === 0) return [];
-
-  const studentRows = await d
-    .select({ firebaseUid: schema.users.firebaseUid })
-    .from(schema.users)
-    .where(
-      and(
-        eq(schema.users.institutionCode, institutionCode),
-        inArray(schema.users.rollNoOrUSN, linkedUsns)
-      )
-    );
-  return studentRows.map((r) => r.firebaseUid);
+  const pairs = await getFamilyChildPairs(institutionCode, rows.map((r) => r.id));
+  const studentIds = Array.from(new Set(pairs.map((p) => p.studentId)));
+  if (studentIds.length === 0) return [];
+  return toFirebaseUids(institutionCode, studentIds);
 }
 
 /**
@@ -597,31 +582,31 @@ export async function getFamilyRecipientMap(
     );
   if (students.length === 0) return result;
 
-  const usns = Array.from(new Set(students.map((s) => s.usn).filter((u): u is string => Boolean(u))));
-  const parentsByUsn = new Map<string, string[]>();
-  if (usns.length > 0) {
-    const parents = await d
-      .select({ firebaseUid: schema.users.firebaseUid, scope: schema.users.scope })
-      .from(schema.users)
-      .where(and(eq(schema.users.institutionCode, institutionCode), eq(schema.users.role, 'parent')));
+  // parents → children pairs from parent_links (legacy scope fallback inside),
+  // then invert to student → parent uids.
+  const parents = await d
+    .select({ id: schema.users.id, firebaseUid: schema.users.firebaseUid })
+    .from(schema.users)
+    .where(and(eq(schema.users.institutionCode, institutionCode), eq(schema.users.role, 'parent')));
 
-    for (const parent of parents) {
-      try {
-        const scope = typeof parent.scope === 'string' ? JSON.parse(parent.scope) : parent.scope;
-        const usn = scope?.linkedStudentUSN;
-        if (usn && usns.includes(usn)) {
-          const list = parentsByUsn.get(usn) || [];
-          list.push(parent.firebaseUid);
-          parentsByUsn.set(usn, list);
-        }
-      } catch {
-        // skip malformed scope
-      }
+  const uidByParentId = new Map(parents.map((p) => [p.id, p.firebaseUid]));
+  const parentsByStudent = new Map<string, string[]>();
+  if (parents.length > 0) {
+    const pairs = await getFamilyChildPairs(
+      institutionCode,
+      parents.map((p) => p.id)
+    );
+    for (const pair of pairs) {
+      const uid = uidByParentId.get(pair.parentId);
+      if (!uid) continue;
+      const list = parentsByStudent.get(pair.studentId) || [];
+      list.push(uid);
+      parentsByStudent.set(pair.studentId, list);
     }
   }
 
   for (const student of students) {
-    const recipients = [student.firebaseUid, ...(student.usn ? parentsByUsn.get(student.usn) || [] : [])];
+    const recipients = [student.firebaseUid, ...(parentsByStudent.get(student.id) || [])];
     const deduped = Array.from(new Set(recipients));
     result.set(student.id, deduped);
     result.set(student.firebaseUid, deduped);
