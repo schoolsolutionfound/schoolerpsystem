@@ -4,6 +4,12 @@ import * as Location from 'expo-location';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { updateDriverLocationApi } from '../../../api/transport';
 import { USE_REAL_DRIVER_GPS } from '../../../constants/featureFlags';
+import {
+  startDriverBackgroundLocation,
+  stopDriverBackgroundLocation,
+  subscribeToLocationFixes,
+  LocationFix,
+} from '../services/driverLocationTask';
 
 export type GpsBroadcastStatus =
   | 'idle'
@@ -13,14 +19,7 @@ export type GpsBroadcastStatus =
   | 'permission_needed'
   | 'error';
 
-export interface LocationFix {
-  latitude: number;
-  longitude: number;
-  speed: number | null; // km/h
-  heading: number | null; // 0-360 degrees
-  accuracy: number | null; // meters
-  timestamp: number;
-}
+export { LocationFix };
 
 export interface UseDriverLocationBroadcastReturn {
   status: GpsBroadcastStatus;
@@ -28,6 +27,7 @@ export interface UseDriverLocationBroadcastReturn {
   lastSentAt: number | null;
   error: string | null;
   permissionGranted: boolean;
+  isBackgroundEnabled: boolean;
   retry: () => void;
   openSettings: () => void;
 }
@@ -45,8 +45,10 @@ export function useDriverLocationBroadcast(
   const [lastSentAt, setLastSentAt] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [permissionGranted, setPermissionGranted] = useState<boolean>(false);
+  const [isBackgroundEnabled, setIsBackgroundEnabled] = useState<boolean>(false);
 
-  const subscriptionRef = useRef<Location.LocationSubscription | null>(null);
+  const foregroundSubRef = useRef<Location.LocationSubscription | null>(null);
+  const backgroundUnsubRef = useRef<(() => void) | null>(null);
   const isPostingRef = useRef<boolean>(false);
   const pendingFixRef = useRef<LocationFix | null>(null);
   const consecutiveFailuresRef = useRef<number>(0);
@@ -104,10 +106,11 @@ export function useDriverLocationBroadcast(
           tripTerminatedRef.current = true;
           setStatus('error');
           setError('Trip is no longer active on the server.');
-          if (subscriptionRef.current) {
-            subscriptionRef.current.remove();
-            subscriptionRef.current = null;
+          if (foregroundSubRef.current) {
+            foregroundSubRef.current.remove();
+            foregroundSubRef.current = null;
           }
+          stopDriverBackgroundLocation().catch(() => {});
           return;
         }
 
@@ -144,24 +147,52 @@ export function useDriverLocationBroadcast(
     setError(null);
 
     try {
-      const { status: perm } = await Location.requestForegroundPermissionsAsync();
-      if (perm !== 'granted') {
+      // 1. Request foreground location permission
+      const { status: fgStatus } = await Location.requestForegroundPermissionsAsync();
+      if (fgStatus !== 'granted') {
         setPermissionGranted(false);
         setStatus('permission_needed');
-        setError('Location permission is needed to share the bus position.');
+        setError('Location permission is needed to broadcast the bus position.');
         return;
       }
 
       setPermissionGranted(true);
-
-      // Keep screen awake while tracking
       activateKeepAwakeAsync(KEEP_AWAKE_TAG).catch(() => {});
 
-      if (subscriptionRef.current) {
-        subscriptionRef.current.remove();
+      // 2. Attempt background permission & background TaskManager updates
+      let bgStarted = false;
+      if (Platform.OS !== 'web') {
+        try {
+          const { status: bgStatus } = await Location.requestBackgroundPermissionsAsync();
+          if (bgStatus === 'granted') {
+            bgStarted = await startDriverBackgroundLocation(tripId);
+          }
+        } catch (bgErr) {
+          console.warn('[useDriverLocationBroadcast] Background permission check skipped:', bgErr);
+        }
       }
 
-      subscriptionRef.current = await Location.watchPositionAsync(
+      if (bgStarted) {
+        setIsBackgroundEnabled(true);
+        setStatus('sharing');
+
+        // Subscribe to background task fixes to update local UI
+        if (backgroundUnsubRef.current) backgroundUnsubRef.current();
+        backgroundUnsubRef.current = subscribeToLocationFixes((fix) => {
+          setLastFix(fix);
+          setLastSentAt(Date.now());
+          setStatus('sharing');
+        });
+        return;
+      }
+
+      // 3. Graceful fallback to foreground watch if background is unsupported/denied
+      setIsBackgroundEnabled(false);
+      if (foregroundSubRef.current) {
+        foregroundSubRef.current.remove();
+      }
+
+      foregroundSubRef.current = await Location.watchPositionAsync(
         {
           accuracy: Location.Accuracy.Balanced,
           timeInterval: 5000,
@@ -170,7 +201,6 @@ export function useDriverLocationBroadcast(
         (loc) => {
           if (tripTerminatedRef.current) return;
 
-          // Convert m/s to km/h, treat negative speed/heading as null
           const rawSpeed = loc.coords.speed;
           const speedKmh =
             rawSpeed !== null && rawSpeed !== undefined && rawSpeed >= 0
@@ -207,18 +237,29 @@ export function useDriverLocationBroadcast(
       startTracking();
     } else {
       setStatus('idle');
-      if (subscriptionRef.current) {
-        subscriptionRef.current.remove();
-        subscriptionRef.current = null;
+      setIsBackgroundEnabled(false);
+      if (foregroundSubRef.current) {
+        foregroundSubRef.current.remove();
+        foregroundSubRef.current = null;
       }
+      if (backgroundUnsubRef.current) {
+        backgroundUnsubRef.current();
+        backgroundUnsubRef.current = null;
+      }
+      stopDriverBackgroundLocation().catch(() => {});
       deactivateKeepAwake(KEEP_AWAKE_TAG).catch(() => {});
     }
 
     return () => {
-      if (subscriptionRef.current) {
-        subscriptionRef.current.remove();
-        subscriptionRef.current = null;
+      if (foregroundSubRef.current) {
+        foregroundSubRef.current.remove();
+        foregroundSubRef.current = null;
       }
+      if (backgroundUnsubRef.current) {
+        backgroundUnsubRef.current();
+        backgroundUnsubRef.current = null;
+      }
+      stopDriverBackgroundLocation().catch(() => {});
       deactivateKeepAwake(KEEP_AWAKE_TAG).catch(() => {});
     };
   }, [isLive, tripId, startTracking]);
@@ -233,6 +274,7 @@ export function useDriverLocationBroadcast(
     lastSentAt,
     error,
     permissionGranted,
+    isBackgroundEnabled,
     retry,
     openSettings,
   };

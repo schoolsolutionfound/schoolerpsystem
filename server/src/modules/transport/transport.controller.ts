@@ -104,3 +104,56 @@ export async function getMyBusHandler(request: FastifyRequest, reply: FastifyRep
     return sendError(reply, err, 'Failed to fetch bus tracking status');
   }
 }
+
+export async function streamBusLocationHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const institutionCode = getInstCode(request);
+    const userId = getUserId(request);
+    const role = getRole(request);
+
+    // Initial bus state snapshot
+    const initialData = await transportService.getMyBus(institutionCode, userId, role);
+    const routeId = initialData?.route?.id;
+
+    // Set Server-Sent Events headers
+    reply.raw.setHeader('Content-Type', 'text/event-stream');
+    reply.raw.setHeader('Cache-Control', 'no-cache');
+    reply.raw.setHeader('Connection', 'keep-alive');
+    reply.raw.setHeader('Access-Control-Allow-Origin', '*');
+    reply.raw.flushHeaders?.();
+
+    // Send initial snapshot immediately
+    reply.raw.write(`data: ${JSON.stringify({ type: 'INITIAL', data: initialData })}\n\n`);
+
+    if (!routeId) {
+      reply.raw.end();
+      return;
+    }
+
+    const { routePubSub } = await import('./transport.service.js');
+    const unsubscribe = routePubSub.subscribe(routeId, (payload) => {
+      try {
+        reply.raw.write(`data: ${JSON.stringify(payload)}\n\n`);
+      } catch {
+        unsubscribe();
+      }
+    });
+
+    // 20s heartbeat keep-alive to keep NAT / proxy routers from dropping connection
+    const heartbeat = setInterval(() => {
+      try {
+        reply.raw.write(': heartbeat\n\n');
+      } catch {
+        clearInterval(heartbeat);
+      }
+    }, 20000);
+
+    request.raw.on('close', () => {
+      clearInterval(heartbeat);
+      unsubscribe();
+    });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to establish live location stream');
+  }
+}
+

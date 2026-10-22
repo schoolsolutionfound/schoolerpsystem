@@ -93,6 +93,7 @@ export const ParentTrackView: React.FC = () => {
           <View style={{ marginBottom: 16 }}>
             <BusMap
               stops={busData?.stops || []}
+              roadPath={busData?.roadPath}
               busLocation={busData?.location}
               studentStopId={busData?.stop?.id}
               isLive={busActive}

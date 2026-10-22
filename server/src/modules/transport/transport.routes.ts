@@ -6,6 +6,7 @@ import {
   updateLocationHandler,
   endTripHandler,
   getMyBusHandler,
+  streamBusLocationHandler,
 } from './transport.controller.js';
 
 export async function transportRoutes(fastify: FastifyInstance) {
@@ -17,4 +18,6 @@ export async function transportRoutes(fastify: FastifyInstance) {
 
   // Student and Parent routes
   fastify.get('/my-bus', { preHandler: [requireRole('student', 'parent')] }, getMyBusHandler);
+  fastify.get('/stream', { preHandler: [requireRole('student', 'parent')] }, streamBusLocationHandler);
 }
+

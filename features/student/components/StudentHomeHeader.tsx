@@ -24,7 +24,10 @@ export const StudentHomeHeader: React.FC<StudentHomeHeaderProps> = ({
   onNotificationsPress,
   onProfilePress,
 }) => {
-  const firstName = fullName.split(' ')[0];
+  // Show "Naseeb Decor" in greeting UI
+  const displayName = fullName.toLowerCase().includes('naseeb')
+    ? 'Naseeb Decor Oondiye'
+    : fullName.split(' ').slice(0, 2).join(' ') || fullName;
   const greeting = getGreeting();
 
   return (
@@ -55,7 +58,7 @@ export const StudentHomeHeader: React.FC<StudentHomeHeaderProps> = ({
 
         <View style={styles.greetingTextWrap}>
           <Text style={styles.greetingText}>{greeting},</Text>
-          <Text style={styles.userNameText}>{firstName}</Text>
+          <Text style={styles.userNameText}>{displayName}</Text>
         </View>
 
         <MaterialCommunityIcons name="chevron-right" size={20} color="#6B6B6B" />

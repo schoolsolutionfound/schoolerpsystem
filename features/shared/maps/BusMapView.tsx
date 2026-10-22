@@ -7,6 +7,7 @@ import { BusMapPlaceholder } from './BusMapPlaceholder';
 
 export const BusMapView: React.FC<BusMapProps> = ({
   stops,
+  roadPath,
   busLocation,
   studentStopId,
   isLive,
@@ -26,13 +27,19 @@ export const BusMapView: React.FC<BusMapProps> = ({
     return [...stops].sort((a, b) => a.sequence - b.sequence);
   }, [stops]);
 
-  // Coordinates array for polyline
+  // Coordinates array for polyline (Gap 3: True road curves)
   const polylineCoordinates = useMemo(() => {
+    if (roadPath && roadPath.length > 1) {
+      return roadPath.map((p) => ({
+        latitude: Number(p.latitude),
+        longitude: Number(p.longitude),
+      }));
+    }
     return sortedStops.map((s) => ({
       latitude: Number(s.latitude),
       longitude: Number(s.longitude),
     }));
-  }, [sortedStops]);
+  }, [sortedStops, roadPath]);
 
   // Initial region or fit on mount / stops change
   const fitMapToStops = () => {

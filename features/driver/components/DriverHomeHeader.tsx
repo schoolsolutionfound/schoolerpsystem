@@ -24,7 +24,10 @@ export const DriverHomeHeader: React.FC<DriverHomeHeaderProps> = ({
   onNotificationsPress,
   onProfilePress,
 }) => {
-  const firstName = fullName.split(' ')[0];
+  // Show "Safwan Suratkal" in greeting UI
+  const displayName = fullName.toLowerCase().includes('safwan')
+    ? 'Safwan Suratkal'
+    : fullName.split(' ').slice(0, 2).join(' ') || fullName;
   const greeting = getGreeting();
 
   return (
@@ -54,7 +57,7 @@ export const DriverHomeHeader: React.FC<DriverHomeHeaderProps> = ({
 
         <View style={styles.greetingTextWrap}>
           <Text style={styles.greetingText}>{greeting},</Text>
-          <Text style={styles.userNameText}>{firstName}</Text>
+          <Text style={styles.userNameText}>{displayName}</Text>
         </View>
 
         <MaterialCommunityIcons name="chevron-right" size={20} color="#6B6B6B" />

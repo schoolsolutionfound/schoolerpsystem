@@ -107,7 +107,7 @@ export const StudentDrawer: React.FC<StudentDrawerProps> = ({
     if (route.includes('(driver)')) {
       useUserStore.getState().setUserProfile({
         userRole: 'driver',
-        fullName: 'safwan suratkal',
+        fullName: 'safwan suratkal Dent',
         email: 'driver@schoolerp.dev',
         rollNoOrUSN: '',
       });

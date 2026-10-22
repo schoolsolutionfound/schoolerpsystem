@@ -1,4 +1,4 @@
-import { apiClient } from './client';
+import { apiClient, getApiBaseUrl } from './client';
 
 export interface BusStop {
   id: string;
@@ -48,6 +48,7 @@ export interface MyBusData {
   route: BusRoute | null;
   stop: BusStop | null;
   stops: BusStop[];
+  roadPath?: { latitude: number; longitude: number }[];
   currentStop: { id: string; name: string; sequence: number } | null;
   stopsRemaining: number | null;
   vehicle: BusVehicle | null;
@@ -110,4 +111,96 @@ export async function getMyBusApi(tokenOverride?: string): Promise<MyBusData> {
   return apiClient<MyBusData>('/transport/my-bus', {
     headers: { Authorization: tokenOverride ? `Bearer ${tokenOverride}` : STUDENT_TOKEN },
   });
+}
+
+export type BusTelemetryEvent =
+  | { type: 'INITIAL'; data: MyBusData }
+  | {
+      type: 'LOCATION_UPDATE';
+      tripId: string;
+      location: BusLocation;
+      currentStop: { id: string; name: string; sequence: number } | null;
+    }
+  | { type: 'TRIP_STARTED'; trip: LiveTrip }
+  | { type: 'TRIP_ENDED'; tripId: string; status: string };
+
+/**
+ * Subscribes to live Server-Sent Events (SSE) bus telemetry stream.
+ * Pushes updates with zero-latency when the driver broadcasts a GPS fix.
+ */
+export function subscribeToBusStream(
+  onMessage: (payload: BusTelemetryEvent) => void,
+  onError?: (err: any) => void
+): () => void {
+  let isClosed = false;
+  let xhr: XMLHttpRequest | null = null;
+  let reconnectTimeout: any = null;
+
+  function connect() {
+    if (isClosed) return;
+    try {
+      const baseUrl = getApiBaseUrl();
+      const url = `${baseUrl}/transport/stream`;
+      xhr = new XMLHttpRequest();
+      xhr.open('GET', url, true);
+      xhr.setRequestHeader('Authorization', STUDENT_TOKEN);
+      xhr.setRequestHeader('Accept', 'text/event-stream');
+
+      let lastIndex = 0;
+      xhr.onprogress = () => {
+        if (isClosed) return;
+        const responseText = xhr?.responseText || '';
+        const newChunk = responseText.substring(lastIndex);
+        lastIndex = responseText.length;
+
+        const lines = newChunk.split('\n');
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const jsonStr = line.slice(6).trim();
+            if (jsonStr) {
+              try {
+                const parsed = JSON.parse(jsonStr);
+                onMessage(parsed);
+              } catch {
+                // Ignore malformed chunk
+              }
+            }
+          }
+        }
+      };
+
+      xhr.onerror = () => {
+        if (!isClosed) {
+          onError?.(new Error('SSE stream disconnected'));
+          reconnectTimeout = setTimeout(connect, 4000);
+        }
+      };
+
+      xhr.onloadend = () => {
+        if (!isClosed) {
+          reconnectTimeout = setTimeout(connect, 3000);
+        }
+      };
+
+      xhr.send();
+    } catch (err) {
+      if (!isClosed) {
+        onError?.(err);
+        reconnectTimeout = setTimeout(connect, 4000);
+      }
+    }
+  }
+
+  connect();
+
+  return () => {
+    isClosed = true;
+    if (reconnectTimeout) clearTimeout(reconnectTimeout);
+    if (xhr) {
+      try {
+        xhr.abort();
+      } catch {}
+      xhr = null;
+    }
+  };
 }

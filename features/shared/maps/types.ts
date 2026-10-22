@@ -15,9 +15,11 @@ export interface MapBusLocation {
 
 export interface BusMapProps {
   stops: MapStop[];
+  roadPath?: { latitude: number; longitude: number }[];
   busLocation?: MapBusLocation | null;
   studentStopId?: string | null;
   isLive: boolean;
   showUserLocation?: boolean;
   height?: number;
 }
+

@@ -138,7 +138,7 @@ const AppLayout = function Layout() {
       const currentRole = useUserStore.getState().userRole;
       if (currentRole === 'student') {
         setUserProfile({
-          fullName: 'Naseeb Decor',
+          fullName: 'naseeb decor oondiye',
           email: 'alex.student@schoolerp.dev',
           phone: '+91 9876543210',
           userRole: 'student',
@@ -156,11 +156,11 @@ const AppLayout = function Layout() {
         setUserSession({
           uid: 'student_dev_bypass',
           email: 'alex.student@schoolerp.dev',
-          displayName: 'Naseeb Decor',
+          displayName: 'naseeb decor oondiye',
         } as any);
       } else {
         setUserProfile({
-          fullName: 'safwan suratkal',
+          fullName: 'safwan suratkal Dent',
           email: 'driver@schoolerp.dev',
           phone: '+91 9876543210',
           userRole: 'driver',
@@ -177,7 +177,7 @@ const AppLayout = function Layout() {
         setUserSession({
           uid: 'driver_dev_bypass',
           email: 'driver@schoolerp.dev',
-          displayName: 'safwan suratkal',
+          displayName: 'safwan suratkal Dent',
         } as any);
       }
       setAuthLoading(false);

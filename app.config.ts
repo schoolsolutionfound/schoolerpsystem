@@ -19,6 +19,8 @@ export default {
         "NSCameraUsageDescription": "Allow School ERP to use your camera for profile photos and document scanning.",
         "NSPhotoLibraryUsageDescription": "Allow School ERP to access your photos to upload documents.",
         "NSLocationWhenInUseUsageDescription": "Allow School ERP to access your location to show proximity to the school bus and route stops.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Allow School ERP to access your location in the background to continuously broadcast bus position during active trips.",
+        "UIBackgroundModes": ["location"],
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -32,7 +34,10 @@ export default {
       "edgeToEdgeEnabled": true,
       "permissions": [
         "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION"
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION"
       ],
       ...(process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
         ? {

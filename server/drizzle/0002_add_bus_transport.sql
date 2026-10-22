@@ -9,8 +9,6 @@ CREATE TABLE IF NOT EXISTS "bus_vehicles" (
 	CONSTRAINT "uq_bus_vehicles_inst_reg" UNIQUE("institution_code", "registration_no")
 );
 
-CREATE INDEX IF NOT EXISTS "idx_bus_vehicles_inst" ON "bus_vehicles" ("institution_code");
-
 CREATE TABLE IF NOT EXISTS "bus_routes" (
 	"id" text PRIMARY KEY NOT NULL,
 	"institution_code" varchar(100) NOT NULL,
@@ -21,9 +19,7 @@ CREATE TABLE IF NOT EXISTS "bus_routes" (
 	"updated_at" timestamp DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS "idx_bus_routes_inst" ON "bus_routes" ("institution_code");
 CREATE INDEX IF NOT EXISTS "idx_bus_routes_driver" ON "bus_routes" ("driver_id");
-CREATE INDEX IF NOT EXISTS "idx_bus_routes_vehicle" ON "bus_routes" ("vehicle_id");
 
 CREATE TABLE IF NOT EXISTS "bus_stops" (
 	"id" text PRIMARY KEY NOT NULL,
@@ -36,8 +32,7 @@ CREATE TABLE IF NOT EXISTS "bus_stops" (
 	"created_at" timestamp DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS "idx_bus_stops_inst" ON "bus_stops" ("institution_code");
-CREATE INDEX IF NOT EXISTS "idx_bus_stops_route" ON "bus_stops" ("route_id");
+CREATE INDEX IF NOT EXISTS "idx_bus_stops_route_seq" ON "bus_stops" ("route_id", "sequence");
 
 CREATE TABLE IF NOT EXISTS "student_transport" (
 	"id" text PRIMARY KEY NOT NULL,
@@ -51,8 +46,6 @@ CREATE TABLE IF NOT EXISTS "student_transport" (
 	CONSTRAINT "uq_student_transport_student_route" UNIQUE("student_id", "route_id")
 );
 
-CREATE INDEX IF NOT EXISTS "idx_student_transport_inst" ON "student_transport" ("institution_code");
-CREATE INDEX IF NOT EXISTS "idx_student_transport_student" ON "student_transport" ("student_id");
 CREATE INDEX IF NOT EXISTS "idx_student_transport_route" ON "student_transport" ("route_id");
 
 CREATE TABLE IF NOT EXISTS "bus_trips" (
@@ -66,10 +59,8 @@ CREATE TABLE IF NOT EXISTS "bus_trips" (
 	"ended_at" timestamp
 );
 
-CREATE INDEX IF NOT EXISTS "idx_bus_trips_inst" ON "bus_trips" ("institution_code");
-CREATE INDEX IF NOT EXISTS "idx_bus_trips_route" ON "bus_trips" ("route_id");
-CREATE INDEX IF NOT EXISTS "idx_bus_trips_driver" ON "bus_trips" ("driver_id");
-CREATE INDEX IF NOT EXISTS "idx_bus_trips_status" ON "bus_trips" ("status");
+CREATE UNIQUE INDEX IF NOT EXISTS "uq_bus_trips_live_driver" ON "bus_trips" ("driver_id") WHERE "status" = 'live';
+CREATE INDEX IF NOT EXISTS "idx_bus_trips_live_route" ON "bus_trips" ("route_id") WHERE "status" = 'live';
 
 CREATE TABLE IF NOT EXISTS "bus_locations" (
 	"trip_id" text PRIMARY KEY NOT NULL,

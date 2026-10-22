@@ -1,4 +1,5 @@
 import { pgTable, text, timestamp, boolean, varchar, jsonb, integer, numeric, date, index, uniqueIndex } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 export const institutions = pgTable('institutions', {
   id: text('id')
@@ -406,7 +407,6 @@ export const busVehicles = pgTable('bus_vehicles', {
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 }, (table) => ({
-  instCodeIdx: index('idx_bus_vehicles_inst').on(table.institutionCode),
   instRegUnique: uniqueIndex('uq_bus_vehicles_inst_reg').on(table.institutionCode, table.registrationNo),
 }));
 
@@ -422,9 +422,7 @@ export const busRoutes = pgTable('bus_routes', {
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 }, (table) => ({
-  instCodeIdx: index('idx_bus_routes_inst').on(table.institutionCode),
   driverIdx: index('idx_bus_routes_driver').on(table.driverId),
-  vehicleIdx: index('idx_bus_routes_vehicle').on(table.vehicleId),
 }));
 
 export type BusRouteRecord = typeof busRoutes.$inferSelect;
@@ -440,8 +438,7 @@ export const busStops = pgTable('bus_stops', {
   sequence: integer('sequence').notNull().default(0),
   createdAt: timestamp('created_at').defaultNow(),
 }, (table) => ({
-  instCodeIdx: index('idx_bus_stops_inst').on(table.institutionCode),
-  routeIdx: index('idx_bus_stops_route').on(table.routeId),
+  routeSeqIdx: index('idx_bus_stops_route_seq').on(table.routeId, table.sequence),
 }));
 
 export type BusStopRecord = typeof busStops.$inferSelect;
@@ -457,8 +454,6 @@ export const studentTransport = pgTable('student_transport', {
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 }, (table) => ({
-  instCodeIdx: index('idx_student_transport_inst').on(table.institutionCode),
-  studentIdx: index('idx_student_transport_student').on(table.studentId),
   routeIdx: index('idx_student_transport_route').on(table.routeId),
   studentRouteUnique: uniqueIndex('uq_student_transport_student_route').on(table.studentId, table.routeId),
 }));
@@ -476,10 +471,12 @@ export const busTrips = pgTable('bus_trips', {
   startedAt: timestamp('started_at').defaultNow(),
   endedAt: timestamp('ended_at'),
 }, (table) => ({
-  instCodeIdx: index('idx_bus_trips_inst').on(table.institutionCode),
-  routeIdx: index('idx_bus_trips_route').on(table.routeId),
-  driverIdx: index('idx_bus_trips_driver').on(table.driverId),
-  statusIdx: index('idx_bus_trips_status').on(table.status),
+  liveDriverUnique: uniqueIndex('uq_bus_trips_live_driver')
+    .on(table.driverId)
+    .where(sql`status = 'live'`),
+  liveRouteIdx: index('idx_bus_trips_live_route')
+    .on(table.routeId)
+    .where(sql`status = 'live'`),
 }));
 
 export type BusTripRecord = typeof busTrips.$inferSelect;

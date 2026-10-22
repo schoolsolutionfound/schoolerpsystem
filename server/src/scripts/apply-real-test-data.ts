@@ -14,15 +14,9 @@ async function run() {
   try {
     console.log('Connected to PostgreSQL:', connectionString.replace(/:[^:@]+@/, ':****@'));
 
-    const deleteSqlPath = path.resolve(__dirname, '../../../test db/delete_test_data.sql');
     const realSqlPath = path.resolve(__dirname, '../../../test db/real_test_data.sql');
 
-    console.log('\n--- 1. Executing delete_test_data.sql ---');
-    const deleteSql = fs.readFileSync(deleteSqlPath, 'utf-8');
-    await client.query(deleteSql);
-    console.log('Successfully executed delete_test_data.sql');
-
-    console.log('\n--- 2. Executing real_test_data.sql ---');
+    console.log('\n--- Executing real_test_data.sql ---');
     const realSql = fs.readFileSync(realSqlPath, 'utf-8');
     await client.query(realSql);
     console.log('Successfully executed real_test_data.sql');

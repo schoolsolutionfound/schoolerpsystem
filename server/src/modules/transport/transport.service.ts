@@ -1,6 +1,72 @@
 import { transportRepository, ITransportRepository } from './transport.repository.js';
 import { UpdateLocationInput } from './transport.schema.js';
-import { findClosestStop, calculateStopsRemaining } from './transport.utils.js';
+import { findClosestStop, calculateStopsRemaining, fetchRoadGeometry } from './transport.utils.js';
+
+export interface LiveLocationTelemetry {
+  tripId: string;
+  latitude: number;
+  longitude: number;
+  speed: number | null;
+  heading: number | null;
+  updatedAt: string | Date | null;
+}
+
+export type RouteTelemetryPayload =
+  | {
+      type: 'TRIP_STARTED';
+      trip: {
+        id: string;
+        tripType: string;
+        status: string;
+        startedAt: string | Date | null;
+      };
+    }
+  | {
+      type: 'LOCATION_UPDATE';
+      tripId: string;
+      location: LiveLocationTelemetry;
+      currentStop: { id: string; name: string; sequence: number } | null;
+    }
+  | {
+      type: 'TRIP_ENDED';
+      tripId: string;
+      status: string;
+    };
+
+type RouteSubscriber = (data: RouteTelemetryPayload) => void;
+
+class RoutePubSub {
+  private channels = new Map<string, Set<RouteSubscriber>>();
+
+  subscribe(routeId: string, cb: RouteSubscriber): () => void {
+    if (!this.channels.has(routeId)) {
+      this.channels.set(routeId, new Set());
+    }
+    this.channels.get(routeId)!.add(cb);
+    return () => {
+      const set = this.channels.get(routeId);
+      if (set) {
+        set.delete(cb);
+        if (set.size === 0) this.channels.delete(routeId);
+      }
+    };
+  }
+
+  broadcast(routeId: string, data: RouteTelemetryPayload) {
+    const set = this.channels.get(routeId);
+    if (set) {
+      set.forEach((cb) => {
+        try {
+          cb(data);
+        } catch (err) {
+          console.warn('[RoutePubSub] Subscriber error:', err);
+        }
+      });
+    }
+  }
+}
+
+export const routePubSub = new RoutePubSub();
 
 export class TransportService {
   constructor(private repo: ITransportRepository = transportRepository) {}
@@ -56,7 +122,11 @@ export class TransportService {
     };
   }
 
-  public async startTrip(institutionCode: string, driverId: string, tripType: 'pickup' | 'dropoff') {
+  public async startTrip(
+    institutionCode: string,
+    driverId: string,
+    tripType: 'pickup' | 'dropoff' = 'pickup'
+  ) {
     const existingLive = await this.repo.getLiveTripByDriver(institutionCode, driverId);
     if (existingLive) {
       throw {
@@ -75,11 +145,33 @@ export class TransportService {
       };
     }
 
-    const trip = await this.repo.createTrip({
-      institutionCode,
-      routeId: route.id,
-      driverId,
-      tripType,
+    let trip;
+    try {
+      trip = await this.repo.createTrip({
+        institutionCode,
+        routeId: route.id,
+        driverId,
+        tripType,
+      });
+    } catch (err: any) {
+      if (err?.code === '23505' || err?.message?.includes('uq_bus_trips_live_driver')) {
+        throw {
+          statusCode: 400,
+          code: 'ACTIVE_TRIP_EXISTS',
+          message: 'Driver already has an active live trip. End it before starting a new one.',
+        };
+      }
+      throw err;
+    }
+
+    routePubSub.broadcast(route.id, {
+      type: 'TRIP_STARTED',
+      trip: {
+        id: trip.id,
+        tripType: trip.tripType,
+        status: trip.status,
+        startedAt: trip.startedAt,
+      },
     });
 
     return {
@@ -123,7 +215,7 @@ export class TransportService {
       heading: input.heading,
     });
 
-    return {
+    const locationData = {
       tripId: loc.tripId,
       latitude: Number(loc.latitude),
       longitude: Number(loc.longitude),
@@ -131,6 +223,27 @@ export class TransportService {
       heading: loc.heading !== null && loc.heading !== undefined ? Number(loc.heading) : null,
       updatedAt: loc.updatedAt,
     };
+
+    // Calculate geofence arrival detection
+    const routeStops = await this.repo.getStopsByRoute(institutionCode, trip.routeId);
+    const formattedStops = routeStops.map((s) => ({
+      id: s.id,
+      name: s.name,
+      latitude: Number(s.latitude),
+      longitude: Number(s.longitude),
+      sequence: s.sequence,
+    }));
+    const closest = findClosestStop({ latitude: locationData.latitude, longitude: locationData.longitude }, formattedStops);
+
+    // Push live update to SSE subscribers of this route
+    routePubSub.broadcast(trip.routeId, {
+      type: 'LOCATION_UPDATE',
+      tripId,
+      location: locationData,
+      currentStop: closest ? { id: closest.id, name: closest.name, sequence: closest.sequence } : null,
+    });
+
+    return locationData;
   }
 
   public async endTrip(institutionCode: string, driverId: string, tripId: string) {
@@ -156,6 +269,13 @@ export class TransportService {
     }
 
     const updated = await this.repo.endTrip(tripId);
+
+    routePubSub.broadcast(trip.routeId, {
+      type: 'TRIP_ENDED',
+      tripId,
+      status: 'completed',
+    });
+
     return {
       id: updated?.id || trip.id,
       status: updated?.status || 'completed',
@@ -226,6 +346,9 @@ export class TransportService {
       sequence: s.sequence,
     }));
 
+    // Fetch real road-following geometry via OSRM (Gap 3)
+    const roadPath = await fetchRoadGeometry(formattedStops);
+
     const vehicle = route?.vehicleId ? await this.repo.getVehicleById(route.vehicleId) : null;
     const liveTrip = await this.repo.getLiveTripByRoute(institutionCode, assignment.routeId);
 
@@ -243,6 +366,7 @@ export class TransportService {
             }
           : null,
         stops: formattedStops,
+        roadPath,
         currentStop: null,
         stopsRemaining: null,
         vehicle: vehicle
@@ -278,7 +402,7 @@ export class TransportService {
         };
 
         if (stop) {
-          stopsRemaining = calculateStopsRemaining(stop.sequence, closest.sequence);
+          stopsRemaining = calculateStopsRemaining(stop.sequence, closest.sequence, liveTrip.tripType);
         }
       }
     }
@@ -296,6 +420,7 @@ export class TransportService {
           }
         : null,
       stops: formattedStops,
+      roadPath,
       currentStop,
       stopsRemaining,
       vehicle: vehicle
