@@ -5,6 +5,35 @@ import { InstitutionDetailsView } from './InstitutionDetailsView';
 
 const PAGE_SIZE = 50;
 
+const TERM_YEAR = { school: '2026-2027', college: '2026-27' };
+
+function buildTermsPlan(count: string, academicYear: string | undefined, type: 'school' | 'college') {
+  const parsed = Math.floor(Number(count));
+  const total = Number.isFinite(parsed) ? Math.min(Math.max(parsed, 1), 12) : type === 'college' ? 2 : 3;
+  const prefix = type === 'college' ? 'Semester' : 'Term';
+  return [
+    {
+      academicYear: academicYear || TERM_YEAR[type],
+      terms: Array.from({ length: total }, (_, i) => `${prefix} ${i + 1}`),
+    },
+  ];
+}
+
+const STRUCTURE_DEFAULTS = {
+  school: {
+    units: ['English', 'Mathematics', 'Science'],
+    levels: ['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10'],
+    programs: [] as string[],
+    sections: ['A', 'B', 'C'],
+  },
+  college: {
+    units: ['CSE', 'ECE', 'Civil', 'Mechanical', 'AIML'],
+    levels: ['1st Year', '2nd Year', '3rd Year', '4th Year'],
+    programs: ['B.Tech', 'M.Tech'],
+    sections: ['A', 'B'],
+  },
+};
+
 export const InstitutionsView: React.FC = () => {
   const [institutions, setInstitutions] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
@@ -32,23 +61,23 @@ export const InstitutionsView: React.FC = () => {
   // Form State
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
-  const [type, setType] = useState<'school' | 'college'>('college');
+  const [type, setType] = useState<'school' | 'college'>('school');
   const [subscription, setSubscription] = useState('active');
-  const [deptsText, setDeptsText] = useState('CSE, ECE, Civil, Mechanical, AIML');
-  const [yearsText, setYearsText] = useState('1st Year, 2nd Year, 3rd Year, 4th Year');
-  const [coursesText, setCoursesText] = useState('B.Tech, M.Tech');
+  // School: deptsText = subjects, yearsText = classes. College: departments/years.
+  const [deptsText, setDeptsText] = useState(STRUCTURE_DEFAULTS.school.units.join(', '));
+  const [yearsText, setYearsText] = useState(STRUCTURE_DEFAULTS.school.levels.join(', '));
+  const [coursesText, setCoursesText] = useState('');
+  const [sectionsText, setSectionsText] = useState(STRUCTURE_DEFAULTS.school.sections.join(', '));
+  const [termsCount, setTermsCount] = useState('3');
 
   const handleTypeChange = (val: 'school' | 'college') => {
     setType(val);
-    if (val === 'school') {
-      setDeptsText('Class 1, Class 2, Class 3, Class 4, Class 5, Class 6, Class 7, Class 8, Class 9, Class 10');
-      setYearsText('A, B, C');
-      setCoursesText('');
-    } else {
-      setDeptsText('CSE, ECE, Civil, Mechanical, AIML');
-      setYearsText('1st Year, 2nd Year, 3rd Year, 4th Year');
-      setCoursesText('B.Tech, M.Tech');
-    }
+    const defaults = STRUCTURE_DEFAULTS[val] || STRUCTURE_DEFAULTS.school;
+    setDeptsText(defaults.units.join(', '));
+    setYearsText(defaults.levels.join(', '));
+    setCoursesText(defaults.programs.join(', '));
+    setSectionsText(defaults.sections.join(', '));
+    setTermsCount(String(val === 'college' ? 2 : 3));
   };
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -93,11 +122,13 @@ export const InstitutionsView: React.FC = () => {
     setEditingInst(null);
     setName('');
     setCode('');
-    setType('college');
+    setType('school');
     setSubscription('active');
-    setDeptsText('CSE, ECE, Civil, Mechanical, AIML');
-    setYearsText('1st Year, 2nd Year, 3rd Year, 4th Year');
-    setCoursesText('B.Tech, M.Tech');
+    setDeptsText(STRUCTURE_DEFAULTS.school.units.join(', '));
+    setYearsText(STRUCTURE_DEFAULTS.school.levels.join(', '));
+    setCoursesText('');
+    setSectionsText(STRUCTURE_DEFAULTS.school.sections.join(', '));
+    setTermsCount('3');
     setError('');
     setModalOpen(true);
   };
@@ -106,11 +137,16 @@ export const InstitutionsView: React.FC = () => {
     setEditingInst(inst);
     setName(inst.institutionName || '');
     setCode(inst.institutionCode || '');
-    setType(inst.institutionType || 'college');
+    setType(inst.institutionType || 'school');
     setSubscription(inst.subscriptionStatus || 'active');
     setDeptsText(Array.isArray(inst.departments) ? inst.departments.join(', ') : inst.departments || '');
-    setYearsText(Array.isArray(inst.academicYears) ? inst.academicYears.join(', ') : inst.academicYears || '');
+    const levels = inst.institutionType === 'college'
+      ? (Array.isArray(inst.yearsOfStudy) && inst.yearsOfStudy.length > 0 ? inst.yearsOfStudy : inst.academicYears)
+      : inst.academicYears;
+    setYearsText(Array.isArray(levels) ? levels.join(', ') : levels || '');
     setCoursesText(Array.isArray(inst.courses) ? inst.courses.join(', ') : inst.courses || '');
+    setSectionsText(Array.isArray(inst.sections) ? inst.sections.join(', ') : inst.sections || '');
+    setTermsCount(String(inst.terms?.[0]?.terms?.length || (inst.institutionType === 'college' ? 2 : 3)));
     setError('');
     setModalOpen(true);
   };
@@ -125,18 +161,30 @@ export const InstitutionsView: React.FC = () => {
     setSubmitting(true);
     setError('');
 
-    const departments = deptsText.split(',').map((s) => s.trim()).filter(Boolean);
-    const academicYears = yearsText.split(',').map((s) => s.trim()).filter(Boolean);
-    const courses = coursesText.split(',').map((s) => s.trim()).filter(Boolean);
+    const units = deptsText.split(',').map((s) => s.trim()).filter(Boolean);
+    const levels = yearsText.split(',').map((s) => s.trim()).filter(Boolean);
+    const programs = coursesText.split(',').map((s) => s.trim()).filter(Boolean);
+    const sections = sectionsText.split(',').map((s) => s.trim()).filter(Boolean);
 
     const payload: InstitutionPayload = {
       institutionName: name,
       institutionCode: code.toUpperCase(),
       institutionType: type,
       subscriptionStatus: subscription,
-      departments,
-      academicYears,
-      courses,
+      // Send the canonical aliases; the server also accepts the storage-shaped
+      // departments/academicYears/courses names for old clients.
+      subjects: type === 'school' ? units : [],
+      classes: type === 'school' ? levels : [],
+      departments: type === 'college' ? units : [],
+      yearsOfStudy: type === 'college' ? levels : [],
+      programs: type === 'college' ? programs : [],
+      sections,
+      terms: (() => {
+        const plan = buildTermsPlan(termsCount, editingInst?.terms?.[0]?.academicYear, type);
+        return [...(editingInst?.terms || []).filter((t: any) => t.academicYear !== plan[0].academicYear), ...plan];
+      })(),
+      convert:
+        editingInst && editingInst.institutionType !== type ? true : undefined,
     };
 
     try {
@@ -470,7 +518,7 @@ export const InstitutionsView: React.FC = () => {
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">Academic years (comma-separated)</label>
+                    <label className="form-label">Years of study (comma-separated)</label>
                     <input
                       type="text"
                       className="input"
@@ -481,7 +529,7 @@ export const InstitutionsView: React.FC = () => {
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">Courses (optional)</label>
+                    <label className="form-label">Programs (comma-separated, optional)</label>
                     <input
                       type="text"
                       className="input"
@@ -494,28 +542,54 @@ export const InstitutionsView: React.FC = () => {
               ) : (
                 <>
                   <div className="form-group">
-                    <label className="form-label">Classes (comma-separated)</label>
+                    <label className="form-label">Subjects (comma-separated)</label>
                     <input
                       type="text"
                       className="input"
-                      placeholder="e.g. Class 1, Class 2, Class 3"
+                      placeholder="e.g. English, Mathematics, Science"
                       value={deptsText}
                       onChange={(e) => setDeptsText(e.target.value)}
                     />
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">Sections (comma-separated)</label>
+                    <label className="form-label">Classes (comma-separated)</label>
                     <input
                       type="text"
                       className="input"
-                      placeholder="e.g. A, B, C"
+                      placeholder="e.g. Class 1, Class 2, Class 3"
                       value={yearsText}
                       onChange={(e) => setYearsText(e.target.value)}
                     />
                   </div>
                 </>
               )}
+
+              <div className="form-group">
+                <label className="form-label">Sections (comma-separated)</label>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="e.g. A, B, C"
+                  value={sectionsText}
+                  onChange={(e) => setSectionsText(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">
+                  {type === 'school' ? 'Number of terms (1-12)' : 'Number of semesters (1-12)'}
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={12}
+                  className="input"
+                  placeholder={type === 'school' ? 'e.g. 3' : 'e.g. 2'}
+                  value={termsCount}
+                  onChange={(e) => setTermsCount(e.target.value.replace(/[^0-9]/g, '').slice(0, 2))}
+                />
+              </div>
 
               <div className="action-bar">
                 <button type="button" className="btn btn-secondary" onClick={() => setModalOpen(false)}>
@@ -543,7 +617,11 @@ export const InstitutionsView: React.FC = () => {
               Upload a .csv file or paste rows. Header must include <code>institutionCode</code> and{' '}
               <code>institutionName</code>. Optional columns: <code>institutionType</code>,{' '}
               <code>subscriptionStatus</code>, <code>departments</code>, <code>academicYears</code>,{' '}
-              <code>courses</code>. List columns use <code>; </code> as the in-field separator. Max 1000 rows per import.
+              <code>yearsOfStudy</code>, <code>courses</code>, <code>sections</code>. For schools,{' '}
+              <code>departments</code> holds subjects and <code>academicYears</code> holds classes. For colleges,{' '}
+              <code>yearsOfStudy</code> holds 1st/2nd/3rd/4th Year (academic sessions such as 2026-27 are separate).
+              List columns use <code>; </code> as the in-field separator.
+              Max 1000 rows per import.
             </p>
 
             <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
@@ -555,7 +633,7 @@ export const InstitutionsView: React.FC = () => {
                 className="btn btn-secondary"
                 onClick={() =>
                   setImportText(
-                    'institutionCode,institutionName,institutionType,subscriptionStatus,departments,academicYears,courses\nGIS001,Greenfield International School,school,active,Class 1; Class 2; Class 3,A; B,Term 1; Term 2'
+                    'institutionCode,institutionName,institutionType,subscriptionStatus,departments,academicYears,yearsOfStudy,courses,sections\nGIS001,Greenfield International School,school,active,English; Mathematics; Science,Class 1; Class 2; Class 3,,,A; B'
                   )
                 }
               >

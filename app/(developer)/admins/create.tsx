@@ -14,17 +14,16 @@ import { useCreateAdminMutation } from '../../../features/developer/hooks/useDev
 import { CreateAdminSchema, ROLES } from '../../../features/developer/validation/admin.schema';
 import { InstitutionSearchSelect } from '../../../features/developer/components/InstitutionSearchSelect';
 import { Institution } from '../../../features/developer/types/developer.types';
+import {
+  levelsForInstitution,
+  normalizeInstitutionType,
+  roleKeysForInstitutionType,
+} from '../../../features/shared/academicStructure';
 import { AppInput } from '../../../features/shared/components/AppInput';
 import { AppButton } from '../../../features/shared/components/AppButton';
 import { Colors, BorderRadius } from '../../../constants/theme';
 
 const TITLE_PRESETS = ['Principal', 'Vice Principal', 'HOD', 'Coordinator', 'Academic Dean', 'Custom'];
-
-const COLLEGE_DEPARTMENTS = ['CSE', 'AIML', 'ECE', 'Civil', 'Mechanical'];
-const COLLEGE_YEARS = ['1st Year', '2nd Year', '3rd Year', '4th Year'];
-
-const SCHOOL_DEPARTMENTS = ['Science', 'Commerce', 'Arts', 'General'];
-const SCHOOL_YEARS = ['Class 1-5', 'Class 6-8', 'Class 9-10'];
 
 const PERMISSION_GROUPS = [
   {
@@ -54,18 +53,32 @@ export default function CreateInstitutionAdminScreen() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [selectedInst, setSelectedInst] = useState<Institution | null>(null);
-  const [selectedTitle, setSelectedTitle] = useState('HOD');
+  const [selectedTitle, setSelectedTitle] = useState('');
   const [customTitle, setCustomTitle] = useState('');
   const [selectedRole, setSelectedRole] = useState('admin');
 
   const selectedInstCode = selectedInst?.institutionCode || '';
-  const isSchool = selectedInst?.institutionType === 'school';
+  const isSchool = normalizeInstitutionType(selectedInst?.institutionType) === 'school';
 
-  const availableDepts = isSchool ? SCHOOL_DEPARTMENTS : COLLEGE_DEPARTMENTS;
-  const availableYears = isSchool ? SCHOOL_YEARS : COLLEGE_YEARS;
+  // Scope options come from the selected institution's own configuration:
+  // school -> subjects / classes, college -> departments / academic years.
+  const availableDepts = Array.isArray(selectedInst?.departments) ? selectedInst!.departments! : [];
+  const availableYears = selectedInst ? levelsForInstitution(selectedInst) : [];
+  const availableRoles = selectedInst ? roleKeysForInstitutionType(selectedInst.institutionType) : [...ROLES];
 
-  const [selectedDepts, setSelectedDepts] = useState<string[]>([availableDepts[0]]);
-  const [selectedYears, setSelectedYears] = useState<string[]>([availableYears[0]]);
+  const [selectedDepts, setSelectedDepts] = useState<string[]>([]);
+  const [selectedYears, setSelectedYears] = useState<string[]>([]);
+
+  const handleInstitutionChange = (inst: Institution | null) => {
+    setSelectedInst(inst);
+    const kind = normalizeInstitutionType(inst?.institutionType);
+    const depts = Array.isArray(inst?.departments) ? inst!.departments! : [];
+    const years = inst ? levelsForInstitution(inst) : [];
+    setSelectedDepts(depts.length > 0 ? [depts[0]] : []);
+    setSelectedYears(years.length > 0 ? [years[0]] : []);
+    setSelectedRole((prev) => (roleKeysForInstitutionType(kind).includes(prev) ? prev : 'admin'));
+    setSelectedTitle('');
+  };
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([
     'Students:Read',
     'Teachers:Read',
@@ -184,14 +197,14 @@ export default function CreateInstitutionAdminScreen() {
         <InstitutionSearchSelect
           value={selectedInstCode}
           valueLabel={selectedInst ? `${selectedInst.institutionName} (${selectedInst.institutionCode})` : undefined}
-          onChange={setSelectedInst}
+          onChange={handleInstitutionChange}
           placeholder="Search institutions by name or code…"
         />
 
         {/* Section 3: Role */}
         <Text style={styles.sectionTitle}>Role</Text>
         <View style={styles.chipRowWrap}>
-          {ROLES.map((role) => (
+          {availableRoles.map((role) => (
             <TouchableOpacity
               key={role}
               style={[styles.chip, selectedRole === role && styles.activeChip]}
@@ -230,7 +243,7 @@ export default function CreateInstitutionAdminScreen() {
 
         {/* Section 4: Departments Scope */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Departments Scope</Text>
+          <Text style={styles.sectionTitle}>{isSchool ? 'Subjects Scope' : 'Departments Scope'}</Text>
           <Text style={styles.countBadge}>{selectedDepts.length} selected</Text>
         </View>
         <View style={styles.chipRowWrap}>
@@ -250,7 +263,7 @@ export default function CreateInstitutionAdminScreen() {
 
         {/* Section 5: Academic Years Scope */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Academic Years Scope</Text>
+          <Text style={styles.sectionTitle}>{isSchool ? 'Classes Scope' : 'Academic Years Scope'}</Text>
           <Text style={styles.countBadge}>{selectedYears.length} selected</Text>
         </View>
         <View style={styles.chipRowWrap}>

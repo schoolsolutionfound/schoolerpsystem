@@ -11,6 +11,13 @@ import {
   UpdateInstitutionZodSchema,
   UpdateInstitutionFormValues,
 } from '../validation/developer.validation';
+import {
+  buildTerms,
+  DEFAULT_INSTITUTION_TYPE,
+  DEFAULT_STRUCTURE,
+  normalizeInstitutionType,
+  termCountFromPlan,
+} from '../../shared/academicStructure';
 
 interface EditInstitutionModalProps {
   visible: boolean;
@@ -37,16 +44,25 @@ export const EditInstitutionModal: React.FC<EditInstitutionModalProps> = ({
     resolver: zodResolver(UpdateInstitutionZodSchema),
     defaultValues: {
       institutionName: '',
-      institutionType: 'college',
+      institutionType: DEFAULT_INSTITUTION_TYPE,
       subscriptionStatus: 'active',
     },
   });
 
   const institutionType = watch('institutionType');
+  const isSchool = normalizeInstitutionType(institutionType) === 'school';
 
-  const [deptsText, setDeptsText] = useState('');
-  const [yearsText, setYearsText] = useState('');
-  const [coursesText, setCoursesText] = useState('');
+  const splitList = (value: string) =>
+    value
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+  const [unitsText, setUnitsText] = useState('');
+  const [levelsText, setLevelsText] = useState('');
+  const [programsText, setProgramsText] = useState('');
+  const [sectionsText, setSectionsText] = useState('');
+  const [termsCount, setTermsCount] = useState('3');
 
   useEffect(() => {
     if (institution) {
@@ -55,42 +71,62 @@ export const EditInstitutionModal: React.FC<EditInstitutionModalProps> = ({
         institutionType: institution.institutionType,
         subscriptionStatus: institution.subscriptionStatus,
       });
-      setDeptsText(
+      setUnitsText(
         Array.isArray(institution.departments) ? institution.departments.join(', ') : ''
       );
-      setYearsText(
-        Array.isArray(institution.academicYears) ? institution.academicYears.join(', ') : ''
+      setLevelsText(
+        Array.isArray(institution.yearsOfStudy) && institution.yearsOfStudy.length > 0
+          ? institution.yearsOfStudy.join(', ')
+          : Array.isArray(institution.academicYears)
+            ? institution.academicYears.join(', ')
+            : ''
       );
-      setCoursesText(
+      setProgramsText(
         Array.isArray(institution.courses) ? institution.courses.join(', ') : ''
       );
+      setSectionsText(
+        Array.isArray(institution.sections) ? institution.sections.join(', ') : ''
+      );
+      setTermsCount(String(termCountFromPlan(institution.terms, institution.institutionType)));
     }
   }, [institution, reset]);
 
   useEffect(() => {
-    if (!deptsText && !yearsText && !coursesText) {
-      if (institutionType === 'school') {
-        setDeptsText('Class 1, Class 2, Class 3, Class 4, Class 5, Class 6, Class 7, Class 8, Class 9, Class 10');
-        setYearsText('A, B, C');
-        setCoursesText('');
-      } else {
-        setDeptsText('CSE, ECE, Civil, Mechanical, AIML');
-        setYearsText('1st Year, 2nd Year, 3rd Year, 4th Year');
-        setCoursesText('B.Tech, M.Tech');
-      }
-    }
-  }, [institutionType, deptsText, yearsText, coursesText]);
+    if (!institution) return;
+    const original = normalizeInstitutionType(institution.institutionType);
+    const next = normalizeInstitutionType(institutionType);
+    if (next === original) return;
+    const defaults = DEFAULT_STRUCTURE[next];
+    setUnitsText(defaults.units.join(', '));
+    setLevelsText(defaults.levels.join(', '));
+    setProgramsText(defaults.programs.join(', '));
+    setSectionsText(defaults.sections.join(', '));
+    setTermsCount(String(defaults.terms[0]?.terms.length || (next === 'college' ? 2 : 3)));
+  }, [institutionType, institution]);
 
   const handleFormSubmit = (data: UpdateInstitutionFormValues) => {
     if (institution) {
-      const departments = deptsText.split(',').map((s) => s.trim()).filter(Boolean);
-      const academicYears = yearsText.split(',').map((s) => s.trim()).filter(Boolean);
-      const courses = coursesText.split(',').map((s) => s.trim()).filter(Boolean);
+      const units = splitList(unitsText);
+      const levels = splitList(levelsText);
+      const programs = splitList(programsText);
+      const sections = splitList(sectionsText);
+      const kind = normalizeInstitutionType(data.institutionType);
+      const typeChanged = kind !== normalizeInstitutionType(institution.institutionType);
       onSubmit(institution.id, {
         ...data,
-        departments: departments.length > 0 ? departments : undefined,
-        academicYears: academicYears.length > 0 ? academicYears : undefined,
-        courses: courses.length > 0 ? courses : undefined,
+        institutionType: kind,
+        subjects: kind === 'school' ? units : [],
+        classes: kind === 'school' ? levels : [],
+        departments: kind === 'college' ? units : [],
+        yearsOfStudy: kind === 'college' ? levels : [],
+        programs: kind === 'college' ? programs : [],
+        courses: kind === 'college' ? programs : [],
+        sections,
+        terms: (() => {
+          const plan = buildTerms(termsCount, institution.terms?.[0]?.academicYear, kind);
+          return [...(institution.terms || []).filter((t) => t.academicYear !== plan[0].academicYear), ...plan];
+        })(),
+        convert: typeChanged || undefined,
       });
     }
   };
@@ -182,30 +218,47 @@ export const EditInstitutionModal: React.FC<EditInstitutionModalProps> = ({
 
         <View style={styles.textInputGroup}>
           <AppInput
-            label={institutionType === 'college' ? 'Departments (comma-separated)' : 'Classes (comma-separated)'}
-            placeholder={institutionType === 'college' ? 'e.g. CSE, ECE, ME, Civil' : 'e.g. Class 1, Class 2, Class 3'}
-            value={deptsText}
-            onChangeText={setDeptsText}
+            label={isSchool ? 'Subjects (comma-separated)' : 'Departments (comma-separated)'}
+            placeholder={isSchool ? 'e.g. English, Mathematics, Science' : 'e.g. CSE, ECE, ME, Civil'}
+            value={unitsText}
+            onChangeText={setUnitsText}
             iconName="domain"
           />
 
           <AppInput
-            label={institutionType === 'college' ? 'Academic Years (comma-separated)' : 'Sections (comma-separated)'}
-            placeholder={institutionType === 'college' ? 'e.g. 1st Year, 2nd Year, 3rd Year' : 'e.g. A, B, C'}
-            value={yearsText}
-            onChangeText={setYearsText}
+            label={isSchool ? 'Classes (comma-separated)' : 'Years of Study (comma-separated)'}
+            placeholder={isSchool ? 'e.g. Class 1, Class 2, Class 3' : 'e.g. 1st Year, 2nd Year, 3rd Year'}
+            value={levelsText}
+            onChangeText={setLevelsText}
             iconName="calendar-range"
           />
 
-          {institutionType === 'college' && (
+          {!isSchool && (
             <AppInput
-              label="Courses (comma-separated, optional)"
+              label="Programs (comma-separated, optional)"
               placeholder="e.g. B.Tech, M.Tech, MBA"
-              value={coursesText}
-              onChangeText={setCoursesText}
+              value={programsText}
+              onChangeText={setProgramsText}
               iconName="book-open-variant"
             />
           )}
+
+          <AppInput
+            label="Sections (comma-separated)"
+            placeholder="e.g. A, B, C"
+            value={sectionsText}
+            onChangeText={setSectionsText}
+            iconName="view-grid-outline"
+          />
+
+          <AppInput
+            label={isSchool ? 'Number of Terms (1–12)' : 'Number of Semesters (1–12)'}
+            placeholder={isSchool ? 'e.g. 3' : 'e.g. 2'}
+            value={termsCount}
+            onChangeText={(value) => setTermsCount(value.replace(/[^0-9]/g, '').slice(0, 2))}
+            keyboardType="number-pad"
+            iconName="numeric"
+          />
         </View>
 
         <AppButton

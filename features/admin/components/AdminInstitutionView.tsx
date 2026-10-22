@@ -3,6 +3,7 @@ import { View, StyleSheet, Text, ScrollView, TextInput, TouchableOpacity, Alert,
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
 import { createClassSectionApi } from '../../../api/academics';
+import { buildTerms, levelsForInstitution, termCountFromPlan } from '../../shared/academicStructure';
 
 interface AdminInstitutionViewProps {
   config: {
@@ -12,17 +13,21 @@ interface AdminInstitutionViewProps {
     subscriptionStatus?: string;
     departments: string[];
     academicYears: string[];
+    yearsOfStudy?: string[];
     courses: string[];
     sections: string[];
     classSubjects?: Record<string, string[]>;
+    terms?: { academicYear: string; terms: string[] }[];
     hasDefaultPassword?: boolean;
   };
   onSaveConfig: (updated: {
     departments: string[];
-    academicYears: string[];
+    academicYears?: string[];
+    yearsOfStudy?: string[];
     courses: string[];
     sections: string[];
     classSubjects?: Record<string, string[]>;
+    terms?: { academicYear: string; terms: string[] }[];
     defaultTempPassword?: string;
   }) => Promise<void>;
   refreshing?: boolean;
@@ -36,9 +41,10 @@ export const AdminInstitutionView: React.FC<AdminInstitutionViewProps> = ({ conf
   const isSchool = config.institutionType === 'school';
   const currentSession = (academicSessions || []).find((s: any) => s.isCurrent);
   const [departments, setDepartments] = useState<string[]>(config.departments || []);
-  const [academicYears, setAcademicYears] = useState<string[]>(config.academicYears || []);
+  const [academicYears, setAcademicYears] = useState<string[]>(levelsForInstitution(config));
   const [courses, setCourses] = useState<string[]>(config.courses || []);
   const [sections, setSections] = useState<string[]>(config.sections || []);
+  const [termCount, setTermCount] = useState(String(termCountFromPlan(config.terms, config.institutionType)));
 
   const [newDept, setNewDept] = useState('');
   const [newSection, setNewSection] = useState('');
@@ -86,21 +92,28 @@ export const AdminInstitutionView: React.FC<AdminInstitutionViewProps> = ({ conf
 
   const removeClass = (index: number) => {
     const className = academicYears[index];
-    Alert.alert('Remove', `Remove "${className}"${classSubjects[className]?.length ? ' and its departments' : ''}?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Remove',
-        style: 'destructive',
-        onPress: () => {
-          setAcademicYears(academicYears.filter((_, i) => i !== index));
-          setClassSubjects((prev) => {
-            const next = { ...prev };
-            delete next[className];
-            return next;
-          });
+    const hasSubjects = isSchool && (classSubjects[className]?.length || 0) > 0;
+    Alert.alert(
+      'Remove',
+      `Remove "${className}"${hasSubjects ? ' and its subjects' : ''}? Existing class sections and student records are kept.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => {
+            setAcademicYears(academicYears.filter((_, i) => i !== index));
+            if (isSchool) {
+              setClassSubjects((prev) => {
+                const next = { ...prev };
+                delete next[className];
+                return next;
+              });
+            }
+          },
         },
-      },
-    ]);
+      ]
+    );
   };
 
   const openClassModal = () => {
@@ -189,7 +202,9 @@ export const AdminInstitutionView: React.FC<AdminInstitutionViewProps> = ({ conf
       return;
     }
     setAcademicYears([...academicYears, base]);
-    setClassSubjects((prev) => ({ ...prev, [base]: modalSubjects }));
+    if (isSchool) {
+      setClassSubjects((prev) => ({ ...prev, [base]: modalSubjects }));
+    }
     setClassModalOpen(false);
   };
 
@@ -211,20 +226,45 @@ export const AdminInstitutionView: React.FC<AdminInstitutionViewProps> = ({ conf
     }
     setSaving(true);
     try {
+      const termPlan = buildTerms(
+        termCount,
+        currentSession?.name || config.terms?.[0]?.academicYear,
+        config.institutionType
+      );
+      // Replace only the target year's plan; keep terms configured for other
+      // academic years intact.
+      const terms = [
+        ...(config.terms || []).filter((t) => t.academicYear !== termPlan[0].academicYear),
+        ...termPlan,
+      ];
       const payload: {
         departments: string[];
-        academicYears: string[];
+        academicYears?: string[];
+        yearsOfStudy?: string[];
         courses: string[];
         sections: string[];
-        classSubjects: Record<string, string[]>;
+        classSubjects?: Record<string, string[]>;
+        terms: { academicYear: string; terms: string[] }[];
         defaultTempPassword?: string;
-      } = { departments, academicYears, courses, sections, classSubjects };
+      } = {
+        departments,
+        courses,
+        sections,
+        terms,
+        // Schools store classes + per-class subjects; colleges store years of
+        // study in yearsOfStudy (2026-27 sessions are managed separately).
+        ...(isSchool
+          ? { academicYears, classSubjects }
+          : { yearsOfStudy: academicYears }),
+      };
       if (trimmedPw) {
         payload.defaultTempPassword = trimmedPw;
       } else if (clearDefaultPassword) {
         payload.defaultTempPassword = '';
       }
       await onSaveConfig(payload);
+      // Structure changes can seed class_sections, so refresh dependent tabs.
+      onDataChanged?.();
       if (trimmedPw || clearDefaultPassword) {
         setDefaultTempPassword('');
         setClearDefaultPassword(false);
@@ -274,7 +314,7 @@ export const AdminInstitutionView: React.FC<AdminInstitutionViewProps> = ({ conf
           <View style={styles.infoStatDivider} />
           <View style={styles.infoStat}>
             <Text style={styles.infoStatValue}>{academicYears.length}</Text>
-            <Text style={styles.infoStatLabel}>{isSchool ? 'Classes' : 'Years'}</Text>
+            <Text style={styles.infoStatLabel}>{isSchool ? 'Classes' : 'Years of Study'}</Text>
           </View>
           {!isSchool && (
             <>
@@ -372,78 +412,91 @@ export const AdminInstitutionView: React.FC<AdminInstitutionViewProps> = ({ conf
         )}
       </View>
 
-      {/* Sections (school only) */}
-      {isSchool && (
-        <View style={styles.card}>
-          <View style={styles.cardHeaderRow}>
-            <Text style={styles.cardTitle}>Sections</Text>
-            <View style={styles.countBadge}>
-              <Text style={styles.countBadgeText}>{sections.length}</Text>
-            </View>
+      {/* Sections (both types; optional for colleges) */}
+      <View style={styles.card}>
+        <View style={styles.cardHeaderRow}>
+          <Text style={styles.cardTitle}>Sections</Text>
+          <View style={styles.countBadge}>
+            <Text style={styles.countBadgeText}>{sections.length}</Text>
           </View>
-          <View style={styles.inputRow}>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. A"
-              placeholderTextColor="#9CA3AF"
-              value={newSection}
-              onChangeText={setNewSection}
-              onSubmitEditing={() => addItem(newSection, setNewSection, sections, setSections)}
-              returnKeyType="done"
-            />
-            <TouchableOpacity style={styles.addBtn} onPress={() => addItem(newSection, setNewSection, sections, setSections)}>
-              <MaterialCommunityIcons name="plus" size={16} color="#1A1B1C" />
-              <Text style={styles.addBtnText}>Add</Text>
-            </TouchableOpacity>
-          </View>
-          {sections.length === 0 ? (
-            <View style={styles.emptyBox}>
-              <MaterialCommunityIcons name="tag-multiple-outline" size={28} color="#D1CDBF" />
-              <Text style={styles.emptyHint}>No sections added yet</Text>
-            </View>
-          ) : (
-            <View style={styles.listBox}>
-              {sections.map((sec, idx) => (
-                <View key={idx} style={styles.listItem}>
-                  <View style={styles.listItemLeft}>
-                    <View style={styles.listItemNum}>
-                      <Text style={styles.listItemNumText}>{idx + 1}</Text>
-                    </View>
-                    <Text style={styles.listItemText}>Section {sec}</Text>
-                  </View>
-                  <TouchableOpacity onPress={() => removeItem(idx, sections, setSections, 'sections')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                    <MaterialCommunityIcons name="close" size={16} color="#9CA3AF" />
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </View>
-          )}
         </View>
-      )}
+        {!isSchool && (
+          <Text style={styles.emptyHint}>
+            Optional. Used in class names such as "CSE 2nd Year B".
+          </Text>
+        )}
+        <View style={styles.inputRow}>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. A"
+            placeholderTextColor="#9CA3AF"
+            value={newSection}
+            onChangeText={setNewSection}
+            onSubmitEditing={() => addItem(newSection, setNewSection, sections, setSections)}
+            returnKeyType="done"
+          />
+          <TouchableOpacity style={styles.addBtn} onPress={() => addItem(newSection, setNewSection, sections, setSections)}>
+            <MaterialCommunityIcons name="plus" size={16} color="#1A1B1C" />
+            <Text style={styles.addBtnText}>Add</Text>
+          </TouchableOpacity>
+        </View>
+        {sections.length === 0 ? (
+          <View style={styles.emptyBox}>
+            <MaterialCommunityIcons name="tag-multiple-outline" size={28} color="#D1CDBF" />
+            <Text style={styles.emptyHint}>No sections added yet</Text>
+          </View>
+        ) : (
+          <View style={styles.listBox}>
+            {sections.map((sec, idx) => (
+              <View key={idx} style={styles.listItem}>
+                <View style={styles.listItemLeft}>
+                  <View style={styles.listItemNum}>
+                    <Text style={styles.listItemNumText}>{idx + 1}</Text>
+                  </View>
+                  <Text style={styles.listItemText}>Section {sec}</Text>
+                </View>
+                <TouchableOpacity onPress={() => removeItem(idx, sections, setSections, 'sections')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <MaterialCommunityIcons name="close" size={16} color="#9CA3AF" />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
+      </View>
 
       {/* Academic Years / Classes Section */}
       <View style={styles.card}>
         <View style={styles.cardHeaderRow}>
-          <Text style={styles.cardTitle}>{isSchool ? 'Classes' : 'Academic Years'}</Text>
+          <Text style={styles.cardTitle}>{isSchool ? 'Classes' : 'Years of Study'}</Text>
           <View style={styles.countBadge}>
             <Text style={styles.countBadgeText}>{academicYears.length}</Text>
           </View>
         </View>
+        {!isSchool && (
+          <Text style={styles.emptyHint}>
+            Academic sessions (e.g. 2026-27) are managed separately under Academics.
+          </Text>
+        )}
         <TouchableOpacity style={styles.addBtnFull} onPress={openClassModal}>
           <MaterialCommunityIcons name="plus" size={16} color="#1A1B1C" />
-          <Text style={styles.addBtnText}>{isSchool ? 'Add Class' : 'Add Academic Year'}</Text>
+          <Text style={styles.addBtnText}>{isSchool ? 'Add Class' : 'Add Year of Study'}</Text>
         </TouchableOpacity>
         {academicYears.length === 0 ? (
           <View style={styles.emptyBox}>
             <MaterialCommunityIcons name="format-list-numbered" size={28} color="#D1CDBF" />
-            <Text style={styles.emptyHint}>No {isSchool ? 'classes' : 'academic years'} added yet</Text>
+            <Text style={styles.emptyHint}>No {isSchool ? 'classes' : 'years of study'} added yet</Text>
           </View>
         ) : (
           <View style={styles.listBox}>
             {academicYears.map((year, idx) => {
-              const subs = classSubjects[year] || [];
+              const subs = isSchool ? classSubjects[year] || [] : [];
               return (
-                <TouchableOpacity key={idx} style={styles.classItem} activeOpacity={0.7} onPress={() => openEditClass(year)}>
+                <TouchableOpacity
+                  key={idx}
+                  style={styles.classItem}
+                  activeOpacity={isSchool ? 0.7 : 1}
+                  onPress={isSchool ? () => openEditClass(year) : undefined}
+                >
                   <View style={styles.classItemHeader}>
                     <View style={styles.listItemLeft}>
                       <View style={styles.listItemNum}>
@@ -452,7 +505,9 @@ export const AdminInstitutionView: React.FC<AdminInstitutionViewProps> = ({ conf
                       <Text style={styles.listItemText}>{year}</Text>
                     </View>
                     <View style={styles.classItemRight}>
-                      <MaterialCommunityIcons name="chevron-right" size={18} color="#9CA3AF" />
+                      {isSchool && (
+                        <MaterialCommunityIcons name="chevron-right" size={18} color="#9CA3AF" />
+                      )}
                       <TouchableOpacity onPress={() => removeClass(idx)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                         <MaterialCommunityIcons name="close" size={16} color="#9CA3AF" />
                       </TouchableOpacity>
@@ -472,6 +527,37 @@ export const AdminInstitutionView: React.FC<AdminInstitutionViewProps> = ({ conf
             })}
           </View>
         )}
+      </View>
+
+      {/* Terms / Semesters */}
+      <View style={styles.card}>
+        <View style={styles.cardHeaderRow}>
+          <Text style={styles.cardTitle}>{isSchool ? 'Terms' : 'Semesters'}</Text>
+          <View style={styles.countBadge}>
+            <Text style={styles.countBadgeText}>{termCount}</Text>
+          </View>
+        </View>
+        <Text style={styles.emptyHint}>
+          Number of {isSchool ? 'terms' : 'semesters'} per academic session (1–12).
+        </Text>
+        <View style={styles.inputRow}>
+          <TextInput
+            style={styles.input}
+            placeholder={isSchool ? 'e.g. 3' : 'e.g. 2'}
+            placeholderTextColor="#9CA3AF"
+            keyboardType="number-pad"
+            maxLength={2}
+            value={termCount}
+            onChangeText={(value) => setTermCount(value.replace(/[^0-9]/g, ''))}
+          />
+        </View>
+        <View style={styles.classSubjects}>
+          {buildTerms(termCount, undefined, config.institutionType)[0].terms.map((term, idx) => (
+            <View key={idx} style={styles.subjectTag}>
+              <Text style={styles.subjectTagText}>{term}</Text>
+            </View>
+          ))}
+        </View>
       </View>
 
       {/* Courses Section (college only) */}
@@ -525,7 +611,7 @@ export const AdminInstitutionView: React.FC<AdminInstitutionViewProps> = ({ conf
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
-                {editingClass ? `Edit ${editingClass}` : isSchool ? 'Add Class' : 'Add Academic Year'}
+                {editingClass ? `Edit ${editingClass}` : isSchool ? 'Add Class' : 'Add Year of Study'}
               </Text>
               <TouchableOpacity onPress={() => setClassModalOpen(false)}>
                 <MaterialCommunityIcons name="close" size={20} color="#6B6B6B" />
@@ -565,48 +651,52 @@ export const AdminInstitutionView: React.FC<AdminInstitutionViewProps> = ({ conf
               </>
             )}
 
-            <Text style={styles.modalLabel}>{isSchool ? 'Subjects' : 'Departments'}</Text>
-            {departments.length === 0 ? (
-              <Text style={styles.emptyHint}>Add {isSchool ? 'subjects' : 'departments'} in the section above first.</Text>
-            ) : (
+            {isSchool && (
               <>
-                <View style={styles.subjectSearchBox}>
-                  <MaterialCommunityIcons name="magnify" size={16} color="#6B6B6B" />
-                  <TextInput
-                    style={styles.subjectSearchInput}
-                    placeholder={`Search ${isSchool ? 'subjects' : 'departments'}...`}
-                    placeholderTextColor="#9CA3AF"
-                    value={subjectSearch}
-                    onChangeText={setSubjectSearch}
-                  />
-                  {subjectSearch ? (
-                    <TouchableOpacity onPress={() => setSubjectSearch('')}>
-                      <MaterialCommunityIcons name="close" size={14} color="#6B6B6B" />
-                    </TouchableOpacity>
-                  ) : null}
-                </View>
-                <View style={styles.subjectListContainer}>
-                  <FlatList
-                    data={departments.filter((subj) => subj.toLowerCase().includes(subjectSearch.toLowerCase()))}
-                    keyExtractor={(item, idx) => idx.toString()}
-                    renderItem={({ item: subj, index: idx }) => {
-                      const selected = modalSubjects.includes(subj);
-                      return (
-                        <TouchableOpacity
-                          key={idx}
-                          style={[styles.subjectOption, selected && styles.subjectOptionActive]}
-                          onPress={() => toggleModalSubject(subj)}
-                        >
-                          <View style={[styles.checkBox, selected && styles.checkBoxActive]}>
-                            {selected && <MaterialCommunityIcons name="check" size={13} color="#1A1B1C" />}
-                          </View>
-                          <Text style={[styles.subjectOptionText, selected && styles.subjectOptionTextActive]}>{subj}</Text>
+                <Text style={styles.modalLabel}>Subjects</Text>
+                {departments.length === 0 ? (
+                  <Text style={styles.emptyHint}>Add subjects in the section above first.</Text>
+                ) : (
+                  <>
+                    <View style={styles.subjectSearchBox}>
+                      <MaterialCommunityIcons name="magnify" size={16} color="#6B6B6B" />
+                      <TextInput
+                        style={styles.subjectSearchInput}
+                        placeholder="Search subjects..."
+                        placeholderTextColor="#9CA3AF"
+                        value={subjectSearch}
+                        onChangeText={setSubjectSearch}
+                      />
+                      {subjectSearch ? (
+                        <TouchableOpacity onPress={() => setSubjectSearch('')}>
+                          <MaterialCommunityIcons name="close" size={14} color="#6B6B6B" />
                         </TouchableOpacity>
-                      );
-                    }}
-                    showsVerticalScrollIndicator={true}
-                  />
-                </View>
+                      ) : null}
+                    </View>
+                    <View style={styles.subjectListContainer}>
+                      <FlatList
+                        data={departments.filter((subj) => subj.toLowerCase().includes(subjectSearch.toLowerCase()))}
+                        keyExtractor={(item, idx) => idx.toString()}
+                        renderItem={({ item: subj, index: idx }) => {
+                          const selected = modalSubjects.includes(subj);
+                          return (
+                            <TouchableOpacity
+                              key={idx}
+                              style={[styles.subjectOption, selected && styles.subjectOptionActive]}
+                              onPress={() => toggleModalSubject(subj)}
+                            >
+                              <View style={[styles.checkBox, selected && styles.checkBoxActive]}>
+                                {selected && <MaterialCommunityIcons name="check" size={13} color="#1A1B1C" />}
+                              </View>
+                              <Text style={[styles.subjectOptionText, selected && styles.subjectOptionTextActive]}>{subj}</Text>
+                            </TouchableOpacity>
+                          );
+                        }}
+                        showsVerticalScrollIndicator={true}
+                      />
+                    </View>
+                  </>
+                )}
               </>
             )}
 

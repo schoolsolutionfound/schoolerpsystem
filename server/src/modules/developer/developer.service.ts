@@ -1,5 +1,6 @@
 import { institutionService, InstitutionService, toPublicInstitution } from '../institutions/institution.service.js';
 import { CreateInstitutionInput, UpdateInstitutionInput } from '../institutions/institution.schema.js';
+import { DEFAULT_INSTITUTION_TYPE, isRoleAllowedForInstitution } from '../shared/academicStructure.js';
 import { CreateAdminInput, UpdateAdminInput } from './developer.schema.js';
 import {
   InMemoryUser,
@@ -125,7 +126,7 @@ export class DeveloperService {
 
   /**
    * Bulk-import institutions from CSV.
-   * Header: institutionCode,institutionName,institutionType,subscriptionStatus,departments,academicYears,courses
+   * Header: institutionCode,institutionName,institutionType,subscriptionStatus,departments,academicYears,yearsOfStudy,courses,sections
    * Array columns use ; (or |) as the in-field separator. Rows with errors are
    * skipped and reported; the request is capped at IMPORT_MAX_ROWS.
    */
@@ -143,14 +144,16 @@ export class DeveloperService {
       throw {
         statusCode: 400,
         code: 'MISSING_COLUMNS',
-        message: 'CSV header must include at least "institutionCode" and "institutionName" (optional: institutionType, subscriptionStatus, departments, academicYears, courses).',
+        message: 'CSV header must include at least "institutionCode" and "institutionName" (optional: institutionType, subscriptionStatus, departments, academicYears, yearsOfStudy, courses, sections).',
       };
     }
     const typeI = col('institutiontype');
     const statusI = col('subscriptionstatus');
     const deptsI = col('departments');
     const yearsI = col('academicyears');
+    const studyYearsI = col('yearsofstudy');
     const coursesI = col('courses');
+    const sectionsI = col('sections');
 
     const dataRows = rows.slice(1, 1 + IMPORT_MAX_ROWS);
     const truncated = rows.length - 1 > IMPORT_MAX_ROWS;
@@ -177,7 +180,7 @@ export class DeveloperService {
         if (seenCodes.has(code)) throw new Error(`duplicate code within CSV ("${code}")`);
         seenCodes.add(code);
 
-        let type: 'school' | 'college' = 'college';
+        let type: 'school' | 'college' = DEFAULT_INSTITUTION_TYPE;
         if (typeI !== -1 && row[typeI]?.trim()) {
           const t = row[typeI].trim().toLowerCase();
           if (t !== 'school' && t !== 'college') {
@@ -210,9 +213,15 @@ export class DeveloperService {
           institutionType: type,
           subscriptionStatus: status,
           departments: splitList(deptsI),
-          academicYears: splitList(yearsI),
+          academicYears: type === 'school' ? splitList(yearsI) : [],
+          yearsOfStudy:
+            type === 'college'
+              ? splitList(studyYearsI).length > 0
+                ? splitList(studyYearsI)
+                : splitList(yearsI)
+              : [],
           courses: splitList(coursesI),
-          sections: [],
+          sections: splitList(sectionsI),
           terms: [],
           blockedDates: [],
         });
@@ -254,6 +263,7 @@ export class DeveloperService {
       'subscriptionStatus',
       'departments',
       'academicYears',
+      'yearsOfStudy',
       'courses',
     ];
     const rows = page.items.map((i) => [
@@ -262,7 +272,8 @@ export class DeveloperService {
       i.institutionType,
       i.subscriptionStatus,
       (i.departments || []).join('; '),
-      (i.academicYears || []).join('; '),
+      (i.institutionType === 'college' ? [] : i.academicYears || []).join('; '),
+      (i.yearsOfStudy || []).join('; '),
       (i.courses || []).join('; '),
     ]);
     return toCsv([header, ...rows]);
@@ -351,7 +362,7 @@ export class DeveloperService {
         title: u.title || 'Institution Admin',
         institutionCode: u.institutionCode,
         institutionName: inst?.institutionName || u.institutionName || u.institutionCode,
-        institutionType: inst?.institutionType || u.institutionType || 'college',
+        institutionType: inst?.institutionType || u.institutionType || DEFAULT_INSTITUTION_TYPE,
         status: 'active',
         scope: parsedScope,
         permissions: parsedPermissions,
@@ -372,6 +383,14 @@ export class DeveloperService {
         statusCode: 404,
         code: 'INSTITUTION_NOT_FOUND',
         message: `Institution with code "${institutionCode}" was not found. Create the institution first.`,
+      };
+    }
+
+    if (!isRoleAllowedForInstitution(inst.institutionType, payload.role)) {
+      throw {
+        statusCode: 400,
+        code: 'ROLE_NOT_ALLOWED',
+        message: `Role "${payload.role}" is not available for ${inst.institutionType} institutions.`,
       };
     }
 
@@ -485,6 +504,15 @@ export class DeveloperService {
       institutionType = inst.institutionType;
     }
 
+    const nextRole = payload.role || existing.role;
+    if (!isRoleAllowedForInstitution(institutionType, nextRole)) {
+      throw {
+        statusCode: 400,
+        code: 'ROLE_NOT_ALLOWED',
+        message: `Role "${nextRole}" is not available for ${institutionType} institutions.`,
+      };
+    }
+
     let email = existing.email;
     if (payload.email) {
       const newEmail = payload.email.toLowerCase().trim();
@@ -509,7 +537,7 @@ export class DeveloperService {
       email,
       fullName: payload.fullName ? stripHtml(payload.fullName, 100) : existing.fullName,
       phone: payload.phone ?? existing.phone,
-      role: payload.role || existing.role,
+      role: nextRole,
       title: payload.title ? stripHtml(payload.title, 100) : existing.title,
       institutionCode,
       institutionName,

@@ -6,6 +6,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { FontFamily } from '../../constants/fonts';
 import { performLogout } from '../../utils/logout';
 import { useUserStore } from '../../store/useUserStore';
+import { levelsForInstitution } from '../../features/shared/academicStructure';
 import {
   fetchInstitutionConfigApi,
   updateInstitutionConfigApi,
@@ -104,10 +105,11 @@ export default function AdminHomeScreen() {
   const [config, setConfig] = useState<any>({
     institutionCode,
     institutionName,
-    institutionType: useUserStore.getState().institutionType || 'college',
-    departments: [],
-    academicYears: [],
-    courses: [],
+    institutionType: useUserStore.getState().institutionType || 'school',
+      departments: [],
+      academicYears: [],
+      yearsOfStudy: [],
+      courses: [],
     sections: [],
     classSubjects: {},
   });
@@ -313,10 +315,12 @@ export default function AdminHomeScreen() {
 
   const handleSaveConfig = async (updated: {
     departments: string[];
-    academicYears: string[];
+    academicYears?: string[];
+    yearsOfStudy?: string[];
     courses: string[];
     sections: string[];
     classSubjects?: Record<string, string[]>;
+    terms?: { academicYear: string; terms: string[] }[];
     defaultTempPassword?: string;
   }) => {
     const res = await updateInstitutionConfigApi(updated);
@@ -478,10 +482,10 @@ export default function AdminHomeScreen() {
                   refreshing={refreshing}
                   onRefresh={handleRefresh}
                   departments={config.departments || []}
-                  academicYears={config.academicYears || []}
+                  academicYears={levelsForInstitution(config)}
                   sections={config.sections || []}
                   classSections={classSections}
-                  institutionType={config.institutionType || 'college'}
+                  institutionType={config.institutionType || 'school'}
                   onCreateStudent={handleCreateStudent}
                   onUpdateStudent={handleUpdateStudent}
                   onDeleteStudent={handleDeleteStudent}
@@ -502,10 +506,10 @@ export default function AdminHomeScreen() {
                 <AdminTeachersView
                   teachers={teachers}
                   departments={config.departments || []}
-                  institutionType={config.institutionType || 'college'}
+                  institutionType={config.institutionType || 'school'}
                   classSections={classSections || []}
                   courses={config.courses || []}
-                  academicYears={config.academicYears || []}
+                  academicYears={levelsForInstitution(config)}
                   subjects={subjects}
                   onCreateTeacher={handleCreateTeacher}
                   onUpdateTeacher={handleUpdateTeacher}
@@ -523,7 +527,7 @@ export default function AdminHomeScreen() {
               {activeTab === 'users' && (
                 <AdminUsersView
                   users={allUsers}
-                  institutionType={config.institutionType || 'college'}
+                  institutionType={config.institutionType || 'school'}
                   classSections={classSections}
                   pendingCreateRole={pendingCreateRole}
                   onPendingCreateRoleConsumed={() => setPendingCreateRole(null)}
@@ -548,9 +552,9 @@ export default function AdminHomeScreen() {
 
               {activeTab === 'academics' && (
                 <AdminAcademicsView
-                  institutionType={config.institutionType || 'college'}
+                  institutionType={config.institutionType || 'school'}
                   departments={config.departments || []}
-                  academicYears={config.academicYears || []}
+                  academicYears={levelsForInstitution(config)}
                   sections={config.sections || []}
                   classSections={classSections}
                   subjects={subjects}

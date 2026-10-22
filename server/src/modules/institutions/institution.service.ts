@@ -1,5 +1,12 @@
 import { db } from '../shared/db/index.js';
-import { classSections } from '../shared/db/schema.js';
+import {
+  dbCountClassSectionsByInstitution,
+  dbCountSubjectsByInstitution,
+  dbCountUsersByInstitution,
+  dbFindUsersByInstitution,
+  dbUpdateUser,
+} from '../shared/db/index.js';
+import { classSections, subjects, users as usersTable } from '../shared/db/schema.js';
 import { eq } from 'drizzle-orm';
 import {
   institutionRepository,
@@ -9,6 +16,14 @@ import {
   InstitutionStatusBreakdown,
 } from './institution.repository.js';
 import { CreateInstitutionInput, UpdateInstitutionInput } from './institution.schema.js';
+import {
+  normalizeStructure,
+  structureFromRecord,
+  structureToRecordFields,
+  buildClassSectionFields,
+  type NormalizedStructure,
+  type InstitutionType,
+} from '../shared/academicStructure.js';
 import {
   isConfigurableRole,
   RoleProfileFieldsSchema,
@@ -21,95 +36,66 @@ function newCsId(): string {
   return `cs_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function newSubjectId(): string {
+  return `sub_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/**
+ * Creates class_sections rows for an institution structure. Idempotent: rows
+ * that already exist (by institutionCode+name) are skipped. This is the ONLY
+ * place that turns (type, units, levels, sections) into class_sections rows, so
+ * create/update/backfill all agree on the storage convention.
+ */
 async function seedClassSectionsForInstitution(
   institutionCode: string,
-  institutionType: 'school' | 'college',
-  departments: string[],
-  academicYears: string[],
-  sections: string[]
+  structure: NormalizedStructure
 ): Promise<number> {
-  // School: config.departments = SUBJECTS (never rows), academicYears = class
-  // names, sections = A/B/C letters. College: departments = departments,
-  // academicYears = years (e.g. "1st Year"), sections = optional sections.
-  const deptList = (departments || []).map((d) => String(d).trim()).filter(Boolean);
-  const classList = (academicYears || []).map((y) => String(y).trim()).filter(Boolean);
-  const sectionList = (sections || []).map((s) => String(s).trim()).filter(Boolean);
+  const { institutionType: type, units, levels, sections } = structure;
+  const rows: {
+    id: string;
+    institutionCode: string;
+    name: string;
+    department: string;
+    academicYear: string;
+    section: string;
+    classTeacherId: string;
+  }[] = [];
 
-  const rows: { id: string; institutionCode: string; name: string; department: string; academicYear: string; section: string; classTeacherId: string }[] = [];
-
-  if (institutionType === 'school') {
-    if (classList.length === 0) return 0;
-    for (const klass of classList) {
-      if (sectionList.length === 0) {
-        rows.push({
-          id: newCsId(),
-          institutionCode,
-          name: klass,
-          department: klass,
-          academicYear: '',
-          section: '',
-          classTeacherId: '',
-        });
-      } else {
-        for (const sec of sectionList) {
-          rows.push({
-            id: newCsId(),
-            institutionCode,
-            name: `${klass} ${sec}`,
-            department: klass,
-            academicYear: sec,
-            section: sec,
-            classTeacherId: '',
-          });
-        }
+  if (type === 'school') {
+    for (const level of levels) {
+      const sectionList = sections.length > 0 ? sections : [''];
+      for (const section of sectionList) {
+        const fields = buildClassSectionFields(type, level, section);
+        rows.push({ id: newCsId(), institutionCode, ...fields, classTeacherId: '' });
       }
     }
   } else {
-    if (deptList.length === 0 || classList.length === 0) return 0;
-    for (const dept of deptList) {
-      for (const year of classList) {
-        if (sectionList.length === 0) {
-          rows.push({
-            id: newCsId(),
-            institutionCode,
-            name: `${dept} ${year}`,
-            department: dept,
-            academicYear: year,
-            section: '',
-            classTeacherId: '',
-          });
-        } else {
-          for (const sec of sectionList) {
-            rows.push({
-              id: newCsId(),
-              institutionCode,
-              name: `${dept} ${year} ${sec}`,
-              department: dept,
-              academicYear: year,
-              section: sec,
-              classTeacherId: '',
-            });
-          }
+    if (units.length === 0 || levels.length === 0) return 0;
+    for (const unit of units) {
+      for (const level of levels) {
+        const sectionList = sections.length > 0 ? sections : [''];
+        for (const section of sectionList) {
+          const fields = buildClassSectionFields(type, level, section, unit);
+          rows.push({ id: newCsId(), institutionCode, ...fields, classTeacherId: '' });
         }
       }
     }
   }
 
   if (rows.length === 0) return 0;
-
-  if (!db) {
-    // In-memory dev mode has no DB; nothing to seed here.
-    return 0;
-  }
+  if (!db) return 0;
 
   try {
-    // Skip rows that already exist (by institutionCode+name) to keep this idempotent.
     const existing = await db
       .select({ name: classSections.name })
       .from(classSections)
       .where(eq(classSections.institutionCode, institutionCode));
     const existingNames = new Set(existing.map((r) => r.name));
-    const toInsert = rows.filter((r) => !existingNames.has(r.name));
+    const byName = new Map<string, (typeof rows)[number]>();
+    for (const row of rows) {
+      if (!existingNames.has(row.name) && !byName.has(row.name)) byName.set(row.name, row);
+    }
+    const toInsert = Array.from(byName.values());
     if (toInsert.length === 0) return 0;
     await db.insert(classSections).values(toInsert).onConflictDoNothing();
     return toInsert.length;
@@ -117,6 +103,56 @@ async function seedClassSectionsForInstitution(
     // If the DB is unavailable (in-memory dev mode) the createInstitution still succeeds.
     console.warn('[Institution Seed Warning] could not seed class_sections:', err?.message);
     return 0;
+  }
+}
+
+/**
+ * Schools keep their subject catalogue in `institutions.departments`; the
+ * Academics module reads the `subjects` table. Mirror the catalogue so the two
+ * stay consistent. Colleges manage subjects explicitly and are not synced.
+ */
+async function syncSchoolSubjects(institutionCode: string, structure: NormalizedStructure): Promise<void> {
+  if (structure.institutionType !== 'school' || !db) return;
+  const names = structure.units.filter(Boolean);
+  if (names.length === 0) return;
+  try {
+    const existing = await db
+      .select({ name: subjects.name })
+      .from(subjects)
+      .where(eq(subjects.institutionCode, institutionCode));
+    const seen = new Set(existing.map((r) => r.name.toLowerCase()));
+    const toInsert = names
+      .filter((name) => !seen.has(name.toLowerCase()))
+      .map((name) => ({ id: newSubjectId(), institutionCode, name, code: '' }));
+    if (toInsert.length > 0) {
+      await db.insert(subjects).values(toInsert).onConflictDoNothing();
+    }
+  } catch (err: any) {
+    console.warn('[Institution Subject Sync Warning] could not sync subjects:', err?.message);
+  }
+}
+
+/**
+ * Explicit school <-> college conversion: remaps the type-specific role
+ * (principal <-> hod) and stamps every institution user with the new type.
+ */
+async function remapUsersForTypeChange(institutionCode: string, nextType: InstitutionType): Promise<void> {
+  // Principal is valid for both types; HOD exists only in colleges. Converting
+  // a college to a school therefore demotes HODs to Principal, while
+  // school -> college keeps existing principals as-is.
+  if (nextType === 'school') {
+    const affected = await dbFindUsersByInstitution(institutionCode, 'hod', { limit: 1000 });
+    for (const user of affected) {
+      await dbUpdateUser(user.id, { role: 'principal' });
+    }
+  }
+  if (db) {
+    await db.update(usersTable).set({ institutionType: nextType }).where(eq(usersTable.institutionCode, institutionCode));
+    return;
+  }
+  const allUsers = await dbFindUsersByInstitution(institutionCode, undefined, { limit: 1000 });
+  for (const user of allUsers) {
+    await dbUpdateUser(user.id, { institutionType: nextType });
   }
 }
 
@@ -190,6 +226,17 @@ function enrichInstitution(inst: any) {
   return { ...meta, ...inst };
 }
 
+const STRUCTURE_KEYS = [
+  'subjects',
+  'classes',
+  'programs',
+  'departments',
+  'academicYears',
+  'yearsOfStudy',
+  'courses',
+  'sections',
+] as const;
+
 export class InstitutionService {
   constructor(private repo: IInstitutionRepository = institutionRepository) {}
 
@@ -203,28 +250,26 @@ export class InstitutionService {
       };
     }
 
+    // Empty forms fall back to the per-type defaults instead of leaving the
+    // institution with `[]` (which used to bypass the admin defaults because
+    // an empty array is truthy).
+    const structure = normalizeStructure(input, { applyDefaults: true });
+
     const created = await this.repo.create({
       institutionCode: input.institutionCode.toUpperCase().trim(),
       institutionName: input.institutionName.trim(),
-      institutionType: input.institutionType || 'college',
       subscriptionStatus: input.subscriptionStatus || 'active',
-      departments: input.departments ?? [],
-      academicYears: input.academicYears ?? [],
-      courses: input.courses ?? [],
+      terms: input.terms ?? structure.terms,
+      blockedDates: input.blockedDates ?? [],
+      ...structureToRecordFields(structure),
     });
 
-    // Auto-create class_sections rows from the class/year/section arrays.
-    const seededCount = await seedClassSectionsForInstitution(
-      created.institutionCode,
-      (created.institutionType as 'school' | 'college') || 'college',
-      created.departments || [],
-      created.academicYears || [],
-      created.sections || []
-    );
+    // Auto-create class_sections rows from the structure arrays.
+    const seededCount = await seedClassSectionsForInstitution(created.institutionCode, structure);
+    await syncSchoolSubjects(created.institutionCode, structure);
 
     return { ...created, seededClassSections: seededCount };
   }
-
 
   public async getInstitutions() {
     const list = await this.repo.findAll();
@@ -321,7 +366,81 @@ export class InstitutionService {
       };
     }
 
-    const updated = await this.repo.update(id, input);
+    const currentType = existing.institutionType as InstitutionType;
+    const nextType = (input.institutionType || currentType) as InstitutionType;
+    const typeChanged = nextType !== currentType;
+    const explicitStructure = STRUCTURE_KEYS.some((key) => (input as any)[key] !== undefined);
+
+    if (typeChanged) {
+      const [userCount, classSectionCount, subjectCount] = await Promise.all([
+        dbCountUsersByInstitution(existing.institutionCode),
+        dbCountClassSectionsByInstitution(existing.institutionCode),
+        dbCountSubjectsByInstitution(existing.institutionCode),
+      ]);
+      const hasData = userCount > 0 || classSectionCount > 0 || subjectCount > 0;
+      if (hasData && !input.convert) {
+        throw {
+          statusCode: 409,
+          code: 'TYPE_CHANGE_REQUIRES_CONVERSION',
+          message:
+            'This institution already has users/classes/subjects. Send "convert: true" to explicitly convert it; roles and structure will be re-seeded.',
+        };
+      }
+      if (input.convert) {
+        await remapUsersForTypeChange(existing.institutionCode, nextType);
+      }
+    }
+
+    const base = structureFromRecord(existing);
+    const units = (input as any).subjects ?? (input as any).departments ?? base.units;
+    const levels =
+      nextType === 'school'
+        ? (input as any).classes ?? (input as any).academicYears ?? base.levels
+        : (input as any).yearsOfStudy ?? (input as any).academicYears ?? base.levels;
+    const programs = (input as any).programs ?? (input as any).courses ?? base.programs;
+    const sections = input.sections ?? base.sections;
+    const terms = input.terms ?? base.terms;
+
+    const structure = normalizeStructure(
+      typeChanged && !explicitStructure
+        ? { institutionType: nextType }
+        : {
+            institutionType: nextType,
+            subjects: nextType === 'school' ? units : undefined,
+            classes: nextType === 'school' ? levels : undefined,
+            departments: nextType === 'college' ? units : undefined,
+            yearsOfStudy: nextType === 'college' ? levels : undefined,
+            academicYears: nextType === 'school' ? levels : undefined,
+            programs: nextType === 'college' ? programs : [],
+            sections,
+            terms,
+          },
+      { applyDefaults: typeChanged && !explicitStructure }
+    );
+
+    const {
+      convert: _convert,
+      subjects: _subjects,
+      classes: _classes,
+      programs: _programs,
+      yearsOfStudy: _yearsOfStudy,
+      ...rest
+    } = input;
+    const updateData: Record<string, any> = { ...rest };
+    if (typeChanged || explicitStructure) {
+      Object.assign(updateData, structureToRecordFields(structure));
+      if (input.terms === undefined && typeChanged && !explicitStructure) updateData.terms = structure.terms;
+    }
+    // Never persist the alias fields themselves.
+    delete updateData.subjects;
+    delete updateData.classes;
+    delete updateData.programs;
+
+    const updated = await this.repo.update(id, updateData);
+    if (updated && (typeChanged || explicitStructure)) {
+      await seedClassSectionsForInstitution(updated.institutionCode, structure);
+      await syncSchoolSubjects(updated.institutionCode, structure);
+    }
     return updated;
   }
 
@@ -332,6 +451,21 @@ export class InstitutionService {
         statusCode: 404,
         code: 'INSTITUTION_NOT_FOUND',
         message: `Institution with ID "${id}" was not found.`,
+      };
+    }
+
+    const [userCount, classSectionCount, subjectCount] = await Promise.all([
+      dbCountUsersByInstitution(existing.institutionCode),
+      dbCountClassSectionsByInstitution(existing.institutionCode),
+      dbCountSubjectsByInstitution(existing.institutionCode),
+    ]);
+    if (userCount > 0 || classSectionCount > 0 || subjectCount > 0) {
+      throw {
+        statusCode: 409,
+        code: 'INSTITUTION_HAS_DATA',
+        message:
+          `Cannot delete "${existing.institutionCode}": it still has ${userCount} user(s), ` +
+          `${classSectionCount} class section(s) and ${subjectCount} subject(s). Remove or reassign them first.`,
       };
     }
 

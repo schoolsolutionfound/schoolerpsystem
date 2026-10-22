@@ -7,10 +7,13 @@ export const institutions = pgTable('institutions', {
     .$defaultFn(() => `inst_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`),
   institutionCode: varchar('institution_code', { length: 100 }).notNull().unique(),
   institutionName: text('institution_name').notNull(),
-  institutionType: varchar('institution_type', { length: 50 }).notNull().default('college'),
+  institutionType: varchar('institution_type', { length: 50 }).notNull().default('school'),
   subscriptionStatus: varchar('subscription_status', { length: 50 }).notNull().default('active'),
   departments: jsonb('departments').$type<string[]>().default([]),
   academicYears: jsonb('academic_years').$type<string[]>().default([]),
+  // College years of study (1st Year, 2nd Year, …). School classes stay in
+  // academicYears; academic sessions (e.g. 2026-27) live in academic_sessions.
+  yearsOfStudy: jsonb('years_of_study').$type<string[]>().default([]),
   courses: jsonb('courses').$type<string[]>().default([]),
   sections: jsonb('sections').$type<string[]>().default([]),
   classSubjects: jsonb('class_subjects').$type<Record<string, string[]>>().default({}),

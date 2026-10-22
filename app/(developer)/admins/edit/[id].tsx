@@ -20,16 +20,14 @@ import { AppInput } from '../../../../features/shared/components/AppInput';
 import { AppButton } from '../../../../features/shared/components/AppButton';
 import { LoadingView } from '../../../../features/shared/components/LoadingView';
 import { ErrorState } from '../../../../features/shared/components/ErrorState';
-import { ROLES } from '../../../../features/developer/validation/admin.schema';
+import {
+  levelsForInstitution,
+  normalizeInstitutionType,
+  roleKeysForInstitutionType,
+} from '../../../../features/shared/academicStructure';
 import { Colors, BorderRadius } from '../../../../constants/theme';
 
 const TITLE_PRESETS = ['Principal', 'Vice Principal', 'HOD', 'Coordinator', 'Academic Dean', 'Custom'];
-
-const COLLEGE_DEPARTMENTS = ['CSE', 'AIML', 'ECE', 'Civil', 'Mechanical'];
-const COLLEGE_YEARS = ['1st Year', '2nd Year', '3rd Year', '4th Year'];
-
-const SCHOOL_DEPARTMENTS = ['Science', 'Commerce', 'Arts', 'General'];
-const SCHOOL_YEARS = ['Class 1-5', 'Class 6-8', 'Class 9-10'];
 
 const PERMISSION_GROUPS = [
   {
@@ -65,26 +63,41 @@ export default function EditInstitutionAdminScreen() {
     admin ? `${admin.institutionName} (${admin.institutionCode})` : ''
   );
   const [selectedInstType, setSelectedInstType] = useState<'school' | 'college'>(
-    admin?.institutionType || 'college'
+    normalizeInstitutionType(admin?.institutionType)
   );
-  const [selectedTitle, setSelectedTitle] = useState(admin?.title || 'HOD');
+  const [selectedTitle, setSelectedTitle] = useState(admin?.title || '');
   const [customTitle, setCustomTitle] = useState('');
   const [selectedRole, setSelectedRole] = useState(admin?.role || 'admin');
 
-  const isSchool = selectedInstType === 'school';
+  const isSchool = normalizeInstitutionType(selectedInstType) === 'school';
+  const availableRoles = roleKeysForInstitutionType(selectedInstType);
+
+  // Options are the selected institution's own structure, seeded from the
+  // admin's current scope so existing selections stay editable.
+  const [instDepts, setInstDepts] = useState<string[]>(admin?.scope?.departments || []);
+  const [instYears, setInstYears] = useState<string[]>(admin?.scope?.academicYears || []);
 
   const handleSelectInstitution = (inst: Institution | null) => {
     if (!inst) return;
     setSelectedInstCode(inst.institutionCode);
     setSelectedInstLabel(`${inst.institutionName} (${inst.institutionCode})`);
-    setSelectedInstType(inst.institutionType);
+    setSelectedInstType(normalizeInstitutionType(inst.institutionType));
+    const depts = Array.isArray(inst.departments) ? inst.departments : [];
+    const years = levelsForInstitution(inst);
+    setInstDepts(depts);
+    setInstYears(years);
+    setSelectedDepts(depts.length > 0 ? [depts[0]] : []);
+    setSelectedYears(years.length > 0 ? [years[0]] : []);
+    setSelectedRole((prev) =>
+      roleKeysForInstitutionType(inst.institutionType).includes(prev) ? prev : 'admin'
+    );
   };
 
-  const availableDepts = isSchool ? SCHOOL_DEPARTMENTS : COLLEGE_DEPARTMENTS;
-  const availableYears = isSchool ? SCHOOL_YEARS : COLLEGE_YEARS;
+  const availableDepts = instDepts;
+  const availableYears = instYears;
 
-  const [selectedDepts, setSelectedDepts] = useState<string[]>(admin?.scope?.departments || [availableDepts[0]]);
-  const [selectedYears, setSelectedYears] = useState<string[]>(admin?.scope?.academicYears || [availableYears[0]]);
+  const [selectedDepts, setSelectedDepts] = useState<string[]>(admin?.scope?.departments || []);
+  const [selectedYears, setSelectedYears] = useState<string[]>(admin?.scope?.academicYears || []);
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>(
     admin?.permissions || ['Students:Read', 'Teachers:Read']
   );
@@ -99,9 +112,11 @@ export default function EditInstitutionAdminScreen() {
       setEmail(admin.email);
       setSelectedInstCode(admin.institutionCode);
       setSelectedInstLabel(`${admin.institutionName} (${admin.institutionCode})`);
-      setSelectedInstType(admin.institutionType || 'college');
-      setSelectedTitle(admin.title || 'HOD');
+      setSelectedInstType(normalizeInstitutionType(admin.institutionType));
+      setSelectedTitle(admin.title || '');
       setSelectedRole(admin.role || 'admin');
+      setInstDepts(admin.scope?.departments || []);
+      setInstYears(admin.scope?.academicYears || []);
       setSelectedDepts(admin.scope?.departments || []);
       setSelectedYears(admin.scope?.academicYears || []);
       setSelectedPermissions(admin.permissions || []);
@@ -223,7 +238,7 @@ export default function EditInstitutionAdminScreen() {
 
         <Text style={styles.sectionTitle}>Role</Text>
         <View style={styles.chipRowWrap}>
-          {ROLES.map((role) => (
+          {availableRoles.map((role) => (
             <TouchableOpacity
               key={role}
               style={[styles.chip, selectedRole === role && styles.activeChip]}
@@ -260,7 +275,7 @@ export default function EditInstitutionAdminScreen() {
         )}
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Departments Scope</Text>
+          <Text style={styles.sectionTitle}>{isSchool ? 'Subjects Scope' : 'Departments Scope'}</Text>
           <Text style={styles.countBadge}>{selectedDepts.length} selected</Text>
         </View>
         <View style={styles.chipRowWrap}>
@@ -279,7 +294,7 @@ export default function EditInstitutionAdminScreen() {
         </View>
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Academic Years Scope</Text>
+          <Text style={styles.sectionTitle}>{isSchool ? 'Classes Scope' : 'Academic Years Scope'}</Text>
           <Text style={styles.countBadge}>{selectedYears.length} selected</Text>
         </View>
         <View style={styles.chipRowWrap}>

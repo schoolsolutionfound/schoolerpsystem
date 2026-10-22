@@ -1,4 +1,6 @@
 import { academicsRepository } from './academics.repository.js';
+import { institutionService } from '../institutions/institution.service.js';
+import { adaptLegacySchoolClassSection } from '../shared/academicStructure.js';
 import { db, withTransaction, dbFindUsersByInstitution, dbFindUserByIdOrUid, dbFindStudentsByClassScope, dbCountStudentsByClassScope } from '../shared/db/index.js';
 import { getPrimaryParentChild } from '../users/parent-links.js';
 import { eq as eqSql, and as andSql } from 'drizzle-orm';
@@ -83,11 +85,19 @@ export class AcademicsService {
 
   // ---------- Class Sections ----------
   public async listClassSections(institutionCode: string, opts?: { limit: number; offset: number }) {
+    // Repair rows written by the old school Academics screen (subject stored in
+    // `department`, class in `academicYear`) so every reader sees the canonical
+    // shape even before the backfill script runs.
+    const inst = await institutionService.getInstitutionByCode(institutionCode).catch(() => undefined);
+    const repair = <T extends Record<string, any>>(row: T) =>
+      inst ? adaptLegacySchoolClassSection(inst, row) : row;
+
     if (opts) {
       const { items, total } = await academicsRepository.listClassSectionsPaged(institutionCode, opts);
-      return { data: items, total, limit: opts.limit, offset: opts.offset };
+      return { data: items.map(repair), total, limit: opts.limit, offset: opts.offset };
     }
-    return academicsRepository.listClassSections(institutionCode);
+    const items = await academicsRepository.listClassSections(institutionCode);
+    return items.map(repair);
   }
 
   public async createClassSection(institutionCode: string, input: CreateClassSectionInput) {

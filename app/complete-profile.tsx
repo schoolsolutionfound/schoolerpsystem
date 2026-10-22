@@ -23,7 +23,7 @@ export default function CompleteProfileScreen() {
   const email = useUserStore((state) => state.email) || '';
   const profilePic = useUserStore((state) => state.profilePic) || '';
   const rollNoOrUSN = useUserStore((state) => state.rollNoOrUSN) || '';
-  const institutionType = useUserStore((state) => state.institutionType) || 'college';
+  const institutionType = useUserStore((state) => state.institutionType) || 'school';
   const profileFields = useUserStore((state) => state.profileFields) || [];
   const savedCustomFields = useUserStore((state) => state.customFields);
 

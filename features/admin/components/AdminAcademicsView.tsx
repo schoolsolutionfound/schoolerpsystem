@@ -403,13 +403,13 @@ function ClassesTab({ institutionType, departments, academicYears, sections, cla
     if (!name) { Alert.alert('Missing', 'Class/section name is required'); return; }
     setSubmitting(true);
     try {
-      await createClassSectionApi({
-        name,
-        department,
-        academicYear,
-        section,
-        classTeacherId,
-      });
+      // Canonical storage: school department = class, academicYear = section
+      // letter; college department = department, academicYear = year.
+      await createClassSectionApi(
+        isSchool
+          ? { name, department: academicYear, academicYear: section, section, classTeacherId }
+          : { name, department, academicYear, section, classTeacherId }
+      );
       setModalOpen(false);
       setName('');
       setClassTeacherId('');
@@ -459,13 +459,24 @@ function ClassesTab({ institutionType, departments, academicYears, sections, cla
     if (!editName) { Alert.alert('Missing', 'Class/section name is required'); return; }
     setEditSubmitting(true);
     try {
-      await updateClassSectionApi(editTarget.id, {
-        name: editName,
-        department: editDepartment,
-        academicYear: editAcademicYear,
-        section: editSection,
-        classTeacherId: editClassTeacherId,
-      });
+      await updateClassSectionApi(
+        editTarget.id,
+        isSchool
+          ? {
+              name: editName,
+              department: editAcademicYear,
+              academicYear: editSection,
+              section: editSection,
+              classTeacherId: editClassTeacherId,
+            }
+          : {
+              name: editName,
+              department: editDepartment,
+              academicYear: editAcademicYear,
+              section: editSection,
+              classTeacherId: editClassTeacherId,
+            }
+      );
       closeEdit();
       onDataChange();
     } catch (err: any) {
@@ -510,21 +521,6 @@ function ClassesTab({ institutionType, departments, academicYears, sections, cla
       <>
         {isSchool ? (
           <>
-            {departments.length > 0 ? (
-              <DropdownSelect
-                variant="inline"
-                label="Stream"
-                value={deptVal}
-                onChange={setDeptVal}
-                placeholder="Select stream"
-                options={departments}
-                menuTitle="Stream"
-              />
-            ) : (
-              <FormGroup label="Stream">
-                <TextInput style={styles.input} placeholder="e.g. Science" value={deptVal} onChangeText={setDeptVal} placeholderTextColor="#9CA3AF" />
-              </FormGroup>
-            )}
             {academicYears.length > 0 ? (
               <DropdownSelect
                 variant="inline"
@@ -576,15 +572,15 @@ function ClassesTab({ institutionType, departments, academicYears, sections, cla
             {academicYears.length > 0 ? (
               <DropdownSelect
                 variant="inline"
-                label="Academic Year"
+                label="Year of Study"
                 value={yearVal}
                 onChange={setYearVal}
                 placeholder="Select year"
                 options={academicYears}
-                menuTitle="Academic Year"
+                menuTitle="Year of Study"
               />
             ) : (
-              <FormGroup label="Academic Year">
+              <FormGroup label="Year of Study">
                 <TextInput style={styles.input} placeholder="e.g. 3rd Year" value={yearVal} onChangeText={setYearVal} placeholderTextColor="#9CA3AF" />
               </FormGroup>
             )}
@@ -630,7 +626,7 @@ function ClassesTab({ institutionType, departments, academicYears, sections, cla
               <Text style={styles.cardTitle}>{cs.name}</Text>
               <Text style={styles.cardMeta}>
                 {isSchool
-                  ? [cs.department || 'General', cs.academicYear, cs.section ? `Section ${cs.section}` : ''].filter(Boolean).join(' · ')
+                  ? [cs.department || 'General', cs.section ? `Section ${cs.section}` : ''].filter(Boolean).join(' / ')
                   : [cs.department, cs.academicYear, cs.section].filter(Boolean).join(' · ')}
               </Text>
               <Text style={styles.cardMeta}>Class teacher · {teacherName(cs.classTeacherId)}</Text>

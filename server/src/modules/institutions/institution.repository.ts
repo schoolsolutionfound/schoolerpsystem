@@ -1,6 +1,7 @@
 import { and, asc, count, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm';
 import { db } from '../shared/db/index.js';
 import { institutions, InstitutionRecord, NewInstitutionRecord } from './institution.schema.js';
+import { DEFAULT_INSTITUTION_TYPE } from '../shared/academicStructure.js';
 
 export interface InstitutionListOptions {
   search?: string;
@@ -86,10 +87,11 @@ function toRecord(data: Partial<NewInstitutionRecord> & { institutionCode: strin
     id: data.id || `inst_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
     institutionCode: data.institutionCode,
     institutionName: data.institutionName,
-    institutionType: data.institutionType || 'college',
+    institutionType: data.institutionType || DEFAULT_INSTITUTION_TYPE,
     subscriptionStatus: data.subscriptionStatus || 'active',
     departments: data.departments ?? [],
     academicYears: data.academicYears ?? [],
+    yearsOfStudy: data.yearsOfStudy ?? [],
     courses: data.courses ?? [],
     sections: data.sections ?? [],
     classSubjects: data.classSubjects ?? {},

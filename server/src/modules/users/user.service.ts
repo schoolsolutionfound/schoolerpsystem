@@ -5,6 +5,7 @@ import { getParentLinks, insertParentLinks, DEFAULT_PARENT_PERMISSIONS } from '.
 import { institutionService } from '../institutions/institution.service.js';
 import { validateCustomFields, mergeCustomFields } from './profile-fields.validation.js';
 import type { ProfileFormField } from '../admin/profileFields.schema.js';
+import { DEFAULT_INSTITUTION_TYPE } from '../shared/academicStructure.js';
 
 export interface CompleteProfileInput {
   phone?: string;
@@ -230,7 +231,7 @@ export class UserService {
       parentPhone: payload.parentPhone || '',
       phone: payload.phone || payload.parentPhone || '',
       profilePicUrl: payload.profilePicUrl,
-      institutionType: payload.institutionType || 'college',
+      institutionType: payload.institutionType || DEFAULT_INSTITUTION_TYPE,
       address: payload.address,
       city: payload.city,
       pincode: payload.pincode,

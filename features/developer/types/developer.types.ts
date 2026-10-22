@@ -6,7 +6,13 @@ export interface Institution {
   subscriptionStatus: 'active' | 'inactive' | 'suspended' | 'trial';
   departments?: string[];
   academicYears?: string[];
+  yearsOfStudy?: string[];
   courses?: string[];
+  sections?: string[];
+  terms?: { academicYear: string; terms: string[] }[];
+  subjects?: string[];
+  classes?: string[];
+  programs?: string[];
   averageRating?: number;
   totalReviews?: number;
   logoUrl?: string;
@@ -23,7 +29,13 @@ export interface CreateInstitutionInput {
   subscriptionStatus?: 'active' | 'inactive' | 'suspended' | 'trial';
   departments?: string[];
   academicYears?: string[];
+  yearsOfStudy?: string[];
   courses?: string[];
+  sections?: string[];
+  terms?: { academicYear: string; terms: string[] }[];
+  subjects?: string[];
+  classes?: string[];
+  programs?: string[];
 }
 
 export interface UpdateInstitutionInput {
@@ -32,7 +44,13 @@ export interface UpdateInstitutionInput {
   subscriptionStatus?: 'active' | 'inactive' | 'suspended' | 'trial';
   departments?: string[];
   academicYears?: string[];
+  yearsOfStudy?: string[];
   courses?: string[];
+  sections?: string[];
+  terms?: { academicYear: string; terms: string[] }[];
+  subjects?: string[];
+  classes?: string[];
+  programs?: string[];
 }
 
 export type FilterType = 'all' | 'college' | 'school' | 'active' | 'inactive';

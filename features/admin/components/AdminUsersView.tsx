@@ -5,29 +5,11 @@ import { BorderRadius } from '../../../constants/theme';
 import { resetUserPasswordApi, fetchFeesApi } from '../../../api/admin';
 import { DropdownSelect } from './DropdownSelect';
 import { BulkImportModal } from './BulkImportModal';
+import { SCHOOL_ROLE_OPTIONS, COLLEGE_ROLE_OPTIONS } from '../../shared/academicStructure';
 
 // Roles with their own dedicated workspace (Add Student / Add Teacher / Add
 // Parent) are intentionally excluded from the Add User role grid.
-// Must match server SCHOOL_ROLES / COLLEGE_ROLES in admin.service.ts
-// (minus student/teacher/parent which have dedicated screens).
-const SCHOOL_ROLES = [
-  { key: 'admin', label: 'Admin', icon: 'shield-account-outline' },
-  { key: 'principal', label: 'Principal', icon: 'account-tie-outline' },
-  { key: 'accountant', label: 'Accountant', icon: 'calculator' },
-  { key: 'librarian', label: 'Librarian', icon: 'book-outline' },
-  { key: 'driver', label: 'Driver', icon: 'bus' },
-  { key: 'admission_officer', label: 'Admission Officer', icon: 'card-account-details-outline' },
-] as const;
-
-const COLLEGE_ROLES = [
-  { key: 'admin', label: 'Admin', icon: 'shield-account-outline' },
-  { key: 'hod', label: 'HOD', icon: 'account-tie-outline' },
-  { key: 'accountant', label: 'Accountant', icon: 'calculator' },
-  { key: 'librarian', label: 'Librarian', icon: 'book-outline' },
-  { key: 'driver', label: 'Driver', icon: 'bus' },
-  { key: 'admission_officer', label: 'Admission Officer', icon: 'card-account-details-outline' },
-] as const;
-
+// Role options are type-aware and shared with the server contract.\n
 // Students / teachers / parents have their own dedicated workspaces (Add
 // Student, Add Teacher, Parents) — they are never listed on the Users page.
 
@@ -110,7 +92,7 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const [resettingId, setResettingId] = useState<string | null>(null);
 
-  const roleOptions = institutionType === 'college' ? COLLEGE_ROLES : SCHOOL_ROLES;
+  const roleOptions = institutionType === 'college' ? COLLEGE_ROLE_OPTIONS : SCHOOL_ROLE_OPTIONS;
   const isOfficer = role === 'admission_officer';
 
   // Fee structures (class + amount) for the officer's "Fee Structures" section.

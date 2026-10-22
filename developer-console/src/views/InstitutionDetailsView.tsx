@@ -34,22 +34,32 @@ export const InstitutionDetailsView: React.FC<InstitutionDetailsViewProps> = ({
 
   if (!institutionId) return null;
 
+  const isSchool = institution?.institutionType === 'school';
   const tabs: { key: TabType; label: string }[] = [
     { key: 'overview', label: 'Overview' },
     { key: 'subscription', label: 'Subscription' },
-    { key: 'departments', label: 'Departments' },
-    { key: 'courses', label: 'Courses' },
+    { key: 'departments', label: isSchool ? 'Subjects & Classes' : 'Departments & Years' },
+    ...(isSchool ? [] : [{ key: 'courses' as TabType, label: 'Programs' }]),
     { key: 'people', label: 'People' },
   ];
 
   const departmentsList = Array.isArray(institution?.departments)
     ? institution.departments
     : [];
-  const academicYearsList = Array.isArray(institution?.academicYears)
-    ? institution.academicYears
-    : [];
+  const academicYearsList = isSchool
+    ? Array.isArray(institution?.academicYears)
+      ? institution.academicYears
+      : []
+    : Array.isArray(institution?.yearsOfStudy) && institution.yearsOfStudy.length > 0
+      ? institution.yearsOfStudy
+      : Array.isArray(institution?.academicYears)
+        ? institution.academicYears
+        : [];
   const coursesList = Array.isArray(institution?.courses)
     ? institution.courses
+    : [];
+  const sectionsList = Array.isArray(institution?.sections)
+    ? institution.sections
     : [];
 
   return (
@@ -179,18 +189,20 @@ export const InstitutionDetailsView: React.FC<InstitutionDetailsViewProps> = ({
             {activeTab === 'departments' && (
               <div className="card" style={{ padding: '16px' }}>
                 <h4 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px', color: 'var(--color-text-primary)' }}>
-                  {institution.institutionType === 'school' ? 'Classes' : 'Departments'}
+                  {isSchool ? 'Subjects & Classes' : 'Departments & Years of Study'}
                 </h4>
-                {departmentsList.length === 0 && academicYearsList.length === 0 ? (
+                {departmentsList.length === 0 && academicYearsList.length === 0 && sectionsList.length === 0 ? (
                   <p style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>
-                    No departments or academic years configured.
+                    {isSchool
+                      ? 'No subjects or classes configured.'
+                      : 'No departments or years of study configured.'}
                   </p>
                 ) : (
                   <div style={{ display: 'grid', gap: '12px' }}>
                     {departmentsList.length > 0 && (
                       <div>
                         <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: '6px' }}>
-                          {institution.institutionType === 'school' ? 'Classes' : 'Departments'}
+                          {isSchool ? 'Subjects' : 'Departments'}
                         </p>
                         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                           {departmentsList.map((d: string, i: number) => (
@@ -202,11 +214,23 @@ export const InstitutionDetailsView: React.FC<InstitutionDetailsViewProps> = ({
                     {academicYearsList.length > 0 && (
                       <div>
                         <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: '6px' }}>
-                          {institution.institutionType === 'school' ? 'Sections' : 'Academic Years'}
+                          {isSchool ? 'Classes' : 'Years of Study'}
                         </p>
                         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                           {academicYearsList.map((y: string, i: number) => (
                             <span key={i} className="badge badge-active">{y}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {sectionsList.length > 0 && (
+                      <div>
+                        <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: '6px' }}>
+                          Sections
+                        </p>
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                          {sectionsList.map((s: string, i: number) => (
+                            <span key={i} className="badge badge-trial">{s}</span>
                           ))}
                         </div>
                       </div>
@@ -219,13 +243,11 @@ export const InstitutionDetailsView: React.FC<InstitutionDetailsViewProps> = ({
             {activeTab === 'courses' && (
               <div className="card" style={{ padding: '16px' }}>
                 <h4 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px', color: 'var(--color-text-primary)' }}>
-                  Courses Offered
+                  Programs Offered
                 </h4>
                 {coursesList.length === 0 ? (
                   <p style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>
-                    {institution.institutionType === 'school'
-                      ? 'Courses are not typically configured for schools.'
-                      : 'No courses configured for this institution.'}
+                    No programs configured for this institution.
                   </p>
                 ) : (
                   <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>

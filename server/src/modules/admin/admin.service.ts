@@ -34,6 +34,15 @@ import {
   type ConfigurableRole,
   type ProfileFieldsMap,
 } from './profileFields.schema.js';
+import {
+  COLLEGE_ROLES,
+  DEFAULT_INSTITUTION_TYPE,
+  normalizeInstitutionType,
+  normalizeStructure,
+  SCHOOL_ROLES,
+  structureFromRecord,
+  structureToRecordFields,
+} from '../shared/academicStructure.js';
 
 /**
  * Resolve a class_sections row from a (institutionCode, department, academicYear, section) triple
@@ -72,6 +81,23 @@ async function buildClassScope(
     if (match) {
       base.classSectionId = match.id;
       base.classSectionName = match.name;
+    } else {
+      // Legacy school rows (written by the old Academics screen) store the
+      // subject in `department` and the class in `academicYear`. Match the
+      // canonical request (department = class, academicYear = section letter)
+      // against that swapped shape so existing students keep their scope.
+      const inst = await institutionService.getInstitutionByCode(institutionCode).catch(() => undefined);
+      if (inst && normalizeInstitutionType(inst.institutionType) === 'school') {
+        const legacy = all.find(
+          (c: any) =>
+            (c.academicYear || '').trim().toLowerCase() === dept.toLowerCase() &&
+            (c.section || '').trim().toLowerCase() === sec.toLowerCase()
+        );
+        if (legacy) {
+          base.classSectionId = legacy.id;
+          base.classSectionName = legacy.name;
+        }
+      }
     }
   } catch {
     // best-effort: leave scope without the id/name if academics module is unavailable
@@ -135,8 +161,6 @@ export interface CreateTeacherPayload {
   semester?: string;
 }
 
-const SCHOOL_ROLES = ['admin', 'principal', 'teacher', 'student', 'parent', 'accountant', 'librarian', 'driver', 'admission_officer'] as const;
-const COLLEGE_ROLES = ['admin', 'hod', 'teacher', 'student', 'parent', 'accountant', 'librarian', 'driver', 'admission_officer'] as const;
 
 export interface ParentChildLinkInput {
   studentId: string;
@@ -275,23 +299,13 @@ export class AdminService {
 
   // --- Academic Configuration ---
   private getDefaultAcademicConfig(institutionType: string) {
-    if (institutionType === 'school') {
-      return {
-        institutionType: 'school',
-        departments: ['English', 'Mathematics', 'Science'],
-        academicYears: ['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10'],
-        courses: [],
-        sections: ['A', 'B', 'C'],
-        terms: [{ academicYear: '2026-2027', terms: ['Term 1', 'Term 2', 'Term 3'] }],
-      };
-    }
+    const structure = normalizeStructure(
+      { institutionType },
+      { applyDefaults: true, fallbackType: DEFAULT_INSTITUTION_TYPE }
+    );
     return {
-      institutionType: 'college',
-      departments: ['Computer Science', 'Electronics', 'Mechanical', 'Civil'],
-      academicYears: ['1st Year', '2nd Year', '3rd Year', '4th Year'],
-      courses: ['B.Tech', 'M.Tech'],
-      sections: ['Section A', 'Section B'],
-      terms: [{ academicYear: '2026-27', terms: ['Semester 1', 'Semester 2'] }],
+      ...structureToRecordFields(structure),
+      terms: structure.terms,
     };
   }
 
@@ -304,22 +318,29 @@ export class AdminService {
       return {
         institutionCode: institutionCode || 'DEFAULT',
         institutionName: 'My Institution',
-        ...this.getDefaultAcademicConfig('college'),
+        ...this.getDefaultAcademicConfig(DEFAULT_INSTITUTION_TYPE),
         blockedDates: [],
       };
     }
 
+    const instType = normalizeInstitutionType(inst.institutionType);
+    const structure = structureFromRecord(inst);
+    const defaults = this.getDefaultAcademicConfig(instType);
+    const isSchool = instType === 'school';
     return {
       institutionCode: inst.institutionCode,
       institutionName: inst.institutionName,
       institutionType: inst.institutionType,
       subscriptionStatus: inst.subscriptionStatus,
-      departments: inst.departments || this.getDefaultAcademicConfig(inst.institutionType).departments,
-      academicYears: inst.academicYears || this.getDefaultAcademicConfig(inst.institutionType).academicYears,
-      courses: inst.courses || this.getDefaultAcademicConfig(inst.institutionType).courses,
-      sections: inst.sections || this.getDefaultAcademicConfig(inst.institutionType).sections,
+      departments: structure.units.length ? structure.units : defaults.departments,
+      // Schools: classes. Colleges: 2026-27-style sessions are separate, so
+      // academicYears is empty and years of study live in yearsOfStudy.
+      academicYears: !isSchool ? [] : structure.levels.length ? structure.levels : defaults.academicYears,
+      yearsOfStudy: isSchool ? [] : structure.levels.length ? structure.levels : defaults.yearsOfStudy,
+      courses: structure.programs.length ? structure.programs : defaults.courses,
+      sections: structure.sections.length ? structure.sections : defaults.sections,
       classSubjects: inst.classSubjects || {},
-      terms: inst.terms || this.getDefaultAcademicConfig(inst.institutionType).terms,
+      terms: inst.terms?.length ? inst.terms : defaults.terms,
       blockedDates: inst.blockedDates || [],
       // Boolean only — the default password value itself never leaves the server.
       hasDefaultPassword: Boolean(inst.defaultTempPassword),
@@ -330,7 +351,7 @@ export class AdminService {
 
   public async updateInstitutionConfig(
     institutionCode: string,
-    payload: { departments?: string[]; academicYears?: string[]; courses?: string[]; sections?: string[]; classSubjects?: Record<string, string[]>; terms?: any[]; blockedDates?: any[]; defaultTempPassword?: string; maintenanceEnabled?: boolean; maintenanceMinVersion?: string }
+    payload: { departments?: string[]; academicYears?: string[]; yearsOfStudy?: string[]; courses?: string[]; sections?: string[]; classSubjects?: Record<string, string[]>; terms?: any[]; blockedDates?: any[]; defaultTempPassword?: string; maintenanceEnabled?: boolean; maintenanceMinVersion?: string }
   ) {
     const inst = await institutionService.getInstitutions().then((list) =>
       list.find((i) => i.institutionCode.toLowerCase() === (institutionCode || '').toLowerCase())
@@ -340,6 +361,7 @@ export class AdminService {
       const update: any = {};
       if (payload.departments !== undefined) update.departments = payload.departments;
       if (payload.academicYears !== undefined) update.academicYears = payload.academicYears;
+      if (payload.yearsOfStudy !== undefined) update.yearsOfStudy = payload.yearsOfStudy;
       if (payload.courses !== undefined) update.courses = payload.courses;
       if (payload.terms !== undefined) update.terms = payload.terms;
       if (payload.blockedDates !== undefined) update.blockedDates = payload.blockedDates;
@@ -430,7 +452,7 @@ export class AdminService {
     return {
       institutionCode,
       institutionName: inst?.institutionName || 'My Institution',
-      institutionType: inst?.institutionType || 'college',
+      institutionType: inst?.institutionType || DEFAULT_INSTITUTION_TYPE,
       subscriptionStatus: inst?.subscriptionStatus || 'active',
       students,
       teachers,
@@ -485,7 +507,7 @@ export class AdminService {
       list.find((i) => i.institutionCode.toLowerCase() === (payload.institutionCode || '').toLowerCase())
     );
     const institutionName = inst?.institutionName || payload.institutionCode;
-    const institutionType = inst?.institutionType || 'college';
+    const institutionType = inst?.institutionType || DEFAULT_INSTITUTION_TYPE;
 
     const displayName = `${payload.firstName} ${payload.lastName}`.trim();
     const resolved = resolveProvisionPassword(payload.password, inst?.defaultTempPassword);
@@ -1060,7 +1082,7 @@ export class AdminService {
     const inst = await institutionService.getInstitutions().then((list) =>
       list.find((i) => i.institutionCode.toLowerCase() === payload.institutionCode.toLowerCase())
     );
-    const instType: 'school' | 'college' = (payload.institutionType || inst?.institutionType || 'school') as 'school' | 'college';
+    const instType: 'school' | 'college' = (payload.institutionType || inst?.institutionType || DEFAULT_INSTITUTION_TYPE) as 'school' | 'college';
     const validRoles = instType === 'college' ? COLLEGE_ROLES : SCHOOL_ROLES;
 
     const normalizedRole = payload.role.toLowerCase().trim();
@@ -1339,7 +1361,7 @@ export class AdminService {
     const inst = await institutionService.getInstitutions().then((list) =>
       list.find((i) => i.institutionCode.toLowerCase() === institutionCode.toLowerCase())
     );
-    const instType: 'school' | 'college' = (inst?.institutionType || 'school') as 'school' | 'college';
+    const instType: 'school' | 'college' = (inst?.institutionType || DEFAULT_INSTITUTION_TYPE) as 'school' | 'college';
     const validRoles = instType === 'college' ? COLLEGE_ROLES : SCHOOL_ROLES;
 
     const updateFields: any = {};
@@ -1396,7 +1418,7 @@ export class AdminService {
       role: payload.role || 'student',
       institutionCode: payload.institutionCode,
       institutionName: payload.institutionName,
-      institutionType: payload.institutionType || 'school',
+      institutionType: payload.institutionType || DEFAULT_INSTITUTION_TYPE,
       rollNoOrUSN: payload.rollNoOrUSN,
       mustChangePassword: true,
       profileCompleted: false,
@@ -1495,7 +1517,7 @@ export class AdminService {
               role: record.role || 'student',
               institutionCode: record.institutionCode,
               institutionName: record.institutionName,
-              institutionType: record.institutionType || 'school',
+              institutionType: record.institutionType || DEFAULT_INSTITUTION_TYPE,
               rollNoOrUSN: record.rollNoOrUSN,
               mustChangePassword: true,
               profileCompleted: false,
@@ -1594,7 +1616,7 @@ export class AdminService {
     const inst = await institutionService.getInstitutions().then((list) =>
       list.find((i) => i.institutionCode.toLowerCase() === (institutionCode || '').toLowerCase())
     );
-    const instType: 'school' | 'college' = (inst?.institutionType || 'school') as 'school' | 'college';
+    const instType: 'school' | 'college' = (inst?.institutionType || DEFAULT_INSTITUTION_TYPE) as 'school' | 'college';
     const validRoles = instType === 'college' ? COLLEGE_ROLES : SCHOOL_ROLES;
     const role = (requestedRole || '').toLowerCase().trim();
     if (!validRoles.includes(role as any)) {

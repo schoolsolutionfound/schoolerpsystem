@@ -52,7 +52,14 @@ export interface InstitutionPayload {
   subscriptionStatus?: string;
   departments?: string[];
   academicYears?: string[];
+  yearsOfStudy?: string[];
   courses?: string[];
+  sections?: string[];
+  terms?: { academicYear: string; terms: string[] }[];
+  subjects?: string[];
+  classes?: string[];
+  programs?: string[];
+  convert?: boolean;
 }
 
 export interface InstitutionListParams {

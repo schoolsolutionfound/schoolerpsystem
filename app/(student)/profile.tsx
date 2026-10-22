@@ -30,7 +30,7 @@ export default function StudentProfileScreen() {
   const rollNoOrUSN = useUserStore((s) => s.rollNoOrUSN) || '';
   const institutionName = useUserStore((s) => s.institutionName) || '';
   const institutionCode = useUserStore((s) => s.institutionCode) || '';
-  const institutionType = useUserStore((s) => s.institutionType) || 'college';
+  const institutionType = useUserStore((s) => s.institutionType) || 'school';
   const phone = useUserStore((s) => s.phone) || '';
   const parentPhone = useUserStore((s) => s.parentPhone) || '';
   const tenthPercentage = useUserStore((s) => s.tenthPercentage) || '';

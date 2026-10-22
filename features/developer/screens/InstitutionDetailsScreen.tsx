@@ -14,7 +14,30 @@ interface InstitutionDetailsScreenProps {
   id: string;
 }
 
-type TabType = 'overview' | 'subscription';
+type TabType = 'overview' | 'structure' | 'subscription';
+
+interface StructureGroupProps {
+  label: string;
+  items: string[];
+  emptyText: string;
+}
+
+function StructureGroup({ label, items, emptyText }: StructureGroupProps) {
+  return (
+    <View style={styles.structureGroup}>
+      <Text style={styles.groupLabel}>{label}</Text>
+      {items.length === 0 ? (
+        <Text style={styles.emptyText}>{emptyText}</Text>
+      ) : (
+        <View style={styles.chipsRow}>
+          {items.map((item, index) => (
+            <AppBadge key={`${item}-${index}`} label={item} type="college" />
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
 
 export function InstitutionDetailsScreen({ id }: InstitutionDetailsScreenProps) {
   const router = useRouter();
@@ -22,10 +45,41 @@ export function InstitutionDetailsScreen({ id }: InstitutionDetailsScreenProps) 
 
   const { data: institution, isLoading, isError, error, refetch } = useInstitutionDetailsQuery(id);
 
+  const isSchool = institution?.institutionType === 'school';
   const tabs: { key: TabType; label: string; icon: keyof typeof MaterialCommunityIcons.glyphMap }[] = [
     { key: 'overview', label: 'Overview', icon: 'information-outline' },
+    {
+      key: 'structure',
+      label: isSchool ? 'Subjects & Classes' : 'Departments & Years',
+      icon: isSchool ? 'school-outline' : 'office-building-outline',
+    },
     { key: 'subscription', label: 'Subscription', icon: 'card-account-details-outline' },
   ];
+
+  const units = Array.isArray(institution?.departments)
+    ? institution.departments
+    : Array.isArray(institution?.subjects)
+      ? institution.subjects
+      : [];
+  const levels = isSchool
+    ? Array.isArray(institution?.academicYears)
+      ? institution.academicYears
+      : Array.isArray(institution?.classes)
+        ? institution.classes
+        : []
+    : Array.isArray(institution?.yearsOfStudy) && institution.yearsOfStudy.length > 0
+      ? institution.yearsOfStudy
+      : Array.isArray(institution?.academicYears)
+        ? institution.academicYears
+        : Array.isArray(institution?.classes)
+          ? institution.classes
+          : [];
+  const programs = Array.isArray(institution?.courses)
+    ? institution.courses
+    : Array.isArray(institution?.programs)
+      ? institution.programs
+      : [];
+  const sections = Array.isArray(institution?.sections) ? institution.sections : [];
 
   return (
     <AppLayout>
@@ -125,6 +179,44 @@ export function InstitutionDetailsScreen({ id }: InstitutionDetailsScreenProps) 
                     <Text style={styles.infoValue}>{new Date(institution.createdAt).toLocaleDateString()}</Text>
                   </View>
                 )}
+              </View>
+            </AppCard>
+          )}
+
+          {activeTab === 'structure' && (
+            <AppCard style={styles.sectionCard}>
+              <Text style={styles.sectionTitle}>
+                {isSchool ? 'Subjects & Classes' : 'Departments & Years of Study'}
+              </Text>
+              <Text style={styles.sectionDesc}>
+                {isSchool
+                  ? 'Subjects, classes, and sections configured for this school.'
+                  : 'Departments, years of study, programs, and sections configured for this college. Academic sessions (e.g. 2026-27) are managed by the institution admin.'}
+              </Text>
+
+              <View style={styles.structureList}>
+                <StructureGroup
+                  label={isSchool ? 'Subjects' : 'Departments'}
+                  items={units}
+                  emptyText={`No ${isSchool ? 'subjects' : 'departments'} configured.`}
+                />
+                <StructureGroup
+                  label={isSchool ? 'Classes' : 'Years of Study'}
+                  items={levels}
+                  emptyText={`No ${isSchool ? 'classes' : 'years of study'} configured.`}
+                />
+                {!isSchool && (
+                  <StructureGroup
+                    label="Programs"
+                    items={programs}
+                    emptyText="No programs configured."
+                  />
+                )}
+                <StructureGroup
+                  label="Sections"
+                  items={sections}
+                  emptyText="No sections configured."
+                />
               </View>
             </AppCard>
           )}
@@ -240,6 +332,30 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.light.muted,
     lineHeight: 18,
+  },
+  structureList: {
+    gap: 14,
+    marginTop: 4,
+  },
+  structureGroup: {
+    gap: 6,
+  },
+  groupLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.light.muted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  chipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  emptyText: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    color: Colors.light.muted,
   },
   infoGrid: {
     gap: 10,

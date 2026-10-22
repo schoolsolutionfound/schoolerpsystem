@@ -299,6 +299,8 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
   totalCount,
 }) => {
   const isCollege = institutionType === 'college';
+  // College levels are years of study; the academic session (2026-27) is separate.
+  const yearLabel = isCollege ? 'Year of Study' : 'Academic Year';
   const currentSession = (academicSessions || []).find((s: any) => s.isCurrent);
   const sessionNames: string[] = (academicSessions || []).map((s: any) => s.name);
   const sessionIdByName = (name: string): string | undefined =>
@@ -1001,7 +1003,7 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
               {isCollege && (
                 <View style={styles.nameRow}>
                   <View style={styles.nameField}>
-                    <DropdownSelect variant="inline" label="Academic Year" value={year} options={academicYears} onChange={setYear} placeholder="Select year" menuTitle="Academic year" />
+                    <DropdownSelect variant="inline" label={yearLabel} value={year} options={academicYears} onChange={setYear} placeholder="Select year" menuTitle={yearLabel} />
                   </View>
                   <View style={styles.nameField}>
                     <DropdownSelect variant="inline" label="Section" value={section} options={sections} onChange={setSection} placeholder="Select section" menuTitle="Section" />
@@ -1094,7 +1096,7 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
                     </View>
                   )}
                   <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Academic Year</Text>
+                    <Text style={styles.detailLabel}>{yearLabel}</Text>
                     <Text style={styles.detailValue}>{detailSheet.academicYear || '—'}</Text>
                   </View>
                   <View style={styles.detailRow}>
@@ -1313,7 +1315,7 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
               {isCollege && (
                 <View style={styles.nameRow}>
                   <View style={styles.nameField}>
-                    <DropdownSelect variant="inline" label="Academic Year" value={editYear} options={academicYears} onChange={setEditYear} placeholder="Select year" menuTitle="Academic year" />
+                    <DropdownSelect variant="inline" label={yearLabel} value={editYear} options={academicYears} onChange={setEditYear} placeholder="Select year" menuTitle={yearLabel} />
                   </View>
                   <View style={styles.nameField}>
                     <DropdownSelect variant="inline" label="Section" value={editSection} options={sections} onChange={setEditSection} placeholder="Select section" menuTitle="Section" />
@@ -1380,7 +1382,7 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
                     ))}
                   </ScrollView>
                 </View>
-                {renderChipRow('Academic Year', promoteYear, setPromoteYear, academicYears)}
+                {renderChipRow(yearLabel, promoteYear, setPromoteYear, academicYears)}
               </ScrollView>
             )}
             <View style={styles.modalFooter}>

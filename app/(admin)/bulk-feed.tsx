@@ -10,11 +10,13 @@ import { handleGlobalError, AppError } from '../../utils/errorHandler';
 import { BulkFeedStep1 } from '../../features/admin/components/BulkFeedStep1';
 import { BulkFeedStep2 } from '../../features/admin/components/BulkFeedStep2';
 import { BulkFeedStep3 } from '../../features/admin/components/BulkFeedStep3';
+import { DEFAULT_INSTITUTION_TYPE, normalizeInstitutionType } from '../../features/shared/academicStructure';
 
 export default function AdminBulkFeedScreen() {
   const router = useRouter();
   const storeInstitutionCode = useUserStore((state) => state.institutionCode || state.institutionId) || 'CLG001';
   const storeInstitutionName = useUserStore((state) => state.institutionName) || 'My Institution';
+  const storeInstitutionType = normalizeInstitutionType(useUserStore((state) => state.institutionType) || DEFAULT_INSTITUTION_TYPE);
 
   const [wizardStep, setWizardStep] = useState<1 | 2 | 3>(1);
   const [feedType, setFeedType] = useState<'student_bulk' | 'teacher_bulk' | 'individual'>('student_bulk');
@@ -60,7 +62,7 @@ export default function AdminBulkFeedScreen() {
             dummyPassword: row[4] || undefined,
             institutionCode: row[5] || storeInstitutionCode,
             institutionName: row[6] || storeInstitutionName,
-            institutionType: 'college',
+            institutionType: storeInstitutionType,
             role: feedType === 'teacher_bulk' ? 'teacher' : 'student',
             department: row[7] || '',
             academicYear: row[8] || '',
@@ -114,7 +116,7 @@ export default function AdminBulkFeedScreen() {
           email: individualEmail,
           institutionCode: storeInstitutionCode,
           institutionName: storeInstitutionName,
-          institutionType: 'college',
+          institutionType: storeInstitutionType,
           role: individualRole,
         });
         const created = res?.data || res;

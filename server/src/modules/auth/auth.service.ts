@@ -5,6 +5,7 @@ import { institutionService } from '../institutions/institution.service.js';
 import { dbFindUserById } from '../shared/db/index.js';
 import { getPrimaryParentChild } from '../users/parent-links.js';
 import { validatePasswordStrength } from '../shared/utils/password.js';
+import { DEFAULT_INSTITUTION_TYPE } from '../shared/academicStructure.js';
 
 function parseScope(val: any): Record<string, any> {
   if (!val) return {};
@@ -30,7 +31,7 @@ export class AuthService {
         role: 'parent',
         institutionCode: '',
         institutionName: 'Prospective Parent',
-        institutionType: 'school',
+        institutionType: DEFAULT_INSTITUTION_TYPE,
         profileCompleted: true,
         mustChangePassword: false,
       });
@@ -55,7 +56,7 @@ export class AuthService {
       roles: (user.roles && Array.isArray(user.roles) && user.roles.length > 0) ? user.roles : [user.role],
       institutionCode: user.institutionCode,
       institutionName,
-      institutionType: institutionType || 'college',
+      institutionType: institutionType || DEFAULT_INSTITUTION_TYPE,
       rollNoOrUSN: user.rollNoOrUSN || '',
       phone: user.phone || '',
       parentPhone: user.parentPhone || '',
