@@ -52,6 +52,28 @@ export const AnnouncementDetailModal: React.FC<AnnouncementDetailModalProps> = (
     ? `${startDate} – ${endDate}`
     : `From ${startDate}`;
 
+  const targetRoleInfo = React.useMemo(() => {
+    if (!announcement?.targets || announcement.targets.length === 0) {
+      return { label: 'All', icon: 'account-group-outline' as const, desc: 'Visible to everyone (Students & Teachers)' };
+    }
+    const first = announcement.targets[0];
+    if (first.targetType === 'all') {
+      return { label: 'All', icon: 'account-group-outline' as const, desc: 'Visible to everyone (Students & Teachers)' };
+    }
+    const role = (first.targetRole || '').toLowerCase().trim();
+    if (role === 'student') {
+      return { label: 'Student', icon: 'school-outline' as const, desc: 'Visible to Student accounts only' };
+    }
+    if (role === 'teacher') {
+      return { label: 'Teacher', icon: 'account-tie-outline' as const, desc: 'Visible to Teacher accounts only' };
+    }
+    return {
+      label: first.targetRole ? first.targetRole.charAt(0).toUpperCase() + first.targetRole.slice(1) : 'All',
+      icon: 'account-group-outline' as const,
+      desc: 'Targeted role',
+    };
+  }, [announcement?.targets]);
+
   const handleDeletePress = () => {
     Alert.alert(
       'Delete Announcement',
@@ -81,12 +103,23 @@ export const AnnouncementDetailModal: React.FC<AnnouncementDetailModalProps> = (
         {/* Title */}
         <Text style={styles.title}>{announcement.title}</Text>
 
-        {/* Time Period */}
-        <View style={styles.periodCard}>
-          <MaterialCommunityIcons name="calendar-clock-outline" size={18} color="#171717" />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.periodLabel}>Time Period</Text>
-            <Text style={styles.periodValue}>{timePeriodText}</Text>
+        {/* Meta Cards: Time Period & Target Role */}
+        <View style={styles.metaContainer}>
+          <View style={styles.metaCard}>
+            <MaterialCommunityIcons name="calendar-clock-outline" size={18} color="#171717" />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.metaLabel}>Time Period</Text>
+              <Text style={styles.metaValue}>{timePeriodText}</Text>
+            </View>
+          </View>
+
+          <View style={styles.metaCardRole}>
+            <MaterialCommunityIcons name={targetRoleInfo.icon} size={18} color="#D97706" />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.metaLabelRole}>Target Role</Text>
+              <Text style={styles.metaValueRole}>{targetRoleInfo.label}</Text>
+              <Text style={styles.metaSubtext}>{targetRoleInfo.desc}</Text>
+            </View>
           </View>
         </View>
 
@@ -131,7 +164,10 @@ const styles = StyleSheet.create({
     color: '#171717',
     lineHeight: 24,
   },
-  periodCard: {
+  metaContainer: {
+    gap: 10,
+  },
+  metaCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
@@ -141,17 +177,45 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     padding: 12,
   },
-  periodLabel: {
+  metaLabel: {
     fontSize: 11,
     fontFamily: FontFamily.medium,
     color: '#6B7280',
     textTransform: 'uppercase',
   },
-  periodValue: {
+  metaValue: {
     fontSize: 14,
     fontFamily: FontFamily.bold,
     color: '#171717',
     marginTop: 1,
+  },
+  metaCardRole: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: 5,
+    padding: 12,
+  },
+  metaLabelRole: {
+    fontSize: 11,
+    fontFamily: FontFamily.medium,
+    color: '#92400E',
+    textTransform: 'uppercase',
+  },
+  metaValueRole: {
+    fontSize: 14,
+    fontFamily: FontFamily.bold,
+    color: '#92400E',
+    marginTop: 1,
+  },
+  metaSubtext: {
+    fontSize: 11,
+    fontFamily: FontFamily.regular,
+    color: '#B45309',
+    marginTop: 2,
   },
   contentBox: {
     backgroundColor: '#FAFAF9',

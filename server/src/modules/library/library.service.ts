@@ -620,8 +620,17 @@ export class LibraryService {
 
     let copy = null;
     if (input.bookCopyId) {
-      copy = await libraryRepository.getCopyById(input.bookCopyId);
+      try {
+        copy = await libraryRepository.getCopyById(input.bookCopyId);
+      } catch {
+        copy = null;
+      }
     }
+
+    const damageNotes = input.damageNotes || input.reason || 'Fine Collected';
+    const damageType = input.damageType || 'GENERAL_WEAR';
+    const isPaid = input.isPaid !== false;
+    const paymentMethod = input.paymentMethod || 'CASH';
 
     if (!db) throw new Error('Database connection unavailable');
     return db.transaction(async (tx) => {
@@ -630,15 +639,37 @@ export class LibraryService {
           institutionCode,
           studentId: input.studentId,
           bookCopyId: input.bookCopyId || null,
-          fineType: 'DAMAGED_BOOK',
-          damageType: input.damageType,
-          damageNotes: input.damageNotes,
+          loanId: input.loanId || null,
+          fineType: input.fineType === 'LOST' || input.fineType === 'LOST_BOOK' ? 'LOST_BOOK' : 'DAMAGED_BOOK',
+          damageType: damageType as any,
+          damageNotes,
           amount: String(input.amount) as any,
-          paidAmount: '0.00' as any,
-          status: 'UNPAID',
+          paidAmount: isPaid ? (String(input.amount) as any) : ('0.00' as any),
+          status: isPaid ? 'PAID' : 'UNPAID',
         },
         tx
       );
+
+      let transactionRecord = null;
+      if (isPaid) {
+        const receiptNo = `REC-${Math.floor(100000 + Math.random() * 900000)}`;
+        transactionRecord = await libraryRepository.createTransaction(
+          {
+            institutionCode,
+            fineId: newFine.id,
+            receiptNo,
+            amount: String(input.amount) as any,
+            paymentMethod: paymentMethod === 'ONLINE' ? 'UPI_ONLINE' : paymentMethod,
+            cashTendered: input.cashTendered ? (String(input.cashTendered) as any) : (String(input.amount) as any),
+            changeReturned: '0.00' as any,
+            transactionRef: input.transactionRef || `REF-${paymentMethod}-${Date.now()}`,
+            scannedQrPayload: '',
+            paidAt: new Date(),
+            cashier: staffName || 'Librarian Staff',
+          },
+          tx
+        );
+      }
 
       let updatedCopy = null;
       if (copy) {
@@ -652,7 +683,7 @@ export class LibraryService {
         );
       }
 
-      return { fine: newFine, copy: updatedCopy };
+      return { fine: newFine, copy: updatedCopy, transaction: transactionRecord };
     });
   }
 

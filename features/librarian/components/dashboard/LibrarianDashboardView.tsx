@@ -420,7 +420,7 @@ export const LibrarianDashboardView: React.FC<LibrarianDashboardViewProps> = ({
       list.push({
         id: 'rem-damaged',
         text: `${damagedCopiesCount} ${damagedCopiesCount === 1 ? 'copy is' : 'copies are'} flagged as damaged or under repair.`,
-        actionText: 'Book Fine',
+        actionText: 'Collect Fine',
         onAction: () => onNavigate('fines'),
         color: '#D97706',
       });
@@ -455,8 +455,8 @@ export const LibrarianDashboardView: React.FC<LibrarianDashboardViewProps> = ({
           <RefreshControl
             refreshing={!!isRefreshing}
             onRefresh={onRefresh}
-            colors={['#D97706']}
-            tintColor="#D97706"
+            colors={['#000000']}
+            tintColor="#000000"
           />
         ) : undefined
       }
@@ -725,15 +725,6 @@ export const LibrarianDashboardView: React.FC<LibrarianDashboardViewProps> = ({
             >
               <MaterialCommunityIcons name="file-document-multiple-outline" size={17} color="#171717" />
               <Text style={dashStyles.qaText}>Question Papers</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[dashStyles.qaBtn, dashStyles.qaGold]}
-              onPress={() => onNavigate('students')}
-              activeOpacity={0.8}
-            >
-              <MaterialCommunityIcons name="account-group-outline" size={17} color="#171717" />
-              <Text style={dashStyles.qaText}>Members</Text>
             </TouchableOpacity>
           </View>
         </View>

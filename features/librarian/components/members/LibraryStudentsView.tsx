@@ -106,8 +106,8 @@ export const LibraryStudentsView = ({
             <RefreshControl
               refreshing={!!isRefreshing}
               onRefresh={onRefresh}
-              colors={['#D97706']}
-              tintColor="#D97706"
+              colors={['#000000']}
+              tintColor="#000000"
             />
           ) : undefined
         }

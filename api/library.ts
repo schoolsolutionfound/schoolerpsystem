@@ -290,9 +290,17 @@ export interface CreateDamageFinePayload {
   studentId: string;
   bookCopyId?: string;
   loanId?: string;
-  fineType: 'DAMAGE' | 'LOST';
+  damageType?: string;
+  fineType?: string;
   amount: number;
-  reason: string;
+  reason?: string;
+  damageNotes?: string;
+  copyCondition?: string;
+  copyStatus?: string;
+  paymentMethod?: 'CASH' | 'CARD' | 'UPI_ONLINE' | 'DIGITAL_WALLET' | 'ONLINE';
+  isPaid?: boolean;
+  cashTendered?: number;
+  transactionRef?: string;
 }
 
 export interface PYQFilters {

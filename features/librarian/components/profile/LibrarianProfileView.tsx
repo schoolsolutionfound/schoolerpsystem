@@ -162,8 +162,8 @@ export const LibrarianProfileView = ({
             <RefreshControl
               refreshing={!!isRefreshing}
               onRefresh={onRefresh}
-              colors={['#D97706']}
-              tintColor="#D97706"
+              colors={['#000000']}
+              tintColor="#000000"
             />
           ) : undefined
         }
@@ -317,7 +317,6 @@ export const LibrarianProfileView = ({
                 { id: 'badge', icon: 'badge-account-outline', label: 'Library Badge ID', value: libraryBadgeId },
                 { id: 'qualification', icon: 'school-outline', label: 'Degree / Qualification', value: qualification },
                 { id: 'specialization', icon: 'book-open-page-variant-outline', label: 'Specialization', value: 'Digital Archiving & Academic Systems' },
-                { id: 'certifications', icon: 'certificate-outline', label: 'Certifications', value: 'Certified Library Specialist (CSLMS)' },
               ].map((item, index, arr) => {
                 const isLast = index === arr.length - 1;
                 return (

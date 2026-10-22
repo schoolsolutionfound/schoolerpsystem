@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, TextInput } from 'react-native';
-import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { AppModal } from '../../shared/components/AppModal';
 import { AppButton } from '../../shared/components/AppButton';
 import { AppInput } from '../../shared/components/AppInput';
@@ -205,6 +205,31 @@ const MiniCalendarPicker: React.FC<MiniCalendarProps> = ({
   );
 };
 
+export type TargetRoleOption = 'all' | 'student' | 'teacher';
+
+export const ROLE_OPTIONS: {
+  label: string;
+  value: TargetRoleOption;
+  description: string;
+}[] = [
+  {
+    label: 'All',
+    value: 'all',
+    
+    description: 'Broadcast to everyone (Students & Teachers)',
+  },
+  {
+    label: 'Student',
+    value: 'student',
+    description: 'Visible to students only',
+  },
+  {
+    label: 'Teacher',
+    value: 'teacher',
+    description: 'Visible to teachers only',
+  },
+];
+
 export const CreateAnnouncementModal: React.FC<CreateAnnouncementModalProps> = ({
   visible,
   onClose,
@@ -213,6 +238,8 @@ export const CreateAnnouncementModal: React.FC<CreateAnnouncementModalProps> = (
   loading = false,
 }) => {
   const [title, setTitle] = useState('');
+  const [selectedRole, setSelectedRole] = useState<TargetRoleOption>('all');
+  const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
   const [content, setContent] = useState('');
   const [publishAt, setPublishAt] = useState('');
   const [expiresAt, setExpiresAt] = useState('');
@@ -238,8 +265,26 @@ export const CreateAnnouncementModal: React.FC<CreateAnnouncementModalProps> = (
       setContent(initialData.content || '');
       setPublishAt(formatToDateInputStr(initialData.publishAt || initialData.createdAt));
       setExpiresAt(formatToDateInputStr(initialData.expiresAt));
+
+      const firstTarget = initialData.targets?.[0];
+      if (firstTarget) {
+        const role = (firstTarget.targetRole || '').toLowerCase().trim();
+        if (firstTarget.targetType === 'all' || role === 'all') {
+          setSelectedRole('all');
+        } else if (role === 'student') {
+          setSelectedRole('student');
+        } else if (role === 'teacher') {
+          setSelectedRole('teacher');
+        } else {
+          setSelectedRole('all');
+        }
+      } else {
+        setSelectedRole('all');
+      }
+
       setOpenCalendar(null);
       setIsPresetDropdownOpen(false);
+      setIsRoleDropdownOpen(false);
     } else {
       resetForm();
     }
@@ -248,6 +293,8 @@ export const CreateAnnouncementModal: React.FC<CreateAnnouncementModalProps> = (
   const resetForm = () => {
     setTitle('');
     setContent('');
+    setSelectedRole('all');
+    setIsRoleDropdownOpen(false);
     const today = getTodayDateStr();
     setPublishAt(today);
     setExpiresAt(getFutureDateStr(7, today));
@@ -290,6 +337,10 @@ export const CreateAnnouncementModal: React.FC<CreateAnnouncementModalProps> = (
       Alert.alert('Required Field', 'Please enter an announcement title.');
       return false;
     }
+    if (!selectedRole) {
+      Alert.alert('Required Field', 'Please select a target role (Student, Teacher, or All).');
+      return false;
+    }
     if (!content.trim()) {
       Alert.alert('Required Field', 'Please enter the announcement content.');
       return false;
@@ -316,6 +367,13 @@ export const CreateAnnouncementModal: React.FC<CreateAnnouncementModalProps> = (
     isSubmittingRef.current = true;
     setIsSubmitting(true);
     try {
+      const targetPayload =
+        selectedRole === 'student'
+          ? [{ targetType: 'role' as const, targetRole: 'student', classId: '', sectionId: '' }]
+          : selectedRole === 'teacher'
+          ? [{ targetType: 'role' as const, targetRole: 'teacher', classId: '', sectionId: '' }]
+          : [{ targetType: 'all' as const, targetRole: 'all', classId: '', sectionId: '' }];
+
       const payload = {
         title: title.trim(),
         content: content.trim(),
@@ -324,6 +382,7 @@ export const CreateAnnouncementModal: React.FC<CreateAnnouncementModalProps> = (
         action: 'publish',
         publishAt: formatInputToIsoString(publishAt, false) || new Date().toISOString(),
         expiresAt: formatInputToIsoString(expiresAt, true) || null,
+        targets: targetPayload,
       };
 
       await onSubmit(payload);
@@ -358,6 +417,77 @@ export const CreateAnnouncementModal: React.FC<CreateAnnouncementModalProps> = (
           editable={!isBusy}
         />
 
+        {/* Role Selection Dropdown */}
+        <View style={styles.dropdownFieldContainer}>
+          <Text style={styles.inputLabel}>Role *</Text>
+          <TouchableOpacity
+            style={[
+              styles.roleDropdownTrigger,
+              isRoleDropdownOpen && styles.roleDropdownTriggerActive,
+            ]}
+            onPress={() => {
+              setIsRoleDropdownOpen(!isRoleDropdownOpen);
+              setIsPresetDropdownOpen(false);
+              setOpenCalendar(null);
+            }}
+            activeOpacity={0.8}
+            disabled={isBusy}
+          >
+            <View style={styles.roleDropdownTriggerLeft}>
+              <Text style={styles.roleDropdownTriggerText}>
+                {ROLE_OPTIONS.find((r) => r.value === selectedRole)?.label || 'All'}
+              </Text>
+              <Text style={styles.roleDropdownTriggerSubtext} numberOfLines={1}>
+                {ROLE_OPTIONS.find((r) => r.value === selectedRole)?.description}
+              </Text>
+            </View>
+            <Feather
+              name={isRoleDropdownOpen ? 'chevron-up' : 'chevron-down'}
+              size={18}
+              color="#64748B"
+            />
+          </TouchableOpacity>
+
+          {isRoleDropdownOpen && (
+            <View style={styles.roleDropdownMenu}>
+              {ROLE_OPTIONS.map((item) => {
+                const isSelected = selectedRole === item.value;
+                return (
+                  <TouchableOpacity
+                    key={item.value}
+                    style={[
+                      styles.roleDropdownItem,
+                      isSelected && styles.roleDropdownItemSelected,
+                    ]}
+                    onPress={() => {
+                      setSelectedRole(item.value);
+                      setIsRoleDropdownOpen(false);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <View style={styles.roleDropdownItemLeft}>
+                      <Text
+                        style={[
+                          styles.roleDropdownItemText,
+                          isSelected && styles.roleDropdownItemTextSelected,
+                        ]}
+                      >
+                        {item.label}
+                      </Text>
+                      <Text style={styles.roleDropdownItemDesc}>{item.description}</Text>
+                    </View>
+                    {isSelected && (
+                      <View style={styles.checkBadge}>
+                        <Feather name="check" size={14} color="#D97706" />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
+        </View>
+
         {/* Content / Announcement */}
         <AppInput
           label="Announcement *"
@@ -373,18 +503,16 @@ export const CreateAnnouncementModal: React.FC<CreateAnnouncementModalProps> = (
         {/* Time Period Section */}
         <View style={styles.periodCard}>
           <View style={styles.periodHeader}>
-            <MaterialCommunityIcons name="calendar-clock" size={20} color="#171717" />
+          
             <Text style={styles.periodTitle}>Time Period</Text>
           </View>
-          <Text style={styles.periodSubtitle}>
-            Specify when this announcement starts and expires.
-          </Text>
+         
 
           {/* Date Row with Calendar Pickers */}
           <View style={styles.dateRow}>
             {/* Start Date */}
             <View style={{ flex: 1 }}>
-              <Text style={styles.inputLabel}>Start Date (From) *</Text>
+              <Text style={styles.inputLabel}>Start Date *</Text>
               <TouchableOpacity
                 style={[
                   styles.dateInputWrapper,
@@ -407,7 +535,7 @@ export const CreateAnnouncementModal: React.FC<CreateAnnouncementModalProps> = (
 
             {/* End Date */}
             <View style={{ flex: 1 }}>
-              <Text style={styles.inputLabel}>End Date (To) *</Text>
+              <Text style={styles.inputLabel}>End Date  *</Text>
               <TouchableOpacity
                 style={[
                   styles.dateInputWrapper,
@@ -513,7 +641,7 @@ export const CreateAnnouncementModal: React.FC<CreateAnnouncementModalProps> = (
 
           {/* Add Presets / Custom Days Fixer */}
           <View style={styles.addPresetBox}>
-            <Text style={styles.addPresetTitle}>Fix Custom Duration (Days):</Text>
+            <Text style={styles.addPresetTitle}>Fix Custom Duration</Text>
             <View style={styles.addPresetRow}>
               <TextInput
                 style={styles.customDaysInput}
@@ -830,6 +958,91 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: FontFamily.bold,
     color: '#171717',
+  },
+  dropdownFieldContainer: {
+    marginBottom: 8,
+  },
+  roleDropdownTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    borderRadius: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  roleDropdownTriggerActive: {
+    borderColor: '#D97706',
+    backgroundColor: '#FFFDF7',
+  },
+  roleDropdownTriggerLeft: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  roleDropdownTriggerText: {
+    fontSize: 13.5,
+    fontFamily: FontFamily.bold,
+    color: '#171717',
+  },
+  roleDropdownTriggerSubtext: {
+    fontSize: 11,
+    fontFamily: FontFamily.regular,
+    color: '#64748B',
+    marginTop: 1,
+  },
+  roleDropdownMenu: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 5,
+    marginTop: 6,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 3,
+    overflow: 'hidden',
+  },
+  roleDropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  roleDropdownItemSelected: {
+    backgroundColor: '#FFFDF0',
+  },
+  roleDropdownItemLeft: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  roleDropdownItemText: {
+    fontSize: 13,
+    fontFamily: FontFamily.medium,
+    color: '#334155',
+  },
+  roleDropdownItemTextSelected: {
+    fontFamily: FontFamily.bold,
+    color: '#171717',
+  },
+  roleDropdownItemDesc: {
+    fontSize: 11,
+    fontFamily: FontFamily.regular,
+    color: '#64748B',
+    marginTop: 1,
+  },
+  checkBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 5,
+    backgroundColor: '#FEF3C7',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   actionsRow: {
     flexDirection: 'row',

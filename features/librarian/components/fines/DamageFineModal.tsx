@@ -37,7 +37,7 @@ export const DamageFineModal = ({
   defaultPenalty: number;
   defaultDueRate?: number;
   onClose: () => void;
-  onSaveDamageFine: (newFine: Fine, updatedCopy?: BookCopy) => void;
+  onSaveDamageFine: (newFine: Fine, updatedCopy?: BookCopy, paymentMode?: 'CASH' | 'ONLINE') => void;
   modalStyles: any;
   commonStyles: any;
   fineStyles: any;
@@ -49,6 +49,8 @@ export const DamageFineModal = ({
   const [damageNotes, setDamageNotes] = useState('');
   const [copyCondition, setCopyCondition] = useState<CopyCondition>('DAMAGED');
   const [copyStatus, setCopyStatus] = useState<CopyStatus>('UNDER_REPAIR');
+  const [paymentMode, setPaymentMode] = useState<'CASH' | 'ONLINE'>('CASH');
+  const [onlineRef, setOnlineRef] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [memberSearch, setMemberSearch] = useState('');
   const [copySearch, setCopySearch] = useState('');
@@ -73,6 +75,8 @@ export const DamageFineModal = ({
       setDamageNotes('');
       setCopyCondition('DAMAGED');
       setCopyStatus('UNDER_REPAIR');
+      setPaymentMode('CASH');
+      setOnlineRef('');
       setMemberSearch('');
       setCopySearch('');
       setIsMemberDropdownOpen(false);
@@ -238,20 +242,40 @@ export const DamageFineModal = ({
       ? `${overdueDays} days @ ₹${dueRate}/day = ₹${amt.toFixed(2)}`
       : `Book Price: ₹${bookPrice} @ ${damagePercentage}% = ₹${amt.toFixed(2)}`;
 
+    const calculatedDamageType = isLost
+      ? 'TOTAL_DESTRUCTION'
+      : isDue
+      ? 'GENERAL_WEAR'
+      : copyCondition === 'BAD'
+      ? 'TOTAL_DESTRUCTION'
+      : 'TORN_PAGES';
+
+    const fineId = `fine-${isLost ? 'lost' : isDue ? 'due' : 'dmg'}-${Math.floor(100000 + Math.random() * 900000)}`;
+
     const newFine: Fine = {
-      id: `fine-${isLost ? 'lost' : isDue ? 'due' : 'dmg'}-${Math.floor(100000 + Math.random() * 900000)}`,
+      id: fineId,
       studentId: selectedStudentId,
       bookCopyId: selectedCopyId || undefined,
       loanId: selectedLoanId || undefined,
       fineType: isLost ? 'LOST_BOOK' : isDue ? 'OVERDUE' : 'DAMAGED_BOOK',
-      damageType: isLost ? 'TOTAL_DESTRUCTION' : isDue ? 'GENERAL_WEAR' : 'TORN_PAGES',
-      damageNotes: `[${damageCategory}] ${damageNotes.trim()} (${calculationDetails})`,
+      damageType: calculatedDamageType as any,
+      damageNotes: `[${damageCategory}] ${damageNotes.trim()} (${calculationDetails}) [Paid via ${paymentMode === 'ONLINE' ? 'Online Pay' : 'Cash'}]`,
       amount: amt,
-      paidAmount: 0,
-      status: 'UNPAID',
+      paidAmount: amt,
+      status: 'PAID',
       createdAt: new Date().toISOString().split('T')[0],
       updatedAt: new Date().toISOString().split('T')[0],
-      paymentTransactions: [],
+      paymentTransactions: [
+        {
+          id: `tx-${Date.now()}`,
+          fineId: fineId,
+          receiptNo: `REC-${Math.floor(100000 + Math.random() * 900000)}`,
+          amount: amt,
+          paymentMethod: paymentMode === 'ONLINE' ? 'UPI_ONLINE' : 'CASH',
+          paidAt: new Date().toISOString(),
+          cashier: 'Librarian Staff',
+        },
+      ],
     };
 
     let updatedCopy: BookCopy | undefined;
@@ -264,14 +288,8 @@ export const DamageFineModal = ({
       };
     }
 
-    // Save to backend database API (silent offline fallback)
-    apiClient('/library/fines/damage', {
-      method: 'POST',
-      body: JSON.stringify({ fine: newFine, copy: updatedCopy }),
-    }).catch(() => { });
-
     setSubmitting(false);
-    onSaveDamageFine(newFine, updatedCopy);
+    onSaveDamageFine(newFine, updatedCopy, paymentMode);
   };
 
   const styles = commonStyles;
@@ -286,7 +304,7 @@ export const DamageFineModal = ({
           <View style={[modalStyles.modalContainer, { maxHeight: '94%' }]}>
             <View style={modalStyles.header}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                              <Text style={modalStyles.headerTitle}>Book Fine</Text>
+                <Text style={modalStyles.headerTitle}>Collect Fine</Text>
               </View>
               <TouchableOpacity onPress={onClose}>
                 <Feather name="x" size={20} color="#6B7280" />
@@ -876,6 +894,137 @@ export const DamageFineModal = ({
                 placeholder="Describe exact condition, page numbers affected, torn cover, water spill, or due notes..."
                 placeholderTextColor="#475569"
               />
+            </View>
+
+            {/* Step 5: Payment Mode (Cash & Online Pay) */}
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>5. Payment Mode *</Text>
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+                <TouchableOpacity
+                  style={[
+                    styles.chip,
+                    {
+                      flex: 1,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                      paddingVertical: 11,
+                      borderRadius: 5,
+                      borderWidth: 1.5,
+                      borderColor: paymentMode === 'CASH' ? '#026440' : '#E8E5DC',
+                      backgroundColor: paymentMode === 'CASH' ? '#ECFDF5' : '#FFFFFF',
+                    },
+                  ]}
+                  onPress={() => setPaymentMode('CASH')}
+                  activeOpacity={0.8}
+                >
+                  <MaterialCommunityIcons
+                    name="cash"
+                    size={20}
+                    color={paymentMode === 'CASH' ? '#026440' : '#64748B'}
+                  />
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontWeight: paymentMode === 'CASH' ? '800' : '600',
+                      color: paymentMode === 'CASH' ? '#026440' : '#171717',
+                    }}
+                  >
+                    Cash
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.chip,
+                    {
+                      flex: 1,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                      paddingVertical: 11,
+                      borderRadius: 5,
+                      borderWidth: 1.5,
+                      borderColor: paymentMode === 'ONLINE' ? '#D97706' : '#E8E5DC',
+                      backgroundColor: paymentMode === 'ONLINE' ? '#FFFDF0' : '#FFFFFF',
+                    },
+                  ]}
+                  onPress={() => setPaymentMode('ONLINE')}
+                  activeOpacity={0.8}
+                >
+                  <MaterialCommunityIcons
+                    name="cellphone-check"
+                    size={20}
+                    color={paymentMode === 'ONLINE' ? '#D97706' : '#64748B'}
+                  />
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontWeight: paymentMode === 'ONLINE' ? '800' : '600',
+                      color: paymentMode === 'ONLINE' ? '#D97706' : '#171717',
+                    }}
+                  >
+                    Online Pay
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {paymentMode === 'CASH' && (
+                <View
+                  style={{
+                    backgroundColor: '#F0FDF4',
+                    borderWidth: 1,
+                    borderColor: '#BBF7D0',
+                    borderRadius: 5,
+                    padding: 10,
+                    marginTop: 8,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <Text style={{ fontSize: 12, color: '#166534', fontWeight: '600' }}>
+                    💵 Cash Collection
+                  </Text>
+                  <Text style={{ fontSize: 13, color: '#166534', fontWeight: '800' }}>
+                    ₹{calculatedFineAmount.toFixed(2)}
+                  </Text>
+                </View>
+              )}
+
+              {paymentMode === 'ONLINE' && (
+                <View
+                  style={{
+                    backgroundColor: '#FFFBEB',
+                    borderWidth: 1,
+                    borderColor: '#FDE68A',
+                    borderRadius: 5,
+                    padding: 10,
+                    marginTop: 8,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={{ fontSize: 12, color: '#92400E', fontWeight: '600' }}>
+                      📲 Online Pay / UPI
+                    </Text>
+                    <Text style={{ fontSize: 13, color: '#92400E', fontWeight: '800' }}>
+                      ₹{calculatedFineAmount.toFixed(2)}
+                    </Text>
+                  </View>
+                  <TextInput
+                    style={[
+                      styles.formInput,
+                      { height: 38, fontSize: 12, marginTop: 6, backgroundColor: '#FFFFFF', borderRadius: 5 },
+                    ]}
+                    value={onlineRef}
+                    onChangeText={setOnlineRef}
+                    placeholder="Transaction / UPI Reference ID (Optional)"
+                    placeholderTextColor="#94A3B8"
+                  />
+                </View>
+              )}
             </View>
 
             {/* Action Buttons: Cancel and Transparent Green Accept Button */}

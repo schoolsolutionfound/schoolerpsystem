@@ -35,7 +35,6 @@ const PRIMARY = [
   { key: 'books', label: 'Book Entry', icon: 'book-open-outline', iconFilled: 'book-open-page-variant' },
   { key: 'issue', label: 'Issue / Return', icon: 'swap-horizontal', iconFilled: 'swap-horizontal-bold' },
   { key: 'pyqs', label: 'Question Papers', icon: 'file-document-multiple-outline', iconFilled: 'file-document-multiple' },
-  { key: 'students', label: 'Members', icon: 'account-group-outline', iconFilled: 'account-group' },
   { key: 'fines', label: 'Fine Management', icon: 'cash-multiple', iconFilled: 'cash-multiple' },
   { key: 'reports', label: 'Reports', icon: 'chart-bar', iconFilled: 'chart-bar' },
 ];

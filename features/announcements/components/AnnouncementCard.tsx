@@ -40,6 +40,27 @@ export const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
     ? `${startDate} – ${endDate}`
     : `From ${startDate}`;
 
+  const targetRoleInfo = React.useMemo(() => {
+    if (!announcement.targets || announcement.targets.length === 0) {
+      return { label: 'All', icon: 'account-group-outline' as const };
+    }
+    const first = announcement.targets[0];
+    if (first.targetType === 'all') {
+      return { label: 'All', icon: 'account-group-outline' as const };
+    }
+    const role = (first.targetRole || '').toLowerCase().trim();
+    if (role === 'student') {
+      return { label: 'Student', icon: 'school-outline' as const };
+    }
+    if (role === 'teacher') {
+      return { label: 'Teacher', icon: 'account-tie-outline' as const };
+    }
+    return {
+      label: first.targetRole ? first.targetRole.charAt(0).toUpperCase() + first.targetRole.slice(1) : 'All',
+      icon: 'account-group-outline' as const,
+    };
+  }, [announcement.targets]);
+
   const handleDeletePress = () => {
     Alert.alert(
       'Delete Announcement',
@@ -87,12 +108,18 @@ export const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
         {announcement.content}
       </Text>
 
-      {/* Time Period Display */}
+      {/* Badges: Time Period & Target Role */}
       <View style={styles.periodRow}>
         <View style={styles.periodBadge}>
           <MaterialCommunityIcons name="calendar-clock-outline" size={15} color="#171717" />
           <Text style={styles.periodLabel}>Time Period:</Text>
           <Text style={styles.periodValue}>{timePeriodText}</Text>
+        </View>
+
+        <View style={styles.roleBadge}>
+          <MaterialCommunityIcons name={targetRoleInfo.icon} size={15} color="#92400E" />
+          <Text style={styles.roleLabel}>Role:</Text>
+          <Text style={styles.roleValue}>{targetRoleInfo.label}</Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -149,6 +176,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-start',
+    flexWrap: 'wrap',
+    gap: 8,
     borderTopWidth: 1,
     borderTopColor: '#F3F4F6',
     paddingTop: 10,
@@ -173,5 +202,26 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: FontFamily.bold,
     color: '#171717',
+  },
+  roleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: 5,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+  },
+  roleLabel: {
+    fontSize: 12,
+    fontFamily: FontFamily.medium,
+    color: '#92400E',
+  },
+  roleValue: {
+    fontSize: 12,
+    fontFamily: FontFamily.bold,
+    color: '#92400E',
   },
 });

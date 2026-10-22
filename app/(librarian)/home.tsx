@@ -820,22 +820,29 @@ export default function LibrarianHomeScreen() {
           defaultPenalty={typeof settings.damagedBookPenalty === 'number' ? settings.damagedBookPenalty : parseFloat(String(settings.damagedBookPenalty || '25'))}
           defaultDueRate={typeof settings.finePerDay === 'number' ? settings.finePerDay : parseFloat(String(settings.finePerDay || '10'))}
           onClose={() => setDamageFineModalOpen(false)}
-          onSaveDamageFine={async (newFine: Fine) => {
+          onSaveDamageFine={async (newFine: Fine, updatedCopy?: BookCopy, paymentMode?: 'CASH' | 'ONLINE') => {
             try {
               await createDamageFine({
                 studentId: newFine.studentId,
                 bookCopyId: newFine.bookCopyId || undefined,
                 loanId: newFine.loanId || undefined,
+                damageType: (newFine.damageType as any) || 'GENERAL_WEAR',
                 fineType: newFine.fineType === 'LOST_BOOK' ? 'LOST' : 'DAMAGE',
                 amount: newFine.amount,
-                reason: newFine.damageNotes || 'Book Fine',
+                damageNotes: newFine.damageNotes || 'Fine Collected',
+                reason: newFine.damageNotes || 'Fine Collected',
+                copyCondition: updatedCopy?.condition || 'DAMAGED',
+                copyStatus: updatedCopy?.status || 'UNDER_REPAIR',
+                paymentMethod: paymentMode === 'ONLINE' ? 'ONLINE' : 'CASH',
+                isPaid: true,
               });
               await refetchFines();
               await refetchBooks();
               await refetchDashboard();
               setDamageFineModalOpen(false);
+              Alert.alert('Fine Collected', `Successfully collected fine of ₹${newFine.amount.toFixed(2)} via ${paymentMode === 'ONLINE' ? 'Online Pay' : 'Cash'}.`);
             } catch (err: any) {
-              Alert.alert('Error', err?.message || 'Failed to assess fine.');
+              Alert.alert('Error', err?.message || 'Failed to collect fine.');
             }
           }}
           modalStyles={modalStyles}

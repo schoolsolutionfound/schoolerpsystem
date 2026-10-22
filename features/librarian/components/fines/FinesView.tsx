@@ -215,7 +215,7 @@ export const FinesView: React.FC<FinesViewProps> = ({
             onPress={onAssessDamage}
             activeOpacity={0.8}
           >
-            <Text style={fineStyles.damageBtnHeaderText}>Book Fine</Text>
+            <Text style={fineStyles.damageBtnHeaderText}>Collect Fine</Text>
           </TouchableOpacity>
         </View>
 
@@ -290,8 +290,8 @@ export const FinesView: React.FC<FinesViewProps> = ({
                   <RefreshControl
                     refreshing={!!isRefreshing}
                     onRefresh={onRefresh}
-                    colors={['#D97706']}
-                    tintColor="#D97706"
+                    colors={['#000000']}
+                    tintColor="#000000"
                   />
                 ) : undefined
               }
@@ -427,8 +427,8 @@ export const FinesView: React.FC<FinesViewProps> = ({
                   <RefreshControl
                     refreshing={!!isRefreshing}
                     onRefresh={onRefresh}
-                    colors={['#D97706']}
-                    tintColor="#D97706"
+                    colors={['#000000']}
+                    tintColor="#000000"
                   />
                 ) : undefined
               }

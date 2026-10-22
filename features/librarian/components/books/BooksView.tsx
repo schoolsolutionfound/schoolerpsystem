@@ -85,8 +85,8 @@ export const BooksView: React.FC<BooksViewProps> = ({
               <RefreshControl
                 refreshing={!!isRefreshing}
                 onRefresh={onRefresh}
-                colors={['#D97706']}
-                tintColor="#D97706"
+                colors={['#000000']}
+                tintColor="#000000"
               />
             ) : undefined
           }

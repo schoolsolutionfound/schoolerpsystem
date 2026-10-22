@@ -381,8 +381,8 @@ export function ReportsView({
           <RefreshControl
             refreshing={!!isRefreshing}
             onRefresh={onRefresh}
-            colors={['#D97706']}
-            tintColor="#D97706"
+            colors={['#000000']}
+            tintColor="#000000"
           />
         ) : undefined
       }
@@ -406,11 +406,7 @@ export function ReportsView({
           disabled={isExporting}
           activeOpacity={0.85}
         >
-          {isExporting ? (
-            <ActivityIndicator size="small" color="#171717" />
-          ) : (
-            <Feather name="download" size={13} color="#171717" />
-          )}
+          
           <Text style={reportStyles.exportBtnText}>
             {isExporting ? 'Generating...' : 'Export Report'}
           </Text>
