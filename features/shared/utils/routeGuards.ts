@@ -31,6 +31,7 @@ const ROLE_GROUP: Record<string, string> = {
 const SHARED_ROUTES = [
   '/auth', '/', '/index', '/welcome', '/change-password',
   '/complete-profile', '/verify-email', '/notifications', '/select-school',
+  '/teacher-attendance', '/leave', '/settings',
 ];
 
 export function getHomeRouteForRole(role?: string): string {

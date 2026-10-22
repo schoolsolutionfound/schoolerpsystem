@@ -38,8 +38,8 @@ export default function DriverHomeScreen() {
     <RefreshControl
       refreshing={refreshing}
       onRefresh={onRefresh}
-      tintColor="#1A1B1C"
-      colors={['#1A1B1C']}
+      tintColor="#000000"
+      colors={['#000000']}
       progressBackgroundColor="#FFFFFF"
     />
   );

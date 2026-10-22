@@ -15,13 +15,15 @@ interface ChangePasswordFormProps {
   setShowPassword2: (val: boolean) => void;
   hasMinLength: boolean;
   hasUppercase: boolean;
+  hasLowercase?: boolean;
   hasNumber: boolean;
-  hasSpecial: boolean;
+  hasSpecial?: boolean;
   passedChecksCount: number;
   strengthLabel: string;
   strengthColor: string;
   loading: boolean;
   onSubmit: () => void;
+  submitButtonText?: string;
 }
 
 export const ChangePasswordForm: React.FC<ChangePasswordFormProps> = ({
@@ -35,13 +37,15 @@ export const ChangePasswordForm: React.FC<ChangePasswordFormProps> = ({
   setShowPassword2,
   hasMinLength,
   hasUppercase,
+  hasLowercase = false,
   hasNumber,
-  hasSpecial,
+  hasSpecial = false,
   passedChecksCount,
   strengthLabel,
   strengthColor,
   loading,
   onSubmit,
+  submitButtonText,
 }) => {
   return (
     <View style={styles.formCard}>
@@ -115,7 +119,16 @@ export const ChangePasswordForm: React.FC<ChangePasswordFormProps> = ({
             size={16}
             color={hasUppercase ? '#F4C430' : '#6B6B6B'}
           />
-          <Text style={[styles.checkItemText, hasUppercase && styles.checkItemActive]}>One uppercase letter</Text>
+          <Text style={[styles.checkItemText, hasUppercase && styles.checkItemActive]}>One uppercase letter (A-Z)</Text>
+        </View>
+
+        <View style={styles.checkItem}>
+          <MaterialCommunityIcons
+            name={hasLowercase ? 'check-circle' : 'circle-outline'}
+            size={16}
+            color={hasLowercase ? '#F4C430' : '#6B6B6B'}
+          />
+          <Text style={[styles.checkItemText, hasLowercase && styles.checkItemActive]}>One lowercase letter (a-z)</Text>
         </View>
 
         <View style={styles.checkItem}>
@@ -124,26 +137,17 @@ export const ChangePasswordForm: React.FC<ChangePasswordFormProps> = ({
             size={16}
             color={hasNumber ? '#F4C430' : '#6B6B6B'}
           />
-          <Text style={[styles.checkItemText, hasNumber && styles.checkItemActive]}>One number</Text>
-        </View>
-
-        <View style={styles.checkItem}>
-          <MaterialCommunityIcons
-            name={hasSpecial ? 'check-circle' : 'circle-outline'}
-            size={16}
-            color={hasSpecial ? '#F4C430' : '#6B6B6B'}
-          />
-          <Text style={[styles.checkItemText, hasSpecial && styles.checkItemActive]}>One special character</Text>
+          <Text style={[styles.checkItemText, hasNumber && styles.checkItemActive]}>One number (0-9)</Text>
         </View>
       </View>
 
       {/* Primary Submit Button */}
-      <TouchableOpacity style={styles.button} onPress={onSubmit} disabled={loading}>
+      <TouchableOpacity style={styles.button} onPress={onSubmit} disabled={loading} activeOpacity={0.85}>
         {loading ? (
           <ActivityIndicator color="#FFFFFF" size="small" />
         ) : (
           <>
-            <Text style={styles.buttonText}>Continue</Text>
+            <Text style={styles.buttonText}>{submitButtonText || 'Continue'}</Text>
             <MaterialCommunityIcons name="arrow-right" size={20} color="#FFFFFF" style={{ marginLeft: 6 }} />
           </>
         )}

@@ -25,30 +25,42 @@ export function useAuthGuard({
   useEffect(() => {
     if (!_hasHydrated || authLoading) return;
 
-    const isPublicAuthRoute = ['/', '/auth', '/index', '/welcome', '/change-password', '/complete-profile', '/verify-email', '/notifications', '/select-school'].includes(pathname);
+    // Entry screens intended only for unauthenticated users
+    const isUnauthEntryRoute = ['/', '/auth', '/index', '/welcome', '/select-school'].includes(pathname);
 
     if (userSession) {
       if (!isProfileSynced && userRole === 'loading') return;
 
-      // Email verification check disabled — can be re-enabled later
+      const state = useUserStore.getState();
 
-      if (isPublicAuthRoute) {
-        const state = useUserStore.getState();
-        if (state.mustChangePassword) {
+      // If user must change password, keep them on change-password
+      if (state.mustChangePassword) {
+        if (pathname !== '/change-password' && pathname !== '/auth') {
           router.replace('/change-password');
-        } else if (!state.profileCompleted) {
-          router.replace('/complete-profile');
-        } else {
-          router.replace(getHomeRouteForRole(state.userRole) as any);
         }
         return;
       }
 
+      // If profile is not completed, keep them on complete-profile
+      if (!state.profileCompleted) {
+        if (pathname !== '/complete-profile' && pathname !== '/change-password' && pathname !== '/auth') {
+          router.replace('/complete-profile');
+        }
+        return;
+      }
+
+      // If already authenticated with completed profile, bounce off login/welcome pages to home
+      if (isUnauthEntryRoute) {
+        router.replace(getHomeRouteForRole(state.userRole) as any);
+        return;
+      }
+
+      // Check role group permissions for role-specific routes
       if (!isRouteAllowedForRole(pathname, userRole)) {
         router.replace(getHomeRouteForRole(userRole) as any);
       }
     } else {
-      if (!isPublicAuthRoute && !isRouteAllowedForRole(pathname, userRole)) {
+      if (!isUnauthEntryRoute && !isRouteAllowedForRole(pathname, userRole)) {
         router.replace('/auth');
       }
     }

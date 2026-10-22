@@ -1,134 +1,281 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { BorderRadius } from '../../../constants/theme';
 import { FontFamily } from '../../../constants/fonts';
-import { ShimmerSkeleton } from '../../student/components/ShimmerSkeleton';
+import { TeacherShimmerSkeleton } from './common/TeacherShimmer';
+import { MaterialCommunityIcons, Feather } from './common/Icons';
+import { useClassTransferStore } from '../services/classTransferStore';
+import { useAttendanceStore } from '../services/attendanceStore';
 
 interface TeacherHomePeriodsListProps {
   loading?: boolean;
   slots?: any[];
-  onMarkAttendance?: (slotId: string, subjectName: string) => void;
+  onMarkAttendance?: (slotOrId: any, subjectName?: string, className?: string) => void;
+  onViewFull?: () => void;
 }
 
-function toMinutes(timeStr?: string): number | null {
-  if (!timeStr) return null;
-  const m = timeStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)?$/);
-  if (!m) return null;
-  let h = parseInt(m[1], 10);
-  const min = parseInt(m[2], 10);
-  const suffix = (m[3] || '').toUpperCase();
-  if (suffix === 'PM' && h < 12) h += 12;
-  if (suffix === 'AM' && h === 12) h = 0;
-  return h * 60 + min;
+function parsePeriodInfo(slot: any, index: number): { num: string; label: string } {
+  const rawLabel = (slot?.period?.label || slot?.label || '').trim();
+  const ordinals = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th', '10th'];
+
+  if (rawLabel) {
+    const match = rawLabel.match(/^(\d+)(?:st|nd|rd|th)?(?:\s*period)?/i);
+    if (match) {
+      const n = parseInt(match[1], 10);
+      const num = ordinals[n - 1] || `${n}th`;
+      return { num, label: 'Period' };
+    }
+    const cleanWord = rawLabel.replace(/period/i, '').trim();
+    if (cleanWord) {
+      return { num: cleanWord, label: 'Period' };
+    }
+  }
+
+  return { num: ordinals[index] || `${index + 1}th`, label: 'Period' };
 }
 
-function isNowWithin(start?: string, end?: string): boolean {
-  const now = new Date();
-  const nowMin = now.getHours() * 60 + now.getMinutes();
-  const s = toMinutes(start);
-  const e = toMinutes(end);
-  if (s === null || e === null) return false;
-  return nowMin >= s && nowMin < e;
+function shortenSubjectName(rawName: string): string {
+  const map: Record<string, string> = {
+    mathematics: 'Maths',
+    maths: 'Maths',
+    math: 'Maths',
+    'practical geometry': 'Pract. Geom',
+    geometry: 'Geometry',
+    algebra: 'Algebra',
+    physics: 'Physics',
+    chemistry: 'Chem',
+    chem: 'Chem',
+    biology: 'Bio',
+    bio: 'Bio',
+    'computer science': 'Comp Sci',
+    'information technology': 'IT',
+    'social science': 'Social Sci',
+    'social studies': 'Social Sci',
+    'environmental studies': 'EVS',
+    'environmental science': 'EVS',
+    'physical education': 'P.E.',
+    'business studies': 'Business',
+    'general knowledge': 'GK',
+    'english language': 'English',
+    'english literature': 'English',
+    'hindi literature': 'Hindi',
+  };
+
+  const lower = rawName.trim().toLowerCase();
+  if (map[lower]) return map[lower];
+
+  if (rawName.length <= 11) return rawName;
+  if (lower.startsWith('practical ')) return rawName.replace(/^practical\s+/i, 'P. ');
+  return rawName;
 }
 
-function periodLabel(slot: any, index: number): string {
-  const label = slot?.period?.label;
-  if (label) return label;
-  const ordinals = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th'];
-  return ordinals[index] || `${index + 1}th`;
+function toShortSubject(subject?: any): string {
+  if (!subject) return 'Subject';
+  if (typeof subject === 'string') return shortenSubjectName(subject);
+  if (subject.shortName) return subject.shortName;
+  if (subject.code && subject.code.length <= 6) return subject.code;
+  return shortenSubjectName(subject.name || 'Subject');
+}
+
+function formatClass(slot: any): string {
+  const cls = slot?.classSectionName || slot?.classSection?.name || '';
+  if (cls) return cls;
+  return 'General';
+}
+
+function getTodayIsoDate(): string {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 export const TeacherHomePeriodsList: React.FC<TeacherHomePeriodsListProps> = ({
   loading,
   slots = [],
   onMarkAttendance,
+  onViewFull,
 }) => {
+  const { requests: transferRequests } = useClassTransferStore();
+  const { isPeriodMarked } = useAttendanceStore();
+  const todayStr = useMemo(() => getTodayIsoDate(), []);
+
+  const displaySlots = useMemo(() => {
+
+    // 1. Mark any slot that this teacher transferred out and got accepted
+    const baseList = slots.map((slot) => {
+      const matched = transferRequests.find(
+        (r) =>
+          r.status === 'accepted' &&
+          (r.date === todayStr || !r.date) &&
+          (r.periodId === slot.id ||
+            (Boolean(slot.period?.label) && r.periodLabel?.toLowerCase() === slot.period?.label?.toLowerCase()))
+      );
+      if (matched) {
+        return {
+          ...slot,
+          isTransferredOut: true,
+          coveredByTeacherName: matched.toTeacherName,
+        };
+      }
+      return slot;
+    });
+
+    // 2. Append any accepted incoming transfers where this teacher is covering!
+    const acceptedIncomingToday = transferRequests
+      .filter(
+        (r) =>
+          r.status === 'accepted' &&
+          (r.date === todayStr || !r.date) &&
+          (r.toTeacherId === 'current-user' || r.toTeacherName.includes('You'))
+      )
+      .map((r) => ({
+        id: r.periodId || `incoming-${r.id}`,
+        period: {
+          label: r.periodLabel,
+          startTime: r.startTime,
+          endTime: r.endTime,
+        },
+        subject: { name: r.subject },
+        classSectionName: r.className,
+        isCovering: true,
+        coveringForTeacherName: r.fromTeacherName,
+      }));
+
+    return [...baseList, ...acceptedIncomingToday];
+  }, [slots, transferRequests]);
+
   return (
-    <View style={styles.periodsSection}>
-      <View style={styles.sectionHeaderRow}>
-        <View style={styles.sectionIconWrap}>
-          <MaterialCommunityIcons name="calendar-month-outline" size={16} color="#1A1B1C" />
-        </View>
-        <Text style={styles.sectionHeaderTitle}>Today&apos;s Periods</Text>
-        <View style={styles.countBadge}>
-          <Text style={styles.countBadgeText}>{slots.length}</Text>
-        </View>
+    <View style={styles.card}>
+      {/* Card Header matching reference image */}
+      <View style={styles.cardHeader}>
+        <Text style={styles.cardTitle}>Today&apos;s Timetable</Text>
+        <TouchableOpacity
+          onPress={onViewFull}
+          activeOpacity={0.7}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Text style={styles.viewFullText}>View Full</Text>
+        </TouchableOpacity>
       </View>
 
+      <View style={styles.headerDivider} />
+
       {loading ? (
-        <View style={styles.periodsListCard}>
-          {[0, 1, 2].map((i) => (
-            <View key={i} style={styles.periodRow}>
-              <ShimmerSkeleton width={44} height={28} borderRadius={6} />
-              <ShimmerSkeleton width={60} height={24} borderRadius={6} />
-              <View style={{ flex: 1, gap: 6 }}>
-                <ShimmerSkeleton width="80%" height={12} borderRadius={4} />
-                <ShimmerSkeleton width="50%" height={10} borderRadius={4} />
+        <View style={styles.listContent}>
+          {[0, 1, 2, 3].map((i) => (
+            <View key={i}>
+              {i > 0 && <View style={styles.rowDivider} />}
+              <View style={styles.periodRow}>
+                <View style={styles.periodCol}>
+                  <TeacherShimmerSkeleton width={38} height={16} borderRadius={5} />
+                  <TeacherShimmerSkeleton width={42} height={12} borderRadius={5} />
+                </View>
+
+                <View style={styles.verticalDivider} />
+
+                <View style={styles.timeCol}>
+                  <TeacherShimmerSkeleton width={74} height={15} borderRadius={5} />
+                  <TeacherShimmerSkeleton width={74} height={12} borderRadius={5} />
+                </View>
+
+                <View style={styles.subjectCol}>
+                  <TeacherShimmerSkeleton width="80%" height={16} borderRadius={5} />
+                  <TeacherShimmerSkeleton width="60%" height={12} borderRadius={5} />
+                </View>
+
+                <TeacherShimmerSkeleton width={62} height={32} borderRadius={5} />
               </View>
-              <ShimmerSkeleton width={52} height={28} borderRadius={6} />
             </View>
           ))}
         </View>
-      ) : slots.length === 0 ? (
-        <View style={styles.periodsListCard}>
-          <View style={styles.emptyCard}>
-            <View style={styles.emptyIconWrap}>
-              <MaterialCommunityIcons name="calendar-blank-outline" size={28} color="#9CA3AF" />
-            </View>
-            <Text style={styles.emptyTitle}>No classes today</Text>
-            <Text style={styles.emptySub}>Your schedule will appear here.</Text>
+      ) : displaySlots.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <View style={styles.emptyIconWrap}>
+            <MaterialCommunityIcons name="calendar-blank-outline" size={24} color="#9CA3AF" />
           </View>
+          <Text style={styles.emptyTitle}>No classes today</Text>
+          <Text style={styles.emptySubtitle}>You have no periods scheduled on your timetable</Text>
         </View>
       ) : (
-        <View style={styles.periodsListCard}>
-          {slots.map((slot, i) => {
-            const active = isNowWithin(slot?.period?.startTime, slot?.period?.endTime);
+        <View style={styles.listContent}>
+          {displaySlots.map((slot: any, i: number) => {
+            const { num, label } = parsePeriodInfo(slot, i);
+            const startTime = slot?.period?.startTime || slot?.startTime || '00:00';
+            const endTime = slot?.period?.endTime || slot?.endTime || '00:00';
+            const subjectName = toShortSubject(slot?.subject || slot?.subjectName);
+
+            const cls = formatClass(slot);
+            // NO ROOM NUMBER: Room number removed in schedule! Show accepted teacher info!
+            let metaInfo = cls;
+            if (slot.isCovering) {
+              metaInfo = `${cls} • Covering (${slot.coveringForTeacherName || 'Substitute'})`;
+            } else if (slot.isTransferredOut) {
+              metaInfo = `${cls} • Covered by ${slot.coveredByTeacherName || 'Substitute'}`;
+            }
+
+            const rawSubject = slot?.subject?.name || slot?.subjectName || subjectName;
+            const isMarked = isPeriodMarked(slot.id, todayStr, cls, rawSubject);
+
             return (
-              <View key={slot.id || i}>
-                {i > 0 && <View style={styles.divider} />}
-                <View style={[styles.periodRow, active && styles.activePeriodRow]}>
-                  <View style={[styles.periodBadge, active && styles.activePeriodBadge]}>
-                    <Text style={[styles.periodBadgeNum, active && styles.periodBadgeNumActive]}>
-                      {periodLabel(slot, i)}
+              <View key={slot.id || `slot-${i}`}>
+                {i > 0 && <View style={styles.rowDivider} />}
+                <View style={styles.periodRow}>
+                  {/* Column 1: Period number and label */}
+                  <View style={styles.periodCol}>
+                    <Text style={styles.periodNum}>{num}</Text>
+                    <Text style={styles.periodLabel}>{label}</Text>
+                  </View>
+
+                  {/* Vertical separator between period and time */}
+                  <View style={styles.verticalDivider} />
+
+                  {/* Column 2: Start and End Time */}
+                  <View style={styles.timeCol}>
+                    <Text style={styles.timeStart}>{startTime}</Text>
+                    <Text style={styles.timeEnd}>{endTime}</Text>
+                  </View>
+
+                  {/* Column 3: Subject Short Name and Class */}
+                  <View style={styles.subjectCol}>
+                    <Text style={styles.subjectName} numberOfLines={1}>
+                      {subjectName}
+                    </Text>
+                    <Text style={styles.subjectMeta} numberOfLines={1}>
+                      {metaInfo}
                     </Text>
                   </View>
-                  <View style={styles.timeWrap}>
-                    <Text style={[styles.timeText, active && styles.timeTextActive]}>
-                      {slot?.period?.startTime || ''}
-                    </Text>
-                    <Text style={styles.timeSubText}>{slot?.period?.endTime || ''}</Text>
-                  </View>
-                  <View style={styles.iconSubjectWrap}>
-                    <View style={[styles.subjectIconCircle, active && styles.subjectIconCircleActive]}>
-                      <MaterialCommunityIcons
-                        name="book-open-page-variant-outline"
-                        size={18}
-                        color="#1A1B1C"
-                      />
+
+                  {/* Column 4: Mark Button or Covered indicator or Marked state */}
+                  {slot.isTransferredOut ? (
+                    <View style={styles.coveredBtn}>
+                      <Text style={styles.coveredBtnText}>Covered</Text>
                     </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.subjectName}>{slot?.subject?.name || 'Subject'}</Text>
-                      <Text style={styles.roomName}>
-                        {slot?.classSectionName || 'Class'}
-                        {slot?.room ? ` · Room ${slot.room}` : ''}
-                      </Text>
-                    </View>
-                  </View>
-                  {onMarkAttendance ? (
+                  ) : isMarked ? (
                     <TouchableOpacity
-                      style={styles.markBtn}
-                      onPress={() => onMarkAttendance(slot.id, slot?.subject?.name || 'Subject')}
+                      style={styles.markedBtn}
+                      onPress={() => onMarkAttendance?.(slot, rawSubject, cls)}
+                      activeOpacity={0.82}
                     >
-                      <MaterialCommunityIcons name="check-circle-outline" size={14} color="#FFFFFF" />
+                      <Feather name="check" size={13} color="#FFFFFF" />
+                      <Text style={styles.markedBtnText}>Marked</Text>
+                    </TouchableOpacity>
+                  ) : slot.isCovering ? (
+                    <TouchableOpacity
+                      style={styles.markBtnCovering}
+                      onPress={() => onMarkAttendance?.(slot, rawSubject, cls)}
+                      activeOpacity={0.82}
+                    >
                       <Text style={styles.markBtnText}>Mark</Text>
                     </TouchableOpacity>
-                  ) : active ? (
-                    <View style={styles.nowChip}>
-                      <Text style={styles.nowChipText}>Now</Text>
-                    </View>
                   ) : (
-                    <View style={{ width: 52 }} />
+                    <TouchableOpacity
+                      style={styles.markBtn}
+                      onPress={() => onMarkAttendance?.(slot, rawSubject, cls)}
+                      activeOpacity={0.82}
+                    >
+                      <Text style={styles.markBtnText}>Mark</Text>
+                    </TouchableOpacity>
                   )}
                 </View>
               </View>
@@ -141,99 +288,199 @@ export const TeacherHomePeriodsList: React.FC<TeacherHomePeriodsListProps> = ({
 };
 
 const styles = StyleSheet.create({
-  periodsSection: { gap: 10 },
-  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  sectionIconWrap: {
-    width: 28,
-    height: 28,
-    borderRadius: 7,
-    backgroundColor: '#F4C430',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  sectionHeaderTitle: { flex: 1, fontSize: 15, fontFamily: FontFamily.extrabold, color: '#171717' },
-  countBadge: {
-    backgroundColor: 'rgba(244, 196, 48, 0.15)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  countBadgeText: { fontSize: 11, fontWeight: '700', color: '#D4A418' },
-  periodsListCard: {
+  card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.card,
+    borderRadius: 5,
     borderWidth: 1,
     borderColor: '#E8E5DC',
     overflow: 'hidden',
+    shadowColor: '#171717',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 14,
+  },
+  cardTitle: {
+    fontSize: 19,
+    fontFamily: FontFamily.extrabold,
+    color: '#111827',
+    letterSpacing: -0.3,
+  },
+  viewFullText: {
+    fontSize: 12.5,
+    fontFamily: FontFamily.medium,
+    color: '#111827',
+  },
+  headerDivider: {
+    height: 1,
+    backgroundColor: '#F3F4F6',
+  },
+  listContent: {
+    paddingVertical: 1,
   },
   periodRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
   },
-  activePeriodRow: { backgroundColor: '#FFF4C7' },
-  periodBadge: {
-    width: 52,
+  periodCol: {
+    width: 48,
+    justifyContent: 'center',
+  },
+  periodNum: {
+    fontSize: 15,
+    fontFamily: FontFamily.extrabold,
+    color: '#111827',
+  },
+  periodLabel: {
+    fontSize: 11,
+    fontFamily: FontFamily.regular,
+    color: '#6B7280',
+    marginTop: 1,
+  },
+  verticalDivider: {
+    width: 1,
     height: 30,
-    borderRadius: 6,
-    backgroundColor: '#1A1B1C',
+    backgroundColor: '#E5E7EB',
+    marginHorizontal: 10,
+  },
+  timeCol: {
+    width: 84,
     justifyContent: 'center',
-    alignItems: 'center',
   },
-  activePeriodBadge: {
-    backgroundColor: '#F4C430',
+  timeStart: {
+    fontSize: 13,
+    fontFamily: FontFamily.bold,
+    color: '#111827',
   },
-  periodBadgeNum: { fontSize: 9, fontFamily: FontFamily.extrabold, color: '#F4C430' },
-  periodBadgeNumActive: { color: '#FFFFFF' },
-  timeWrap: { width: 70 },
-  timeText: { fontSize: 12, fontFamily: FontFamily.semibold, color: '#171717' },
-  timeTextActive: { color: '#F4C430' },
-  timeSubText: { fontSize: 10, fontFamily: FontFamily.regular, color: '#6B6B6B' },
-  iconSubjectWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  subjectIconCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#F4C430',
+  timeEnd: {
+    fontSize: 11,
+    fontFamily: FontFamily.regular,
+    color: '#6B7280',
+    marginTop: 1,
+  },
+  subjectCol: {
+    flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
+    paddingLeft: 6,
+    paddingRight: 10,
   },
-  subjectIconCircleActive: {
-    backgroundColor: '#F4C430',
+  subjectName: {
+    fontSize: 14.5,
+    fontFamily: FontFamily.extrabold,
+    color: '#111827',
   },
-  subjectName: { fontSize: 13, fontFamily: FontFamily.semibold, color: '#171717' },
-  roomName: { fontSize: 11, fontFamily: FontFamily.regular, color: '#6B6B6B' },
+  subjectMeta: {
+    fontSize: 11.5,
+    fontFamily: FontFamily.regular,
+    color: '#6B7280',
+    marginTop: 2,
+  },
   markBtn: {
     backgroundColor: '#F4C430',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: BorderRadius.chip,
+    borderRadius: 5,
+    width: 76,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#171717',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
+    elevation: 1,
+  },
+  markBtnCovering: {
+    backgroundColor: '#FAB82C',
+    borderRadius: 5,
+    width: 76,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#171717',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
+    elevation: 1,
+  },
+  markedBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 4,
+    backgroundColor: '#059669',
+    borderRadius: 5,
+    width: 76,
+    height: 32,
+    shadowColor: '#059669',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.18,
+    shadowRadius: 1.5,
+    elevation: 1,
   },
-  markBtnText: { fontSize: 11, fontWeight: '700', color: '#FFFFFF' },
-  nowChip: {
-    backgroundColor: '#F4C430',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: BorderRadius.chip,
+  markedBtnText: {
+    color: '#FFFFFF',
+    fontFamily: FontFamily.bold,
+    fontSize: 12,
   },
-  nowChipText: { fontSize: 10, fontWeight: '700', color: '#FFFFFF' },
-  divider: { height: 1, backgroundColor: '#FFFEFE' },
-  emptyCard: { padding: 24, alignItems: 'center', gap: 6 },
+  coveredBtn: {
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    borderRadius: 5,
+    width: 76,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  coveredBtnText: {
+    fontSize: 12,
+    fontFamily: FontFamily.bold,
+    color: '#065F46',
+  },
+  markBtnText: {
+    color: '#171717',
+    fontFamily: FontFamily.bold,
+    fontSize: 12,
+  },
+  rowDivider: {
+    height: 1,
+    backgroundColor: '#F3F4F6',
+  },
+  emptyContainer: {
+    paddingVertical: 32,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    gap: 6,
+  },
   emptyIconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: '#FFFDF7',
+    width: 42,
+    height: 42,
+    borderRadius: 5,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E8E5DC',
+    marginBottom: 4,
   },
-  emptyTitle: { fontSize: 14, fontWeight: '700', color: '#171717' },
-  emptySub: { fontSize: 12, color: '#6B6B6B', textAlign: 'center', lineHeight: 16 },
+  emptyTitle: {
+    fontSize: 14,
+    fontFamily: FontFamily.bold,
+    color: '#111827',
+  },
+  emptySubtitle: {
+    fontSize: 11.5,
+    fontFamily: FontFamily.regular,
+    color: '#6B7280',
+    textAlign: 'center',
+  },
 });

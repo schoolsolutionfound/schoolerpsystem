@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Text, ScrollView, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { BorderRadius } from '../../../constants/theme';
+import { View, StyleSheet, Text, ScrollView, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, RefreshControl } from 'react-native';
+import { MaterialCommunityIcons, Feather } from './common/Icons';
+import { TeacherChatSkeleton } from './skeletons/TeacherChatSkeleton';
 import { FontFamily } from '../../../constants/fonts';
 
 interface Message {
@@ -34,6 +34,14 @@ export const TeacherChatView: React.FC = () => {
   const [selectedParent, setSelectedParent] = useState<string | null>(null);
   const [messages, setMessages] = useState<Record<string, Message[]>>(MOCK_MESSAGES);
   const [inputText, setInputText] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 600);
+  };
 
   const handleSend = () => {
     if (!inputText.trim() || !selectedParent) return;
@@ -58,20 +66,22 @@ export const TeacherChatView: React.FC = () => {
     return (
       <View style={styles.chatContainer}>
         <View style={styles.chatHeader}>
-          <TouchableOpacity onPress={() => setSelectedParent(null)} style={styles.backBtn}>
-            <MaterialCommunityIcons name="arrow-left" size={22} color="#1A1B1C" />
+          <TouchableOpacity onPress={() => setSelectedParent(null)} style={styles.backBtn} activeOpacity={0.7}>
+            <Feather name="arrow-left" size={18} color="#171717" />
           </TouchableOpacity>
           <View style={styles.chatHeaderInfo}>
             <Text style={styles.chatHeaderName}>{parent?.name}</Text>
             <Text style={styles.chatHeaderSub}>Re: {parent?.child}</Text>
           </View>
-          <MaterialCommunityIcons name="phone-outline" size={22} color="#6B6B6B" />
+          <TouchableOpacity style={styles.headerPhoneBtn} activeOpacity={0.7}>
+            <Feather name="phone" size={16} color="#4B5563" />
+          </TouchableOpacity>
         </View>
 
         <ScrollView style={styles.chatBody} contentContainerStyle={styles.chatBodyContent}>
           {chatMsgs.length === 0 ? (
             <View style={styles.chatEmpty}>
-              <MaterialCommunityIcons name="message-outline" size={40} color="#E8E5DC" />
+              <MaterialCommunityIcons name="message-outline" size={38} color="#9CA3AF" />
               <Text style={styles.chatEmptyText}>No messages yet. Say hello!</Text>
             </View>
           ) : (
@@ -98,7 +108,7 @@ export const TeacherChatView: React.FC = () => {
               placeholderTextColor="#9CA3AF"
             />
             <TouchableOpacity style={styles.sendBtn} onPress={handleSend} activeOpacity={0.8}>
-              <MaterialCommunityIcons name="send" size={20} color="#FFFFFF" />
+              <Feather name="send" size={16} color="#171717" />
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
@@ -115,42 +125,57 @@ export const TeacherChatView: React.FC = () => {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
-        {MOCK_PARENTS.map((parent) => {
-          const lastMsg = messages[parent.id]?.slice(-1)[0];
-          return (
-            <TouchableOpacity
-              key={parent.id}
-              style={styles.contactCard}
-              onPress={() => setSelectedParent(parent.id)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.avatar}>
-                <MaterialCommunityIcons name="account" size={22} color="#1A1B1C" />
-              </View>
-              <View style={styles.contactInfo}>
-                <View style={styles.contactTop}>
-                  <Text style={styles.contactName}>{parent.name}</Text>
-                  {lastMsg && <Text style={styles.contactTime}>{lastMsg.time}</Text>}
+      <ScrollView
+        contentContainerStyle={styles.list}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#000000"
+            colors={['#000000']}
+          />
+        }
+      >
+        {refreshing ? (
+          <TeacherChatSkeleton />
+        ) : (
+          MOCK_PARENTS.map((parent) => {
+            const lastMsg = messages[parent.id]?.slice(-1)[0];
+            return (
+              <TouchableOpacity
+                key={parent.id}
+                style={styles.contactCard}
+                onPress={() => setSelectedParent(parent.id)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.avatar}>
+                  <MaterialCommunityIcons name="account" size={20} color="#1A1B1C" />
                 </View>
-                <Text style={styles.contactChild}>Parent of {parent.child}</Text>
-                {lastMsg ? (
-                  <Text style={styles.contactPreview} numberOfLines={1}>{lastMsg.text}</Text>
-                ) : (
-                  <Text style={styles.contactPreview}>Start a conversation</Text>
-                )}
-              </View>
-              <MaterialCommunityIcons name="chevron-right" size={20} color="#D0D0D0" />
-            </TouchableOpacity>
-          );
-        })}
+                <View style={styles.contactInfo}>
+                  <View style={styles.contactTop}>
+                    <Text style={styles.contactName}>{parent.name}</Text>
+                    {lastMsg && <Text style={styles.contactTime}>{lastMsg.time}</Text>}
+                  </View>
+                  <Text style={styles.contactChild}>Parent of {parent.child}</Text>
+                  {lastMsg ? (
+                    <Text style={styles.contactPreview} numberOfLines={1}>{lastMsg.text}</Text>
+                  ) : (
+                    <Text style={styles.contactPreview}>Start a conversation</Text>
+                  )}
+                </View>
+                <Feather name="chevron-right" size={18} color="#9CA3AF" />
+              </TouchableOpacity>
+            );
+          })
+        )}
       </ScrollView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFEFE' },
+  container: { flex: 1, backgroundColor: '#F9FAFB' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -158,42 +183,54 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 14,
     paddingBottom: 10,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E8E5DC',
   },
-  title: { fontSize: 18, fontFamily: FontFamily.extrabold, color: '#171717' },
+  title: { fontSize: 18, fontFamily: FontFamily.extrabold, color: '#111827' },
   countBadge: {
-    backgroundColor: 'rgba(244, 196, 48, 0.15)',
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 6,
+    borderRadius: 5,
   },
-  countText: { fontSize: 12, fontFamily: FontFamily.bold, color: '#D4A418' },
-  list: { paddingHorizontal: 20, paddingBottom: 20, gap: 8 },
+  countText: { fontSize: 11, fontFamily: FontFamily.bold, color: '#4B5563' },
+  list: { padding: 16, gap: 10, paddingBottom: 40 },
   contactCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.card,
+    borderRadius: 5,
     padding: 14,
     borderWidth: 1,
     borderColor: '#E8E5DC',
+    shadowColor: '#171717',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
   },
   avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#F4C430',
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
     alignItems: 'center',
     justifyContent: 'center',
   },
   contactInfo: { flex: 1, gap: 2 },
   contactTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  contactName: { fontSize: 14, fontFamily: FontFamily.bold, color: '#171717' },
-  contactTime: { fontSize: 10, fontFamily: FontFamily.regular, color: '#9CA3AF' },
-  contactChild: { fontSize: 11, fontFamily: FontFamily.regular, color: '#6B6B6B' },
-  contactPreview: { fontSize: 12, fontFamily: FontFamily.regular, color: '#9CA3AF', marginTop: 2 },
+  contactName: { fontSize: 14, fontFamily: FontFamily.bold, color: '#111827' },
+  contactTime: { fontSize: 10.5, fontFamily: FontFamily.regular, color: '#9CA3AF' },
+  contactChild: { fontSize: 11.5, fontFamily: FontFamily.medium, color: '#4B5563' },
+  contactPreview: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B7280', marginTop: 1 },
 
-  chatContainer: { flex: 1, backgroundColor: '#FFFEFE' },
+  chatContainer: { flex: 1, backgroundColor: '#F9FAFB' },
   chatHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -204,10 +241,29 @@ const styles = StyleSheet.create({
     borderBottomColor: '#E8E5DC',
     backgroundColor: '#FFFFFF',
   },
-  backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
+  backBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 5,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerPhoneBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 5,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   chatHeaderInfo: { flex: 1 },
-  chatHeaderName: { fontSize: 15, fontFamily: FontFamily.bold, color: '#171717' },
-  chatHeaderSub: { fontSize: 11, fontFamily: FontFamily.regular, color: '#6B6B6B' },
+  chatHeaderName: { fontSize: 15, fontFamily: FontFamily.bold, color: '#111827' },
+  chatHeaderSub: { fontSize: 11, fontFamily: FontFamily.regular, color: '#6B7280' },
   chatBody: { flex: 1 },
   chatBodyContent: { padding: 16, gap: 10 },
   chatEmpty: { alignItems: 'center', paddingTop: 80, gap: 8 },
@@ -216,22 +272,24 @@ const styles = StyleSheet.create({
     maxWidth: '78%',
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: 16,
-    gap: 4,
+    borderRadius: 5,
+    gap: 3,
   },
   msgLeft: {
     alignSelf: 'flex-start',
-    backgroundColor: '#F3F4F6',
-    borderBottomLeftRadius: 4,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderBottomLeftRadius: 5,
   },
   msgRight: {
     alignSelf: 'flex-end',
     backgroundColor: '#1A1B1C',
-    borderBottomRightRadius: 4,
+    borderBottomRightRadius: 5,
   },
-  msgSender: { fontSize: 10, fontFamily: FontFamily.bold, color: '#F4C430', marginBottom: 2 },
-  msgText: { fontSize: 13, fontFamily: FontFamily.regular, color: '#171717', lineHeight: 18 },
-  msgTime: { fontSize: 9, fontFamily: FontFamily.regular, color: '#9CA3AF', alignSelf: 'flex-end', marginTop: 2 },
+  msgSender: { fontSize: 10, fontFamily: FontFamily.bold, color: '#B45309', marginBottom: 2 },
+  msgText: { fontSize: 13, fontFamily: FontFamily.regular, color: '#111827', lineHeight: 18 },
+  msgTime: { fontSize: 9.5, fontFamily: FontFamily.regular, color: '#9CA3AF', alignSelf: 'flex-end', marginTop: 2 },
   chatInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -245,19 +303,19 @@ const styles = StyleSheet.create({
   chatInput: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#E8E5DC',
-    borderRadius: BorderRadius.chip,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    borderColor: '#E5E7EB',
+    borderRadius: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     fontSize: 13,
     fontFamily: FontFamily.regular,
-    color: '#171717',
-    backgroundColor: '#FAFAFA',
+    color: '#111827',
+    backgroundColor: '#FFFFFF',
   },
   sendBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 5,
     backgroundColor: '#F4C430',
     alignItems: 'center',
     justifyContent: 'center',

@@ -1,0 +1,12 @@
+export { TeacherHomeSkeleton } from './TeacherHomeSkeleton';
+export { TeacherTimetableSkeleton } from './TeacherTimetableSkeleton';
+export { TeacherAttendanceSkeleton } from './TeacherAttendanceSkeleton';
+export { TeacherMarksSkeleton } from './TeacherMarksSkeleton';
+export { TeacherHomeworkSkeleton } from './TeacherHomeworkSkeleton';
+export { TeacherLeaveSkeleton } from './TeacherLeaveSkeleton';
+export { TeacherReportsSkeleton } from './TeacherReportsSkeleton';
+export { TeacherLibrarySkeleton } from './TeacherLibrarySkeleton';
+export { TeacherChatSkeleton } from './TeacherChatSkeleton';
+export { TeacherLocateSkeleton } from './TeacherLocateSkeleton';
+export { TeacherProfileSkeleton } from './TeacherProfileSkeleton';
+export { TeacherSettingsSkeleton } from './TeacherSettingsSkeleton';

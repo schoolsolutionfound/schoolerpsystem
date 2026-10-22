@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Text, ScrollView, TouchableOpacity, TextInput } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { BorderRadius } from '../../../constants/theme';
+import { View, StyleSheet, Text, ScrollView, TouchableOpacity, TextInput, RefreshControl } from 'react-native';
+import { MaterialCommunityIcons, Feather } from './common/Icons';
+import { TeacherLocateSkeleton } from './skeletons/TeacherLocateSkeleton';
 import { FontFamily } from '../../../constants/fonts';
 
 interface Student {
@@ -29,6 +29,14 @@ const MOCK_STUDENTS: Student[] = [
 export const TeacherLocateStudentsView: React.FC = () => {
   const [search, setSearch] = useState('');
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 600);
+  };
 
   const classes = ['All', 'Class 6 A', 'Class 6 B'];
 
@@ -42,12 +50,12 @@ export const TeacherLocateStudentsView: React.FC = () => {
   const absentCount = filtered.filter((s) => s.status === 'absent').length;
   const lateCount = filtered.filter((s) => s.status === 'late').length;
 
-  const statusColor = (status: string) => {
+  const statusMeta = (status: string) => {
     switch (status) {
-      case 'present': return '#16A34A';
-      case 'absent': return '#DC3545';
-      case 'late': return '#F97316';
-      default: return '#9CA3AF';
+      case 'present': return { color: '#026440', bg: '#D1FAE5', border: '#026440', label: 'Present' };
+      case 'absent': return { color: '#DC2626', bg: '#FEE2E2', border: '#FECACA', label: 'Absent' };
+      case 'late': return { color: '#B45309', bg: '#FEF3C7', border: '#FDE68A', label: 'Late' };
+      default: return { color: '#6B7280', bg: '#F3F4F6', border: '#E5E7EB', label: status };
     }
   };
 
@@ -59,7 +67,7 @@ export const TeacherLocateStudentsView: React.FC = () => {
 
       <View style={styles.searchRow}>
         <View style={styles.searchBox}>
-          <MaterialCommunityIcons name="magnify" size={18} color="#9CA3AF" />
+          <Feather name="search" size={16} color="#9CA3AF" />
           <TextInput
             style={styles.searchInput}
             value={search}
@@ -71,107 +79,134 @@ export const TeacherLocateStudentsView: React.FC = () => {
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.classRow} contentContainerStyle={styles.classRowContent}>
-        {classes.map((cls) => (
-          <TouchableOpacity
-            key={cls}
-            style={[styles.classChip, (selectedClass === cls || (!selectedClass && cls === 'All')) && styles.classChipActive]}
-            onPress={() => setSelectedClass(cls === 'All' ? null : cls)}
-          >
-            <Text style={[styles.classChipText, (selectedClass === cls || (!selectedClass && cls === 'All')) && styles.classChipTextActive]}>
-              {cls}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        {classes.map((cls) => {
+          const isActive = selectedClass === cls || (!selectedClass && cls === 'All');
+          return (
+            <TouchableOpacity
+              key={cls}
+              style={[styles.classChip, isActive && styles.classChipActive]}
+              onPress={() => setSelectedClass(cls === 'All' ? null : cls)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.classChipText, isActive && styles.classChipTextActive]}>
+                {cls}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
 
       <View style={styles.statsRow}>
-        <View style={[styles.statPill, { backgroundColor: 'rgba(22, 163, 74, 0.1)' }]}>
-          <View style={[styles.statDot, { backgroundColor: '#16A34A' }]} />
-          <Text style={styles.statText}>{presentCount} Present</Text>
+        <View style={[styles.statPill, { backgroundColor: '#D1FAE5', borderColor: '#026440' }]}>
+          <View style={[styles.statDot, { backgroundColor: '#026440' }]} />
+          <Text style={[styles.statText, { color: '#026440' }]}>{presentCount} Present</Text>
         </View>
-        <View style={[styles.statPill, { backgroundColor: 'rgba(220, 53, 69, 0.1)' }]}>
-          <View style={[styles.statDot, { backgroundColor: '#DC3545' }]} />
-          <Text style={styles.statText}>{absentCount} Absent</Text>
+        <View style={[styles.statPill, { backgroundColor: '#FEE2E2', borderColor: '#FECACA' }]}>
+          <View style={[styles.statDot, { backgroundColor: '#DC2626' }]} />
+          <Text style={[styles.statText, { color: '#DC2626' }]}>{absentCount} Absent</Text>
         </View>
-        <View style={[styles.statPill, { backgroundColor: 'rgba(249, 115, 22, 0.1)' }]}>
-          <View style={[styles.statDot, { backgroundColor: '#F97316' }]} />
-          <Text style={styles.statText}>{lateCount} Late</Text>
+        <View style={[styles.statPill, { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' }]}>
+          <View style={[styles.statDot, { backgroundColor: '#D97706' }]} />
+          <Text style={[styles.statText, { color: '#D97706' }]}>{lateCount} Late</Text>
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
-        {filtered.map((student) => (
-          <View key={student.id} style={styles.card}>
-            <View style={styles.cardLeft}>
-              <View style={styles.cardAvatar}>
-                <MaterialCommunityIcons name="account" size={20} color="#1A1B1C" />
-              </View>
-              <View style={styles.cardInfo}>
-                <Text style={styles.cardName}>{student.name}</Text>
-                <Text style={styles.cardMeta}>{student.usn} · {student.class} {student.section}</Text>
-                <View style={styles.cardStatusRow}>
-                  <View style={[styles.statusDot, { backgroundColor: statusColor(student.status) }]} />
-                  <Text style={[styles.statusText, { color: statusColor(student.status) }]}>
-                    {student.status.charAt(0).toUpperCase() + student.status.slice(1)}
-                  </Text>
-                  <Text style={styles.lastSeenText}>· Last seen {student.lastSeen}</Text>
+      <ScrollView
+        contentContainerStyle={styles.list}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#000000"
+            colors={['#000000']}
+          />
+        }
+      >
+        {refreshing ? (
+          <TeacherLocateSkeleton />
+        ) : (
+          filtered.map((student) => {
+            const meta = statusMeta(student.status);
+            return (
+              <View key={student.id} style={styles.card}>
+                <View style={styles.cardLeft}>
+                  <View style={styles.cardAvatar}>
+                    <MaterialCommunityIcons name="account" size={18} color="#1A1B1C" />
+                  </View>
+                  <View style={styles.cardInfo}>
+                    <Text style={styles.cardName}>{student.name}</Text>
+                    <Text style={styles.cardMeta}>{student.usn} · {student.class} {student.section}</Text>
+                    <View style={styles.cardStatusRow}>
+                      <View style={[styles.statusBadge, { backgroundColor: meta.bg, borderColor: meta.border }]}>
+                        <View style={[styles.statusDot, { backgroundColor: meta.color }]} />
+                        <Text style={[styles.statusText, { color: meta.color }]}>
+                          {meta.label}
+                        </Text>
+                      </View>
+                      <Text style={styles.lastSeenText}>Last seen {student.lastSeen}</Text>
+                    </View>
+                  </View>
+                </View>
+                <View style={styles.cardActions}>
+                  <TouchableOpacity style={styles.actionBtn} activeOpacity={0.7}>
+                    <Feather name="phone" size={15} color="#026440" />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.actionBtn} activeOpacity={0.7}>
+                    <Feather name="message-square" size={15} color="#B45309" />
+                  </TouchableOpacity>
                 </View>
               </View>
-            </View>
-            <View style={styles.cardActions}>
-              <TouchableOpacity style={styles.actionBtn}>
-                <MaterialCommunityIcons name="phone" size={16} color="#16A34A" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.actionBtn}>
-                <MaterialCommunityIcons name="message-text-outline" size={16} color="#F4C430" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        ))}
+            );
+          })
+        )}
       </ScrollView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFEFE' },
+  container: { flex: 1, backgroundColor: '#F9FAFB' },
   header: {
     paddingHorizontal: 20,
     paddingTop: 14,
     paddingBottom: 10,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E8E5DC',
   },
-  title: { fontSize: 18, fontFamily: FontFamily.extrabold, color: '#171717' },
-  searchRow: { paddingHorizontal: 20, marginBottom: 10 },
+  title: { fontSize: 18, fontFamily: FontFamily.extrabold, color: '#111827' },
+  searchRow: { paddingHorizontal: 20, paddingTop: 12, marginBottom: 10 },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     borderWidth: 1,
-    borderColor: '#E8E5DC',
-    borderRadius: BorderRadius.input,
+    borderColor: '#E5E7EB',
+    borderRadius: 5,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 8,
     backgroundColor: '#FFFFFF',
   },
   searchInput: {
     flex: 1,
     fontSize: 13,
     fontFamily: FontFamily.regular,
-    color: '#171717',
+    color: '#111827',
   },
   classRow: { paddingHorizontal: 20, marginBottom: 10 },
   classRowContent: { gap: 8 },
   classChip: {
     paddingHorizontal: 14,
     paddingVertical: 7,
-    borderRadius: BorderRadius.chip,
-    backgroundColor: '#F5F5F5',
+    borderRadius: 5,
+    backgroundColor: '#F3F4F6',
     borderWidth: 1,
-    borderColor: '#E8E5DC',
+    borderColor: '#E5E7EB',
   },
-  classChipActive: { backgroundColor: '#F4C430', borderColor: '#F4C430' },
-  classChipText: { fontSize: 12, fontFamily: FontFamily.medium, color: '#6B6B6B' },
-  classChipTextActive: { color: '#FFFFFF', fontFamily: FontFamily.bold },
+  classChipActive: { backgroundColor: '#FEF08A', borderColor: '#EAB308' },
+  classChipText: { fontSize: 12, fontFamily: FontFamily.semibold, color: '#4B5563' },
+  classChipTextActive: { color: '#121316', fontFamily: FontFamily.bold },
   statsRow: {
     flexDirection: 'row',
     gap: 8,
@@ -183,46 +218,63 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 99,
+    paddingVertical: 5,
+    borderRadius: 5,
+    borderWidth: 1,
   },
   statDot: { width: 6, height: 6, borderRadius: 3 },
-  statText: { fontSize: 11, fontFamily: FontFamily.bold, color: '#6B6B6B' },
-  list: { paddingHorizontal: 20, paddingBottom: 20, gap: 8 },
+  statText: { fontSize: 11, fontFamily: FontFamily.bold },
+  list: { paddingHorizontal: 20, paddingBottom: 20, gap: 10 },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.card,
+    borderRadius: 5,
     padding: 12,
     borderWidth: 1,
     borderColor: '#E8E5DC',
+    shadowColor: '#171717',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
   },
-  cardLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
+  cardLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
   cardAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FFFDF7',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#FEF3C7',
     borderWidth: 1,
-    borderColor: '#E8E5DC',
+    borderColor: '#FDE68A',
     alignItems: 'center',
     justifyContent: 'center',
   },
   cardInfo: { flex: 1, gap: 2 },
-  cardName: { fontSize: 13, fontFamily: FontFamily.bold, color: '#171717' },
-  cardMeta: { fontSize: 11, fontFamily: FontFamily.regular, color: '#6B6B6B' },
-  cardStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
-  statusDot: { width: 6, height: 6, borderRadius: 3 },
+  cardName: { fontSize: 13, fontFamily: FontFamily.bold, color: '#111827' },
+  cardMeta: { fontSize: 11, fontFamily: FontFamily.regular, color: '#6B7280' },
+  cardStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 5,
+    borderWidth: 1,
+  },
+  statusDot: { width: 5, height: 5, borderRadius: 2.5 },
   statusText: { fontSize: 10, fontFamily: FontFamily.bold },
-  lastSeenText: { fontSize: 10, fontFamily: FontFamily.regular, color: '#9CA3AF' },
+  lastSeenText: { fontSize: 10.5, fontFamily: FontFamily.regular, color: '#9CA3AF' },
   cardActions: { flexDirection: 'row', gap: 6 },
   actionBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#F5F5F5',
+    width: 34,
+    height: 34,
+    borderRadius: 5,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
     alignItems: 'center',
     justifyContent: 'center',
   },

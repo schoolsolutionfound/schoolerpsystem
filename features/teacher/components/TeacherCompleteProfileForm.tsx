@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, Text, TextInput, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { BorderRadius } from '../../../constants/theme';
+import { MaterialCommunityIcons } from './common/Icons';
 import { FontFamily } from '../../../constants/fonts';
 
 interface TeacherCompleteProfileFormProps {
@@ -42,7 +41,7 @@ export const TeacherCompleteProfileForm: React.FC<TeacherCompleteProfileFormProp
           <Text style={styles.inputLabel}>Name</Text>
           <View style={styles.readOnlyWrapper}>
             <Text style={styles.readOnlyText}>{fullName}</Text>
-            <MaterialCommunityIcons name="lock-outline" size={18} color="#6B6B6B" />
+            <MaterialCommunityIcons name="lock-outline" size={16} color="#9CA3AF" />
           </View>
         </View>
 
@@ -50,7 +49,7 @@ export const TeacherCompleteProfileForm: React.FC<TeacherCompleteProfileFormProp
           <Text style={styles.inputLabel}>Email</Text>
           <View style={styles.readOnlyWrapper}>
             <Text style={styles.readOnlyText}>{email}</Text>
-            <MaterialCommunityIcons name="lock-outline" size={18} color="#6B6B6B" />
+            <MaterialCommunityIcons name="lock-outline" size={16} color="#9CA3AF" />
           </View>
         </View>
       </View>
@@ -61,11 +60,11 @@ export const TeacherCompleteProfileForm: React.FC<TeacherCompleteProfileFormProp
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>Employee ID</Text>
           <View style={styles.inputWrapper}>
-            <MaterialCommunityIcons name="card-account-details-outline" size={18} color="#F4C430" style={styles.iconPrefix} />
+            <MaterialCommunityIcons name="card-account-details-outline" size={18} color="#B45309" style={styles.iconPrefix} />
             <TextInput
               style={styles.input}
               placeholder="e.g. EMP-001"
-              placeholderTextColor="#6B6B6B"
+              placeholderTextColor="#9CA3AF"
               value={employeeId}
               onChangeText={setEmployeeId}
             />
@@ -75,11 +74,11 @@ export const TeacherCompleteProfileForm: React.FC<TeacherCompleteProfileFormProp
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>Department</Text>
           <View style={styles.inputWrapper}>
-            <MaterialCommunityIcons name="school-outline" size={18} color="#F4C430" style={styles.iconPrefix} />
+            <MaterialCommunityIcons name="school-outline" size={18} color="#B45309" style={styles.iconPrefix} />
             <TextInput
               style={styles.input}
-              placeholder="e.g. Computer Science"
-              placeholderTextColor="#6B6B6B"
+              placeholder="e.g. Mathematics"
+              placeholderTextColor="#9CA3AF"
               value={department}
               onChangeText={setDepartment}
             />
@@ -93,11 +92,11 @@ export const TeacherCompleteProfileForm: React.FC<TeacherCompleteProfileFormProp
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>Phone Number</Text>
           <View style={styles.inputWrapper}>
-            <MaterialCommunityIcons name="phone-outline" size={18} color="#F4C430" style={styles.iconPrefix} />
+            <MaterialCommunityIcons name="phone-outline" size={18} color="#B45309" style={styles.iconPrefix} />
             <TextInput
               style={styles.input}
               placeholder="Enter your phone number"
-              placeholderTextColor="#6B6B6B"
+              placeholderTextColor="#9CA3AF"
               keyboardType="phone-pad"
               value={phone}
               onChangeText={setPhone}
@@ -107,12 +106,12 @@ export const TeacherCompleteProfileForm: React.FC<TeacherCompleteProfileFormProp
 
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>Profile Picture</Text>
-          <TouchableOpacity style={styles.photoUploadBox} onPress={onPickImage}>
+          <TouchableOpacity style={styles.photoUploadBox} onPress={onPickImage} activeOpacity={0.8}>
             {profilePicUri ? (
               <Image source={{ uri: profilePicUri }} style={styles.previewImage} />
             ) : (
               <>
-                <MaterialCommunityIcons name="camera-plus-outline" size={28} color="#F4C430" />
+                <MaterialCommunityIcons name="camera-plus-outline" size={26} color="#D97706" />
                 <Text style={styles.uploadText}>Upload Photo</Text>
               </>
             )}
@@ -120,9 +119,9 @@ export const TeacherCompleteProfileForm: React.FC<TeacherCompleteProfileFormProp
         </View>
       </View>
 
-      <TouchableOpacity style={styles.saveBtn} onPress={onSubmit} disabled={loading}>
+      <TouchableOpacity style={styles.saveBtn} onPress={onSubmit} disabled={loading} activeOpacity={0.85}>
         {loading ? (
-          <ActivityIndicator color="#FFFFFF" size="small" />
+          <ActivityIndicator color="#171717" size="small" />
         ) : (
           <Text style={styles.saveBtnText}>Complete Setup</Text>
         )}
@@ -135,59 +134,99 @@ const styles = StyleSheet.create({
   formWrap: { gap: 16 },
   sectionCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.card,
+    borderRadius: 5,
     padding: 16,
     borderWidth: 1,
     borderColor: '#E8E5DC',
     gap: 12,
+    shadowColor: '#171717',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
   },
-  sectionHeaderTitle: { fontSize: 14, fontWeight: '700', fontFamily: FontFamily.bold, color: '#171717', marginBottom: 2 },
-  inputGroup: { gap: 4 },
-  inputLabel: { fontSize: 12, fontWeight: '600', fontFamily: FontFamily.semibold, color: '#6B6B6B' },
+  sectionHeaderTitle: {
+    fontSize: 14,
+    fontFamily: FontFamily.bold,
+    color: '#111827',
+    marginBottom: 2,
+  },
+  inputGroup: { gap: 5 },
+  inputLabel: {
+    fontSize: 12,
+    fontFamily: FontFamily.semibold,
+    color: '#374151',
+  },
   readOnlyWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FFFDF7',
-    borderRadius: BorderRadius.input,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 5,
     borderWidth: 1,
-    borderColor: '#E8E5DC',
+    borderColor: '#E5E7EB',
     paddingHorizontal: 12,
-    height: 44,
+    height: 42,
   },
-  readOnlyText: { fontSize: 13, color: '#6B6B6B', fontWeight: '500', fontFamily: FontFamily.medium },
+  readOnlyText: {
+    fontSize: 13,
+    fontFamily: FontFamily.medium,
+    color: '#6B7280',
+  },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.input,
+    borderRadius: 5,
     borderWidth: 1,
-    borderColor: '#E8E5DC',
+    borderColor: '#E5E7EB',
     paddingHorizontal: 12,
-    height: 44,
+    height: 42,
   },
   iconPrefix: { marginRight: 8 },
-  input: { flex: 1, fontSize: 13, color: '#171717' },
+  input: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: FontFamily.regular,
+    color: '#111827',
+  },
   photoUploadBox: {
     height: 90,
     backgroundColor: '#FFFDF7',
-    borderRadius: BorderRadius.card,
+    borderRadius: 5,
     borderWidth: 1.5,
-    borderColor: '#FFF4C7',
+    borderColor: '#FDE68A',
     borderStyle: 'dashed',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 4,
     overflow: 'hidden',
   },
-  uploadText: { fontSize: 12, color: '#F4C430', fontWeight: '600', fontFamily: FontFamily.semibold },
-  previewImage: { width: '100%', height: '100%', resizeMode: 'cover' },
+  uploadText: {
+    fontSize: 12,
+    fontFamily: FontFamily.bold,
+    color: '#B45309',
+  },
+  previewImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
   saveBtn: {
     backgroundColor: '#F4C430',
-    borderRadius: BorderRadius.button,
-    paddingVertical: 14,
+    borderRadius: 5,
+    paddingVertical: 13,
     alignItems: 'center',
     marginTop: 4,
+    shadowColor: '#171717',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  saveBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700', fontFamily: FontFamily.bold },
+  saveBtnText: {
+    color: '#171717',
+    fontSize: 14,
+    fontFamily: FontFamily.bold,
+  },
 });

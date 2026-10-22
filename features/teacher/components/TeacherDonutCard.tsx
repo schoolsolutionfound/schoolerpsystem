@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, StyleSheet, Text } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Stop, G } from 'react-native-svg';
-import { BorderRadius } from '../../../constants/theme';
 import { FontFamily } from '../../../constants/fonts';
+import { TeacherShimmerSkeleton } from './common/TeacherShimmer';
 
 interface TeacherDonutCardProps {
   completed: number;
@@ -10,7 +10,19 @@ interface TeacherDonutCardProps {
   loading?: boolean;
 }
 
-function Donut({ value, max, label, gradientId, showProgress = true }: { value: number; max: number; label: string; gradientId: string; showProgress?: boolean }) {
+function Donut({
+  value,
+  max,
+  label,
+  gradientId,
+  showProgress = true,
+}: {
+  value: number;
+  max: number;
+  label: string;
+  gradientId: string;
+  showProgress?: boolean;
+}) {
   const size = 120;
   const strokeWidth = 12;
   const radius = (size - strokeWidth) / 2;
@@ -28,9 +40,9 @@ function Donut({ value, max, label, gradientId, showProgress = true }: { value: 
         <Svg width={size} height={size}>
           <Defs>
             <LinearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
-              <Stop offset="0" stopColor="#FFD700" />
-              <Stop offset="0.5" stopColor="#F4C430" />
-              <Stop offset="1" stopColor="#E8B800" />
+              <Stop offset="0" stopColor={gradientId === 'dg2' ? '#FED7AA' : '#FFD700'} />
+              <Stop offset="0.5" stopColor={gradientId === 'dg2' ? '#FDBA74' : '#F4C430'} />
+              <Stop offset="1" stopColor={gradientId === 'dg2' ? '#FB923C' : '#E8B800'} />
             </LinearGradient>
           </Defs>
           <G rotation="-90" origin={`${size / 2}, ${size / 2}`}>
@@ -38,7 +50,7 @@ function Donut({ value, max, label, gradientId, showProgress = true }: { value: 
               cx={size / 2}
               cy={size / 2}
               r={radius}
-              stroke="#2A2B2C"
+              stroke="#F3F4F6"
               strokeWidth={strokeWidth}
               fill="transparent"
             />
@@ -56,8 +68,8 @@ function Donut({ value, max, label, gradientId, showProgress = true }: { value: 
           </G>
           {showProgress && max > 0 && value > 0 && (
             <>
-              <Circle cx={tipX} cy={tipY} r={6} fill="#F4C430" opacity={0.25} />
-              <Circle cx={tipX} cy={tipY} r={3} fill="#F4C430" />
+              <Circle cx={tipX} cy={tipY} r={6} fill={gradientId === 'dg2' ? '#FB923C' : '#F4C430'} opacity={0.25} />
+              <Circle cx={tipX} cy={tipY} r={3} fill={gradientId === 'dg2' ? '#FB923C' : '#F4C430'} />
             </>
           )}
         </Svg>
@@ -79,9 +91,9 @@ const donutStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  centerValue: { fontSize: 22, fontFamily: FontFamily.extrabold, color: '#171717' },
-  centerUnit: { fontSize: 9, fontFamily: FontFamily.regular, color: '#9CA3AF', marginTop: -1 },
-  label: { fontSize: 12, fontFamily: FontFamily.semibold, color: '#6B6B6B' },
+  centerValue: { fontSize: 22, fontFamily: FontFamily.extrabold, color: '#111827' },
+  centerUnit: { fontSize: 9, fontFamily: FontFamily.medium, color: '#9CA3AF', marginTop: -1 },
+  label: { fontSize: 12, fontFamily: FontFamily.semibold, color: '#4B5563' },
 });
 
 export const TeacherDonutCard: React.FC<TeacherDonutCardProps> = ({
@@ -109,13 +121,20 @@ export const TeacherDonutCard: React.FC<TeacherDonutCardProps> = ({
       </View>
 
       {loading ? (
-        <View style={styles.loadingWrap}>
-          <Text style={styles.loadingText}>Loading...</Text>
+        <View style={styles.donutsRow}>
+          <View style={donutStyles.col}>
+            <TeacherShimmerSkeleton width={110} height={110} borderRadius={55} />
+            <TeacherShimmerSkeleton width={64} height={12} borderRadius={5} style={{ marginTop: 8 }} />
+          </View>
+          <View style={donutStyles.col}>
+            <TeacherShimmerSkeleton width={110} height={110} borderRadius={55} />
+            <TeacherShimmerSkeleton width={64} height={12} borderRadius={5} style={{ marginTop: 8 }} />
+          </View>
         </View>
       ) : (
         <View style={styles.donutsRow}>
-          <Donut value={completed} max={total} label="Completed" gradientId="dg1" />
-          <Donut value={remaining} max={total} label="Remaining" gradientId="dg2" showProgress={false} />
+          <Donut value={completed} max={total} label="Completed" gradientId="dg1" showProgress={true} />
+          <Donut value={remaining} max={total} label="Remaining" gradientId="dg2" showProgress={true} />
         </View>
       )}
     </View>
@@ -125,8 +144,15 @@ export const TeacherDonutCard: React.FC<TeacherDonutCardProps> = ({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.card,
+    borderRadius: 5,
     padding: 18,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    shadowColor: '#171717',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
   },
   header: {
     flexDirection: 'row',
@@ -134,33 +160,31 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: 20,
   },
-  title: { fontSize: 15, fontFamily: FontFamily.extrabold, color: '#171717' },
-  subtitle: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B6B6B', marginTop: 2 },
+  title: { fontSize: 16, fontFamily: FontFamily.extrabold, color: '#111827' },
+  subtitle: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B7280', marginTop: 2 },
   pctBadge: {
-    backgroundColor: 'rgba(244, 196, 48, 0.15)',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 99,
+    alignItems: 'flex-end',
+    backgroundColor: 'transparent',
   },
   pctBadgeText: {
-    fontSize: 13,
+    fontSize: 16,
     fontFamily: FontFamily.extrabold,
-    color: '#D4A418',
+    color: '#111827',
   },
   loadingWrap: {
-    height: 150,
+    height: 140,
     justifyContent: 'center',
     alignItems: 'center',
   },
   loadingText: {
     fontSize: 12,
-    fontFamily: FontFamily.regular,
+    fontFamily: FontFamily.medium,
     color: '#9CA3AF',
   },
   donutsRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-    gap: 24,
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingVertical: 4,
   },
 });

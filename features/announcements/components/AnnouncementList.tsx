@@ -120,7 +120,7 @@ export const AnnouncementList: React.FC<AnnouncementListProps> = ({
             activeOpacity={0.8}
           >
             
-            <Text style={styles.addBtnText}>Add Announcement</Text>
+            <Text style={styles.addBtnText}>Add</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -136,6 +136,8 @@ export const AnnouncementList: React.FC<AnnouncementListProps> = ({
       <FlatList
         data={paginatedItems}
         keyExtractor={(item) => item.id}
+        refreshing={refreshing}
+        onRefresh={onRefresh}
         renderItem={({ item }) => (
           <AnnouncementCard
             announcement={item}
@@ -148,7 +150,7 @@ export const AnnouncementList: React.FC<AnnouncementListProps> = ({
           <EmptyState
             iconName="bullhorn-outline"
             title="No Announcements"
-            description="Tap '+ Add Announcement' to post a notice with a time period."
+            description="Tap '+ Add' to post a notice with a time period."
           />
         }
         ListFooterComponent={
@@ -216,7 +218,9 @@ export const AnnouncementList: React.FC<AnnouncementListProps> = ({
           <RefreshControl
             refreshing={Boolean(refreshing)}
             onRefresh={onRefresh}
-            tintColor={Colors.light.primary}
+            tintColor="#000000"
+            colors={['#000000']}
+            progressBackgroundColor="#FFFFFF"
           />
         }
       />
