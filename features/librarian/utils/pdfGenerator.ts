@@ -1,13 +1,8 @@
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
+import { Platform } from 'react-native';
 import { Book, BookCopy, Loan, Fine, StudentProfile } from '../types';
-import {
-  escapeHtml,
-  formatCurrency,
-  getInstitutionName,
-  formatGeneratedDate,
-  baseReportCss,
-  buildHtmlDocument,
-  sharePdf,
-} from '../../shared/utils/pdf/pdfShared';
+import { useUserStore } from '../../../store/useUserStore';
 
 export interface GeneratePdfOptions {
   reportType: string;
@@ -17,6 +12,24 @@ export interface GeneratePdfOptions {
   loans: Loan[];
   fines: Fine[];
   students: StudentProfile[];
+}
+
+function escapeHtml(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+/**
+ * Builds standard Indian-Rupee currency string preserving numeric sign.
+ */
+function formatCurrency(amount: number): string {
+  const isNegative = amount < 0;
+  const formatted = Math.abs(amount).toFixed(2);
+  return isNegative ? `-₹${formatted}` : `₹${formatted}`;
 }
 
 /**
@@ -45,31 +58,25 @@ function isWithinTimeRange(dateStr?: string | null, timeRange?: string): boolean
   return true;
 }
 
+function getDaysOverdue(dueDateStr: string): number {
+  const due = new Date(dueDateStr);
+  const now = new Date();
+  const diffTime = now.getTime() - due.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return Math.max(1, diffDays);
+}
+
 /**
- * Builds the complete HTML string for the PDF report.
+ * Builds the complete HTML string for the PDF report with unified, simple format.
  */
 function buildReportHtml(options: GeneratePdfOptions): string {
-  const institutionName = getInstitutionName();
+  const userStore = useUserStore.getState();
+  const institutionName = userStore.institutionName || userStore.schoolName || 'School Library Management';
 
   const { reportType, timeRange, books, copies, students } = options;
 
-  // B5: Filter loans and fines to match the requested time range
   const filteredLoans = options.loans.filter((l) => isWithinTimeRange(l.issueDate || l.issuedAt || l.createdAt, timeRange));
   const filteredFines = options.fines.filter((f) => isWithinTimeRange(f.createdAt, timeRange));
-
-  // Key KPI metrics
-  const totalBooksCount = books.length;
-  const totalCopiesCount = copies.length;
-
-  // B6: Active loans must only be ACTIVE or OVERDUE (excluding RETURNED, LOST, CANCELLED)
-  const activeLoansList = filteredLoans.filter((l) => l.status === 'ACTIVE' || l.status === 'OVERDUE');
-  const activeLoansCount = activeLoansList.length;
-  const overdueLoansCount = filteredLoans.filter((l) => l.status === 'OVERDUE').length;
-
-  const totalFinesCollected = filteredFines.reduce((acc, f) => acc + (f.paidAmount || 0), 0);
-  const totalFinesOutstanding = filteredFines
-    .filter((f) => f.status === 'UNPAID' || f.status === 'PARTIALLY_PAID')
-    .reduce((acc, f) => acc + (f.amount - (f.paidAmount || 0)), 0);
 
   const periodLabelMap: Record<string, string> = {
     MONTH: 'This Month',
@@ -78,49 +85,60 @@ function buildReportHtml(options: GeneratePdfOptions): string {
     ALL: 'All Time',
   };
   const periodLabel = periodLabelMap[timeRange] || timeRange;
-  const generatedDate = formatGeneratedDate();
+  const generatedDate = new Date().toLocaleString('en-US', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
 
-  // Filter dataset for specialized reports
   const isOverdueReport = reportType.toLowerCase().includes('overdue');
   const isFinancialReport = reportType.toLowerCase().includes('fine') || reportType.toLowerCase().includes('financial');
-  const isInventoryReport = reportType.toLowerCase().includes('inventory');
 
-  // Render Table Rows
-  let tableSectionHtml = '';
+  let reportTitle = 'Library Executive Summary Report';
+  let reportSubtitle = 'Comprehensive overview of library circulation and popular titles';
+  let contentHtml = '';
 
   if (isOverdueReport) {
-    // Audit list uses ALL overdue loans regardless of the report period filter (N4):
-  // an audit must never hide older overdue records just because they predate the window.
-  const overdueLoans = options.loans.filter((l) => l.status === 'OVERDUE' || (l.status === 'ACTIVE' && new Date(l.dueDate) < new Date()));
-    tableSectionHtml = `
-      <div class="section-title">Overdue Loans Audit List (${overdueLoans.length} Records)</div>
+    reportTitle = 'Library Overdue Loans Report';
+    reportSubtitle = 'Official audit list of overdue book loans and pending returns';
+
+    const overdueLoans = filteredLoans.filter(
+      (l) => l.status === 'OVERDUE' || (l.status === 'ACTIVE' && new Date(l.dueDate) < new Date())
+    );
+
+    contentHtml = `
+      <div class="section-title">Active and Overdue Books</div>
       <table>
         <thead>
           <tr>
-            <th>#</th>
+            <th style="width: 35px; text-align: center;">#</th>
             <th>Member Name</th>
+            <th>USN / Roll No</th>
             <th>Book Title</th>
             <th>Issue Date</th>
             <th>Due Date</th>
-            <th>Status</th>
+            <th>Overdue By</th>
+            <th style="width: 75px; text-align: center;">Status</th>
           </tr>
         </thead>
         <tbody>
           ${
             overdueLoans.length === 0
-              ? `<tr><td colspan="6" class="empty-cell">No overdue loans found for the selected period.</td></tr>`
+              ? `<tr><td colspan="8" class="empty-cell">No overdue loans found for the selected period. All books returned on time!</td></tr>`
               : overdueLoans
                   .map((loan, idx) => {
                     const student = students.find((s) => s.id === loan.studentId);
                     const book = books.find((b) => b.id === loan.bookId);
+                    const days = getDaysOverdue(loan.dueDate);
                     return `
                       <tr>
-                        <td>${idx + 1}</td>
-                        <td><strong>${escapeHtml(student?.fullName || 'Unknown Student')}</strong><br/><small>${escapeHtml(student?.admissionNo || 'N/A')}</small></td>
+                        <td style="text-align: center; color: #64748B;">${idx + 1}</td>
+                        <td><strong>${escapeHtml(student?.fullName || 'Unknown Student')}</strong></td>
+                        <td style="color: #64748B;">${escapeHtml(student?.admissionNo || ('ID: ' + loan.studentId))}</td>
                         <td>${escapeHtml(book?.title || 'Unknown Title')}</td>
-                        <td>${loan.issueDate || loan.issuedAt ? escapeHtml(new Date(loan.issueDate || loan.issuedAt!).toLocaleDateString()) : 'N/A'}</td>
-                        <td style="color: #DC2626; font-weight: 700;">${escapeHtml(new Date(loan.dueDate).toLocaleDateString())}</td>
-                        <td><span class="badge badge-overdue">OVERDUE</span></td>
+                        <td>${loan.issueDate || loan.issuedAt ? escapeHtml(new Date(loan.issueDate || loan.issuedAt!).toLocaleDateString()) : '—'}</td>
+                        <td style="font-weight: 600;">${escapeHtml(new Date(loan.dueDate).toLocaleDateString())}</td>
+                        <td style="font-weight: 700; color: #DC2626;">${days} day${days !== 1 ? 's' : ''}</td>
+                        <td style="text-align: center;"><span class="badge badge-overdue">OVERDUE</span></td>
                       </tr>
                     `;
                   })
@@ -130,85 +148,43 @@ function buildReportHtml(options: GeneratePdfOptions): string {
       </table>
     `;
   } else if (isFinancialReport) {
-    tableSectionHtml = `
-      <div class="section-title">Fine Receipts & Outstanding Ledger (${filteredFines.length} Transactions)</div>
+    reportTitle = 'Library Fine Receipts & Dues Ledger';
+    reportSubtitle = 'Breakdown of collected library fine receipts and pending balances';
+
+    contentHtml = `
+      <div class="section-title">Fine Receipts Ledger</div>
       <table>
         <thead>
           <tr>
-            <th>#</th>
+            <th style="width: 35px; text-align: center;">#</th>
             <th>Member Name</th>
-            <th>Reason / Type</th>
+            <th>USN / Roll No</th>
+            <th>Fine Reason</th>
             <th>Total Amount</th>
             <th>Paid Amount</th>
-            <th>Outstanding</th>
-            <th>Status</th>
+            <th>Balance Due</th>
+            <th style="width: 75px; text-align: center;">Status</th>
           </tr>
         </thead>
         <tbody>
           ${
             filteredFines.length === 0
-              ? `<tr><td colspan="7" class="empty-cell">No fine records registered for the selected period.</td></tr>`
+              ? `<tr><td colspan="8" class="empty-cell">No fine records registered for the selected period.</td></tr>`
               : filteredFines
                   .map((fine, idx) => {
                     const student = students.find((s) => s.id === fine.studentId);
                     const outstanding = fine.amount - (fine.paidAmount || 0);
-                    const badgeClass = fine.status === 'PAID' ? 'badge-paid' : fine.status === 'WAIVED' ? 'badge-available' : 'badge-unpaid';
+                    const badgeClass = fine.status === 'PAID' ? 'badge-paid' : fine.status === 'WAIVED' ? 'badge-waived' : 'badge-unpaid';
                     return `
                       <tr>
-                        <td>${idx + 1}</td>
-                        <td><strong>${escapeHtml(student?.fullName || 'Unknown Student')}</strong><br/><small>${escapeHtml(student?.admissionNo || 'N/A')}</small></td>
+                        <td style="text-align: center; color: #64748B;">${idx + 1}</td>
+                        <td><strong>${escapeHtml(student?.fullName || 'Unknown Student')}</strong></td>
+                        <td style="color: #64748B;">${escapeHtml(student?.admissionNo || ('ID: ' + fine.studentId))}</td>
                         <td>${escapeHtml(fine.fineType || fine.reason || 'Library Fine')}</td>
                         <td>${formatCurrency(fine.amount)}</td>
-                        <td style="color: #059669; font-weight: 700;">${formatCurrency(fine.paidAmount || 0)}</td>
-                        <td style="color: #DC2626; font-weight: 700;">${formatCurrency(outstanding > 0 ? outstanding : 0)}</td>
-                        <td><span class="badge ${badgeClass}">${escapeHtml(fine.status)}</span></td>
-                      </tr>
-                    `;
-                  })
-                  .join('')
-          }
-        </tbody>
-      </table>
-    `;
-  } else if (isInventoryReport) {
-    tableSectionHtml = `
-      <div class="section-title">Physical Inventory Audit Log (${copies.length} Physical Copies)</div>
-      <table>
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Accession No</th>
-            <th>Book Title</th>
-            <th>Subject</th>
-            <th>Shelf Location</th>
-            <th>Condition</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${
-            copies.length === 0
-              ? `<tr><td colspan="7" class="empty-cell">No physical copy records available in inventory.</td></tr>`
-              : copies
-                  .map((copy, idx) => {
-                    const book = books.find((b) => b.id === copy.bookId);
-                    const badgeClass =
-                      copy.status === 'AVAILABLE'
-                        ? 'badge-available'
-                        : copy.status === 'ISSUED'
-                        ? 'badge-issued'
-                        : copy.status === 'OVERDUE'
-                        ? 'badge-overdue'
-                        : 'badge-damaged';
-                    return `
-                      <tr>
-                        <td>${idx + 1}</td>
-                        <td><strong>${escapeHtml(copy.accessionNumber)}</strong></td>
-                        <td>${escapeHtml(book?.title || 'Unknown Title')}</td>
-                        <td>${escapeHtml(book?.subject || 'General')}</td>
-                        <td>${escapeHtml(copy.rack || copy.shelf || book?.shelfLocation || 'Main Storage')}</td>
-                        <td>${escapeHtml(copy.condition)}</td>
-                        <td><span class="badge ${badgeClass}">${escapeHtml(copy.status)}</span></td>
+                        <td style="font-weight: 700; color: #026440;">${formatCurrency(fine.paidAmount || 0)}</td>
+                        <td style="font-weight: 700; color: ${outstanding > 0 ? '#B91C1C' : '#111827'};">${formatCurrency(outstanding > 0 ? outstanding : 0)}</td>
+                        <td style="text-align: center;"><span class="badge ${badgeClass}">${escapeHtml(fine.status)}</span></td>
                       </tr>
                     `;
                   })
@@ -218,191 +194,323 @@ function buildReportHtml(options: GeneratePdfOptions): string {
       </table>
     `;
   } else {
-    // Executive Overview — B6: Display strictly active loans and indicate truncation clearly
-    const displayedActiveLoans = activeLoansList.slice(0, 15);
-    const displayedFines = filteredFines.slice(0, 15);
+    // Top "Export Report" — Simple, Elegant Library Report
+    reportTitle = 'Library Executive Summary Report';
+    reportSubtitle = 'Official audit of active borrowings, overdue books, and popular literature';
 
-    tableSectionHtml = `
-      <div class="section-title">Active Loans & Circulation Summary (${
-        activeLoansList.length > 15
-          ? `Showing 15 of ${activeLoansList.length} Active Loans`
-          : `${activeLoansList.length} Active Loans`
-      })</div>
+    const activeLoansList = filteredLoans.filter((l) => l.status === 'ACTIVE' || l.status === 'OVERDUE');
+
+    // Compute popular books dynamically with fallbacks
+    const counts: { [bookId: string]: number } = {};
+    filteredLoans.forEach((l) => {
+      if (l.bookId) counts[l.bookId] = (counts[l.bookId] || 0) + 1;
+    });
+
+    let popularList = Object.keys(counts)
+      .map((bId) => {
+        const bk = books.find((b) => b.id === bId);
+        return {
+          id: bId,
+          title: bk?.title || 'Unknown Title',
+          subject: bk?.subject || 'General',
+          count: counts[bId],
+        };
+      })
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    if (popularList.length === 0) {
+      const allCounts: { [bookId: string]: number } = {};
+      options.loans.forEach((l) => {
+        if (l.bookId) allCounts[l.bookId] = (allCounts[l.bookId] || 0) + 1;
+      });
+      const allRanked = Object.keys(allCounts)
+        .map((bId) => {
+          const bk = books.find((b) => b.id === bId);
+          return {
+            id: bId,
+            title: bk?.title || 'Unknown Title',
+            subject: bk?.subject || 'General',
+            count: allCounts[bId],
+          };
+        })
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5);
+
+      if (allRanked.length > 0) {
+        popularList = allRanked;
+      } else {
+        popularList = books.slice(0, 5).map((bk) => ({
+          id: bk.id,
+          title: bk.title,
+          subject: bk.subject || 'General',
+          count: 0,
+        }));
+      }
+    }
+
+    contentHtml = `
+      <!-- Section 1: Active and Overdue Books -->
+      <div class="section-title">Active and Overdue Books</div>
       <table>
         <thead>
           <tr>
-            <th>#</th>
+            <th style="width: 35px; text-align: center;">#</th>
             <th>Member Name</th>
+            <th>USN / Roll No</th>
             <th>Book Title</th>
             <th>Issue Date</th>
             <th>Due Date</th>
-            <th>Status</th>
+            <th style="width: 80px; text-align: center;">Status</th>
           </tr>
         </thead>
         <tbody>
           ${
-            displayedActiveLoans.length === 0
-              ? `<tr><td colspan="6" class="empty-cell">No active circulation records available.</td></tr>`
-              : displayedActiveLoans
-                  .map((loan, idx) => {
-                    const student = students.find((s) => s.id === loan.studentId);
-                    const book = books.find((b) => b.id === loan.bookId);
-                    const badgeClass = loan.status === 'OVERDUE' ? 'badge-overdue' : 'badge-issued';
-                    return `
-                      <tr>
-                        <td>${idx + 1}</td>
-                        <td><strong>${escapeHtml(student?.fullName || 'Unknown Student')}</strong></td>
-                        <td>${escapeHtml(book?.title || 'Unknown Title')}</td>
-                        <td>${loan.issueDate || loan.issuedAt ? escapeHtml(new Date(loan.issueDate || loan.issuedAt!).toLocaleDateString()) : 'N/A'}</td>
-                        <td>${escapeHtml(new Date(loan.dueDate).toLocaleDateString())}</td>
-                        <td><span class="badge ${badgeClass}">${escapeHtml(loan.status)}</span></td>
-                      </tr>
-                    `;
-                  })
-                  .join('')
+            activeLoansList.length === 0
+              ? `<tr><td colspan="7" class="empty-cell">No active or overdue books for this period.</td></tr>`
+              : activeLoansList.slice(0, 20).map((loan, idx) => {
+                  const student = students.find((s) => s.id === loan.studentId);
+                  const book = books.find((b) => b.id === loan.bookId);
+                  const isOverdue = loan.status === 'OVERDUE' || (new Date(loan.dueDate) < new Date() && loan.status !== 'RETURNED');
+                  return `
+                    <tr>
+                      <td style="text-align: center; color: #64748B;">${idx + 1}</td>
+                      <td><strong>${escapeHtml(student?.fullName || 'Unknown Student')}</strong></td>
+                      <td style="color: #64748B;">${escapeHtml(student?.admissionNo || loan.studentId)}</td>
+                      <td>${escapeHtml(book?.title || 'Unknown Title')}</td>
+                      <td>${loan.issueDate || loan.issuedAt ? escapeHtml(new Date(loan.issueDate || loan.issuedAt!).toLocaleDateString()) : '—'}</td>
+                      <td style="font-weight: 600;">${escapeHtml(new Date(loan.dueDate).toLocaleDateString())}</td>
+                      <td style="text-align: center;"><span class="badge ${isOverdue ? 'badge-overdue' : 'badge-issued'}">${isOverdue ? 'OVERDUE' : 'ACTIVE'}</span></td>
+                    </tr>
+                  `;
+                }).join('')
           }
         </tbody>
       </table>
 
-      <div class="section-title" style="margin-top: 24px;">Financial Fine Dues Summary (${
-        filteredFines.length > 15
-          ? `Showing 15 of ${filteredFines.length} Records`
-          : `${filteredFines.length} Records`
-      })</div>
+      <!-- Section 2: Popular Books -->
+      <div class="section-title" style="margin-top: 24px;">Popular Books</div>
       <table>
         <thead>
           <tr>
-            <th>#</th>
-            <th>Member Name</th>
-            <th>Type</th>
-            <th>Total Amount</th>
-            <th>Paid</th>
-            <th>Outstanding</th>
-            <th>Status</th>
+            <th style="width: 45px; text-align: center;">Rank</th>
+            <th>Book Title</th>
+            <th>Subject / Category</th>
+            <th style="width: 110px; text-align: center;">Total Borrows</th>
           </tr>
         </thead>
         <tbody>
           ${
-            displayedFines.length === 0
-              ? `<tr><td colspan="7" class="empty-cell">No financial dues recorded.</td></tr>`
-              : displayedFines
-                  .map((fine, idx) => {
-                    const student = students.find((s) => s.id === fine.studentId);
-                    const outstanding = fine.amount - (fine.paidAmount || 0);
-                    const badgeClass = fine.status === 'PAID' ? 'badge-paid' : 'badge-unpaid';
-                    return `
-                      <tr>
-                        <td>${idx + 1}</td>
-                        <td><strong>${escapeHtml(student?.fullName || 'Unknown Student')}</strong></td>
-                        <td>${escapeHtml(fine.fineType || 'Fine')}</td>
-                        <td>${formatCurrency(fine.amount)}</td>
-                        <td style="color: #059669; font-weight: 700;">${formatCurrency(fine.paidAmount || 0)}</td>
-                        <td style="color: #DC2626; font-weight: 700;">${formatCurrency(outstanding > 0 ? outstanding : 0)}</td>
-                        <td><span class="badge ${badgeClass}">${escapeHtml(fine.status)}</span></td>
-                      </tr>
-                    `;
-                  })
-                  .join('')
+            popularList.length === 0
+              ? `<tr><td colspan="4" class="empty-cell">No popular book records available for this period.</td></tr>`
+              : popularList.map((item, idx) => `
+                  <tr>
+                    <td style="text-align: center; font-weight: 700; color: #0F172A;">#${idx + 1}</td>
+                    <td><strong>${escapeHtml(item.title)}</strong></td>
+                    <td style="color: #475569;">${escapeHtml(item.subject)}</td>
+                    <td style="text-align: center; font-weight: 700; color: #0F172A;">${item.count} borrow${item.count !== 1 ? 's' : ''}</td>
+                  </tr>
+                `).join('')
           }
         </tbody>
       </table>
     `;
   }
 
-  // Report-specific classes on top of the shared base stylesheet.
-  const libraryExtraCss = `
-    .brand { letter-spacing: -0.3px; }
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>${escapeHtml(reportTitle)}</title>
+  <style>
+    @page { size: A4 portrait; margin: 12mm; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      color: #171717;
+      background-color: #FFFFFF;
+      font-size: 11px;
+      line-height: 1.4;
+      margin: 0;
+      padding: 0;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding-bottom: 12px;
+    }
+    .header-left {
+      flex: 1;
+    }
+    .institution-name {
+      font-size: 14px;
+      font-weight: 900;
+      letter-spacing: 0.8px;
+      color: #0F172A;
+    }
+    .department-tag {
+      font-size: 8.5px;
+      font-weight: 700;
+      letter-spacing: 0.6px;
+      color: #D97706;
+      margin-top: 2px;
+      margin-bottom: 6px;
+    }
     .report-title {
       font-size: 14px;
-      font-weight: 700;
-      color: #059669;
-      margin-top: 4px;
-    }
-    .meta-box {
-      text-align: right;
-      font-size: 10px;
-      color: #4B5563;
-    }
-    .meta-box strong { color: #111827; }
-    .kpi-value {
-      font-size: 15px;
       font-weight: 800;
-      color: #111827;
-      margin-top: 4px;
+      color: #0F172A;
+      letter-spacing: -0.2px;
     }
-    .kpi-sub {
-      font-size: 8px;
-      color: #6B7280;
+    .report-sub {
+      font-size: 9.5px;
+      color: #64748B;
       margin-top: 2px;
+    }
+    .header-right {
+      text-align: right;
+      padding-left: 20px;
+    }
+    .meta-row {
+      font-size: 9px;
+      color: #64748B;
+      margin-bottom: 3px;
+    }
+    .meta-label {
+      font-weight: 600;
+      color: #94A3B8;
+      letter-spacing: 0.3px;
+    }
+    .meta-val {
+      font-weight: 700;
+      color: #0F172A;
+      margin-left: 4px;
+    }
+    .header-line {
+      height: 2px;
+      background: #0F172A;
+      margin-bottom: 16px;
+    }
+    .section-title {
+      font-size: 11.5px;
+      font-weight: 800;
+      color: #0F172A;
+      margin-top: 14px;
+      margin-bottom: 6px;
+      letter-spacing: 0.2px;
+      text-transform: uppercase;
+      border-left: 3px solid #F4C430;
+      padding-left: 8px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 6px;
+      font-size: 10px;
+      border: 1px solid #CBD5E1;
+      border-radius: 0;
+    }
+    th {
+      background-color: #F8FAFC;
+      color: #0F172A;
+      font-weight: 700;
+      text-align: left;
+      padding: 7px 9px;
+      border: 1px solid #CBD5E1;
+      border-radius: 0;
+      text-transform: uppercase;
+      font-size: 8.5px;
+      letter-spacing: 0.4px;
+    }
+    td {
+      padding: 7px 9px;
+      border: 1px solid #E2E8F0;
+      border-radius: 0;
+      color: #1E293B;
+      word-break: break-word;
+      font-size: 9.5px;
+    }
+    tr:nth-child(even) {
+      background-color: #F8FAFC;
     }
     .badge {
       display: inline-block;
-      padding: 2px 6px;
-      border-radius: 4px;
       font-size: 8px;
-      font-weight: 800;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 0;
       text-transform: uppercase;
+      border: 1px solid transparent;
     }
-    .badge-available { background-color: #D1FAE5; color: #065F46; }
-    .badge-issued { background-color: #DBEAFE; color: #1E40AF; }
-    .badge-overdue { background-color: #FEE2E2; color: #991B1B; }
-    .badge-damaged { background-color: #FEF3C7; color: #92400E; }
-    .badge-paid { background-color: #D1FAE5; color: #065F46; }
-    .badge-unpaid { background-color: #FEE2E2; color: #991B1B; }
+    .badge-overdue {
+      background-color: #FEF2F2;
+      color: #DC2626;
+      border-color: #F87171;
+    }
+    .badge-issued {
+      background-color: #FEFCE8;
+      color: #B45309;
+      border-color: #FDE047;
+    }
+    .badge-paid {
+      background-color: #ECFDF5;
+      color: #026440;
+      border-color: #026440;
+    }
+    .badge-unpaid {
+      background-color: #FEF2F2;
+      color: #B91C1C;
+      border-color: #FCA5A5;
+    }
+    .badge-waived {
+      background-color: #F3F4F6;
+      color: #4B5563;
+      border-color: #D1D5DB;
+    }
     .empty-cell {
       text-align: center;
-      color: #6B7280;
+      color: #64748B;
       font-style: italic;
-      padding: 14px;
+      padding: 16px;
     }
-  `;
-
-  return buildHtmlDocument({
-    title: reportType,
-    css: baseReportCss('#10B981') + libraryExtraCss,
-    content: `
+    .footer {
+      margin-top: 28px;
+      border-top: 1px solid #E2E8F0;
+      padding-top: 10px;
+      font-size: 9px;
+      color: #64748B;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+  </style>
+</head>
+<body>
   <div class="header">
-    <div>
-      <div class="brand">${escapeHtml(institutionName)} — Library Management System</div>
-      <div class="report-title">${escapeHtml(reportType)}</div>
+    <div class="header-left">
+      <div class="institution-name">${escapeHtml(institutionName.toUpperCase())}</div>
+      <div class="department-tag">CENTRAL LIBRARY MANAGEMENT SYSTEM</div>
+      <div class="report-title">${escapeHtml(reportTitle)}</div>
+      <div class="report-sub">${escapeHtml(reportSubtitle)}</div>
     </div>
-    <div class="meta-box">
-      <div>Reporting Period: <strong>${escapeHtml(periodLabel)}</strong></div>
-      <div>Generated Date: <strong>${escapeHtml(generatedDate)}</strong></div>
-    </div>
-  </div>
-
-  <div class="kpi-grid">
-    <div class="kpi-card" style="background: #EFF6FF; border-color: #BFDBFE;">
-      <div class="kpi-label" style="color: #1E40AF;">Total Copies</div>
-      <div class="kpi-value" style="color: #1E3A8A;">${totalCopiesCount}</div>
-      <div class="kpi-sub">${totalBooksCount} Unique Titles</div>
-    </div>
-    <div class="kpi-card" style="background: #FEF3C7; border-color: #FDE68A;">
-      <div class="kpi-label" style="color: #B45309;">Active Loans</div>
-      <div class="kpi-value" style="color: #78350F;">${activeLoansCount}</div>
-      <div class="kpi-sub">${overdueLoansCount} Overdue</div>
-    </div>
-    <div class="kpi-card" style="background: #F0FDF4; border-color: #BBF7D0;">
-      <div class="kpi-label" style="color: #166534;">Collected Fines</div>
-      <div class="kpi-value" style="color: #14532D;">${formatCurrency(totalFinesCollected)}</div>
-      <div class="kpi-sub">Total Revenue Logged</div>
-    </div>
-    <div class="kpi-card" style="background: #FEF2F2; border-color: #FECACA;">
-      <div class="kpi-label" style="color: #991B1B;">Outstanding Fines</div>
-      <div class="kpi-value" style="color: #7F1D1D;">${formatCurrency(totalFinesOutstanding)}</div>
-      <div class="kpi-sub">Pending Dues</div>
+    <div class="header-right">
+      <div class="meta-row"><span class="meta-label">PERIOD:</span> <span class="meta-val">${escapeHtml(periodLabel.toUpperCase())}</span></div>
+      <div class="meta-row"><span class="meta-label">DATE:</span> <span class="meta-val">${escapeHtml(generatedDate)}</span></div>
+      <div class="meta-row"><span class="meta-label">STATUS:</span> <span class="meta-val" style="color: #026440;">VERIFIED AUDIT</span></div>
     </div>
   </div>
+  <div class="header-line"></div>
 
-  ${tableSectionHtml}
+  ${contentHtml}
 
   <div class="footer">
-    <div>${escapeHtml(institutionName)} • Library Management Module</div>
-    <div>Confidential — For Authorized Institutional Use Only</div>
+    <div>${escapeHtml(institutionName)} — Library Automation Report</div>
+    <div>Confidential • Official Institutional Record</div>
   </div>
-    `,
-  });
+</body>
+</html>
+  `;
 }
 
 /**
@@ -410,5 +518,28 @@ function buildReportHtml(options: GeneratePdfOptions): string {
  */
 export async function generateLibraryPdfReport(options: GeneratePdfOptions): Promise<void> {
   const html = buildReportHtml(options);
-  await sharePdf(html, `Download ${options.reportType} PDF Report`);
+
+  if (Platform.OS === 'web') {
+    // Web platform print fallback
+    await Print.printAsync({ html });
+    return;
+  }
+
+  // Native PDF compilation via expo-print
+  const { uri } = await Print.printToFileAsync({
+    html,
+    base64: false,
+  });
+
+  const isAvailable = await Sharing.isAvailableAsync();
+  if (isAvailable) {
+    await Sharing.shareAsync(uri, {
+      mimeType: 'application/pdf',
+      dialogTitle: `Download ${options.reportType} PDF Report`,
+      UTI: 'com.adobe.pdf',
+    });
+  } else {
+    // Fallback if sharing is disabled on device
+    await Print.printAsync({ uri });
+  }
 }

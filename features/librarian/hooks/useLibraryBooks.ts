@@ -21,7 +21,8 @@ export function useLibraryBooks(initialFilters?: BookFilters) {
     setError(null);
     try {
       const res = await getBooksApi(filters || initialFilters);
-      const itemsList = Array.isArray(res) ? res : res?.items || [];
+      const rawList = Array.isArray(res) ? res : ((res as any)?.items || (res as any)?.data || []);
+      const itemsList = Array.isArray(rawList) ? rawList : [];
       const totalCount = Array.isArray(res) ? res.length : (res?.total ?? itemsList.length);
 
       const mapped: Book[] = itemsList.map((b: any) => ({

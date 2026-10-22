@@ -593,6 +593,15 @@ export class LibraryService {
       copy = await libraryRepository.getCopyById(input.bookCopyId);
     }
 
+    const isPaid = input.isPaid === true;
+    const requestedFineType = String(input.fineType || '').toUpperCase();
+    const fineType =
+      requestedFineType === 'LOST' || requestedFineType === 'LOST_BOOK'
+        ? 'LOST_BOOK'
+        : requestedFineType === 'OVERDUE'
+          ? 'OVERDUE'
+          : 'DAMAGED_BOOK';
+
     if (!db) throw new Error('Database connection unavailable');
     return db.transaction(async (tx) => {
       const newFine = await libraryRepository.createFine(
@@ -600,15 +609,39 @@ export class LibraryService {
           institutionCode,
           studentId: input.studentId,
           bookCopyId: input.bookCopyId || null,
-          fineType: 'DAMAGED_BOOK',
+          loanId: input.loanId || null,
+          fineType,
           damageType: input.damageType,
           damageNotes: input.damageNotes,
           amount: String(input.amount) as any,
-          paidAmount: '0.00' as any,
-          status: 'UNPAID',
+          paidAmount: (isPaid ? String(input.amount) : '0.00') as any,
+          status: isPaid ? 'PAID' : 'UNPAID',
         },
         tx
       );
+
+      let transaction = null;
+      if (isPaid) {
+        const seq = await libraryRepository.countTransactionsInInstitution(tx);
+        transaction = await libraryRepository.createTransaction(
+          {
+            institutionCode,
+            fineId: newFine.id,
+            receiptNo: `REC-${String(seq + 1).padStart(6, '0')}`,
+            amount: String(input.amount) as any,
+            paymentMethod: input.paymentMethod || 'CASH',
+            cashTendered: String(input.cashTendered ?? input.amount) as any,
+            changeReturned: String(
+              Math.max(0, Number(input.cashTendered ?? input.amount) - input.amount)
+            ) as any,
+            transactionRef: input.transactionRef || '',
+            scannedQrPayload: '',
+            paidAt: new Date(),
+            cashier: staffName || 'Librarian Staff',
+          },
+          tx
+        );
+      }
 
       let updatedCopy = null;
       if (copy) {
@@ -622,7 +655,7 @@ export class LibraryService {
         );
       }
 
-      return { fine: newFine, copy: updatedCopy };
+      return { fine: newFine, copy: updatedCopy, transaction };
     });
   }
 

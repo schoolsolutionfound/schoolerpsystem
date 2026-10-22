@@ -64,7 +64,7 @@ export interface BookCopy {
   notes?: string | null;
   price?: string | null;
   vendor?: string | null;
-  addedAt?: string | null;
+  addedAt?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -82,6 +82,7 @@ export interface Book {
   description?: string | null;
   bookType?: BookType | null;
   coverImage?: string | null;
+  price?: string | number | null;
   totalCopies?: number;
   availableCopies?: number;
   keywords?: string[];
@@ -102,10 +103,10 @@ export interface QuestionPaper {
   classGrade?: string | null;
   totalMarks?: number | null;
   durationMinutes?: number | null;
-  fileUrl?: string | null;
+  fileUrl?: string;
   fileSize?: string | null;
   downloadsCount: number;
-  uploadedAt?: string;
+  uploadedAt: string;
   uploadedBy: string;
   updatedAt?: string;
 }
@@ -161,16 +162,16 @@ export interface LibrarySettings {
   borrowingLimit: number;
   loanPeriodDays: number;
   gracePeriodDays: number;
-  finePerDay: number;
-  maxFine: number;
+  finePerDay: number | string;
+  maxFine: number | string;
   renewalLimit: number;
   allowReservation: boolean;
-  lostBookPenalty: number;
-  damagedBookPenalty: number;
+  lostBookPenalty: number | string;
+  damagedBookPenalty: number | string;
   reservationExpiryDays?: number;
-  unpaidFineLockThreshold?: number;
-  openingHours?: string | null;
-  closingHours?: string | null;
+  unpaidFineLockThreshold?: number | string;
+  openingHours?: string;
+  closingHours?: string;
   openOnWeekends?: boolean;
   createdAt?: string;
   updatedAt?: string;

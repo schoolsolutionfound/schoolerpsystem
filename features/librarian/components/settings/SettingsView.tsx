@@ -5,23 +5,30 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  Switch,
   Alert,
   ActivityIndicator,
   StyleSheet,
+  RefreshControl,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '../common/Icons';
 import { LibrarySettings } from '../../types';
 import { apiClient } from '../../../../api/client';
+import { FontFamily } from '../../../../constants/fonts';
 
 export const SettingsView = ({
   settings,
   onSaveSettings,
   commonStyles,
+  onRefresh,
+  isRefreshing,
 }: {
   settings: LibrarySettings;
   onSaveSettings: (newSettings: LibrarySettings) => void;
   commonStyles: any;
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
 }) => {
   const [borrowingLimit, setBorrowingLimit] = useState(String(settings.borrowingLimit || 3));
   const [loanPeriodDays, setLoanPeriodDays] = useState(String(settings.loanPeriodDays || 14));
@@ -90,7 +97,7 @@ export const SettingsView = ({
       gracePeriodDays: isNaN(gPeriod) ? 0 : gPeriod,
       finePerDay: fRate,
       maxFine: isNaN(mFine) ? 100 : mFine,
-      renewalLimit: isNaN(rLimit) ? 2 : rLimit,
+      renewalLimit: isNaN(gPeriod) ? 2 : gPeriod,
       allowReservation,
       lostBookPenalty: isNaN(lostPen) ? 50 : lostPen,
       damagedBookPenalty: isNaN(dmgPen) ? 25 : dmgPen,
@@ -152,210 +159,125 @@ export const SettingsView = ({
   const styles = commonStyles;
 
   return (
-    <ScrollView style={styles.viewBody} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 60 }}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={{ flex: 1 }}
+    >
+      <ScrollView
+        style={styles.viewBody}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 120 }}
+        nestedScrollEnabled={true}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={
+          onRefresh ? (
+            <RefreshControl
+              refreshing={!!isRefreshing}
+              onRefresh={onRefresh}
+              colors={['#000000']}
+              tintColor="#000000"
+            />
+          ) : undefined
+        }
+      >
       {/* Header */}
       <View style={{ marginBottom: 16 }}>
         <Text style={styles.sectionHeader}>Library System Settings</Text>
-        <Text style={{ fontSize: 12, color: '#6B7280' }}>
-          Configure borrowing limits, loan rules, fine rates, and operational parameters.
-        </Text>
+      
       </View>
 
       {/* SECTION 1: Circulation & Borrowing Rules */}
       <View style={settStyles.cardBox}>
         <View style={settStyles.cardHeader}>
-          <MaterialCommunityIcons name="book-clock-outline" size={20} color="#EAB308" />
-          <Text style={settStyles.cardTitle}>Circulation & Loan Rules</Text>
+          <Text style={settStyles.cardTitle}>Lend Duration</Text>
         </View>
 
         <View style={{ flexDirection: 'row', gap: 10 }}>
-          <View style={[styles.formGroup, { flex: 1 }]}>
-            <Text style={styles.formLabel}>Borrowing Limit / Member</Text>
+          {/* Small Container 1: Borrowing Limit */}
+          <View style={[settStyles.smallContainer, { flex: 1 }]}>
+            <View style={settStyles.smallContainerHeader}>
+            
+              <Text style={settStyles.smallContainerTitle}>Borrowing Limit</Text>
+            </View>
+          
             <TextInput
-              style={styles.formInput}
+              style={[styles.formInput, settStyles.smallInput]}
               value={borrowingLimit}
               onChangeText={setBorrowingLimit}
               keyboardType="numeric"
               placeholder="3"
+              placeholderTextColor="#475569"
             />
-            <Text style={settStyles.helpText}>Max books out concurrently</Text>
           </View>
 
-          <View style={[styles.formGroup, { flex: 1 }]}>
-            <Text style={styles.formLabel}>Loan Duration (Days)</Text>
+          {/* Small Container 2: Loan Duration */}
+          <View style={[settStyles.smallContainer, { flex: 1 }]}>
+            <View style={settStyles.smallContainerHeader}>
+            
+              <Text style={settStyles.smallContainerTitle}>Loan Duration</Text>
+            </View>
+          
             <TextInput
-              style={styles.formInput}
+              style={[styles.formInput, settStyles.smallInput]}
               value={loanPeriodDays}
               onChangeText={setLoanPeriodDays}
               keyboardType="numeric"
               placeholder="14"
+              placeholderTextColor="#475569"
             />
-            <Text style={settStyles.helpText}>Standard checkout period</Text>
           </View>
         </View>
 
-        <View style={{ flexDirection: 'row', gap: 10 }}>
-          <View style={[styles.formGroup, { flex: 1 }]}>
-            <Text style={styles.formLabel}>Grace Period (Days)</Text>
-            <TextInput
-              style={styles.formInput}
-              value={gracePeriodDays}
-              onChangeText={setGracePeriodDays}
-              keyboardType="numeric"
-              placeholder="2"
-            />
-            <Text style={settStyles.helpText}>Days before fine starts</Text>
+        {/* Small Container 3: Combined Grace Period & Renewal Limit */}
+        <View style={settStyles.combinedContainer}>
+          <View style={settStyles.combinedHeaderRow}>
+            <View style={settStyles.smallContainerHeader}>
+            
+              <Text style={[settStyles.smallContainerTitle, { fontSize: 13 }]}>
+                Grace & Renewal 
+              </Text>
+            </View>
+           
           </View>
 
-          <View style={[styles.formGroup, { flex: 1 }]}>
-            <Text style={styles.formLabel}>Renewal Limit</Text>
-            <TextInput
-              style={styles.formInput}
-              value={renewalLimit}
-              onChangeText={setRenewalLimit}
-              keyboardType="numeric"
-              placeholder="2"
-            />
-            <Text style={settStyles.helpText}>Max extensions allowed</Text>
+         
+
+          <View style={settStyles.ruleList}>
+          
           </View>
+
+          <TextInput
+            style={[styles.formInput, settStyles.combinedInput]}
+            value={gracePeriodDays}
+            onChangeText={(val) => {
+              setGracePeriodDays(val);
+              setRenewalLimit(val);
+            }}
+            keyboardType="numeric"
+            placeholder="2"
+            placeholderTextColor="#475569"
+          />
         </View>
       </View>
 
       {/* SECTION 2: Fine & Penalty Configurations */}
       <View style={settStyles.cardBox}>
         <View style={settStyles.cardHeader}>
-          <MaterialCommunityIcons name="cash-fast" size={20} color="#DC2626" />
-          <Text style={settStyles.cardTitle}>Fine Rates & Financial Penalties</Text>
+          <Text style={settStyles.cardTitle}>Fine Rate</Text>
         </View>
 
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <View style={[styles.formGroup, { flex: 1 }]}>
-            <Text style={styles.formLabel}>Daily Overdue Rate ($/Day)</Text>
+            <Text style={styles.formLabel}>Due Rate (₹ / Day)</Text>
             <TextInput
-              style={[styles.formInput, { fontWeight: '800', color: '#DC2626' }]}
+              style={[styles.formInput, { fontWeight: '800' }]}
               value={finePerDay}
               onChangeText={setFinePerDay}
               keyboardType="numeric"
-              placeholder="1.00"
+              placeholder="10.00"
+              placeholderTextColor="#475569"
             />
-            <Text style={settStyles.helpText}>Charged per overdue day</Text>
-          </View>
-
-          <View style={[styles.formGroup, { flex: 1 }]}>
-            <Text style={styles.formLabel}>Max Overdue Fine Cap ($)</Text>
-            <TextInput
-              style={styles.formInput}
-              value={maxFine}
-              onChangeText={setMaxFine}
-              keyboardType="numeric"
-              placeholder="100.00"
-            />
-            <Text style={settStyles.helpText}>Maximum fine ceiling</Text>
-          </View>
-        </View>
-
-        <View style={{ flexDirection: 'row', gap: 10 }}>
-          <View style={[styles.formGroup, { flex: 1 }]}>
-            <Text style={styles.formLabel}>Lost Book Default Fee ($)</Text>
-            <TextInput
-              style={styles.formInput}
-              value={lostBookPenalty}
-              onChangeText={setLostBookPenalty}
-              keyboardType="numeric"
-              placeholder="50.00"
-            />
-            <Text style={settStyles.helpText}>Replacement default charge</Text>
-          </View>
-
-          <View style={[styles.formGroup, { flex: 1 }]}>
-            <Text style={styles.formLabel}>Damaged Book Base Fee ($)</Text>
-            <TextInput
-              style={styles.formInput}
-              value={damagedBookPenalty}
-              onChangeText={setDamagedBookPenalty}
-              keyboardType="numeric"
-              placeholder="25.00"
-            />
-            <Text style={settStyles.helpText}>Base repair fee</Text>
-          </View>
-        </View>
-
-        <View style={styles.formGroup}>
-          <Text style={styles.formLabel}>Unpaid Fine Member Lock Threshold ($)</Text>
-          <TextInput
-            style={styles.formInput}
-            value={unpaidFineLockThreshold}
-            onChangeText={setUnpaidFineLockThreshold}
-            keyboardType="numeric"
-            placeholder="20.00"
-          />
-          <Text style={settStyles.helpText}>Member borrowing is suspended if unpaid balance exceeds this amount</Text>
-        </View>
-      </View>
-
-      {/* SECTION 3: Reservation & Operating Controls */}
-      <View style={settStyles.cardBox}>
-        <View style={settStyles.cardHeader}>
-          <MaterialCommunityIcons name="cog-outline" size={20} color="#2563EB" />
-          <Text style={settStyles.cardTitle}>Reservation & Access Settings</Text>
-        </View>
-
-        <View style={settStyles.switchRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={settStyles.switchTitle}>Allow Online Book Reservation</Text>
-            <Text style={settStyles.switchSub}>Permit students to hold/reserve available catalog items</Text>
-          </View>
-          <Switch
-            value={allowReservation}
-            onValueChange={setAllowReservation}
-            trackColor={{ false: '#D1D5DB', true: '#FEF08A' }}
-            thumbColor={allowReservation ? '#EAB308' : '#9CA3AF'}
-          />
-        </View>
-
-        <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
-          <View style={[styles.formGroup, { flex: 1 }]}>
-            <Text style={styles.formLabel}>Reservation Expiry (Days)</Text>
-            <TextInput
-              style={styles.formInput}
-              value={reservationExpiryDays}
-              onChangeText={setReservationExpiryDays}
-              keyboardType="numeric"
-              placeholder="7"
-            />
-          </View>
-
-          <View style={[styles.formGroup, { flex: 1 }]}>
-            <Text style={styles.formLabel}>Weekend Operations</Text>
-            <TouchableOpacity
-              style={[styles.chip, openOnWeekends && styles.chipActive, { height: 38, justifyContent: 'center', alignItems: 'center' }]}
-              onPress={() => setOpenOnWeekends(!openOnWeekends)}
-            >
-              <Text style={[styles.chipText, openOnWeekends && styles.chipTextActive]}>
-                {openOnWeekends ? 'Open Saturdays' : 'Closed Weekends'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={{ flexDirection: 'row', gap: 10 }}>
-          <View style={[styles.formGroup, { flex: 1 }]}>
-            <Text style={styles.formLabel}>Library Opening Hours</Text>
-            <TextInput
-              style={styles.formInput}
-              value={openingHours}
-              onChangeText={setOpeningHours}
-              placeholder="08:00 AM"
-            />
-          </View>
-          <View style={[styles.formGroup, { flex: 1 }]}>
-            <Text style={styles.formLabel}>Library Closing Hours</Text>
-            <TextInput
-              style={styles.formInput}
-              value={closingHours}
-              onChangeText={setClosingHours}
-              placeholder="06:00 PM"
-            />
+          
           </View>
         </View>
       </View>
@@ -376,17 +298,99 @@ export const SettingsView = ({
         </TouchableOpacity>
       </View>
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
 const settStyles = StyleSheet.create({
-  cardBox: { backgroundColor: '#FFFFFF', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#F3F4F6', marginBottom: 12, gap: 10 },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
-  cardTitle: { fontSize: 14, fontWeight: '800', color: '#111827' },
-  helpText: { fontSize: 10, color: '#9CA3AF', marginTop: 2 },
+  cardBox: { backgroundColor: '#FFFFFF', borderRadius: 10, padding: 16, borderWidth: 1, borderColor: '#E8E5DC', marginBottom: 12, gap: 10 },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#E8E5DC' },
+  cardTitle: { fontSize: 14, fontFamily: FontFamily.bold, color: '#111827' },
+  helpText: { fontSize: 10, color: '#9CA3AF', marginTop: 2, fontFamily: FontFamily.regular },
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 },
-  switchTitle: { fontSize: 13, fontWeight: '700', color: '#111827' },
-  switchSub: { fontSize: 11, color: '#6B7280' },
-  resetBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#F3F4F6', paddingVertical: 10, borderRadius: 10 },
-  resetBtnText: { fontSize: 12, fontWeight: '700', color: '#4B5563' },
+  switchTitle: { fontSize: 13, fontFamily: FontFamily.bold, color: '#111827' },
+  switchSub: { fontSize: 11, color: '#6B7280', fontFamily: FontFamily.regular },
+  resetBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#F3F4F6', paddingVertical: 10, borderRadius: 5 },
+  resetBtnText: { fontSize: 12, fontFamily: FontFamily.bold, color: '#4B5563' },
+  smallContainer: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 12,
+    gap: 4,
+  },
+  smallContainerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  smallContainerTitle: {
+    fontSize: 12,
+    fontFamily: FontFamily.bold,
+    color: '#0F172A',
+  },
+  smallContainerSub: {
+    fontSize: 10,
+    color: '#64748B',
+    fontFamily: FontFamily.regular,
+  },
+  smallInput: {
+    borderRadius: 5,
+    backgroundColor: '#FFFFFF',
+    marginTop: 4,
+  },
+  combinedContainer: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 12,
+    gap: 4,
+    marginTop: 4,
+  },
+  combinedHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  unifiedBadge: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+  },
+  unifiedBadgeText: {
+    fontSize: 10,
+    fontFamily: FontFamily.bold,
+    color: '#B45309',
+  },
+  combinedDescription: {
+    fontSize: 11,
+    color: '#78350F',
+    fontFamily: FontFamily.medium,
+  },
+  ruleList: {
+    gap: 6,
+    marginVertical: 4,
+  },
+  ruleItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+  },
+  ruleItemText: {
+    flex: 1,
+    fontSize: 11,
+    color: '#334155',
+    lineHeight: 16,
+  },
+  combinedInput: {
+    borderRadius: 5,
+    backgroundColor: '#FFFFFF',
+    fontWeight: '700',
+    color: '#111827',
+  },
 });

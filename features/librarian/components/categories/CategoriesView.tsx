@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { MaterialCommunityIcons } from '../common/Icons';
 import { Category, Book } from '../../types';
+import { FontFamily } from '../../../../constants/fonts';
 
 export interface CategoriesViewProps {
   categories: Category[];
@@ -17,12 +18,12 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ categories, book
         const count = books.filter((b) => b.categoryId === c.id).length;
         return (
           <View key={c.id} style={styles.listItemCard}>
-            <MaterialCommunityIcons name="tag-outline" size={24} color="#EAB308" />
+            <MaterialCommunityIcons name="tag-outline" size={24} color="#F4C430" />
             <View style={{ flex: 1 }}>
               <Text style={styles.cardTitle}>{c.name}</Text>
               <Text style={styles.cardSub}>{c.description || 'Category'}</Text>
             </View>
-            <Text style={{ fontSize: 13, fontWeight: '800', color: '#111827' }}>{count} Books</Text>
+            <Text style={{ fontSize: 13, fontFamily: FontFamily.bold, color: '#171717' }}>{count} Books</Text>
           </View>
         );
       })}
@@ -32,17 +33,17 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ categories, book
 
 const styles = StyleSheet.create({
   viewBody: { flex: 1, padding: 16 },
-  sectionHeader: { fontSize: 18, fontWeight: '900', color: '#111827', marginBottom: 12 },
+  sectionHeader: { fontSize: 18, fontFamily: FontFamily.extrabold, color: '#171717', marginBottom: 12 },
   listItemCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     backgroundColor: '#FFFFFF',
     padding: 14,
-    borderRadius: 12,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#F3F4F6',
+    borderColor: '#E8E5DC',
   },
-  cardTitle: { fontSize: 14, fontWeight: '700', color: '#111827' },
-  cardSub: { fontSize: 12, color: '#6B7280' },
+  cardTitle: { fontSize: 14, fontFamily: FontFamily.bold, color: '#171717' },
+  cardSub: { fontSize: 12, color: '#6B7280', fontFamily: FontFamily.regular },
 });

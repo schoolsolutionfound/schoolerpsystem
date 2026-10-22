@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,10 +8,13 @@ import {
   Modal,
   Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '../common/Icons';
 import { Fine, StudentProfile, FineStatus, PaymentTransaction } from '../../types';
-import { apiClient } from '../../../../api/client';
+import { payFineApi } from '../../../../api/library';
+import { FontFamily } from '../../../../constants/fonts';
 
 export const PayFineModal = ({
   visible,
@@ -32,15 +35,9 @@ export const PayFineModal = ({
   commonStyles: any;
   fineStyles: any;
 }) => {
-  const [payAmount, setPayAmount] = useState(() => {
-    if (!fine) return '';
-    return Math.max(0, fine.amount - fine.paidAmount).toFixed(2);
-  });
+  const [payAmount, setPayAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CARD' | 'UPI_ONLINE' | 'DIGITAL_WALLET' | 'SCANNER_QR'>('CASH');
-  const [cashTendered, setCashTendered] = useState(() => {
-    if (!fine) return '';
-    return Math.max(0, fine.amount - fine.paidAmount).toFixed(2);
-  });
+  const [cashTendered, setCashTendered] = useState('');
   const [refNotes, setRefNotes] = useState('');
   const [scannedPayload, setScannedPayload] = useState<string | null>(null);
   const [receiptData, setReceiptData] = useState<any | null>(null);
@@ -62,6 +59,18 @@ export const PayFineModal = ({
     return Math.max(0, cashVal - payVal);
   }, [payAmount, cashTendered]);
 
+  useEffect(() => {
+    if (fine) {
+      const rem = Math.max(0, fine.amount - fine.paidAmount);
+      setPayAmount(rem.toFixed(2));
+      setCashTendered(rem.toFixed(2));
+      setPaymentMethod('CASH');
+      setRefNotes('');
+      setScannedPayload(null);
+      setReceiptData(null);
+    }
+  }, [fine, visible]);
+
   if (!fine) return null;
 
   const handleTriggerScanner = () => {
@@ -71,7 +80,7 @@ export const PayFineModal = ({
     Alert.alert('Scanner Active', `QR code scanned successfully!\nCaptured Payload: ${mockPayload}`);
   };
 
-  const handleProcessPayment = () => {
+  const handleProcessPayment = async () => {
     const amt = parseFloat(payAmount);
     if (isNaN(amt) || amt <= 0) {
       Alert.alert('Invalid Amount', 'Please enter a valid payment amount greater than ₹0.');
@@ -95,59 +104,64 @@ export const PayFineModal = ({
     const isFullyPaid = newPaidTotal >= fine.amount - 0.01;
     const updatedStatus: FineStatus = isFullyPaid ? 'PAID' : 'PARTIALLY_PAID';
 
-    const receiptNo = `REC-${Math.floor(100000 + Math.random() * 900000)}`;
+    try {
+      const res = await payFineApi(fine.id, {
+        amount: amt,
+        paymentMethod,
+        cashTendered: paymentMethod === 'CASH' ? parseFloat(cashTendered || '0') : undefined,
+        changeReturned: paymentMethod === 'CASH' ? changeReturned : undefined,
+        transactionRef: refNotes.trim() || undefined,
+        scannedQrPayload: paymentMethod === 'SCANNER_QR' ? scannedPayload || undefined : undefined,
+      });
 
-    const newTxn: PaymentTransaction = {
-      id: `txn-${Date.now()}`,
-      fineId: fine.id,
-      receiptNo,
-      amount: amt,
-      paymentMethod,
-      cashTendered: paymentMethod === 'CASH' ? parseFloat(cashTendered || '0') : undefined,
-      changeReturned: paymentMethod === 'CASH' ? changeReturned : undefined,
-      transactionRef: refNotes.trim() || undefined,
-      scannedQrPayload: paymentMethod === 'SCANNER_QR' ? scannedPayload || undefined : undefined,
-      paidAt: new Date().toISOString(),
-      cashier: 'Amina Rahman (Librarian)',
-    };
+      const newTxn: PaymentTransaction = {
+        id: res.transaction?.id || `txn-${Date.now()}`,
+        fineId: fine.id,
+        receiptNo: res.transaction?.receiptNo,
+        amount: Number(res.transaction?.amount ?? amt),
+        paymentMethod: (res.transaction?.paymentMethod as PaymentTransaction['paymentMethod']) || paymentMethod,
+        cashTendered: res.transaction?.cashTendered != null ? Number(res.transaction.cashTendered) : undefined,
+        changeReturned: res.transaction?.changeReturned != null ? Number(res.transaction.changeReturned) : undefined,
+        transactionRef: res.transaction?.transactionRef || undefined,
+        scannedQrPayload: res.transaction?.scannedQrPayload || undefined,
+        paidAt: res.transaction?.paidAt ? String(res.transaction.paidAt) : new Date().toISOString(),
+        cashier: res.transaction?.cashier || 'Librarian Staff',
+      };
 
-    const updatedTransactions = [...(fine.paymentTransactions || []), newTxn];
+      const updatedFine: Fine = {
+        ...fine,
+        amount: Number(res.fine?.amount ?? fine.amount),
+        paidAmount: Number(res.fine?.paidAmount ?? newPaidTotal),
+        status: (res.fine?.status as FineStatus) || updatedStatus,
+        updatedAt: new Date().toISOString().split('T')[0],
+        paymentTransactions: [...(fine.paymentTransactions || []), newTxn],
+      };
 
-    const updatedFine: Fine = {
-      ...fine,
-      paidAmount: newPaidTotal,
-      status: updatedStatus,
-      updatedAt: new Date().toISOString().split('T')[0],
-      paymentTransactions: updatedTransactions,
-    };
+      const newReceipt = {
+        receiptNo: newTxn.receiptNo || `REC-${Date.now()}`,
+        date: new Date(newTxn.paidAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+        studentName: student?.fullName || 'Student Member',
+        admissionNo: student?.admissionNo || 'N/A',
+        classSection: student?.classSection || 'N/A',
+        fineId: fine.id,
+        fineType: fine.fineType.replace('_', ' '),
+        amountPaid: amt,
+        paymentMethod: paymentMethod.replace('_', ' '),
+        cashTendered: paymentMethod === 'CASH' ? parseFloat(cashTendered || '0') : undefined,
+        changeReturned: paymentMethod === 'CASH' ? changeReturned : undefined,
+        remainingBalance: Math.max(0, updatedFine.amount - updatedFine.paidAmount),
+        refNotes: refNotes.trim() || 'N/A',
+        scannedPayload,
+        cashier: newTxn.cashier || 'Librarian Staff',
+      };
 
-    // Save transaction record to backend DB API (with offline fallback)
-    apiClient('/fines/payment', {
-      method: 'POST',
-      body: JSON.stringify(newTxn),
-    }).catch(() => { });
-
-    const newReceipt = {
-      receiptNo,
-      date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
-      studentName: student?.fullName || 'Student Member',
-      admissionNo: student?.admissionNo || 'N/A',
-      classSection: student?.classSection || 'N/A',
-      fineId: fine.id,
-      fineType: fine.fineType.replace('_', ' '),
-      amountPaid: amt,
-      paymentMethod: paymentMethod.replace('_', ' '),
-      cashTendered: paymentMethod === 'CASH' ? parseFloat(cashTendered || '0') : undefined,
-      changeReturned: paymentMethod === 'CASH' ? changeReturned : undefined,
-      remainingBalance: Math.max(0, fine.amount - newPaidTotal),
-      refNotes: refNotes.trim() || 'N/A',
-      scannedPayload,
-      cashier: 'Amina Rahman (Librarian)',
-    };
-
-    setSubmitting(false);
-    setReceiptData(newReceipt);
-    onPaymentSuccess(updatedFine);
+      setSubmitting(false);
+      setReceiptData(newReceipt);
+      onPaymentSuccess(updatedFine);
+    } catch (err: any) {
+      setSubmitting(false);
+      Alert.alert('Payment Failed', err?.message || 'Could not record the payment.');
+    }
   };
 
   const styles = commonStyles;
@@ -155,22 +169,32 @@ export const PayFineModal = ({
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={modalStyles.backdrop}>
-        <View style={[modalStyles.modalContainer, { maxHeight: '94%' }]}>
-          <View style={modalStyles.header}>
-            <Text style={modalStyles.headerTitle}>
-              {receiptData ? 'Digital Receipt Issued' : `Collect Fine Payment (#${fine.id})`}
-            </Text>
-            <TouchableOpacity onPress={onClose}>
-              <Feather name="x" size={20} color="#6B7280" />
-            </TouchableOpacity>
-          </View>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={{ width: '100%', maxWidth: 540 }}
+        >
+          <View style={[modalStyles.modalContainer, { maxHeight: '94%' }]}>
+            <View style={modalStyles.header}>
+              <Text style={modalStyles.headerTitle}>
+                {receiptData ? 'Digital Receipt Issued' : `Collect Fine Payment (#${fine.id})`}
+              </Text>
+              <TouchableOpacity onPress={onClose}>
+                <Feather name="x" size={20} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
 
-          <ScrollView style={{ padding: 16 }} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              style={{ padding: 16 }}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              nestedScrollEnabled={true}
+              contentContainerStyle={{ paddingBottom: 40 }}
+            >
             {receiptData ? (
               /* DIGITAL RECEIPT VIEW */
               <View style={fineStyles.receiptContainer}>
                 <View style={fineStyles.receiptHeader}>
-                  <MaterialCommunityIcons name="check-circle" size={40} color="#059669" />
+                  <MaterialCommunityIcons name="check-circle" size={40} color="#026440" />
                   <Text style={fineStyles.receiptTitle}>KIVQUO SCHOOL LIBRARY</Text>
                   <Text style={fineStyles.receiptSub}>Official Payment Receipt</Text>
                   <Text style={fineStyles.receiptNo}>Receipt No: {receiptData.receiptNo}</Text>
@@ -211,7 +235,7 @@ export const PayFineModal = ({
                     </View>
                     <View style={fineStyles.receiptRow}>
                       <Text style={fineStyles.receiptLabel}>Change Returned:</Text>
-                      <Text style={[fineStyles.receiptVal, { color: '#059669' }]}>₹{receiptData.changeReturned.toFixed(2)}</Text>
+                      <Text style={[fineStyles.receiptVal, { color: '#026440' }]}>₹{receiptData.changeReturned.toFixed(2)}</Text>
                     </View>
                   </>
                 )}
@@ -277,6 +301,7 @@ export const PayFineModal = ({
                     }}
                     keyboardType="numeric"
                     placeholder="0.00"
+                    placeholderTextColor="#475569"
                   />
                 </View>
 
@@ -315,18 +340,19 @@ export const PayFineModal = ({
                       <View style={{ flex: 1 }}>
                         <Text style={styles.formLabel}>Cash Amount Tendered (₹) *</Text>
                         <TextInput
-                          style={[styles.formInput, { fontSize: 16, fontWeight: '800', color: '#059669' }]}
+                          style={[styles.formInput, { fontSize: 16, fontWeight: '800', color: '#026440' }]}
                           value={cashTendered}
                           onChangeText={setCashTendered}
                           keyboardType="numeric"
                           placeholder="0.00"
+                          placeholderTextColor="#475569"
                         />
                       </View>
 
                       <View style={{ flex: 1, justifyContent: 'center' }}>
                         <Text style={styles.formLabel}>Change to Return</Text>
-                        <View style={[styles.formInput, { backgroundColor: changeReturned >= 0 ? '#ECFDF5' : '#FEF2F2', justifyContent: 'center' }]}>
-                          <Text style={{ fontSize: 16, fontWeight: '900', color: changeReturned >= 0 ? '#059669' : '#DC2626' }}>
+                        <View style={[styles.formInput, { backgroundColor: changeReturned >= 0 ? '#ECFDF5' : '#FEF2F2', borderColor: changeReturned >= 0 ? '#026440' : '#FECACA', borderWidth: 1, justifyContent: 'center' }]}>
+                          <Text style={{ fontSize: 16, fontWeight: '900', color: changeReturned >= 0 ? '#026440' : '#DC2626' }}>
                             ₹{changeReturned.toFixed(2)}
                           </Text>
                         </View>
@@ -372,7 +398,7 @@ export const PayFineModal = ({
                       <View style={fineStyles.scannerCornerBL} />
                       <View style={fineStyles.scannerCornerBR} />
 
-                      <MaterialCommunityIcons name="camera-outline" size={44} color={scannedPayload ? '#059669' : '#EAB308'} />
+                      <MaterialCommunityIcons name="camera-outline" size={44} color={scannedPayload ? '#026440' : '#EAB308'} />
                       <Text style={fineStyles.scannerStatusText}>
                         {scannedPayload ? '✅ Payment QR Code Verified!' : 'Position member payment QR code inside frame'}
                       </Text>
@@ -398,20 +424,57 @@ export const PayFineModal = ({
                     value={refNotes}
                     onChangeText={setRefNotes}
                     placeholder="e.g. Receipt #, POS Auth Code, UPI transaction ID..."
+                    placeholderTextColor="#475569"
                   />
                 </View>
 
-                <TouchableOpacity style={[styles.primaryBtn, { marginTop: 10 }]} onPress={handleProcessPayment} disabled={submitting}>
-                  {submitting ? (
-                    <ActivityIndicator size="small" color="#121316" />
-                  ) : (
-                    <Text style={styles.primaryBtnText}>Collect Payment & Log Transaction</Text>
-                  )}
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+                  <TouchableOpacity
+                    style={{
+                      flex: 1,
+                      backgroundColor: '#FEF2F2',
+                      borderWidth: 1,
+                      borderColor: '#FECACA',
+                      paddingVertical: 12,
+                      borderRadius: 5,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                    onPress={onClose}
+                    disabled={submitting}
+                  >
+                    <Text style={{ color: '#DC2626', fontSize: 13, fontFamily: FontFamily.bold }}>Cancel</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={{
+                      flex: 1.8,
+                      backgroundColor: '#026440',
+                      paddingVertical: 12,
+                      borderRadius: 5,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      shadowColor: '#026440',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.25,
+                      shadowRadius: 3,
+                      elevation: 3,
+                    }}
+                    onPress={handleProcessPayment}
+                    disabled={submitting}
+                  >
+                    {submitting ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <Text style={{ color: '#FFFFFF', fontSize: 13, fontFamily: FontFamily.bold }}>Collect Payment</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
               </View>
             )}
           </ScrollView>
         </View>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );

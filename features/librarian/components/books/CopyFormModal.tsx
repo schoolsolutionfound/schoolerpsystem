@@ -9,6 +9,8 @@ import {
   Alert,
   ActivityIndicator,
   StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Feather } from '../common/Icons';
 import { BookCopy, CopyStatus, CopyCondition } from '../../types';
@@ -90,15 +92,25 @@ export const CopyFormModal = ({
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={modalStyles.backdrop}>
-        <View style={[modalStyles.modalContainer, { maxHeight: '90%' }]}>
-          <View style={modalStyles.header}>
-            <Text style={modalStyles.headerTitle}>{editingCopy ? 'Edit Inventory Copy' : 'Add Physical Inventory Copy'}</Text>
-            <TouchableOpacity onPress={onClose}>
-              <Feather name="x" size={20} color="#6B7280" />
-            </TouchableOpacity>
-          </View>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={{ width: '100%', maxWidth: 540 }}
+        >
+          <View style={[modalStyles.modalContainer, { maxHeight: '90%' }]}>
+            <View style={modalStyles.header}>
+              <Text style={modalStyles.headerTitle}>{editingCopy ? 'Edit Inventory Copy' : 'Add Physical Inventory Copy'}</Text>
+              <TouchableOpacity onPress={onClose}>
+                <Feather name="x" size={20} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
 
-          <ScrollView style={{ padding: 16 }} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              style={{ padding: 16 }}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              nestedScrollEnabled={true}
+              contentContainerStyle={{ paddingBottom: 40 }}
+            >
             {/* Auto-generate Barcode / Accession Card */}
             <View style={copyFormStyles.barcodeCard}>
               <View style={{ flex: 1 }}>
@@ -119,6 +131,7 @@ export const CopyFormModal = ({
                   value={accessionNumber}
                   onChangeText={setAccessionNumber}
                   placeholder="e.g. ACC-000101"
+                  placeholderTextColor="#475569"
                 />
               </View>
               <View style={[styles.formGroup, { flex: 1 }]}>
@@ -128,6 +141,7 @@ export const CopyFormModal = ({
                   value={barcode}
                   onChangeText={setBarcode}
                   placeholder="e.g. BAR-100101"
+                  placeholderTextColor="#475569"
                 />
               </View>
             </View>
@@ -151,6 +165,7 @@ export const CopyFormModal = ({
                 value={rack}
                 onChangeText={setRack}
                 placeholder="Or enter custom rack location..."
+                placeholderTextColor="#475569"
               />
             </View>
 
@@ -173,6 +188,7 @@ export const CopyFormModal = ({
                 value={shelf}
                 onChangeText={setShelf}
                 placeholder="Or enter custom shelf level..."
+                placeholderTextColor="#475569"
               />
             </View>
 
@@ -212,11 +228,53 @@ export const CopyFormModal = ({
               </View>
             </View>
 
-            <TouchableOpacity style={[styles.primaryBtn, { marginVertical: 16 }]} onPress={handleSave} disabled={submitting}>
-              {submitting ? <ActivityIndicator size="small" color="#121316" /> : <Text style={styles.primaryBtnText}>{editingCopy ? 'Save Copy Details' : 'Add Inventory Copy'}</Text>}
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: 10, marginVertical: 16 }}>
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  backgroundColor: '#FEF2F2',
+                  borderWidth: 1,
+                  borderColor: '#FECACA',
+                  paddingVertical: 12,
+                  borderRadius: 10,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                onPress={onClose}
+                disabled={submitting}
+              >
+                <Text style={{ color: '#DC2626', fontSize: 13, fontWeight: '800' }}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={{
+                  flex: 2,
+                  backgroundColor: '#026440',
+                  paddingVertical: 12,
+                  borderRadius: 10,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  shadowColor: '#026440',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.25,
+                  shadowRadius: 3,
+                  elevation: 3,
+                }}
+                onPress={handleSave}
+                disabled={submitting}
+              >
+                {submitting ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '800' }}>
+                    {editingCopy ? 'Save Copy Details' : 'Add Inventory Copy'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
           </ScrollView>
         </View>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );

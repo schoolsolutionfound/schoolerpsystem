@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   ScrollView,
   Modal,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Feather } from '../common/Icons';
 import { Fine, StudentProfile } from '../../types';
@@ -25,7 +27,7 @@ export const WaiveFineModal = ({
   fine: Fine | null;
   students: StudentProfile[];
   onClose: () => void;
-  onWaiveSuccess: (waivedFine: Fine) => void;
+  onWaiveSuccess: (waivedFine: Fine, reason: string, remarks: string) => void;
   modalStyles: any;
   commonStyles: any;
   fineStyles: any;
@@ -38,6 +40,13 @@ export const WaiveFineModal = ({
     if (!fine) return null;
     return students.find((s) => s.id === fine.studentId) || null;
   }, [fine, students]);
+
+  useEffect(() => {
+    if (fine) {
+      setReason('Discretionary Waiver');
+      setRemarks('');
+    }
+  }, [fine, visible]);
 
   if (!fine) return null;
 
@@ -55,7 +64,7 @@ export const WaiveFineModal = ({
     };
 
     setSubmitting(false);
-    onWaiveSuccess(waivedFine);
+    onWaiveSuccess(waivedFine, reason, remarks.trim());
     Alert.alert('Fine Waived', `Fine #${fine.id} of ₹${fine.amount.toFixed(2)} has been waived under ${reason}.`);
   };
 
@@ -64,15 +73,25 @@ export const WaiveFineModal = ({
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={modalStyles.backdrop}>
-        <View style={[modalStyles.modalContainer, { maxHeight: '90%' }]}>
-          <View style={modalStyles.header}>
-            <Text style={modalStyles.headerTitle}>Waive Member Fine (#{fine.id})</Text>
-            <TouchableOpacity onPress={onClose}>
-              <Feather name="x" size={20} color="#6B7280" />
-            </TouchableOpacity>
-          </View>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={{ width: '100%', maxWidth: 540 }}
+        >
+          <View style={[modalStyles.modalContainer, { maxHeight: '90%' }]}>
+            <View style={modalStyles.header}>
+              <Text style={modalStyles.headerTitle}>Waive Member Fine (#{fine.id})</Text>
+              <TouchableOpacity onPress={onClose}>
+                <Feather name="x" size={20} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
 
-          <ScrollView style={{ padding: 16 }} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              style={{ padding: 16 }}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              nestedScrollEnabled={true}
+              contentContainerStyle={{ paddingBottom: 40 }}
+            >
             <View style={{ gap: 12 }}>
               <View style={[fineStyles.modalMemberCard, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}>
                 <View style={{ flex: 1 }}>
@@ -113,15 +132,52 @@ export const WaiveFineModal = ({
                   onChangeText={setRemarks}
                   multiline
                   placeholder="Enter official reason and notes for approving fine waiver..."
+                  placeholderTextColor="#475569"
                 />
               </View>
 
-              <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: '#2563EB', marginTop: 10 }]} onPress={handleConfirmWaiver} disabled={submitting}>
-                <Text style={[styles.primaryBtnText, { color: '#FFFFFF' }]}>Approve & Log Fine Waiver</Text>
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+                <TouchableOpacity
+                  style={{
+                    flex: 1,
+                    backgroundColor: '#FEF2F2',
+                    borderWidth: 1,
+                    borderColor: '#FECACA',
+                    paddingVertical: 12,
+                    borderRadius: 10,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                  onPress={onClose}
+                  disabled={submitting}
+                >
+                  <Text style={{ color: '#DC2626', fontSize: 13, fontWeight: '800' }}>Cancel / Reject</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={{
+                    flex: 1.5,
+                    backgroundColor: '#026440',
+                    paddingVertical: 12,
+                    borderRadius: 10,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    shadowColor: '#026440',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.25,
+                    shadowRadius: 3,
+                    elevation: 3,
+                  }}
+                  onPress={handleConfirmWaiver}
+                  disabled={submitting}
+                >
+                  <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '800' }}>Approve Waiver</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </ScrollView>
         </View>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );

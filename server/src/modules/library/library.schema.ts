@@ -141,11 +141,17 @@ export const WaiveFineSchema = z.object({
 export const CreateDamageFineSchema = z.object({
   studentId: z.string().min(1, 'Student ID is required'),
   bookCopyId: z.string().optional(),
+  loanId: z.string().optional(),
+  fineType: z.string().optional(),
   damageType: z.enum(DamageTypes),
   amount: z.number().positive('Fine amount must be greater than zero'),
   damageNotes: z.string().min(1, 'Damage description is required'),
   copyCondition: z.enum(CopyConditions).optional().default('DAMAGED'),
   copyStatus: z.enum(CopyStatuses).optional().default('UNDER_REPAIR'),
+  isPaid: z.boolean().optional().default(false),
+  paymentMethod: z.enum(PaymentMethods).optional().default('CASH'),
+  cashTendered: z.number().optional(),
+  transactionRef: z.string().optional(),
 });
 
 export const FineQuerySchema = z.object({

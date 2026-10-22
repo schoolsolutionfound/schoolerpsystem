@@ -22,7 +22,8 @@ export function useLibraryFines(initialFilters?: FineFilters) {
     setError(null);
     try {
       const res = await getFinesApi(filters || initialFilters);
-      const itemsList = Array.isArray(res) ? res : res?.items || [];
+      const rawList = Array.isArray(res) ? res : ((res as any)?.items || (res as any)?.data || []);
+      const itemsList = Array.isArray(rawList) ? rawList : [];
       const totalCount = Array.isArray(res) ? res.length : (res?.total ?? itemsList.length);
 
       const mapped: Fine[] = itemsList.map((f: any) => ({
