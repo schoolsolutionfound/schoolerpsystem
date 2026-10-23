@@ -4,6 +4,8 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
 import { FontFamily } from '../../../constants/fonts';
 import * as Location from 'expo-location';
+import { getMyBusApi, MyBusData } from '../../../api/transport';
+import { BusMap } from '../../shared/maps/BusMap';
 
 type TrackMode = 'student' | 'bus';
 
@@ -11,24 +13,14 @@ export const ParentTrackView: React.FC = () => {
   const [mode, setMode] = useState<TrackMode>('student');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [busActive, setBusActive] = useState(false);
+  const [busData, setBusData] = useState<MyBusData | null>(null);
   const [studentLocation, setStudentLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [locationError, setLocationError] = useState('');
   const [lastUpdated, setLastUpdated] = useState('');
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const studentPulseAnim = useRef(new Animated.Value(1)).current;
 
-  // Bus pulse
-  useEffect(() => {
-    if (busActive && mode === 'bus') {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 1.3, duration: 800, useNativeDriver: true }),
-          Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
-        ])
-      ).start();
-    }
-  }, [busActive, mode, pulseAnim]);
+  const busActive = !!busData?.isLive;
 
   // Student pulse
   useEffect(() => {
@@ -44,8 +36,15 @@ export const ParentTrackView: React.FC = () => {
 
   const load = useCallback(async () => {
     try {
-      // Simulate fetching bus status
-      await new Promise((r) => setTimeout(r, 500));
+      // Fetch bus tracking info
+      try {
+        const busRes = await getMyBusApi();
+        if (busRes) {
+          setBusData(busRes);
+        }
+      } catch (e) {
+        // Fallback silently if bus API unavailable
+      }
 
       // Simulate student location (in production, fetch from API)
       setStudentLocation({ latitude: 12.9716, longitude: 77.5946 });
@@ -89,39 +88,41 @@ export const ParentTrackView: React.FC = () => {
       }
     >
       <View style={styles.container}>
-        {/* Map Placeholder */}
-        <View style={styles.mapContainer}>
-          <View style={styles.mapPlaceholder}>
-            <MaterialCommunityIcons name="map-outline" size={48} color="#D1D5DB" />
-            <Text style={styles.mapText}>Live Map</Text>
-            <Text style={styles.mapSub}>
-              {mode === 'student' ? 'Student location will appear here' : 'Bus location will appear here'}
-            </Text>
+        {/* Map Area */}
+        {mode === 'bus' ? (
+          <View style={{ marginBottom: 16 }}>
+            <BusMap
+              stops={busData?.stops || []}
+              roadPath={busData?.roadPath}
+              busLocation={busData?.location}
+              studentStopId={busData?.stop?.id}
+              isLive={busActive}
+              height={260}
+            />
           </View>
+        ) : (
+          <View style={styles.mapContainer}>
+            <View style={styles.mapPlaceholder}>
+              <MaterialCommunityIcons name="map-outline" size={48} color="#D1D5DB" />
+              <Text style={styles.mapText}>Live Map</Text>
+              <Text style={styles.mapSub}>Student location will appear here</Text>
+            </View>
 
-          {/* Student marker */}
-          {mode === 'student' && studentLocation && (
-            <Animated.View style={[styles.studentMarker, { transform: [{ scale: studentPulseAnim }] }]}>
-              <View style={styles.studentMarkerInner}>
-                <MaterialCommunityIcons name="account" size={18} color="#FFFFFF" />
-              </View>
-            </Animated.View>
-          )}
+            {/* Student marker */}
+            {studentLocation && (
+              <Animated.View style={[styles.studentMarker, { transform: [{ scale: studentPulseAnim }] }]}>
+                <View style={styles.studentMarkerInner}>
+                  <MaterialCommunityIcons name="account" size={18} color="#FFFFFF" />
+                </View>
+              </Animated.View>
+            )}
 
-          {/* Bus marker */}
-          {mode === 'bus' && busActive && (
-            <Animated.View style={[styles.busMarker, { transform: [{ scale: pulseAnim }] }]}>
-              <View style={styles.busMarkerInner}>
-                <MaterialCommunityIcons name="bus" size={20} color="#FFFFFF" />
-              </View>
-            </Animated.View>
-          )}
-
-          {/* Stop marker */}
-          <View style={styles.stopMarker}>
-            <MaterialCommunityIcons name="map-marker" size={24} color="#F4C430" />
+            {/* Stop marker */}
+            <View style={styles.stopMarker}>
+              <MaterialCommunityIcons name="map-marker" size={24} color="#F4C430" />
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Info Card */}
         {mode === 'bus' ? (
@@ -131,12 +132,44 @@ export const ParentTrackView: React.FC = () => {
                 <MaterialCommunityIcons name="bus" size={20} color="#1A1B1C" />
                 <Text style={styles.infoTitle}>Bus Tracking</Text>
               </View>
-              <View style={[styles.liveBadge, busActive && styles.liveBadgeActive]}>
-                <View style={[styles.liveDot, busActive && styles.liveDotActive]} />
-                <Text style={[styles.liveText, busActive && styles.liveTextActive]}>
-                  {busActive ? 'LIVE' : 'OFFLINE'}
-                </Text>
-              </View>
+              {(() => {
+                const updatedMs = busData?.location?.updatedAt
+                  ? new Date(busData.location.updatedAt).getTime()
+                  : null;
+                const ageSec = updatedMs ? Math.max(0, Math.round((Date.now() - updatedMs) / 1000)) : null;
+                const isVeryStale = busActive && ageSec !== null && ageSec > 120;
+                const isStale = busActive && ageSec !== null && ageSec > 30;
+
+                return (
+                  <View
+                    style={[
+                      styles.liveBadge,
+                      busActive && (isVeryStale ? { backgroundColor: '#FEE2E2' } : isStale ? { backgroundColor: '#FEF3C7' } : styles.liveBadgeActive),
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.liveDot,
+                        busActive && (isVeryStale ? { backgroundColor: '#DC2626' } : isStale ? { backgroundColor: '#F59E0B' } : styles.liveDotActive),
+                      ]}
+                    />
+                    <Text
+                      style={[
+                        styles.liveText,
+                        busActive && (isVeryStale ? { color: '#B91C1C' } : isStale ? { color: '#B45309' } : styles.liveTextActive),
+                      ]}
+                    >
+                      {!busActive
+                        ? 'OFFLINE'
+                        : isVeryStale
+                        ? `STALE (${Math.round(ageSec! / 60)}m ago)`
+                        : isStale
+                        ? `LAST SEEN ${ageSec}s`
+                        : 'LIVE'}
+                    </Text>
+                  </View>
+                );
+              })()}
             </View>
 
             <View style={styles.statsRow}>

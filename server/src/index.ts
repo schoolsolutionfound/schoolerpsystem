@@ -43,6 +43,7 @@ import { admissionsRoutes } from './modules/admissions/admissions.routes.js';
 import { paymentRoutes } from './modules/payments/payment.routes.js';
 import { startPaymentOrderSweeper, stopPaymentOrderSweeper } from './modules/payments/payment.sweeper.js';
 import { isEncryptionReady } from './modules/shared/utils/encryption.js';
+import { transportRoutes } from './modules/transport/transport.routes.js';
 
 const port = Number(process.env.PORT) || 5000;
 const host = process.env.HOST || '0.0.0.0';
@@ -196,6 +197,7 @@ async function main() {
         await apiV1.register(admissionsRoutes, { prefix: '/admissions' });
         await apiV1.register(paymentRoutes, { prefix: '/payments' });
         await apiV1.register(payrollRoutes, { prefix: '/payroll' });
+        await apiV1.register(transportRoutes, { prefix: '/transport' });
 
         // 404 handler for /api/v1/* — matches the API error envelope
         apiV1.setNotFoundHandler(async (request, reply) => {

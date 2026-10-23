@@ -1241,3 +1241,102 @@ export const institutionEmailConfig = pgTable('institution_email_config', {
 
 export type InstitutionEmailConfigRecord = typeof institutionEmailConfig.$inferSelect;
 export type NewInstitutionEmailConfigRecord = typeof institutionEmailConfig.$inferInsert;
+/**
+ * Transport & Bus Tracking Tables
+ */
+
+export const busVehicles = pgTable('bus_vehicles', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('bv')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  registrationNo: varchar('registration_no', { length: 50 }).notNull(),
+  capacity: integer('capacity').notNull().default(30),
+  status: varchar('status', { length: 20 }).notNull().default('active'), // active | maintenance | inactive
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  instRegUnique: uniqueIndex('uq_bus_vehicles_inst_reg').on(table.institutionCode, table.registrationNo),
+}));
+
+export type BusVehicleRecord = typeof busVehicles.$inferSelect;
+export type NewBusVehicleRecord = typeof busVehicles.$inferInsert;
+
+export const busRoutes = pgTable('bus_routes', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('br')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  name: varchar('name', { length: 200 }).notNull(),
+  vehicleId: text('vehicle_id'),
+  driverId: text('driver_id'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  driverIdx: index('idx_bus_routes_driver').on(table.driverId),
+}));
+
+export type BusRouteRecord = typeof busRoutes.$inferSelect;
+export type NewBusRouteRecord = typeof busRoutes.$inferInsert;
+
+export const busStops = pgTable('bus_stops', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('bs')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  routeId: text('route_id').notNull(),
+  name: varchar('name', { length: 200 }).notNull(),
+  latitude: numeric('latitude', { precision: 10, scale: 7 }).notNull(),
+  longitude: numeric('longitude', { precision: 10, scale: 7 }).notNull(),
+  sequence: integer('sequence').notNull().default(0),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  routeSeqIdx: index('idx_bus_stops_route_seq').on(table.routeId, table.sequence),
+}));
+
+export type BusStopRecord = typeof busStops.$inferSelect;
+export type NewBusStopRecord = typeof busStops.$inferInsert;
+
+export const studentTransport = pgTable('student_transport', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('st_tr')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  studentId: text('student_id').notNull(),
+  routeId: text('route_id').notNull(),
+  stopId: text('stop_id').notNull(),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  routeIdx: index('idx_student_transport_route').on(table.routeId),
+  studentRouteUnique: uniqueIndex('uq_student_transport_student_route').on(table.studentId, table.routeId),
+}));
+
+export type StudentTransportRecord = typeof studentTransport.$inferSelect;
+export type NewStudentTransportRecord = typeof studentTransport.$inferInsert;
+
+export const busTrips = pgTable('bus_trips', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('bt')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  routeId: text('route_id').notNull(),
+  driverId: text('driver_id').notNull(),
+  tripType: varchar('trip_type', { length: 20 }).notNull(), // pickup | dropoff
+  status: varchar('status', { length: 20 }).notNull().default('live'), // live | completed
+  startedAt: timestamp('started_at').defaultNow(),
+  endedAt: timestamp('ended_at'),
+}, (table) => ({
+  liveDriverUnique: uniqueIndex('uq_bus_trips_live_driver')
+    .on(table.driverId)
+    .where(sql`status = 'live'`),
+  liveRouteIdx: index('idx_bus_trips_live_route')
+    .on(table.routeId)
+    .where(sql`status = 'live'`),
+}));
+
+export type BusTripRecord = typeof busTrips.$inferSelect;
+export type NewBusTripRecord = typeof busTrips.$inferInsert;
+
+export const busLocations = pgTable('bus_locations', {
+  tripId: text('trip_id').primaryKey(),
+  latitude: numeric('latitude', { precision: 10, scale: 7 }).notNull(),
+  longitude: numeric('longitude', { precision: 10, scale: 7 }).notNull(),
+  speed: numeric('speed', { precision: 5, scale: 2 }),
+  heading: numeric('heading', { precision: 5, scale: 2 }),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export type BusLocationRecord = typeof busLocations.$inferSelect;
+export type NewBusLocationRecord = typeof busLocations.$inferInsert;

@@ -1,53 +1,147 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, StyleSheet, Text, ScrollView, TouchableOpacity, Animated, RefreshControl } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  Animated,
+  RefreshControl,
+} from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { BorderRadius } from '../../../constants/theme';
-import { FontFamily } from '../../../constants/fonts';
+import { getMyBusApi, subscribeToBusStream, MyBusData, BusStop } from '../../../api/transport';
 import { BusTrackingSkeleton } from './skeletons';
 import { ShimmerProvider } from './ShimmerSkeleton';
+import { BusMap } from '../../shared/maps/BusMap';
+import { StudentBusTimeline } from './StudentBusTimeline';
+import { StudentBusProximityBanner } from './StudentBusProximityBanner';
+import { StudentBusDetailsCard } from './StudentBusDetailsCard';
 
 export const StudentBusTrackingView: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [busActive, setBusActive] = useState(false);
+  const [busData, setBusData] = useState<MyBusData | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const pollTimerRef = useRef<any>(null);
 
+  // Pulsing animation for live marker
   useEffect(() => {
-    if (busActive) {
-      Animated.loop(
+    if (busData?.isLive) {
+      const anim = Animated.loop(
         Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 1.3, duration: 800, useNativeDriver: true }),
-          Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1.25, duration: 900, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 900, useNativeDriver: true }),
         ])
-      ).start();
+      );
+      anim.start();
+      return () => anim.stop();
     }
-  }, [busActive, pulseAnim]);
+  }, [busData?.isLive, pulseAnim]);
 
-  const load = useCallback(async () => {
+  const fetchTracking = useCallback(async (isSilent: boolean = false) => {
+    if (!isSilent) setErrorMsg(null);
     try {
-      await new Promise((r) => setTimeout(r, 600));
+      const data = await getMyBusApi();
+      setBusData(data);
+    } catch (err: any) {
+      if (!isSilent) {
+        setErrorMsg(err.message || 'Unable to load bus tracking.');
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, []);
 
+  // Initial fetch
   useEffect(() => {
-    load();
-  }, [load]);
+    fetchTracking();
+  }, [fetchTracking]);
+
+  // Live Server-Sent Events (SSE) telemetry stream with polling watchdog
+  useEffect(() => {
+    let sseActive = false;
+
+    const unsubscribe = subscribeToBusStream(
+      (payload) => {
+        sseActive = true;
+        setLoading(false);
+        setRefreshing(false);
+        setErrorMsg(null);
+
+        if (payload.type === 'INITIAL' && payload.data) {
+          setBusData(payload.data);
+        } else if (payload.type === 'LOCATION_UPDATE' && payload.location) {
+          setBusData((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              isLive: true,
+              location: payload.location,
+              currentStop: payload.currentStop !== undefined ? payload.currentStop : prev.currentStop,
+            };
+          });
+        } else if (payload.type === 'TRIP_STARTED') {
+          setBusData((prev) => (prev ? { ...prev, isLive: true, trip: payload.trip } : prev));
+        } else if (payload.type === 'TRIP_ENDED') {
+          setBusData((prev) => (prev ? { ...prev, isLive: false, trip: null } : prev));
+        }
+      },
+      () => {
+        // Fallback to polling if SSE drops
+        sseActive = false;
+        fetchTracking(true);
+      }
+    );
+
+    // Watchdog polling: only runs if SSE stream is inactive or disconnected
+    pollTimerRef.current = setInterval(() => {
+      if (!sseActive) {
+        fetchTracking(true);
+      }
+    }, 6000);
+
+    return () => {
+      unsubscribe();
+      if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+    };
+  }, [fetchTracking]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    load();
-  }, [load]);
+    fetchTracking(false);
+  }, [fetchTracking]);
 
   if (loading && !refreshing) {
     return (
       <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
-        <ShimmerProvider><BusTrackingSkeleton /></ShimmerProvider>
+        <ShimmerProvider>
+          <BusTrackingSkeleton />
+        </ShimmerProvider>
       </ScrollView>
     );
   }
+
+  const isLive = busData?.isLive ?? false;
+  const routeName = busData?.route?.name || 'Assigned Route';
+  const myStop = busData?.stop || null;
+  const myStopName = myStop?.name || 'Your Assigned Stop';
+  const isDropoff = busData?.trip?.tripType === 'dropoff';
+  const allStops: BusStop[] = isDropoff ? [...(busData?.stops || [])].reverse() : (busData?.stops || []);
+  const currentStop = busData?.currentStop || null;
+  const stopsRemaining = busData?.stopsRemaining ?? null;
+  const busReg = busData?.vehicle?.registrationNo || 'School Bus';
+  const speed = busData?.location?.speed != null ? `${Math.round(busData.location.speed)} km/h` : '0 km/h';
+
+  // Calculate location staleness
+  const updatedAtMs = busData?.location?.updatedAt
+    ? new Date(busData.location.updatedAt).getTime()
+    : null;
+  const locationAgeSec = updatedAtMs ? Math.max(0, Math.round((Date.now() - updatedAtMs) / 1000)) : null;
+  const isStale = isLive && locationAgeSec !== null && locationAgeSec > 30;
+  const isVeryStale = isLive && locationAgeSec !== null && locationAgeSec > 120;
 
   return (
     <ScrollView
@@ -64,201 +158,108 @@ export const StudentBusTrackingView: React.FC = () => {
       }
     >
       <View style={styles.container}>
-        {/* Map Placeholder */}
-        <View style={styles.mapContainer}>
-          <View style={styles.mapPlaceholder}>
-            <MaterialCommunityIcons name="map-outline" size={48} color="#D1D5DB" />
-            <Text style={styles.mapText}>Live Map</Text>
-            <Text style={styles.mapSub}>Bus location will appear here</Text>
-          </View>
-
-          {/* Simulated bus marker */}
-          {busActive && (
-            <Animated.View style={[styles.busMarker, { transform: [{ scale: pulseAnim }] }]}>
-              <View style={styles.busMarkerInner}>
-                <MaterialCommunityIcons name="bus" size={20} color="#FFFFFF" />
-              </View>
-            </Animated.View>
-          )}
-
-          {/* Simulated student stop marker */}
-          <View style={styles.stopMarker}>
-            <MaterialCommunityIcons name="map-marker" size={24} color="#F4C430" />
-          </View>
+        {/* Live Route Map (Interactive Leaflet Map with Road-Following Polyline) */}
+        <View style={styles.mapWrapper}>
+          <BusMap
+            stops={allStops}
+            roadPath={busData?.roadPath}
+            busLocation={isVeryStale ? null : busData?.location}
+            studentStopId={myStop?.id}
+            isLive={isLive}
+            height={260}
+          />
+          {/* Auto-Updating Pill */}
+          <TouchableOpacity style={styles.refreshPill} onPress={onRefresh} activeOpacity={0.8}>
+            <MaterialCommunityIcons name="broadcast" size={14} color="#16A34A" />
+            <Text style={styles.refreshPillText}>Live Stream</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Bottom Info Card */}
-        <View style={styles.infoCard}>
-          <View style={styles.infoHeader}>
-            <View style={styles.infoTitleRow}>
-              <MaterialCommunityIcons name="bus" size={20} color="#1A1B1C" />
-              <Text style={styles.infoTitle}>Bus Tracking</Text>
-            </View>
-            <View style={[styles.liveBadge, busActive && styles.liveBadgeActive]}>
-              <View style={[styles.liveDot, busActive && styles.liveDotActive]} />
-              <Text style={[styles.liveText, busActive && styles.liveTextActive]}>
-                {busActive ? 'LIVE' : 'OFFLINE'}
-              </Text>
-            </View>
-          </View>
+        {/* Bus Details & Proximity Card */}
+        <StudentBusDetailsCard
+          isLive={isLive}
+          isStale={isStale}
+          isVeryStale={isVeryStale}
+          busReg={busReg}
+          speed={speed}
+          currentStopName={currentStop?.name || 'Depot'}
+          routeName={routeName}
+          myStopName={myStopName}
+          myStop={myStop}
+          location={busData?.location}
+        >
+          <StudentBusProximityBanner
+            isLive={isLive}
+            stopsRemaining={stopsRemaining}
+            currentStopName={currentStop?.name}
+            locationAgeSec={locationAgeSec}
+          />
+        </StudentBusDetailsCard>
 
-          {/* Stats Row */}
-          <View style={styles.statsRow}>
-            <View style={styles.statCell}>
-              <Text style={styles.statNum}>—</Text>
-              <Text style={styles.statLabel}>Route</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statCell}>
-              <Text style={styles.statNum}>—</Text>
-              <Text style={styles.statLabel}>ETA</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statCell}>
-              <Text style={styles.statNum}>—</Text>
-              <Text style={styles.statLabel}>Speed</Text>
-            </View>
+        {/* Complete Route Stops Timeline */}
+        {allStops.length > 0 && (
+          <View style={styles.timelineWrapper}>
+            <StudentBusTimeline
+              allStops={allStops}
+              isLive={isLive}
+              currentStop={currentStop}
+              myStop={myStop}
+            />
           </View>
+        )}
 
-          {/* Bus Info */}
-          <View style={styles.busInfoRow}>
-            <View style={styles.busInfoItem}>
-              <MaterialCommunityIcons name="bus" size={16} color="#6B6B6B" />
-              <Text style={styles.busInfoText}>Bus No: —</Text>
-            </View>
-            <View style={styles.busInfoItem}>
-              <MaterialCommunityIcons name="map-marker-distance" size={16} color="#6B6B6B" />
-              <Text style={styles.busInfoText}>Stop: —</Text>
-            </View>
+        {/* Error Banner if any */}
+        {errorMsg && (
+          <View style={styles.errorBanner}>
+            <MaterialCommunityIcons name="alert-circle" size={16} color="#DC2626" />
+            <Text style={styles.errorText}>{errorMsg}</Text>
           </View>
-
-          {/* Status Message */}
-          <View style={styles.statusCard}>
-            <MaterialCommunityIcons name="information-outline" size={16} color="#0EA5E9" />
-            <Text style={styles.statusText}>
-              {busActive
-                ? 'Bus is on its way. ETA will update in real-time.'
-                : 'Bus tracking is not active yet. Check back during your scheduled pickup time.'}
-            </Text>
-          </View>
-        </View>
+        )}
       </View>
     </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  scrollContainer: { flex: 1 },
-  container: { flex: 1 },
-  mapContainer: {
-    flex: 1,
-    backgroundColor: '#F3F4F6',
+  scrollContainer: { flexGrow: 1, backgroundColor: '#F8FAFC' },
+  container: { flex: 1, paddingBottom: 24 },
+
+  mapWrapper: {
     position: 'relative',
-    minHeight: 300,
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 20,
   },
-  mapPlaceholder: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-  },
-  mapText: { fontSize: 16, fontWeight: '700', color: '#9CA3AF' },
-  mapSub: { fontSize: 12, color: '#D1D5DB' },
-  busMarker: {
+  refreshPill: {
     position: 'absolute',
-    top: '45%',
-    left: '40%',
-    marginLeft: -20,
-    marginTop: -20,
-  },
-  busMarkerInner: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#0EA5E9',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
-    shadowColor: '#0EA5E9',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  stopMarker: {
-    position: 'absolute',
-    top: '65%',
-    right: '25%',
-  },
-  infoCard: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E8E5DC',
-    borderBottomWidth: 0,
-    gap: 12,
-  },
-  infoHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  infoTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  infoTitle: { fontSize: 16, fontWeight: '800', color: '#1A1B1C' },
-  liveBadge: {
+    top: 14,
+    right: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-    backgroundColor: 'rgba(138, 138, 138, 0.1)',
+    paddingVertical: 5,
+    borderRadius: 14,
   },
-  liveBadgeActive: {
-    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+  refreshPillText: { fontSize: 10, fontWeight: '700', color: '#374151' },
+
+  timelineWrapper: {
+    marginHorizontal: 16,
+    marginTop: 14,
   },
-  liveDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#9CA3AF',
-  },
-  liveDotActive: {
-    backgroundColor: '#22C55E',
-  },
-  liveText: { fontSize: 10, fontWeight: '800', color: '#9CA3AF', letterSpacing: 0.8 },
-  liveTextActive: { color: '#22C55E' },
-  statsRow: {
+
+  errorBanner: {
     flexDirection: 'row',
-    alignItems: 'stretch',
-    backgroundColor: '#1A1B1C',
-    borderRadius: 10,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: '#2A2B2C',
-  },
-  statCell: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4 },
-  statNum: { fontSize: 18, fontWeight: '800', color: '#F4C430' },
-  statLabel: { fontSize: 9, fontWeight: '700', color: '#8A8A8A', textTransform: 'uppercase', letterSpacing: 0.5 },
-  statDivider: { width: 1, backgroundColor: '#2F3031', marginVertical: 4 },
-  busInfoRow: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  busInfoItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  busInfoText: { fontSize: 12, color: '#6B6B6B', fontWeight: '600' },
-  statusCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: 8,
-    backgroundColor: '#F0F9FF',
-    borderRadius: 8,
+    backgroundColor: '#FEF2F2',
     padding: 12,
+    marginHorizontal: 16,
+    marginTop: 12,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#BAE6FD',
+    borderColor: '#FECACA',
   },
-  statusText: { flex: 1, fontSize: 12, color: '#0369A1', lineHeight: 18 },
+  errorText: { flex: 1, fontSize: 12, color: '#DC2626' },
 });
