@@ -10,13 +10,15 @@ import {
   useMarkAnnouncementReadMutation,
 } from '../hooks/useAnnouncements';
 import { AnnouncementList } from './AnnouncementList';
+import { UserAnnouncementFeedView } from './UserAnnouncementFeedView';
 import { AnnouncementFilterState } from '../types';
 import { Colors } from '../../../constants/theme';
 import { useUserStore } from '../../../store/useUserStore';
 
 const MANAGER_ROLES = ['admin', 'principal', 'hod', 'institution admin'];
+const STAFF_ROLES = [...MANAGER_ROLES, 'teacher'];
 
-export const AdminAnnouncementsView: React.FC = () => {
+const StaffAnnouncementsView: React.FC = () => {
   const userRole = useUserStore((state) => state.userRole);
   const isManager = MANAGER_ROLES.includes(String(userRole).toLowerCase().trim());
 
@@ -142,6 +144,17 @@ export const AdminAnnouncementsView: React.FC = () => {
       />
     </View>
   );
+};
+
+export const AdminAnnouncementsView: React.FC = () => {
+  const userRole = useUserStore((state) => state.userRole);
+  const canManage = STAFF_ROLES.includes(String(userRole).toLowerCase().trim());
+
+  if (!canManage) {
+    return <UserAnnouncementFeedView />;
+  }
+
+  return <StaffAnnouncementsView />;
 };
 
 const styles = StyleSheet.create({
