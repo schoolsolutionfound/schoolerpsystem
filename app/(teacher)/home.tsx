@@ -20,9 +20,11 @@ import { ClassAttendanceReport } from '../../features/teacher/components/ClassAt
 import { TeacherDrawer } from '../../features/teacher/components/TeacherDrawer';
 import { ShimmerProvider } from '../../features/student/components/ShimmerSkeleton';
 import { FontFamily } from '../../constants/fonts';
-import { PayrollManagementView } from '../../features/shared/components/PayrollManagementView';
+import { LeaveApprovalView } from '../../features/shared/components/LeaveApprovalView';
+import { StudentFeedbackReviewManagerView } from '../../features/shared/components/StudentFeedbackReviewManagerView';
+import { AccessRestrictedModuleCard } from '../../features/shared/components/AccessRestrictedModuleCard';
 
-type Tab = 'home' | 'schedule' | 'attendance' | 'marks' | 'reports' | 'homework' | 'chat' | 'locate' | 'profile' | 'payroll';
+type Tab = 'home' | 'schedule' | 'attendance' | 'marks' | 'reports' | 'homework' | 'chat' | 'locate' | 'profile' | 'leaves' | 'reviews';
 
 function toMinutes(timeStr?: string): number | null {
   if (!timeStr) return null;
@@ -70,11 +72,14 @@ const TABS: { key: Tab; label: string; icon: string; iconFilled: string }[] = [
 export default function TeacherHomeScreen() {
   const router = useRouter();
   const fullName = useUserStore((state) => state.fullName) || 'Teacher';
+  const department = useUserStore((state) => state.department) || 'Computer Science';
   const profilePic = useUserStore((state) => state.profilePic);
   const email = useUserStore((state) => state.email) || '';
   const institutionName = useUserStore((state) => state.institutionName) || '';
   const roles = useUserStore((state) => state.roles) || [];
   const canSwitchToHOD = roles.includes('hod');
+  const hasModuleAccess = useUserStore((state) => state.hasModuleAccess);
+  const grantModuleAccess = useUserStore((state) => state.grantModuleAccess);
 
   const { tab } = useLocalSearchParams<{ tab?: string }>();
   const [activeTab, setActiveTab] = useState<Tab>((tab as Tab) || 'home');
@@ -106,43 +111,43 @@ export default function TeacherHomeScreen() {
       if (activeSlots.length === 0) {
         activeSlots = [
           {
-            id: 'dyn-slot-1',
+            id: 'slot-cse-3a',
             dayOfWeek: utcDay || 1,
-            classSectionName: 'ECE B.Tech 1st Year',
-            room: '101',
-            subject: { name: 'Applied Mathematics' },
+            classSectionName: 'CSE 3rd Year · Sec A',
+            room: 'CS-301',
+            subject: { name: 'Data Structures & Algorithms', code: 'CS301' },
             period: { label: '1st', startTime: '09:00 AM', endTime: '09:50 AM' },
           },
           {
-            id: 'dyn-slot-2',
+            id: 'slot-cse-2b',
             dayOfWeek: utcDay || 1,
-            classSectionName: 'ECE B.Tech 2nd Year',
-            room: '102',
-            subject: { name: 'Circuit Theory & Devices' },
+            classSectionName: 'CSE 2nd Year · Sec B',
+            room: 'CS-204',
+            subject: { name: 'Database Management Systems', code: 'CS204' },
             period: { label: '2nd', startTime: '10:00 AM', endTime: '10:50 AM' },
           },
           {
-            id: 'dyn-slot-3',
+            id: 'slot-ece-1a',
             dayOfWeek: utcDay || 1,
-            classSectionName: 'CSE B.Tech 2nd Year',
-            room: 'Lab 3',
-            subject: { name: 'Data Structures' },
+            classSectionName: 'ECE 1st Year · Sec A',
+            room: 'EC-102',
+            subject: { name: 'Digital Electronics & Circuits', code: 'EC102' },
             period: { label: '3rd', startTime: '11:15 AM', endTime: '12:05 PM' },
           },
           {
-            id: 'dyn-slot-4',
+            id: 'slot-aiml-2a',
             dayOfWeek: utcDay || 1,
-            classSectionName: 'ECE B.Tech 3rd Year',
-            room: '204',
-            subject: { name: 'Digital Electronics' },
+            classSectionName: 'AIML 2nd Year · Sec A',
+            room: 'AI-201',
+            subject: { name: 'Machine Learning Fundamentals', code: 'AI201' },
             period: { label: '4th', startTime: '01:00 PM', endTime: '01:50 PM' },
           },
           {
-            id: 'dyn-slot-5',
+            id: 'slot-cse-4a',
             dayOfWeek: utcDay || 1,
-            classSectionName: 'CSE B.Tech 3rd Year',
-            room: '205',
-            subject: { name: 'Computer Architecture' },
+            classSectionName: 'CSE 4th Year · Sec A',
+            room: 'CS-402',
+            subject: { name: 'Cloud Computing & Distributed Systems', code: 'CS402' },
             period: { label: '5th', startTime: '02:00 PM', endTime: '02:50 PM' },
           },
         ];
@@ -254,13 +259,29 @@ export default function TeacherHomeScreen() {
       case 'locate':
         return <TeacherLocateStudentsView />;
       case 'reports':
-        return <ClassAttendanceReport />;
-      case 'payroll':
+        return <ClassAttendanceReport onNavigateToMark={() => setActiveTab('attendance')} />;
+      case 'leaves':
+        return !hasModuleAccess('leaves') ? (
+          <AccessRestrictedModuleCard
+            moduleTitle="Faculty Leave Approvals"
+            moduleDescription="Leave Approvals is an optional workflow. Access is granted to authorized reviewers or department personnel."
+            moduleKey="leaves"
+            onGrantAccess={() => grantModuleAccess('leaves')}
+            onBack={() => setActiveTab('home')}
+          />
+        ) : (
+          <LeaveApprovalView
+            userRole="faculty"
+            userDepartment={department}
+            reviewerName={fullName}
+          />
+        );
+      case 'reviews':
         return (
-          <PayrollManagementView
+          <StudentFeedbackReviewManagerView
             userRole="teacher"
             currentUserName={fullName}
-            institutionName={institutionName}
+            userDepartment={department}
           />
         );
       default:

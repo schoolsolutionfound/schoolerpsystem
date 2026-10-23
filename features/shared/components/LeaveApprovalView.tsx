@@ -11,12 +11,14 @@ import {
   useWindowDimensions,
   Platform,
   KeyboardAvoidingView,
+  RefreshControl,
 } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { FontFamily } from '../../../constants/fonts';
 
-export type LeaveType = 'casual' | 'medical' | 'earned' | 'duty' | 'maternity';
+export type LeaveType = 'casual' | 'medical' | 'earned' | 'duty' | 'other';
 export type LeaveStatus = 'pending' | 'approved' | 'rejected';
+export type ApprovalAuthority = 'hod' | 'principal' | 'hr';
 
 export interface LeaveRequest {
   id: string;
@@ -26,12 +28,13 @@ export interface LeaveRequest {
   designation: string;
   department: string;
   leaveType: LeaveType;
+  approvalAuthority: ApprovalAuthority;
   startDate: string;
   endDate: string;
   totalDays: number;
   reason: string;
-  substituteFaculty: string;
-  contactNumber: string;
+  substituteFaculty?: string;
+  contactNumber?: string;
   appliedDate: string;
   leaveBalance: {
     casualTaken: number;
@@ -48,17 +51,43 @@ export interface LeaveRequest {
 }
 
 interface LeaveApprovalViewProps {
-  userRole?: 'principal' | 'hod' | 'admin' | 'hr';
+  userRole?: 'principal' | 'hod' | 'admin' | 'hr' | 'teacher' | 'faculty';
   userDepartment?: string;
   reviewerName?: string;
 }
 
 const LEAVE_TYPE_LABELS: Record<LeaveType, string> = {
-  casual: 'Casual Leave (CL)',
-  medical: 'Medical Leave (ML)',
-  earned: 'Earned Leave (EL)',
-  duty: 'On-Duty Leave (OD)',
-  maternity: 'Maternity / Special',
+  casual: 'Casual Leave',
+  medical: 'Medical Leave',
+  earned: 'Earned Leave',
+  duty: 'On-Duty',
+  other: 'Other',
+};
+
+const APPROVAL_AUTHORITY_LABELS: Record<ApprovalAuthority, string> = {
+  hod: 'Head of Dept (HOD)',
+  principal: 'Principal',
+  hr: 'HR / Admin Office',
+};
+
+const formatShortDate = (dStr: string): string => {
+  if (!dStr) return '';
+  const parts = dStr.split('-');
+  if (parts.length === 3) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const day = parseInt(parts[2], 10);
+    const month = months[parseInt(parts[1], 10) - 1] || parts[1];
+    return `${day} ${month}`;
+  }
+  return dStr;
+};
+
+const formatLeaveDuration = (start: string, end: string, days: number): string => {
+  const daysLabel = `${days}d`;
+  if (start === end) {
+    return `${formatShortDate(start)} · ${daysLabel}`;
+  }
+  return `${formatShortDate(start)} – ${formatShortDate(end)} · ${daysLabel}`;
 };
 
 const INSTITUTION_DEPARTMENTS = [
@@ -71,6 +100,16 @@ const INSTITUTION_DEPARTMENTS = [
   'Applied Sciences',
 ];
 
+const DEPARTMENT_HODS: Record<string, { name: string; designation: string }> = {
+  'Computer Science': { name: 'Dr. K. S. Ramanathan', designation: 'Professor & HOD (Computer Science)' },
+  'AIML': { name: 'Dr. Sneha Deshmukh', designation: 'Professor & HOD (AIML)' },
+  'Electronics & Comm': { name: 'Dr. Vikram Desai', designation: 'Professor & HOD (Electronics & Comm)' },
+  'Mechanical Eng': { name: 'Prof. S. R. Verma', designation: 'Professor & HOD (Mechanical Eng)' },
+  'Civil Eng': { name: 'Dr. Manjunath Shetty', designation: 'Professor & HOD (Civil Eng)' },
+  'Commerce & Mgmt': { name: 'Dr. Anjali Menon', designation: 'Professor & HOD (Commerce & Mgmt)' },
+  'Applied Sciences': { name: 'Dr. P. N. Murthy', designation: 'Professor & HOD (Applied Sciences)' },
+};
+
 const INITIAL_REQUESTS: LeaveRequest[] = [
   {
     id: 'lr-101',
@@ -80,6 +119,7 @@ const INITIAL_REQUESTS: LeaveRequest[] = [
     designation: 'Associate Professor',
     department: 'Computer Science',
     leaveType: 'duty',
+    approvalAuthority: 'hod',
     startDate: '2026-10-24',
     endDate: '2026-10-26',
     totalDays: 3,
@@ -105,6 +145,7 @@ const INITIAL_REQUESTS: LeaveRequest[] = [
     designation: 'Assistant Professor',
     department: 'Electronics & Comm',
     leaveType: 'casual',
+    approvalAuthority: 'hod',
     startDate: '2026-10-22',
     endDate: '2026-10-23',
     totalDays: 2,
@@ -127,13 +168,14 @@ const INITIAL_REQUESTS: LeaveRequest[] = [
     applicantId: 'fac-aim-3',
     applicantName: 'Dr. Sneha Deshmukh',
     employeeCode: 'FAC-AIM-004',
-    designation: 'Professor',
+    designation: 'Professor & HOD',
     department: 'AIML',
     leaveType: 'casual',
+    approvalAuthority: 'principal',
     startDate: '2026-10-28',
     endDate: '2026-10-28',
     totalDays: 1,
-    reason: 'Attending Directorate of Technical Education meeting for curriculum revisions.',
+    reason: 'Attending Directorate of Technical Education meeting for curriculum revisions as HOD.',
     substituteFaculty: 'Prof. Kavya Shetty covering Machine Learning Theory class.',
     contactNumber: '+91 98452 77889',
     appliedDate: '2026-10-18',
@@ -155,6 +197,7 @@ const INITIAL_REQUESTS: LeaveRequest[] = [
     designation: 'Assistant Professor',
     department: 'Mechanical Eng',
     leaveType: 'medical',
+    approvalAuthority: 'hod',
     startDate: '2026-10-20',
     endDate: '2026-10-25',
     totalDays: 6,
@@ -171,9 +214,35 @@ const INITIAL_REQUESTS: LeaveRequest[] = [
       earnedAvailable: 15,
     },
     status: 'approved',
-    reviewedBy: 'Dr. V. K. Rao (Principal)',
+    reviewedBy: 'Prof. S. R. Verma (HOD - Mechanical Eng)',
     reviewDate: '2026-10-16',
-    reviewRemarks: 'Approved with medical certificate verified. Substituted classes confirmed.',
+    reviewRemarks: 'Approved by Department Reporting Manager (HOD). Substituted classes confirmed.',
+  },
+  {
+    id: 'lr-105',
+    applicantId: 'fac-cse-2',
+    applicantName: 'Prof. Sneha Patil',
+    employeeCode: 'FAC-CSE-028',
+    designation: 'Assistant Professor',
+    department: 'Computer Science',
+    leaveType: 'casual',
+    approvalAuthority: 'hod',
+    startDate: '2026-10-23',
+    endDate: '2026-10-24',
+    totalDays: 2,
+    reason: 'Family urgent personal commitment requiring 2 days out-of-station leave.',
+    substituteFaculty: 'Dr. Rajesh Iyer covering Data Structures lab.',
+    contactNumber: '+91 98450 33445',
+    appliedDate: '2026-10-19',
+    leaveBalance: {
+      casualTaken: 1,
+      casualAvailable: 11,
+      medicalTaken: 0,
+      medicalAvailable: 10,
+      earnedTaken: 0,
+      earnedAvailable: 15,
+    },
+    status: 'pending',
   },
 ];
 
@@ -188,10 +257,47 @@ export const LeaveApprovalView: React.FC<LeaveApprovalViewProps> = ({
   const cardGap = 10;
   const cardWidth = isDesktop ? Math.floor((maxContentWidth - 32 - cardGap) / 2) : '100%';
 
+  const isPrincipal = userRole === 'principal' || userRole === 'admin';
+  const isHOD = userRole === 'hod';
+  const isFaculty = userRole === 'teacher' || userRole === 'faculty';
+  const effectiveDepartment = userDepartment || 'Computer Science';
+
   const [requests, setRequests] = useState<LeaveRequest[]>(INITIAL_REQUESTS);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'pending' | 'approved' | 'rejected' | 'all'>('pending');
-  const [selectedDept, setSelectedDept] = useState<string>('all');
+  const [selectedDept, setSelectedDept] = useState<string>(isHOD ? effectiveDepartment : 'all');
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 600);
+  };
+
+  // Base requests scoped strictly by role & department:
+  // - Principal: Institution-wide visibility across all departments.
+  // - HOD: Strictly scoped to their own department (e.g. Computer Science).
+  //        Other department HODs cannot view this department's leave applications no matter what!
+  // - Faculty: Sees their own department's leaves and their own submissions.
+  const baseRequests = useMemo(() => {
+    if (isPrincipal) {
+      return requests;
+    }
+    if (isHOD) {
+      return requests.filter(
+        (r) => r.department.toLowerCase() === effectiveDepartment.toLowerCase()
+      );
+    }
+    if (isFaculty) {
+      return requests.filter(
+        (r) =>
+          r.department.toLowerCase() === effectiveDepartment.toLowerCase() ||
+          r.applicantName.toLowerCase() === (reviewerName || '').toLowerCase()
+      );
+    }
+    return requests;
+  }, [requests, isPrincipal, isHOD, isFaculty, effectiveDepartment, reviewerName]);
 
   // Expandable cards state (compact summary by default; details open on click)
   const [expandedCardIds, setExpandedCardIds] = useState<Record<string, boolean>>({});
@@ -210,26 +316,105 @@ export const LeaveApprovalView: React.FC<LeaveApprovalViewProps> = ({
 
   // Apply Leave Modal State
   const [applyModalVisible, setApplyModalVisible] = useState(false);
-  const [applyName, setApplyName] = useState(reviewerName || 'Faculty Member');
-  const [applyDept, setApplyDept] = useState(userDepartment || 'Computer Science');
+  const [applyName, setApplyName] = useState(reviewerName || (isFaculty ? 'Faculty Member' : 'Staff Member'));
+  const [applyDept, setApplyDept] = useState(effectiveDepartment);
+  const [applyDeptDropdownOpen, setApplyDeptDropdownOpen] = useState(false);
   const [applyType, setApplyType] = useState<LeaveType>('casual');
+  const [applyTypeDropdownOpen, setApplyTypeDropdownOpen] = useState(false);
   const [applyStartDate, setApplyStartDate] = useState('');
   const [applyEndDate, setApplyEndDate] = useState('');
   const [applyReason, setApplyReason] = useState('');
-  const [applySubstitute, setApplySubstitute] = useState('');
-  const [applyPhone, setApplyPhone] = useState('+91 98450 00000');
 
-  // Metrics
-  const pendingCount = useMemo(() => requests.filter((r) => r.status === 'pending').length, [requests]);
-  const approvedCount = useMemo(() => requests.filter((r) => r.status === 'approved').length, [requests]);
+  // Auto-fetched Approving Authority (Reporting Manager) based on role & department
+  const autoApprover = useMemo(() => {
+    if (isHOD) {
+      // HOD reports directly to the Principal
+      return {
+        authority: 'principal' as ApprovalAuthority,
+        name: 'Dr. V. K. Rao',
+        designation: 'Principal & Institutional Head',
+        roleBadge: 'Reporting Manager',
+        helperText: 'As Head of Department, your reporting manager is the Principal. Your application is automatically routed to the Principal for sanction.',
+      };
+    }
+    if (isFaculty) {
+      // Faculty reports directly to their Department HOD
+      const hod = DEPARTMENT_HODS[applyDept] || {
+        name: `HOD (${applyDept})`,
+        designation: `Head of Department · ${applyDept}`,
+      };
+      return {
+        authority: 'hod' as ApprovalAuthority,
+        name: hod.name,
+        designation: hod.designation,
+        roleBadge: 'Reporting Manager',
+        helperText: `Your direct reporting manager is ${hod.name}. Your leave is sanctioned solely by your HOD. The Principal receives real-time institutional records.`,
+      };
+    }
+    // General staff fallback -> Principal
+    return {
+      authority: 'principal' as ApprovalAuthority,
+      name: 'Dr. V. K. Rao',
+      designation: 'Principal & Institutional Head',
+      roleBadge: 'Reporting Manager',
+      helperText: 'Your application is automatically routed to the Principal for executive sanction.',
+    };
+  }, [isHOD, isFaculty, applyDept]);
+
+  // Metrics (calculated over scoped baseRequests)
+  const pendingCount = useMemo(() => baseRequests.filter((r) => r.status === 'pending').length, [baseRequests]);
+  const approvedCount = useMemo(() => baseRequests.filter((r) => r.status === 'approved').length, [baseRequests]);
+  const rejectedCount = useMemo(() => baseRequests.filter((r) => r.status === 'rejected').length, [baseRequests]);
   const onLeaveTodayCount = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
-    return requests.filter((r) => r.status === 'approved' && r.startDate <= today && r.endDate >= today).length;
-  }, [requests]);
+    return baseRequests.filter((r) => r.status === 'approved' && r.startDate <= today && r.endDate >= today).length;
+  }, [baseRequests]);
+
+  // Filter Modal State
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const [tempStatus, setTempStatus] = useState<'pending' | 'approved' | 'rejected' | 'all'>(statusFilter);
+  const [tempDept, setTempDept] = useState<string>(selectedDept);
+  const [authorityFilter, setAuthorityFilter] = useState<'all' | ApprovalAuthority>('all');
+  const [tempAuthority, setTempAuthority] = useState<'all' | ApprovalAuthority>(authorityFilter);
+
+  const hasActiveFilters =
+    statusFilter !== 'all' ||
+    (isPrincipal && selectedDept.toLowerCase() !== 'all') ||
+    authorityFilter !== 'all';
+  const activeFiltersCount =
+    (statusFilter !== 'all' ? 1 : 0) +
+    (isPrincipal && selectedDept.toLowerCase() !== 'all' ? 1 : 0) +
+    (authorityFilter !== 'all' ? 1 : 0);
+
+  const handleOpenFilterModal = () => {
+    setTempStatus(statusFilter);
+    setTempDept(selectedDept);
+    setTempAuthority(authorityFilter);
+    setFilterModalVisible(true);
+  };
+
+  const handleApplyFilters = () => {
+    setStatusFilter(tempStatus);
+    if (isPrincipal) {
+      setSelectedDept(tempDept);
+    }
+    setAuthorityFilter(tempAuthority);
+    setFilterModalVisible(false);
+  };
+
+  const handleResetFilters = () => {
+    setTempStatus('all');
+    setTempDept(isHOD ? effectiveDepartment : 'all');
+    setTempAuthority('all');
+    setStatusFilter('all');
+    setSelectedDept(isHOD ? effectiveDepartment : 'all');
+    setAuthorityFilter('all');
+    setFilterModalVisible(false);
+  };
 
   // Filtering
   const filteredRequests = useMemo(() => {
-    return requests.filter((r) => {
+    return baseRequests.filter((r) => {
       const q = search.trim().toLowerCase();
       const matchesSearch =
         !q ||
@@ -242,31 +427,68 @@ export const LeaveApprovalView: React.FC<LeaveApprovalViewProps> = ({
 
       if (statusFilter !== 'all' && r.status !== statusFilter) return false;
 
-      if (selectedDept !== 'all' && r.department.toLowerCase() !== selectedDept.toLowerCase()) {
+      if (isPrincipal && selectedDept !== 'all' && r.department.toLowerCase() !== selectedDept.toLowerCase()) {
+        return false;
+      }
+
+      if (authorityFilter !== 'all' && (r.approvalAuthority || 'principal') !== authorityFilter) {
         return false;
       }
 
       return true;
     });
-  }, [requests, search, statusFilter, selectedDept]);
+  }, [baseRequests, search, statusFilter, selectedDept, authorityFilter, isPrincipal]);
+
+  // Approval permission check:
+  // - Departmental faculty leaves (approvalAuthority === 'hod'):
+  //   ONLY the respective department HOD can sanction/reject.
+  //   Principal has institutional oversight (can view/track all departments), but CANNOT sanction faculty leaves,
+  //   as approving them directly creates scheduling, substitute, and departmental planning issues for the HOD!
+  // - HOD leaves / Institutional leaves (approvalAuthority === 'principal'):
+  //   Sanctioned by the Principal (who is the direct reporting manager for HODs).
+  const canUserApprove = (r: LeaveRequest) => {
+    if (r.status !== 'pending') return false;
+    if (isPrincipal) {
+      // Principal only sanctions leaves routed to the Principal (e.g. HOD leave applications)
+      return r.approvalAuthority === 'principal';
+    }
+    if (isHOD) {
+      // HOD only sanctions leaves for faculty in their own department
+      return (
+        r.approvalAuthority === 'hod' &&
+        r.department.toLowerCase() === effectiveDepartment.toLowerCase()
+      );
+    }
+    return false; // Faculty cannot approve leaves
+  };
 
   // Handlers
   const handleApprove = (id: string, name: string) => {
     const today = new Date().toISOString().slice(0, 10);
+    const approverRoleTitle = isHOD ? `HOD (${effectiveDepartment})` : 'Principal';
+    const sanctionRemarks = isHOD
+      ? `Sanctioned by Reporting Manager (${reviewerName}, HOD - ${effectiveDepartment}). Visible to Principal.`
+      : `Sanctioned by Executive Authority (${reviewerName}, Principal).`;
+
     setRequests((prev) =>
       prev.map((r) =>
         r.id === id
           ? {
               ...r,
               status: 'approved',
-              reviewedBy: reviewerName,
+              reviewedBy: `${reviewerName} (${approverRoleTitle})`,
               reviewDate: today,
-              reviewRemarks: 'Leave sanctioned after schedule verification.',
+              reviewRemarks: sanctionRemarks,
             }
           : r
       )
     );
-    Alert.alert('Leave Approved', `Leave request for ${name} has been approved.`);
+    Alert.alert(
+      'Leave Approved',
+      `Leave request for ${name} has been sanctioned.${
+        isHOD ? ' Principal has been updated for institutional oversight.' : ''
+      }`
+    );
   };
 
   const handleOpenReject = (id: string) => {
@@ -278,13 +500,14 @@ export const LeaveApprovalView: React.FC<LeaveApprovalViewProps> = ({
   const handleConfirmReject = () => {
     if (!rejectTargetId) return;
     const today = new Date().toISOString().slice(0, 10);
+    const approverRoleTitle = isHOD ? `HOD (${effectiveDepartment})` : 'Principal';
     setRequests((prev) =>
       prev.map((r) =>
         r.id === rejectTargetId
           ? {
               ...r,
               status: 'rejected',
-              reviewedBy: reviewerName,
+              reviewedBy: `${reviewerName} (${approverRoleTitle})`,
               reviewDate: today,
               reviewRemarks: rejectRemarks.trim() || 'Schedule conflicts / substitute not arranged.',
             }
@@ -297,14 +520,14 @@ export const LeaveApprovalView: React.FC<LeaveApprovalViewProps> = ({
   };
 
   const handleOpenApply = () => {
-    setApplyName(reviewerName || 'Faculty Member');
-    setApplyDept(userDepartment || 'Computer Science');
+    setApplyName(reviewerName || (isFaculty ? 'Faculty Member' : isHOD ? 'Head of Dept' : 'Institutional Staff'));
+    setApplyDept(effectiveDepartment);
     setApplyType('casual');
     setApplyStartDate(new Date().toISOString().slice(0, 10));
     setApplyEndDate(new Date().toISOString().slice(0, 10));
     setApplyReason('');
-    setApplySubstitute('');
-    setApplyPhone('+91 98450 00000');
+    setApplyDeptDropdownOpen(false);
+    setApplyTypeDropdownOpen(false);
     setApplyModalVisible(true);
   };
 
@@ -320,18 +543,19 @@ export const LeaveApprovalView: React.FC<LeaveApprovalViewProps> = ({
 
     const newReq: LeaveRequest = {
       id: `lr-${Date.now()}`,
-      applicantId: `fac-${Date.now()}`,
-      applicantName: applyName.trim(),
-      employeeCode: `FAC-${applyDept.slice(0, 3).toUpperCase()}-${Math.floor(100 + Math.random() * 900)}`,
-      designation: userRole === 'hod' ? 'Head of Department' : 'Faculty Member',
+      applicantId: `emp-${Date.now()}`,
+      applicantName: applyName.trim() || 'Staff Member',
+      employeeCode: `EMP-${applyDept.slice(0, 3).toUpperCase()}-${Math.floor(100 + Math.random() * 900)}`,
+      designation: isHOD ? 'Head of Department' : isFaculty ? 'Assistant Professor' : 'Faculty / Staff',
       department: applyDept,
       leaveType: applyType,
+      approvalAuthority: autoApprover.authority,
       startDate: applyStartDate.trim(),
       endDate: (applyEndDate.trim() || applyStartDate.trim()),
       totalDays: isNaN(days) ? 1 : days,
       reason: applyReason.trim(),
-      substituteFaculty: applySubstitute.trim() || 'Work arrangements coordinated internally',
-      contactNumber: applyPhone.trim(),
+      substituteFaculty: 'Internal departmental handover arranged',
+      contactNumber: '+91 98450 00000',
       appliedDate: new Date().toISOString().slice(0, 10),
       leaveBalance: {
         casualTaken: 2,
@@ -346,19 +570,31 @@ export const LeaveApprovalView: React.FC<LeaveApprovalViewProps> = ({
 
     setRequests((prev) => [newReq, ...prev]);
     setApplyModalVisible(false);
-    Alert.alert('Leave Submitted', 'Your leave application has been logged for institutional approval.');
+
+    Alert.alert(
+      'Leave Submitted',
+      `Your application has been routed to your auto-assigned Reporting Manager (${autoApprover.name}, ${autoApprover.designation}) for sanction.`
+    );
   };
 
   return (
     <View style={styles.container}>
       {/* 1. Header */}
       <View style={styles.headerRow}>
-        <View style={{ flex: 1 }}>
+        <View style={{ flex: 1, marginRight: 8 }}>
           <Text style={styles.pageHeading} numberOfLines={1}>
-            Leave Approvals & Management
+            {isHOD
+              ? 'Department Leave Approvals'
+              : isFaculty
+              ? 'My Leave Applications'
+              : 'Leave Approvals'}
           </Text>
-          <Text style={styles.pageSubText}>
-            Review faculty leave applications, balances, and substitute coverage
+          <Text style={styles.pageSubText} numberOfLines={1}>
+            {isHOD
+              ? `Reporting Manager View · ${effectiveDepartment} Faculty`
+              : isFaculty
+              ? `Reporting Manager: HOD (${effectiveDepartment})`
+              : 'All Departments'}
           </Text>
         </View>
 
@@ -367,6 +603,7 @@ export const LeaveApprovalView: React.FC<LeaveApprovalViewProps> = ({
           <Text style={styles.applyBtnText}>Apply Leave</Text>
         </TouchableOpacity>
       </View>
+
 
       {/* 2. Top Metrics Bar */}
       <View style={styles.metricsRow}>
@@ -384,7 +621,7 @@ export const LeaveApprovalView: React.FC<LeaveApprovalViewProps> = ({
         </View>
       </View>
 
-      {/* 3. Search & Filters */}
+      {/* 3. Search & Filters with In-Bar Filter Button */}
       <View style={styles.searchSectionWrap}>
         <View style={styles.searchBar}>
           <Feather name="search" size={14} color="#9CA3AF" style={styles.searchIcon} />
@@ -397,58 +634,109 @@ export const LeaveApprovalView: React.FC<LeaveApprovalViewProps> = ({
             autoCorrect={false}
           />
           {search ? (
-            <TouchableOpacity onPress={() => setSearch('')} style={styles.clearSearchBtn}>
+            <TouchableOpacity onPress={() => setSearch('')} style={styles.clearSearchBtn} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
               <Feather name="x" size={13} color="#9CA3AF" />
             </TouchableOpacity>
           ) : null}
+
+          {/* Search / Filter Divider */}
+          <View style={styles.searchFilterDivider} />
+
+          {/* In-bar Filter Button */}
+          <TouchableOpacity
+            style={[styles.inBarFilterBtn, hasActiveFilters && styles.inBarFilterBtnActive]}
+            onPress={handleOpenFilterModal}
+            activeOpacity={0.7}
+          >
+            <MaterialCommunityIcons
+              name="tune-variant"
+              size={15}
+              color={hasActiveFilters ? '#111827' : '#4B5563'}
+            />
+            <Text
+              style={[styles.inBarFilterText, hasActiveFilters && styles.inBarFilterTextActive]}
+              numberOfLines={1}
+            >
+              Filter
+            </Text>
+            {hasActiveFilters ? (
+              <View style={styles.inBarFilterActiveBadge}>
+                <Text style={styles.inBarFilterActiveBadgeText}>{activeFiltersCount}</Text>
+              </View>
+            ) : (
+              <Feather name="chevron-down" size={13} color="#6B7280" />
+            )}
+          </TouchableOpacity>
         </View>
 
-        {/* Status Filters */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
-          {[
-            { key: 'pending' as const, label: `Pending Approvals (${pendingCount})` },
-            { key: 'approved' as const, label: `Approved (${approvedCount})` },
-            { key: 'rejected' as const, label: 'Rejected' },
-            { key: 'all' as const, label: `All Requests (${requests.length})` },
-          ].map((item) => {
-            const active = statusFilter === item.key;
-            return (
-              <TouchableOpacity
-                key={item.key}
-                style={[styles.filterChip, active && styles.filterChipActive]}
-                onPress={() => setStatusFilter(item.key)}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
-                  {item.label}
+        {/* Active Filter Tags Row */}
+        {hasActiveFilters ? (
+          <View style={styles.activeFiltersRow}>
+            {statusFilter !== 'all' && (
+              <View style={styles.activeTagPill}>
+                <Text style={styles.activeTagPillText}>
+                  Status: {statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)}
                 </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-
-        {/* Department Chips */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.deptScroll}>
-          {['all', ...INSTITUTION_DEPARTMENTS].map((dept) => {
-            const active = selectedDept.toLowerCase() === dept.toLowerCase();
-            return (
-              <TouchableOpacity
-                key={dept}
-                style={[styles.deptChip, active && styles.deptChipActive]}
-                onPress={() => setSelectedDept(dept)}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.deptChipText, active && styles.deptChipTextActive]}>
-                  {dept === 'all' ? 'All Departments' : dept}
+                <TouchableOpacity
+                  onPress={() => setStatusFilter('all')}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                >
+                  <Feather name="x" size={11} color="#111827" />
+                </TouchableOpacity>
+              </View>
+            )}
+            {authorityFilter !== 'all' && (
+              <View style={styles.activeTagPill}>
+                <Text style={styles.activeTagPillText}>
+                  Approver: {APPROVAL_AUTHORITY_LABELS[authorityFilter]}
                 </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+                <TouchableOpacity
+                  onPress={() => setAuthorityFilter('all')}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                >
+                  <Feather name="x" size={11} color="#111827" />
+                </TouchableOpacity>
+              </View>
+            )}
+            {selectedDept.toLowerCase() !== 'all' && (
+              <View style={styles.activeTagPill}>
+                <Text style={styles.activeTagPillText}>Dept: {selectedDept}</Text>
+                <TouchableOpacity
+                  onPress={() => setSelectedDept('all')}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                >
+                  <Feather name="x" size={11} color="#111827" />
+                </TouchableOpacity>
+              </View>
+            )}
+            <TouchableOpacity
+              onPress={() => {
+                setStatusFilter('all');
+                setSelectedDept('all');
+                setAuthorityFilter('all');
+              }}
+              style={styles.clearAllFiltersBtn}
+            >
+              <Text style={styles.clearAllFiltersText}>Reset</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
       </View>
 
       {/* 4. Requests List */}
-      <ScrollView style={styles.list} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.list}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={['#000000']}
+            tintColor="#000000"
+          />
+        }
+      >
         {filteredRequests.length === 0 ? (
           <View style={styles.emptyCard}>
             <View style={styles.emptyIconWrap}>
@@ -468,6 +756,11 @@ export const LeaveApprovalView: React.FC<LeaveApprovalViewProps> = ({
               const isApproved = r.status === 'approved';
               const isRejected = r.status === 'rejected';
               const isExpanded = !!expandedCardIds[r.id];
+              const hodInfo = DEPARTMENT_HODS[r.department];
+              const approverDesignation = r.approvalAuthority === 'hod' ? `HOD (${r.department})` : 'Principal';
+              const approverText = r.approvalAuthority === 'hod' && hodInfo
+                ? `${hodInfo.name} (HOD - ${r.department})`
+                : approverDesignation;
 
               return (
                 <View key={r.id} style={[styles.card, { width: cardWidth }]}>
@@ -481,7 +774,7 @@ export const LeaveApprovalView: React.FC<LeaveApprovalViewProps> = ({
                       <View style={{ flex: 1, marginRight: 8 }}>
                         <Text style={styles.applicantName}>{r.applicantName}</Text>
                         <Text style={styles.applicantMeta}>
-                          {r.employeeCode} · {r.designation} · {r.department}
+                          {r.designation} · {r.department}
                         </Text>
                       </View>
 
@@ -510,17 +803,13 @@ export const LeaveApprovalView: React.FC<LeaveApprovalViewProps> = ({
                     {/* Summary Row (Always visible in collapsed mode) */}
                     <View style={styles.cardSummaryRow}>
                       <View style={styles.summaryTagsWrap}>
-                        <View style={styles.leaveTypeTag}>
-                          <Text style={styles.leaveTypeTagText}>{LEAVE_TYPE_LABELS[r.leaveType]}</Text>
-                        </View>
+                        <Text style={styles.leaveTypeTagText}>{LEAVE_TYPE_LABELS[r.leaveType]}</Text>
                         <Text style={styles.durationText}>
-                          {r.startDate === r.endDate ? r.startDate : `${r.startDate} → ${r.endDate}`}
+                          · {formatLeaveDuration(r.startDate, r.endDate, r.totalDays)}
                         </Text>
-                        <View style={styles.totalDaysBadge}>
-                          <Text style={styles.totalDaysBadgeText}>
-                            {r.totalDays} {r.totalDays === 1 ? 'Day' : 'Days'}
-                          </Text>
-                        </View>
+                        <Text style={styles.authorityIndicatorText}>
+                          · To: {APPROVAL_AUTHORITY_LABELS[r.approvalAuthority || 'principal']}
+                        </Text>
                       </View>
 
                       {/* Expand / Collapse Indicator */}
@@ -530,8 +819,8 @@ export const LeaveApprovalView: React.FC<LeaveApprovalViewProps> = ({
                         </Text>
                         <Feather
                           name={isExpanded ? 'chevron-up' : 'chevron-down'}
-                          size={14}
-                          color="#B45309"
+                          size={13}
+                          color="#111827"
                         />
                       </View>
                     </View>
@@ -540,35 +829,42 @@ export const LeaveApprovalView: React.FC<LeaveApprovalViewProps> = ({
                   {/* EXPANDABLE SECTION: The rest opens on click */}
                   {isExpanded && (
                     <View style={styles.expandedDetailsWrap}>
-                      {/* Balance & Entitlement Info */}
-                      <View style={styles.balanceContainer}>
-                        <View style={styles.balanceHeaderRow}>
-                          <Feather name="pie-chart" size={13} color="#B45309" />
-                          <Text style={styles.balanceHeaderTitle}>Leave Entitlement & Balances</Text>
-                        </View>
-                        <Text style={styles.balanceValueText}>
-                          CL: <Text style={styles.boldText}>{r.leaveBalance.casualTaken} taken</Text> / {r.leaveBalance.casualAvailable} avail · ML: <Text style={styles.boldText}>{r.leaveBalance.medicalAvailable} avail</Text> · EL: {r.leaveBalance.earnedAvailable} avail
+                      {/* Compact Balance Info */}
+                      <View style={styles.compactBalanceRow}>
+                        <Feather name="clock" size={12} color="#6B7280" />
+                        <Text style={styles.compactBalanceText}>
+                          Available: <Text style={styles.boldText}>{r.leaveBalance.casualAvailable} CL</Text> · <Text style={styles.boldText}>{r.leaveBalance.medicalAvailable} ML</Text> · <Text style={styles.boldText}>{r.leaveBalance.earnedAvailable} EL</Text>
                         </Text>
                       </View>
 
-                      {/* Reason for Absence */}
+                      {/* Approving Authority & Reporting Manager info */}
+                      <View style={styles.reportingManagerCard}>
+                        <View style={styles.reportingManagerTop}>
+                          <Feather name="shield" size={12} color="#111827" />
+                          <Text style={styles.reportingManagerTitle}>
+                            Reporting Manager: {approverText}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Reason */}
                       <View style={styles.sectionRow}>
-                        <Text style={styles.sectionTitle}>Reason for Absence:</Text>
+                        <Text style={styles.sectionTitle}>Reason:</Text>
                         <Text style={styles.reasonText}>{r.reason}</Text>
                       </View>
 
-                      {/* Class / Work Substitute Arrangement */}
+                      {/* Substitute */}
                       <View style={styles.sectionRow}>
-                        <Text style={styles.sectionTitle}>Class / Work Substitute Arrangement:</Text>
+                        <Text style={styles.sectionTitle}>Substitute:</Text>
                         <Text style={styles.substituteText}>{r.substituteFaculty}</Text>
                       </View>
 
                       {/* Emergency Contact & Applied Date */}
                       <View style={styles.contactRow}>
-                        <MaterialCommunityIcons name="phone-outline" size={13} color="#B45309" />
-                        <Text style={styles.contactText}>Emergency: {r.contactNumber}</Text>
+                        <Feather name="phone" size={11} color="#6B7280" />
+                        <Text style={styles.contactText}>{r.contactNumber}</Text>
                         <Text style={styles.dotSeparator}>·</Text>
-                        <Text style={styles.appliedDateText}>Applied on {r.appliedDate}</Text>
+                        <Text style={styles.appliedDateText}>Applied {formatShortDate(r.appliedDate)}</Text>
                       </View>
 
                       {/* If Reviewed, show Audit info */}
@@ -582,7 +878,7 @@ export const LeaveApprovalView: React.FC<LeaveApprovalViewProps> = ({
                       )}
 
                       {/* Decision Actions for Pending Requests */}
-                      {isPending && (
+                      {isPending && canUserApprove(r) && (
                         <View style={styles.actionBtnRow}>
                           <TouchableOpacity
                             style={styles.rejectBtn}
@@ -593,15 +889,27 @@ export const LeaveApprovalView: React.FC<LeaveApprovalViewProps> = ({
                             <Text style={styles.rejectBtnText}>Reject</Text>
                           </TouchableOpacity>
 
-                          {/* Accept / Approve Button with YELLOW FADE background and BLACK TEXT */}
+                          {/* Accept / Approve Button */}
                           <TouchableOpacity
                             style={styles.approveBtnYellow}
                             onPress={() => handleApprove(r.id, r.applicantName)}
                             activeOpacity={0.8}
                           >
                             <Feather name="check" size={15} color="#111827" />
-                            <Text style={styles.approveBtnYellowText}>Approve Leave</Text>
+                            <Text style={styles.approveBtnYellowText}>
+                              {isHOD ? 'Approve as HOD' : 'Approve Leave'}
+                            </Text>
                           </TouchableOpacity>
+                        </View>
+                      )}
+
+                      {/* Notice if pending but user is faculty or not designated approver */}
+                      {isPending && !canUserApprove(r) && (
+                        <View style={styles.pendingNoticeWrap}>
+                          <Feather name="clock" size={12} color="#D97706" />
+                          <Text style={styles.pendingNoticeText}>
+                            Awaiting approval by {approverText}
+                          </Text>
                         </View>
                       )}
                     </View>
@@ -669,57 +977,133 @@ export const LeaveApprovalView: React.FC<LeaveApprovalViewProps> = ({
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.modalScrollArea} contentContainerStyle={styles.modalScrollContent}>
-              {/* Applicant Name & Dept */}
-              <View style={styles.modalRowFields}>
-                <View style={[styles.modalFieldGroup, { flex: 1 }]}>
-                  <Text style={styles.modalLabel}>Applicant Name *</Text>
-                  <TextInput
-                    style={styles.modalInput}
-                    value={applyName}
-                    onChangeText={setApplyName}
-                    placeholder="Faculty name"
-                  />
-                </View>
-                <View style={[styles.modalFieldGroup, { flex: 1 }]}>
-                  <Text style={styles.modalLabel}>Department *</Text>
-                  <TextInput
-                    style={styles.modalInput}
-                    value={applyDept}
-                    onChangeText={setApplyDept}
-                    placeholder="Department"
-                  />
-                </View>
+            <ScrollView style={styles.modalScrollArea} contentContainerStyle={styles.modalScrollContent} showsVerticalScrollIndicator={false}>
+              {/* Applicant Name */}
+              <View style={styles.modalFieldGroup}>
+                <Text style={styles.modalLabel}>Applicant Name *</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  value={applyName}
+                  onChangeText={setApplyName}
+                  placeholder="Full name"
+                  placeholderTextColor="#9CA3AF"
+                />
               </View>
 
-              {/* Leave Type */}
+              {/* Department */}
+              <View style={styles.modalFieldGroup}>
+                <Text style={styles.modalLabel}>Department *</Text>
+                {isPrincipal ? (
+                  <>
+                    <TouchableOpacity
+                      style={[styles.dropdownTrigger, applyDeptDropdownOpen && styles.dropdownTriggerActive]}
+                      onPress={() => {
+                        setApplyDeptDropdownOpen(!applyDeptDropdownOpen);
+                        setApplyTypeDropdownOpen(false);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.dropdownTriggerText}>{applyDept}</Text>
+                      <Feather name={applyDeptDropdownOpen ? 'chevron-up' : 'chevron-down'} size={15} color="#6B7280" />
+                    </TouchableOpacity>
+                    {applyDeptDropdownOpen && (
+                      <View style={styles.dropdownMenu}>
+                        {INSTITUTION_DEPARTMENTS.map((dept) => {
+                          const selected = applyDept === dept;
+                          return (
+                            <TouchableOpacity
+                              key={dept}
+                              style={[styles.dropdownMenuItem, selected && styles.dropdownMenuItemActive]}
+                              onPress={() => {
+                                setApplyDept(dept);
+                                setApplyDeptDropdownOpen(false);
+                              }}
+                              activeOpacity={0.7}
+                            >
+                              <Text style={[styles.dropdownMenuText, selected && styles.dropdownMenuTextActive]}>
+                                {dept}
+                              </Text>
+                              {selected && <Feather name="check" size={13} color="#111827" />}
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    )}
+                  </>
+                ) : (
+                  <View style={styles.lockedDeptField}>
+                    <Text style={styles.lockedDeptText}>{applyDept}</Text>
+                    <View style={styles.lockedDeptBadge}>
+                      <Feather name="lock" size={11} color="#6B7280" />
+                      <Text style={styles.lockedDeptBadgeText}>Your Department</Text>
+                    </View>
+                  </View>
+                )}
+              </View>
+
+              {/* Leave Category Dropdown */}
               <View style={styles.modalFieldGroup}>
                 <Text style={styles.modalLabel}>Leave Category *</Text>
-                <View style={styles.modalChipsWrap}>
-                  {(
-                    [
-                      { key: 'casual', label: 'Casual Leave (CL)' },
-                      { key: 'medical', label: 'Medical Leave (ML)' },
-                      { key: 'duty', label: 'On-Duty (OD)' },
-                      { key: 'earned', label: 'Earned Leave (EL)' },
-                      { key: 'maternity', label: 'Special / Other' },
-                    ] as const
-                  ).map((t) => {
-                    const active = applyType === t.key;
-                    return (
-                      <TouchableOpacity
-                        key={t.key}
-                        style={[styles.modalChip, active && styles.modalChipActive]}
-                        onPress={() => setApplyType(t.key)}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={[styles.modalChipText, active && styles.modalChipTextActive]}>
-                          {t.label}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
+                <TouchableOpacity
+                  style={[styles.dropdownTrigger, applyTypeDropdownOpen && styles.dropdownTriggerActive]}
+                  onPress={() => {
+                    setApplyTypeDropdownOpen(!applyTypeDropdownOpen);
+                    setApplyDeptDropdownOpen(false);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.dropdownTriggerText}>{LEAVE_TYPE_LABELS[applyType]}</Text>
+                  <Feather name={applyTypeDropdownOpen ? 'chevron-up' : 'chevron-down'} size={15} color="#6B7280" />
+                </TouchableOpacity>
+                {applyTypeDropdownOpen && (
+                  <View style={styles.dropdownMenu}>
+                    {(['casual', 'medical', 'earned', 'duty', 'other'] as LeaveType[]).map((typeKey) => {
+                      const selected = applyType === typeKey;
+                      return (
+                        <TouchableOpacity
+                          key={typeKey}
+                          style={[styles.dropdownMenuItem, selected && styles.dropdownMenuItemActive]}
+                          onPress={() => {
+                            setApplyType(typeKey);
+                            setApplyTypeDropdownOpen(false);
+                          }}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={[styles.dropdownMenuText, selected && styles.dropdownMenuTextActive]}>
+                            {LEAVE_TYPE_LABELS[typeKey]}
+                          </Text>
+                          {selected && <Feather name="check" size={13} color="#111827" />}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
+
+              {/* Approving Authority (Reporting Manager) */}
+              <View style={styles.modalFieldGroup}>
+                <Text style={styles.modalLabel}>Approving Authority</Text>
+
+                <View style={styles.autoFetchedApproverCard}>
+                  <View style={styles.autoFetchedAvatar}>
+                    <Feather name="user-check" size={16} color="#111827" />
+                  </View>
+                  <View style={{ flex: 1, marginRight: 8 }}>
+                    <Text style={styles.autoFetchedApproverName}>
+                      {autoApprover.name}
+                    </Text>
+                    <Text style={styles.autoFetchedApproverRole}>
+                      {autoApprover.designation}
+                    </Text>
+                  </View>
+                  <View style={styles.reportingManagerTag}>
+                    <Text style={styles.reportingManagerTagText}>{autoApprover.roleBadge}</Text>
+                  </View>
                 </View>
+
+                <Text style={styles.autoFetchedHelperNote}>
+                  {autoApprover.helperText}
+                </Text>
               </View>
 
               {/* Dates */}
@@ -746,42 +1130,18 @@ export const LeaveApprovalView: React.FC<LeaveApprovalViewProps> = ({
                 </View>
               </View>
 
-              {/* Substitute Faculty */}
-              <View style={styles.modalFieldGroup}>
-                <Text style={styles.modalLabel}>Class / Academic Substitute Arrangement *</Text>
-                <TextInput
-                  style={styles.modalInput}
-                  placeholder="e.g. Prof. Sneha Patil (CSE) arranged for Period 3 & 4"
-                  placeholderTextColor="#9CA3AF"
-                  value={applySubstitute}
-                  onChangeText={setApplySubstitute}
-                />
-              </View>
-
               {/* Reason */}
               <View style={styles.modalFieldGroup}>
                 <Text style={styles.modalLabel}>Reason for Leave *</Text>
                 <TextInput
                   style={[styles.modalInput, styles.modalTextArea]}
-                  placeholder="Detailed explanation of the leave requirement..."
+                  placeholder="State the reason or purpose of leave..."
                   placeholderTextColor="#9CA3AF"
                   multiline
                   numberOfLines={3}
                   textAlignVertical="top"
                   value={applyReason}
                   onChangeText={setApplyReason}
-                />
-              </View>
-
-              {/* Contact */}
-              <View style={styles.modalFieldGroup}>
-                <Text style={styles.modalLabel}>Emergency Phone / Contact</Text>
-                <TextInput
-                  style={styles.modalInput}
-                  placeholder="+91 98450 00000"
-                  placeholderTextColor="#9CA3AF"
-                  value={applyPhone}
-                  onChangeText={setApplyPhone}
                 />
               </View>
             </ScrollView>
@@ -797,6 +1157,141 @@ export const LeaveApprovalView: React.FC<LeaveApprovalViewProps> = ({
             </View>
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Filter Modal */}
+      <Modal
+        visible={filterModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setFilterModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.filterModalBackdrop}
+          activeOpacity={1}
+          onPress={() => setFilterModalVisible(false)}
+        >
+          <TouchableOpacity activeOpacity={1} style={styles.filterModalCard} onPress={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <View style={styles.filterModalHeader}>
+              <View style={styles.filterModalHeaderLeft}>
+                <View style={styles.filterModalIconWrap}>
+                  <MaterialCommunityIcons name="tune-variant" size={16} color="#111827" />
+                </View>
+                <Text style={styles.filterModalTitle}>Filter Leave Requests</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setFilterModalVisible(false)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Feather name="x" size={18} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Status Selection */}
+            <View style={styles.filterSectionGroup}>
+              <Text style={styles.filterSectionLabel}>Application Status</Text>
+              <View style={styles.filterOptionsGrid}>
+                {[
+                  { key: 'pending' as const, label: 'Pending', count: pendingCount },
+                  { key: 'approved' as const, label: 'Approved', count: approvedCount },
+                  { key: 'rejected' as const, label: 'Rejected', count: rejectedCount },
+                  { key: 'all' as const, label: 'All Statuses', count: requests.length },
+                ].map((item) => {
+                  const selected = tempStatus === item.key;
+                  return (
+                    <TouchableOpacity
+                      key={item.key}
+                      style={[styles.filterOptionPill, selected && styles.filterOptionPillActive]}
+                      onPress={() => setTempStatus(item.key)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.filterOptionText, selected && styles.filterOptionTextActive]}>
+                        {item.label}
+                      </Text>
+                      <View style={[styles.filterOptionCountBadge, selected && styles.filterOptionCountBadgeActive]}>
+                        <Text style={[styles.filterOptionCountText, selected && styles.filterOptionCountTextActive]}>
+                          {item.count}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Approving Authority Selection */}
+            <View style={styles.filterSectionGroup}>
+              <Text style={styles.filterSectionLabel}>Approving Authority</Text>
+              <View style={styles.filterOptionsGrid}>
+                {[
+                  { key: 'all' as const, label: 'All Authorities' },
+                  { key: 'principal' as const, label: 'Principal' },
+                  { key: 'hod' as const, label: 'Head of Dept (HOD)' },
+                  { key: 'hr' as const, label: 'HR / Admin Office' },
+                ].map((item) => {
+                  const selected = tempAuthority === item.key;
+                  return (
+                    <TouchableOpacity
+                      key={item.key}
+                      style={[styles.filterOptionPill, selected && styles.filterOptionPillActive]}
+                      onPress={() => setTempAuthority(item.key)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.filterOptionText, selected && styles.filterOptionTextActive]}>
+                        {item.label}
+                      </Text>
+                      {selected && <Feather name="check" size={12} color="#111827" />}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Department Selection */}
+            <View style={styles.filterSectionGroup}>
+              <Text style={styles.filterSectionLabel}>Department</Text>
+              {isPrincipal ? (
+                <View style={styles.filterOptionsGrid}>
+                  {['all', ...INSTITUTION_DEPARTMENTS].map((dept) => {
+                    const selected = tempDept.toLowerCase() === dept.toLowerCase();
+                    return (
+                      <TouchableOpacity
+                        key={dept}
+                        style={[styles.filterOptionPill, selected && styles.filterOptionPillActive]}
+                        onPress={() => setTempDept(dept)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[styles.filterOptionText, selected && styles.filterOptionTextActive]}>
+                          {dept === 'all' ? 'All Departments' : dept}
+                        </Text>
+                        {selected && <Feather name="check" size={12} color="#111827" />}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              ) : (
+                <View style={styles.filterDeptLockedPill}>
+                  <Feather name="lock" size={12} color="#4B5563" />
+                  <Text style={styles.filterDeptLockedText}>
+                    {effectiveDepartment} (Locked to your reporting jurisdiction)
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {/* Footer Actions */}
+            <View style={styles.filterModalFooter}>
+              <TouchableOpacity style={styles.filterModalResetBtn} onPress={handleResetFilters} activeOpacity={0.7}>
+                <Text style={styles.filterModalResetText}>Reset</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.filterModalApplyBtn} onPress={handleApplyFilters} activeOpacity={0.8}>
+                <Feather name="check" size={14} color="#111827" />
+                <Text style={styles.filterModalApplyText}>Apply Filters</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
       </Modal>
     </View>
   );
@@ -904,57 +1399,216 @@ const styles = StyleSheet.create({
   clearSearchBtn: {
     padding: 4,
   },
-  filterScroll: {
+  searchFilterDivider: {
+    width: 1,
+    height: 20,
+    backgroundColor: '#E5E7EB',
+    marginHorizontal: 8,
+  },
+  inBarFilterBtn: {
     flexDirection: 'row',
-    gap: 6,
-    paddingVertical: 1,
-    marginBottom: 6,
-  },
-  filterChip: {
-    paddingHorizontal: 10,
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
     paddingVertical: 5,
-    borderRadius: 7,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E8E5DC',
+    borderRadius: 6,
+    backgroundColor: 'transparent',
   },
-  filterChipActive: {
-    backgroundColor: '#111827',
-    borderColor: '#111827',
+  inBarFilterBtnActive: {
+    backgroundColor: 'transparent',
   },
-  filterChipText: {
+  inBarFilterText: {
     fontFamily: FontFamily.medium,
-    fontSize: 11.5,
+    fontSize: 12,
     color: '#4B5563',
   },
-  filterChipTextActive: {
+  inBarFilterTextActive: {
     fontFamily: FontFamily.bold,
-    color: '#F4C430',
+    color: '#111827',
   },
-  deptScroll: {
+  inBarFilterActiveBadge: {
+    backgroundColor: '#F4C430',
+    minWidth: 17,
+    height: 17,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  inBarFilterActiveBadgeText: {
+    fontFamily: FontFamily.bold,
+    fontSize: 10,
+    color: '#111827',
+  },
+  activeFiltersRow: {
     flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 4,
+  },
+  activeTagPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 5,
-  },
-  deptChip: {
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: 6,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: '#E8E5DC',
+    borderColor: '#E5E7EB',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
-  deptChipActive: {
-    backgroundColor: '#FEF3C7',
-    borderColor: '#FDE68A',
-  },
-  deptChipText: {
+  activeTagPillText: {
     fontFamily: FontFamily.medium,
-    fontSize: 10.5,
+    fontSize: 11,
+    color: '#111827',
+  },
+  clearAllFiltersBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+  },
+  clearAllFiltersText: {
+    fontFamily: FontFamily.medium,
+    fontSize: 11,
     color: '#6B7280',
   },
-  deptChipTextActive: {
+  filterModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  filterModalCard: {
+    width: '100%',
+    maxWidth: 440,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 18,
+    gap: 14,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  filterModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  filterModalHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  filterModalIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    backgroundColor: '#FEF9C3',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterModalTitle: {
     fontFamily: FontFamily.bold,
-    color: '#92400E',
+    fontSize: 16,
+    color: '#111827',
+  },
+  filterSectionGroup: {
+    gap: 8,
+  },
+  filterSectionLabel: {
+    fontFamily: FontFamily.bold,
+    fontSize: 11,
+    color: '#6B7280',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  filterOptionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 7,
+  },
+  filterOptionPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 7,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  filterOptionPillActive: {
+    backgroundColor: '#FEF9C3',
+    borderColor: '#F4C430',
+  },
+  filterOptionText: {
+    fontFamily: FontFamily.medium,
+    fontSize: 12,
+    color: '#4B5563',
+  },
+  filterOptionTextActive: {
+    fontFamily: FontFamily.bold,
+    color: '#111827',
+  },
+  filterOptionCountBadge: {
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 8,
+    backgroundColor: '#E5E7EB',
+  },
+  filterOptionCountBadgeActive: {
+    backgroundColor: '#F4C430',
+  },
+  filterOptionCountText: {
+    fontFamily: FontFamily.bold,
+    fontSize: 10.5,
+    color: '#374151',
+  },
+  filterOptionCountTextActive: {
+    color: '#111827',
+  },
+  filterModalFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 10,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  filterModalResetBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 7,
+    backgroundColor: '#F3F4F6',
+  },
+  filterModalResetText: {
+    fontFamily: FontFamily.medium,
+    fontSize: 12.5,
+    color: '#4B5563',
+  },
+  filterModalApplyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 7,
+    backgroundColor: '#F4C430',
+  },
+  filterModalApplyText: {
+    fontFamily: FontFamily.bold,
+    fontSize: 12.5,
+    color: '#111827',
   },
   list: {
     flex: 1,
@@ -1005,100 +1659,97 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   statusPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 3.5,
-    borderRadius: 6,
-    backgroundColor: '#F3F4F6',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
   },
   statusPillPending: {
-    backgroundColor: '#FEF3C7',
-    borderColor: '#FDE68A',
+    backgroundColor: 'transparent',
+    borderWidth: 0,
   },
   statusPillApproved: {
-    backgroundColor: '#ECFDF5',
-    borderColor: '#A7F3D0',
+    backgroundColor: 'transparent',
+    borderWidth: 0,
   },
   statusPillRejected: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#FECACA',
+    backgroundColor: 'transparent',
+    borderWidth: 0,
   },
   statusPillText: {
     fontFamily: FontFamily.bold,
-    fontSize: 9.5,
-    color: '#4B5563',
-    letterSpacing: 0.4,
+    fontSize: 11,
+    color: '#111827',
+    letterSpacing: 0.5,
   },
   statusPillTextPending: {
-    color: '#B45309',
+    color: '#D97706',
   },
   statusPillTextApproved: {
-    color: '#065F46',
+    color: '#16A34A',
   },
   statusPillTextRejected: {
-    color: '#991B1B',
+    color: '#DC2626',
   },
   cardSummaryRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingTop: 4,
-    flexWrap: 'wrap',
     gap: 6,
   },
   summaryTagsWrap: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    flex: 1,
     flexWrap: 'wrap',
   },
   leaveTypeTag: {
-    backgroundColor: '#FFFDF7',
-    borderWidth: 1,
-    borderColor: '#FEF3C7',
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 5,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
   },
   leaveTypeTagText: {
     fontFamily: FontFamily.bold,
-    fontSize: 10.5,
-    color: '#92400E',
+    fontSize: 12,
+    color: '#111827',
   },
   durationText: {
     fontFamily: FontFamily.medium,
     fontSize: 11.5,
     color: '#4B5563',
   },
+  authorityIndicatorText: {
+    fontFamily: FontFamily.medium,
+    fontSize: 11.5,
+    color: '#4B5563',
+  },
   totalDaysBadge: {
-    backgroundColor: '#FEF3C7',
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-    paddingHorizontal: 7,
-    paddingVertical: 2.5,
-    borderRadius: 5,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
   },
   totalDaysBadgeText: {
     fontFamily: FontFamily.bold,
-    fontSize: 10.5,
-    color: '#92400E',
+    fontSize: 11,
+    color: '#111827',
   },
   expandActionWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#FFFDF7',
-    paddingHorizontal: 8,
-    paddingVertical: 3.5,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#FEF3C7',
+    gap: 3,
+    backgroundColor: 'transparent',
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    borderWidth: 0,
   },
   expandActionText: {
-    fontFamily: FontFamily.bold,
-    fontSize: 10.5,
-    color: '#B45309',
+    fontFamily: FontFamily.medium,
+    fontSize: 11.5,
+    color: '#111827',
   },
   expandedDetailsWrap: {
     marginTop: 10,
@@ -1107,29 +1758,18 @@ const styles = StyleSheet.create({
     borderTopColor: '#F3F4F6',
     gap: 8,
   },
-  balanceContainer: {
-    backgroundColor: '#FFFDF7',
-    borderWidth: 1,
-    borderColor: '#FEF3C7',
-    borderRadius: 8,
-    padding: 9,
-    gap: 4,
-  },
-  balanceHeaderRow: {
+  compactBalanceRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 6,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
   },
-  balanceHeaderTitle: {
-    fontFamily: FontFamily.bold,
-    fontSize: 11,
-    color: '#92400E',
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-  },
-  balanceValueText: {
+  compactBalanceText: {
     fontFamily: FontFamily.regular,
-    fontSize: 11.5,
+    fontSize: 11,
     color: '#4B5563',
   },
   boldText: {
@@ -1157,6 +1797,12 @@ const styles = StyleSheet.create({
     color: '#374151',
     lineHeight: 16.5,
   },
+  authorityText: {
+    fontFamily: FontFamily.medium,
+    fontSize: 11.5,
+    color: '#111827',
+    lineHeight: 16.5,
+  },
   contactRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1179,12 +1825,14 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
   },
   auditBox: {
-    backgroundColor: '#FFFDF7',
-    borderRadius: 6,
-    padding: 8,
+    backgroundColor: 'transparent',
+    borderRadius: 0,
+    paddingVertical: 3,
+    paddingHorizontal: 0,
     marginTop: 4,
-    borderWidth: 1,
-    borderColor: '#FEF3C7',
+    borderLeftWidth: 2,
+    borderLeftColor: '#E5E7EB',
+    paddingLeft: 8,
   },
   auditText: {
     fontFamily: FontFamily.medium,
@@ -1391,6 +2039,66 @@ const styles = StyleSheet.create({
     height: 70,
     paddingVertical: 8,
   },
+  dropdownTrigger: {
+    height: 38,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  dropdownTriggerActive: {
+    borderColor: '#111827',
+    backgroundColor: '#FFFFFF',
+  },
+  dropdownTriggerText: {
+    fontSize: 13,
+    color: '#111827',
+    fontFamily: FontFamily.regular,
+  },
+  dropdownMenu: {
+    marginTop: 4,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 6,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  dropdownMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  dropdownMenuItemActive: {
+    backgroundColor: '#F9FAFB',
+  },
+  dropdownMenuText: {
+    fontSize: 12.5,
+    color: '#374151',
+    fontFamily: FontFamily.regular,
+  },
+  dropdownMenuTextActive: {
+    color: '#111827',
+    fontFamily: FontFamily.bold,
+  },
+  dropdownSubtext: {
+    fontSize: 10.5,
+    color: '#6B7280',
+    fontFamily: FontFamily.regular,
+    marginTop: 1,
+  },
   modalChipsWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1462,5 +2170,159 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#FFFFFF',
     fontFamily: FontFamily.bold,
+  },
+
+  reportingManagerCard: {
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    paddingVertical: 7,
+    paddingHorizontal: 9,
+    marginVertical: 4,
+  },
+  reportingManagerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  reportingManagerTitle: {
+    fontSize: 12,
+    fontFamily: FontFamily.bold,
+    color: '#111827',
+  },
+  reportingManagerSubtitle: {
+    fontSize: 11,
+    fontFamily: FontFamily.regular,
+    color: '#6B7280',
+    lineHeight: 15,
+  },
+  pendingNoticeWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#FEF3C7',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 6,
+    marginTop: 6,
+  },
+  pendingNoticeText: {
+    fontSize: 11.5,
+    fontFamily: FontFamily.medium,
+    color: '#B45309',
+    flex: 1,
+  },
+  lockedDeptField: {
+    height: 38,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  lockedDeptText: {
+    fontSize: 13,
+    fontFamily: FontFamily.bold,
+    color: '#111827',
+  },
+  lockedDeptBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  lockedDeptBadgeText: {
+    fontSize: 10.5,
+    fontFamily: FontFamily.regular,
+    color: '#6B7280',
+  },
+  modalHierarchyNoteBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    padding: 10,
+    borderRadius: 6,
+  },
+  modalHierarchyNoteText: {
+    fontSize: 11,
+    fontFamily: FontFamily.regular,
+    color: '#4B5563',
+    flex: 1,
+    lineHeight: 15,
+  },
+  filterDeptLockedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  filterDeptLockedText: {
+    fontSize: 12,
+    fontFamily: FontFamily.medium,
+    color: '#4B5563',
+  },
+
+  autoFetchedApproverCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 2,
+  },
+  autoFetchedAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  autoFetchedApproverName: {
+    fontSize: 13,
+    fontFamily: FontFamily.bold,
+    color: '#111827',
+  },
+  autoFetchedApproverRole: {
+    fontSize: 11,
+    fontFamily: FontFamily.regular,
+    color: '#6B7280',
+    marginTop: 1,
+  },
+  reportingManagerTag: {
+    backgroundColor: '#111827',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 5,
+  },
+  reportingManagerTagText: {
+    fontSize: 9.5,
+    fontFamily: FontFamily.bold,
+    color: '#FFFFFF',
+  },
+  autoFetchedHelperNote: {
+    fontSize: 10.5,
+    fontFamily: FontFamily.regular,
+    color: '#6B7280',
+    lineHeight: 15,
+    marginTop: 4,
   },
 });

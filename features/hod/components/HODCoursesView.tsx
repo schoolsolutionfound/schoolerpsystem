@@ -186,9 +186,9 @@ export const HODCoursesView: React.FC<HODCoursesViewProps> = ({
                 >
                   {c.instructorName || 'Unassigned'}
                 </Text>
-                {c.instructorRank && (
+                {Boolean(c.instructorRank) && (
                   <View style={styles.rankBadge}>
-                    <Text style={styles.rankBadgeText}>{c.instructorRank.replace('_', ' ')}</Text>
+                    <Text style={styles.rankBadgeText}>{c.instructorRank!.replace('_', ' ')}</Text>
                   </View>
                 )}
               </View>

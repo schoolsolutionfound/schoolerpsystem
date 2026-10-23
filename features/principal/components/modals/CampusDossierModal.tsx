@@ -229,7 +229,7 @@ ${notices.map((n, i) => `  ${i + 1}. [${n.priority.toUpperCase()}] ${n.title} (A
                         Mentor: <Text style={styles.bold}>{sec.homeroomTeacherName || 'Not Assigned'}</Text>
                       </Text>
                       <Text style={styles.listItemMeta}>
-                        Enrolled Students: {sec.studentCount} | Room: {sec.roomNumber || 'Room 304'}
+                        Enrolled Students: {sec.studentCount}
                       </Text>
                     </View>
                     <View style={[styles.statusPill, { backgroundColor: sec.attendanceRate >= 75 ? '#DCFCE7' : '#FEE2E2' }]}>

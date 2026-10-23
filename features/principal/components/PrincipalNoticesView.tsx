@@ -157,6 +157,75 @@ export const PrincipalNoticesView: React.FC<PrincipalNoticesViewProps> = ({
     [localNotices, localDeletedIds]
   );
 
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isPageLoading, setIsPageLoading] = useState(false);
+  const NOTICES_PER_PAGE = 5;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, activeFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredNotices.length / NOTICES_PER_PAGE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+
+  const paginatedNotices = useMemo(() => {
+    const startIndex = (safeCurrentPage - 1) * NOTICES_PER_PAGE;
+    return filteredNotices.slice(startIndex, startIndex + NOTICES_PER_PAGE);
+  }, [filteredNotices, safeCurrentPage]);
+
+  // Render Pagination Footer Controls
+  const renderPaginationControls = () => {
+    if (filteredNotices.length <= NOTICES_PER_PAGE) return null;
+    const startItem = (safeCurrentPage - 1) * NOTICES_PER_PAGE + 1;
+    const endItem = Math.min(safeCurrentPage * NOTICES_PER_PAGE, filteredNotices.length);
+
+    return (
+      <View style={styles.paginationContainer}>
+        <Text style={styles.paginationCountText}>
+          Showing <Text style={{ fontFamily: FontFamily.bold }}>{startItem}-{endItem}</Text> of{' '}
+          <Text style={{ fontFamily: FontFamily.bold }}>{filteredNotices.length}</Text> Announcements
+        </Text>
+
+        <View style={styles.paginationActionRow}>
+          <TouchableOpacity
+            style={[styles.pageBtn, safeCurrentPage === 1 && styles.pageBtnDisabled]}
+            disabled={safeCurrentPage === 1}
+            onPress={() => {
+              setIsPageLoading(true);
+              setCurrentPage((prev) => Math.max(1, prev - 1));
+              setTimeout(() => setIsPageLoading(false), 140);
+            }}
+            activeOpacity={0.8}
+          >
+            <Feather name="chevron-left" size={15} color={safeCurrentPage === 1 ? '#94A3B8' : '#0F172A'} />
+            <Text style={[styles.pageBtnText, safeCurrentPage === 1 && styles.pageBtnTextDisabled]}>Prev</Text>
+          </TouchableOpacity>
+
+          <View style={styles.pageIndicatorPill}>
+            <Text style={styles.pageIndicatorText}>
+              {safeCurrentPage} / {totalPages}
+            </Text>
+          </View>
+
+          <TouchableOpacity
+            style={[styles.pageBtn, safeCurrentPage === totalPages && styles.pageBtnDisabled]}
+            disabled={safeCurrentPage === totalPages}
+            onPress={() => {
+              setIsPageLoading(true);
+              setCurrentPage((prev) => Math.min(totalPages, prev + 1));
+              setTimeout(() => setIsPageLoading(false), 140);
+            }}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.pageBtnText, safeCurrentPage === totalPages && styles.pageBtnTextDisabled]}>Next</Text>
+            <Feather name="chevron-right" size={15} color={safeCurrentPage === totalPages ? '#94A3B8' : '#0F172A'} />
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
   return (
     <View style={styles.container}>
       {/* 1. Header (Flush left, proper heading, clean black button) */}
@@ -282,97 +351,106 @@ export const PrincipalNoticesView: React.FC<PrincipalNoticesViewProps> = ({
               <Text style={styles.emptyActionBtnText}>Create Notice</Text>
             </TouchableOpacity>
           </View>
+        ) : isPageLoading ? (
+          <View style={styles.inPageLoaderWrap}>
+            <ActivityIndicator size="large" color="#F4C430" />
+            <Text style={styles.inPageLoaderText}>Loading Announcements...</Text>
+          </View>
         ) : (
-          <View style={[styles.cardsGrid, isDesktop && styles.cardsGridDesktop]}>
-            {filteredNotices.map((notice) => {
-              const audienceLabel =
-                notice.targetAudience === 'teachers'
-                  ? 'Faculty'
-                  : notice.targetAudience === 'students'
-                  ? 'Students'
-                  : notice.targetAudience === 'parents'
-                  ? 'Parents'
-                  : 'Campus Wide';
+          <>
+            <View style={[styles.cardsGrid, isDesktop && styles.cardsGridDesktop]}>
+              {paginatedNotices.map((notice) => {
+                const audienceLabel =
+                  notice.targetAudience === 'teachers'
+                    ? 'Faculty'
+                    : notice.targetAudience === 'students'
+                    ? 'Students'
+                    : notice.targetAudience === 'parents'
+                    ? 'Parents'
+                    : 'Campus Wide';
 
-              return (
-                <View
-                  key={notice.id}
-                  style={[styles.card, { width: cardWidth }]}
-                >
-                  {/* Top Meta Line: Clean Neutral Badge + Date + Edit / Delete */}
-                  <View style={styles.cardTopRow}>
-                    <View style={styles.badgeRow}>
-                      <View style={styles.priorityBadge}>
-                        <Text style={styles.priorityBadgeText}>
-                          {(notice.priority || 'notice').toUpperCase()}
-                        </Text>
+                return (
+                  <View
+                    key={notice.id}
+                    style={[styles.card, { width: cardWidth }]}
+                  >
+                    {/* Top Meta Line: Clean Neutral Badge + Date + Edit / Delete */}
+                    <View style={styles.cardTopRow}>
+                      <View style={styles.badgeRow}>
+                        <View style={styles.priorityBadge}>
+                          <Text style={styles.priorityBadgeText}>
+                            {(notice.priority || 'notice').toUpperCase()}
+                          </Text>
+                        </View>
+
+                        <Text style={styles.metaDivider}>·</Text>
+                        <Text style={styles.audienceText}>{audienceLabel}</Text>
+
+                        {notice.department ? (
+                          <>
+                            <Text style={styles.metaDivider}>·</Text>
+                            <Text style={styles.deptText} numberOfLines={1}>
+                              {notice.department}
+                            </Text>
+                          </>
+                        ) : null}
                       </View>
 
-                      <Text style={styles.metaDivider}>·</Text>
-                      <Text style={styles.audienceText}>{audienceLabel}</Text>
+                      {/* Top Right Actions: Date + Edit Button + Delete Button */}
+                      <View style={styles.cardTopRight}>
+                        <Text style={styles.publishedDateText}>
+                          {notice.publishedDate || 'Today'}
+                        </Text>
+                        <TouchableOpacity
+                          style={styles.cardActionBtn}
+                          onPress={() => handleStartEdit(notice)}
+                          activeOpacity={0.6}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Feather name="edit-2" size={13} color="#4B5563" />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.cardActionBtn}
+                          onPress={() => handleDelete(notice.id, notice.title)}
+                          activeOpacity={0.6}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Feather name="trash-2" size={13} color="#9CA3AF" />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
 
-                      {notice.department ? (
-                        <>
-                          <Text style={styles.metaDivider}>·</Text>
-                          <Text style={styles.deptText} numberOfLines={1}>
-                            {notice.department}
-                          </Text>
-                        </>
+                    {/* Card Title */}
+                    <Text style={styles.cardTitle} numberOfLines={2}>
+                      {notice.title}
+                    </Text>
+
+                    {/* Card Content */}
+                    <Text style={styles.cardDescription} numberOfLines={3}>
+                      {notice.content}
+                    </Text>
+
+                    {/* Card Footer: Clean subtle line */}
+                    <View style={styles.cardFooter}>
+                      <View style={styles.authorRow}>
+                        <Text style={styles.authorPrefix}>By</Text>
+                        <Text style={styles.authorName}>
+                          {notice.author || 'School Administration'}
+                        </Text>
+                      </View>
+                      {notice.expiresAt ? (
+                        <Text style={styles.expiryText}>
+                          Valid till {notice.expiresAt}
+                        </Text>
                       ) : null}
                     </View>
-
-                    {/* Top Right Actions: Date + Edit Button + Delete Button */}
-                    <View style={styles.cardTopRight}>
-                      <Text style={styles.publishedDateText}>
-                        {notice.publishedDate || 'Today'}
-                      </Text>
-                      <TouchableOpacity
-                        style={styles.cardActionBtn}
-                        onPress={() => handleStartEdit(notice)}
-                        activeOpacity={0.6}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      >
-                        <Feather name="edit-2" size={13} color="#4B5563" />
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.cardActionBtn}
-                        onPress={() => handleDelete(notice.id, notice.title)}
-                        activeOpacity={0.6}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      >
-                        <Feather name="trash-2" size={13} color="#9CA3AF" />
-                      </TouchableOpacity>
-                    </View>
                   </View>
+                );
+              })}
+            </View>
 
-                  {/* Card Title */}
-                  <Text style={styles.cardTitle} numberOfLines={2}>
-                    {notice.title}
-                  </Text>
-
-                  {/* Card Content */}
-                  <Text style={styles.cardDescription} numberOfLines={3}>
-                    {notice.content}
-                  </Text>
-
-                  {/* Card Footer: Clean subtle line */}
-                  <View style={styles.cardFooter}>
-                    <View style={styles.authorRow}>
-                      <Text style={styles.authorPrefix}>By</Text>
-                      <Text style={styles.authorName}>
-                        {notice.author || 'School Administration'}
-                      </Text>
-                    </View>
-                    {notice.expiresAt ? (
-                      <Text style={styles.expiryText}>
-                        Valid till {notice.expiresAt}
-                      </Text>
-                    ) : null}
-                  </View>
-                </View>
-              );
-            })}
-          </View>
+            {renderPaginationControls()}
+          </>
         )}
       </ScrollView>
 
@@ -1051,6 +1129,75 @@ const styles = StyleSheet.create({
   modalSaveText: {
     fontSize: 12,
     color: '#FFFFFF',
+    fontFamily: FontFamily.bold,
+  },
+  inPageLoaderWrap: {
+    paddingVertical: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  inPageLoaderText: {
+    fontSize: 13,
+    color: '#64748B',
+    fontFamily: FontFamily.medium,
+  },
+  paginationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    marginTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  paginationCountText: {
+    fontSize: 12,
+    color: '#64748B',
+    fontFamily: FontFamily.regular,
+  },
+  paginationActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  pageBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  pageBtnDisabled: {
+    opacity: 0.45,
+    backgroundColor: '#F1F5F9',
+  },
+  pageBtnText: {
+    fontSize: 12,
+    color: '#0F172A',
+    fontFamily: FontFamily.medium,
+  },
+  pageBtnTextDisabled: {
+    color: '#94A3B8',
+  },
+  pageIndicatorPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    backgroundColor: '#FEF9C3',
+    borderWidth: 1,
+    borderColor: '#FEF08A',
+  },
+  pageIndicatorText: {
+    fontSize: 12,
+    color: '#854D0E',
     fontFamily: FontFamily.bold,
   },
 });

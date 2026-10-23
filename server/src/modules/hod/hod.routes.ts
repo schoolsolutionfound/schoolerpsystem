@@ -9,6 +9,7 @@ import {
   updateHallTicketStatusHandler,
   getNoticesHandler,
   createNoticeHandler,
+  getStudentsHandler,
 } from './hod.controller.js';
 import { requireHODOrAdmin } from '../shared/middleware/auth.js';
 
@@ -19,6 +20,8 @@ export async function hodRoutes(fastify: FastifyInstance) {
   fastify.get('/kpis', getKPIsHandler);
 
   fastify.get('/faculty', getFacultyHandler);
+
+  fastify.get('/students', getStudentsHandler);
 
   fastify.get('/courses', getCoursesHandler);
   fastify.post('/courses', { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, createCourseHandler);

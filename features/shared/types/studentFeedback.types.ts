@@ -57,6 +57,8 @@ export interface FacultyReviewSubmission {
   strengths?: string;
   areasOfImprovement?: string;
   generalComments?: string;
+  hasComplaint?: boolean;
+  complaintText?: string;
   status: FeedbackReviewStatus;
   actionNote?: string;
   actionBy?: string;
@@ -77,10 +79,24 @@ export interface CollegeReviewSubmission {
   overallRating: number; // Computed average 1 - 5
   campusHighlights?: string;
   improvementSuggestions?: string;
+  hasComplaint?: boolean;
+  complaintText?: string;
   status: FeedbackReviewStatus;
   actionNote?: string;
   actionBy?: string;
   createdAt: string;
+}
+
+export interface CourseSubjectAllocation {
+  id: string;
+  subjectName: string;
+  facultyId: string;
+  facultyName: string;
+  facultyDepartment: string;
+  classSection: string;
+  semester?: string;
+  hasStudentReviewed?: boolean;
+  studentReviewRating?: number;
 }
 
 export interface TeacherFeedbackSummary {
@@ -89,6 +105,11 @@ export interface TeacherFeedbackSummary {
   department: string;
   averageRating: number;
   totalReviews: number;
+  subjectBreakdown?: {
+    subjectName: string;
+    averageRating: number;
+    totalReviews: number;
+  }[];
   parameterAverages: {
     subjectKnowledge: number;
     teachingClarity: number;
@@ -148,6 +169,8 @@ export interface SubmitFacultyFeedbackPayload {
   strengths?: string;
   areasOfImprovement?: string;
   generalComments?: string;
+  hasComplaint?: boolean;
+  complaintText?: string;
 }
 
 export interface SubmitCollegeFeedbackPayload {
@@ -156,4 +179,6 @@ export interface SubmitCollegeFeedbackPayload {
   ratings: CollegeRatingParameters;
   campusHighlights?: string;
   improvementSuggestions?: string;
+  hasComplaint?: boolean;
+  complaintText?: string;
 }

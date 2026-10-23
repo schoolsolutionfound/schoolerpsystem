@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
 import { FontFamily } from '../../../constants/fonts';
 import { ShimmerSkeleton } from '../../student/components/ShimmerSkeleton';
+import { AttendanceStore } from '../../shared/services/attendanceStore';
 
 interface TeacherHomePeriodsListProps {
   loading?: boolean;
@@ -44,6 +45,16 @@ export const TeacherHomePeriodsList: React.FC<TeacherHomePeriodsListProps> = ({
   slots = [],
   onMarkAttendance,
 }) => {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const [, setAttendanceStoreVer] = useState(0);
+
+  useEffect(() => {
+    const unsub = AttendanceStore.subscribe(() => {
+      setAttendanceStoreVer((v) => v + 1);
+    });
+    return () => unsub();
+  }, []);
+
   return (
     <View style={styles.periodsSection}>
       <View style={styles.sectionHeaderRow}>
@@ -84,6 +95,14 @@ export const TeacherHomePeriodsList: React.FC<TeacherHomePeriodsListProps> = ({
         <View style={styles.periodsListCard}>
           {slots.map((slot, i) => {
             const active = isNowWithin(slot?.period?.startTime, slot?.period?.endTime);
+            const isMarked = AttendanceStore.isAttendanceMarked({
+              classId: slot?.classSectionId,
+              slotId: slot.id,
+              classSectionName: slot?.classSectionName,
+              subjectName: slot?.subject?.name,
+              date: todayStr,
+            });
+
             return (
               <View key={slot.id || i}>
                 {i > 0 && <View style={styles.divider} />}
@@ -105,18 +124,23 @@ export const TeacherHomePeriodsList: React.FC<TeacherHomePeriodsListProps> = ({
                     </Text>
                     <Text style={styles.roomName} numberOfLines={1}>
                       {slot?.classSectionName || 'Class'}
-                      {slot?.room ? ` · Room ${slot.room}` : ''}
                     </Text>
                   </View>
 
                   {onMarkAttendance ? (
                     <TouchableOpacity
-                      style={styles.markBtn}
+                      style={[styles.markBtn, isMarked && styles.markBtnMarked]}
                       onPress={() => onMarkAttendance(slot.id, slot?.subject?.name || 'Subject')}
                       activeOpacity={0.8}
                     >
-                      <MaterialCommunityIcons name="check-circle-outline" size={14} color="#111827" />
-                      <Text style={styles.markBtnText}>Mark</Text>
+                      <MaterialCommunityIcons
+                        name={isMarked ? 'checkbox-marked-circle' : 'check-circle-outline'}
+                        size={14}
+                        color={isMarked ? '#15803D' : '#111827'}
+                      />
+                      <Text style={[styles.markBtnText, isMarked && styles.markBtnMarkedText]}>
+                        {isMarked ? 'Marked' : 'Mark'}
+                      </Text>
                     </TouchableOpacity>
                   ) : active ? (
                     <View style={styles.nowChip}>
@@ -205,7 +229,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
   },
+  markBtnMarked: {
+    backgroundColor: '#DCFCE7',
+    borderWidth: 1,
+    borderColor: '#86EFAC',
+  },
   markBtnText: { fontSize: 11, fontFamily: FontFamily.bold, color: '#111827' },
+  markBtnMarkedText: { color: '#15803D' },
   nowChip: {
     backgroundColor: '#F4C430',
     paddingHorizontal: 8,

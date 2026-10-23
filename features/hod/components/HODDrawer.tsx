@@ -9,17 +9,16 @@ import {
   ScrollView,
   Animated,
   Easing,
-  Image,
   useWindowDimensions,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { useUserStore } from '../../../store/useUserStore';
-import { getHomeRouteForRole } from '../../shared/utils/routeGuards';
 import { HODTab } from '../types/hod.types';
 import { FontFamily } from '../../../constants/fonts';
-import { BorderRadius } from '../../../constants/theme';
+import { YellowTheme } from '../../../constants/globalYellowStyles';
 
 interface HODDrawerProps {
   visible: boolean;
@@ -29,23 +28,34 @@ interface HODDrawerProps {
   onLogout: () => void;
 }
 
-const PRIMARY_NAV: {
+const MAIN_NAV: {
   key: HODTab;
   label: string;
   icon: keyof typeof MaterialCommunityIcons.glyphMap;
   badge?: string;
 }[] = [
-  { key: 'dashboard', label: 'Department Overview', icon: 'view-dashboard-outline' },
-  { key: 'courses', label: 'Courses & Syllabus', icon: 'book-open-page-variant' },
-  { key: 'faculty', label: 'Faculty & Workload', icon: 'human-male-board' },
-  { key: 'events', label: 'Calendar & Dept Activities', icon: 'calendar-multiselect' },
-  { key: 'leaves', label: 'Department Leave Approvals', icon: 'account-clock-outline' },
-  { key: 'document_requests', label: 'Certificate Verification & Issuance', icon: 'file-certificate-outline' },
-  { key: 'payroll', label: 'Dept Payroll & Clearance', icon: 'cash-register' },
-  { key: 'reviews', label: 'Faculty Appraisals & Reviews', icon: 'clipboard-account-outline' },
-  { key: 'eligibility', label: 'Exam Eligibility & Hall Tickets', icon: 'card-account-details-outline' },
-  { key: 'notices', label: 'Department Memos', icon: 'bullhorn-outline' },
-  { key: 'attendance', label: 'Daily Student Attendance', icon: 'calendar-check-outline' },
+  { key: 'dashboard', label: 'Dashboard', icon: 'view-dashboard' },
+  { key: 'notices', label: 'Announcements', icon: 'bullhorn-outline' },
+  { key: 'homerooms', label: 'Students', icon: 'account-group-outline' },
+  { key: 'timetable', label: 'Timetable', icon: 'calendar-edit' },
+  { key: 'staff', label: 'Faculty', icon: 'account-group-outline' },
+  { key: 'events', label: 'Events & Calendar', icon: 'calendar-multiselect' },
+  { key: 'leaves', label: 'Leave Approvals', icon: 'account-clock-outline' },
+  { key: 'document_requests', label: 'Document Desk', icon: 'file-certificate-outline' },
+  { key: 'reviews', label: 'Student Reviews', icon: 'clipboard-text-outline' },
+  { key: 'attendance', label: 'Daily Attendance', icon: 'calendar-check-outline' },
+];
+
+const TEACHING_NAV: {
+  key: HODTab;
+  label: string;
+  icon: keyof typeof MaterialCommunityIcons.glyphMap;
+  badge?: string;
+}[] = [
+  { key: 'schedule', label: 'My Schedule', icon: 'calendar-clock' },
+  { key: 'mark_attendance', label: 'Mark Attendance', icon: 'clipboard-check-outline' },
+  { key: 'marks', label: 'Marks', icon: 'certificate-outline' },
+  { key: 'homework', label: 'Homework', icon: 'book-plus-outline' },
 ];
 
 export const HODDrawer: React.FC<HODDrawerProps> = ({
@@ -62,31 +72,23 @@ export const HODDrawer: React.FC<HODDrawerProps> = ({
   const fullName = useUserStore((state) => state.fullName) || 'Head of Department';
   const department = useUserStore((state) => state.department) || 'Department Head';
   const institutionName = useUserStore((state) => state.institutionName) || 'College of Engineering';
-  const userRole = useUserStore((state) => state.userRole);
-  const roles = useUserStore((state) => state.roles || []);
-  const switchRole = useUserStore((state) => state.switchRole);
+  const hasModuleAccess = useUserStore((state) => state.hasModuleAccess);
 
   const [slideX] = useState(() => new Animated.Value(-width));
   const [fade] = useState(() => new Animated.Value(0));
-
-  const handleSwitchRole = (targetRole: any) => {
-    switchRole(targetRole);
-    onClose();
-    setTimeout(() => router.replace(getHomeRouteForRole(targetRole) as any), 150);
-  };
 
   useEffect(() => {
     if (visible) {
       Animated.parallel([
         Animated.timing(slideX, {
           toValue: 0,
-          duration: 250,
+          duration: 320,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
         Animated.timing(fade, {
           toValue: 1,
-          duration: 220,
+          duration: 280,
           useNativeDriver: true,
         }),
       ]).start();
@@ -94,13 +96,13 @@ export const HODDrawer: React.FC<HODDrawerProps> = ({
       Animated.parallel([
         Animated.timing(slideX, {
           toValue: -width,
-          duration: 200,
+          duration: 260,
           easing: Easing.in(Easing.cubic),
           useNativeDriver: true,
         }),
         Animated.timing(fade, {
           toValue: 0,
-          duration: 180,
+          duration: 220,
           useNativeDriver: true,
         }),
       ]).start();
@@ -109,197 +111,177 @@ export const HODDrawer: React.FC<HODDrawerProps> = ({
 
   if (!visible) return null;
 
-  const drawerWidth = Math.min(width * 0.82, 340);
+  const drawerWidth = Math.min(width * 0.82, 330);
+
+  const renderNavItem = (
+    item: {
+      key: HODTab;
+      label: string;
+      icon: keyof typeof MaterialCommunityIcons.glyphMap;
+      badge?: string;
+    }
+  ) => {
+    const active = activeTab === item.key;
+    return (
+      <TouchableOpacity
+        key={item.key}
+        style={[styles.navItem, active && styles.navItemActive]}
+        onPress={() => {
+          onNavigate(item.key);
+          onClose();
+        }}
+        activeOpacity={0.7}
+      >
+        <View style={[styles.navIconBox, active && styles.navIconBoxActive]}>
+          <MaterialCommunityIcons
+            name={item.icon}
+            size={18}
+            color={active ? YellowTheme.primaryYellow : '#D1D5DB'}
+          />
+        </View>
+        <Text style={[styles.navItemText, active && styles.navItemTextActive]} numberOfLines={1}>
+          {item.label}
+        </Text>
+        {item.badge && (
+          <View style={styles.badgePill}>
+            <Text style={styles.badgePillText}>{item.badge}</Text>
+          </View>
+        )}
+        <Feather
+          name="chevron-right"
+          size={16}
+          color={active ? YellowTheme.primaryYellow : YellowTheme.drawerChevron}
+          style={styles.navChevron}
+        />
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
-      <View style={styles.container}>
+      <View style={styles.modalRoot}>
         {/* Backdrop */}
         <Animated.View style={[styles.backdrop, { opacity: fade }]}>
           <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         </Animated.View>
 
-        {/* Drawer Panel */}
+        {/* Dark Obsidian Drawer Panel with White Header */}
         <Animated.View
           style={[
-            styles.drawer,
+            styles.panel,
             {
               width: drawerWidth,
-              paddingTop: insets.top + 16,
-              paddingBottom: insets.bottom + 16,
               transform: [{ translateX: slideX }],
             },
           ]}
         >
-          {/* Header Brand */}
-          <View style={styles.brandRow}>
-            <Image
-              source={require('../../../assets/text-logo.png')}
-              style={styles.logoImage}
-              resizeMode="contain"
-            />
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <Feather name="x" size={20} color="#6B6B6B" />
-            </TouchableOpacity>
+          {/* Header Brand Section: White Header with logo-transparent.png + Close X */}
+          <View style={[styles.drawerHeader, { paddingTop: Math.max(insets.top + 6, 16) }]}>
+            <View style={styles.brandRow}>
+              <View style={styles.logoRow}>
+                <Image
+                  source={require('../../../assets/logo-transparent.png')}
+                  style={styles.brandLogo}
+                  resizeMode="contain"
+                />
+                <Text style={styles.brandText}>KIVQUO</Text>
+              </View>
+              <TouchableOpacity onPress={onClose} style={styles.closeBtn} activeOpacity={0.7} hitSlop={10}>
+                <Feather name="x" size={18} color="#111827" />
+              </TouchableOpacity>
+            </View>
           </View>
 
-          {/* Department Head Profile Summary */}
-          <TouchableOpacity
-            style={styles.profileSummary}
-            onPress={() => {
-              onClose();
-              router.push('/(hod)/profile');
-            }}
-            activeOpacity={0.8}
+          {/* Drawer Body Container (Dark obsidian - matching Principal Drawer) */}
+          <View
+            style={[
+              styles.drawerBody,
+              { paddingBottom: Math.max(insets.bottom, 16) },
+            ]}
           >
-            <View style={styles.avatar}>
-              <MaterialCommunityIcons name="domain" size={22} color="#FFFFFF" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.profileName} numberOfLines={1}>
-                {fullName}
-              </Text>
-              <Text style={styles.profileDept} numberOfLines={1}>
-                {department}
-              </Text>
-              <Text style={styles.profileInstitute} numberOfLines={1}>
-                {institutionName}
-              </Text>
-            </View>
-            <MaterialCommunityIcons name="chevron-right" size={20} color="#9CA3AF" />
-          </TouchableOpacity>
-
-          <ScrollView style={styles.navScroll} showsVerticalScrollIndicator={false}>
-            {/* Primary Academic & Dept Navigation */}
-            <Text style={styles.sectionHeader}>DEPARTMENT MODULES</Text>
-            {PRIMARY_NAV.map((item) => {
-              const isActive = activeTab === item.key;
-              return (
-                <TouchableOpacity
-                  key={item.key}
-                  style={[styles.navItem, isActive && styles.navItemActive]}
-                  onPress={() => {
-                    onNavigate(item.key);
-                    onClose();
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <MaterialCommunityIcons
-                    name={item.icon}
-                    size={22}
-                    color={isActive ? '#111827' : '#4B5563'}
-                  />
-                  <Text style={[styles.navItemText, isActive && styles.navItemTextActive]}>
-                    {item.label}
-                  </Text>
-                  {item.badge ? (
-                    <View style={styles.navBadge}>
-                      <Text style={styles.navBadgeText}>{item.badge}</Text>
-                    </View>
-                  ) : null}
-                </TouchableOpacity>
-              );
-            })}
-
-            {/* Educator & Teaching Operations */}
-            <Text style={styles.sectionHeader}>EDUCATOR OPERATIONS</Text>
+            {/* Profile Section (Yellow Avatar + Name + Department + Institution) */}
             <TouchableOpacity
-              style={styles.navItem}
-              onPress={() => {
-                onClose();
-                router.push('/teacher-timetable');
-              }}
-              activeOpacity={0.7}
-            >
-              <MaterialCommunityIcons name="calendar-clock" size={22} color="#1D4ED8" />
-              <Text style={styles.navItemText}>Department Timetable Builder</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.navItem}
-              onPress={() => {
-                onClose();
-                router.push('/teacher-attendance');
-              }}
-              activeOpacity={0.7}
-            >
-              <MaterialCommunityIcons name="clipboard-check" size={22} color="#15803D" />
-              <Text style={styles.navItemText}>Mark Lecture Attendance</Text>
-            </TouchableOpacity>
-
-            {/* Role Switcher Section (if user holds multiple roles) */}
-            {roles && roles.length > 1 && (
-              <View style={styles.roleSwitchSection}>
-                <Text style={styles.sectionHeader}>SWITCH ACTIVE ROLE</Text>
-                <View style={styles.roleGrid}>
-                  {roles.map((r) => {
-                    const isCurrent = r === userRole;
-                    return (
-                      <TouchableOpacity
-                        key={r}
-                        style={[styles.roleChip, isCurrent && styles.roleChipActive]}
-                        onPress={() => !isCurrent && handleSwitchRole(r)}
-                        disabled={isCurrent}
-                      >
-                        <MaterialCommunityIcons
-                          name={
-                            r === 'principal'
-                              ? 'shield-crown'
-                              : r === 'hod'
-                              ? 'domain'
-                              : r === 'teacher'
-                              ? 'human-male-board'
-                              : r === 'admin'
-                              ? 'shield-account'
-                              : 'account'
-                          }
-                          size={14}
-                          color={isCurrent ? '#FFFFFF' : '#4B5563'}
-                        />
-                        <Text style={[styles.roleChipText, isCurrent && styles.roleChipTextActive]}>
-                          {r.toUpperCase()}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              </View>
-            )}
-
-            {/* Quick Actions */}
-            <Text style={styles.sectionHeader}>PREFERENCES & ACCOUNT</Text>
-            <TouchableOpacity
-              style={styles.navItem}
+              style={styles.profileSection}
               onPress={() => {
                 onClose();
                 router.push('/(hod)/profile');
               }}
-              activeOpacity={0.7}
+              activeOpacity={0.8}
             >
-              <MaterialCommunityIcons name="account-cog-outline" size={22} color="#4B5563" />
-              <Text style={styles.navItemText}>Department Profile & Credentials</Text>
+              <View style={styles.yellowAvatar}>
+                <MaterialCommunityIcons name="domain" size={26} color="#000000" />
+              </View>
+              <View style={styles.profileInfo}>
+                <Text style={styles.profileName} numberOfLines={1}>{fullName}</Text>
+                <Text style={styles.profileDept} numberOfLines={1}>{department}</Text>
+                <Text style={styles.profileInstitution} numberOfLines={1}>{institutionName}</Text>
+              </View>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.navItem}
-              onPress={() => {
-                onClose();
-                router.push('/change-password');
-              }}
-              activeOpacity={0.7}
-            >
-              <MaterialCommunityIcons name="lock-reset" size={22} color="#4B5563" />
-              <Text style={styles.navItemText}>Security & Password</Text>
-            </TouchableOpacity>
-          </ScrollView>
+            <View style={styles.headerDivider} />
 
-          {/* Drawer Footer with Logout */}
-          <View style={styles.footer}>
-            <TouchableOpacity style={styles.logoutBtn} onPress={onLogout} activeOpacity={0.7}>
-              <MaterialCommunityIcons name="logout" size={20} color="#DC2626" />
-              <Text style={styles.logoutText}>Sign Out</Text>
-            </TouchableOpacity>
-            <Text style={styles.versionText}>College ERP v2.4 • HOD Academic Portal</Text>
+            {/* Navigation Links Scrollable Area */}
+            <ScrollView style={styles.navScroll} showsVerticalScrollIndicator={false}>
+              {/* MAIN SECTION */}
+              <Text style={styles.sectionTitle}>MAIN</Text>
+              {MAIN_NAV.filter((item) => hasModuleAccess(item.key)).map(renderNavItem)}
+
+              {/* OPERATIONS SECTION */}
+              <Text style={[styles.sectionTitle, { marginTop: 18 }]}>OPERATIONS</Text>
+              {TEACHING_NAV.filter((item) => hasModuleAccess(item.key)).map(renderNavItem)}
+
+              {/* ACCOUNT SECTION */}
+              <Text style={[styles.sectionTitle, { marginTop: 18 }]}>ACCOUNT</Text>
+              <TouchableOpacity
+                style={[styles.navItem, activeTab === 'profile' && styles.navItemActive]}
+                onPress={() => {
+                  onClose();
+                  router.push('/(hod)/profile');
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.navIconBox, activeTab === 'profile' && styles.navIconBoxActive]}>
+                  <MaterialCommunityIcons
+                    name="account-outline"
+                    size={18}
+                    color={activeTab === 'profile' ? YellowTheme.primaryYellow : '#D1D5DB'}
+                  />
+                </View>
+                <Text style={[styles.navItemText, activeTab === 'profile' && styles.navItemTextActive]}>
+                  Profile & Account
+                </Text>
+                <Feather
+                  name="chevron-right"
+                  size={16}
+                  color={activeTab === 'profile' ? YellowTheme.primaryYellow : YellowTheme.drawerChevron}
+                  style={styles.navChevron}
+                />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.navItem}
+                onPress={() => {
+                  onClose();
+                  router.push('/notifications');
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={styles.navIconBox}>
+                  <MaterialCommunityIcons name="bell-outline" size={18} color="#D1D5DB" />
+                </View>
+                <Text style={styles.navItemText}>Notifications</Text>
+                <Feather name="chevron-right" size={16} color={YellowTheme.drawerChevron} style={styles.navChevron} />
+              </TouchableOpacity>
+            </ScrollView>
+
+            {/* Bottom Logout Button + Version */}
+            <View style={styles.drawerFooter}>
+              <TouchableOpacity style={styles.logoutBtn} onPress={onLogout} activeOpacity={0.8}>
+                <MaterialCommunityIcons name="logout" size={18} color={YellowTheme.primaryYellow} />
+                <Text style={styles.logoutText}>Logout</Text>
+              </TouchableOpacity>
+              <Text style={styles.versionText}>v1.0 · HOD Academic Portal</Text>
+            </View>
           </View>
         </Animated.View>
       </View>
@@ -308,8 +290,9 @@ export const HODDrawer: React.FC<HODDrawerProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: {
+  modalRoot: {
     flex: 1,
+    flexDirection: 'row',
   },
   backdrop: {
     position: 'absolute',
@@ -317,177 +300,196 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
   },
-  drawer: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderTopRightRadius: 20,
-    borderBottomRightRadius: 20,
-    paddingHorizontal: 16,
+  // Solid Dark Obsidian Drawer Panel with White Header
+  panel: {
+    backgroundColor: YellowTheme.drawerBg,
+    height: '100%',
     shadowColor: '#000',
-    shadowOpacity: 0.25,
     shadowOffset: { width: 4, height: 0 },
-    shadowRadius: 16,
-    elevation: 16,
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 20,
+    overflow: 'hidden',
+  },
+  drawerHeader: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
   },
   brandRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
   },
-  logoImage: {
-    width: 120,
-    height: 32,
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  brandLogo: {
+    width: 34,
+    height: 34,
+  },
+  brandText: {
+    fontFamily: FontFamily.extrabold,
+    fontSize: 18,
+    color: '#111827',
+    letterSpacing: 0.5,
   },
   closeBtn: {
     width: 32,
     height: 32,
-    borderRadius: 16,
+    borderRadius: 8,
     backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  profileSummary: {
+  drawerBody: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+
+  // Profile Card
+  profileSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFDF7',
-    borderRadius: BorderRadius.card,
-    borderWidth: 1,
-    borderColor: '#E8E5DC',
-    padding: 10,
-    gap: 10,
-    marginBottom: 14,
+    gap: 12,
+    marginBottom: 16,
   },
-  avatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#FFF4C7',
+  yellowAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: YellowTheme.primaryYellow,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  profileInfo: {
+    flex: 1,
+  },
   profileName: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#171717',
-    fontFamily: FontFamily.poppins,
+    fontFamily: FontFamily.bold,
+    fontSize: 16,
+    color: '#FFFFFF',
+    letterSpacing: -0.2,
   },
   profileDept: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#F4C430',
-    fontFamily: FontFamily.poppins,
+    fontFamily: FontFamily.regular,
+    fontSize: 12,
+    color: '#8A8A8A',
+    marginTop: 1,
   },
-  profileInstitute: {
-    fontSize: 10,
-    color: '#6B6B6B',
-    fontFamily: FontFamily.poppins,
+  profileInstitution: {
+    fontFamily: FontFamily.bold,
+    fontSize: 12,
+    color: YellowTheme.primaryYellow,
+    marginTop: 2,
   },
+  headerDivider: {
+    height: 1,
+    backgroundColor: '#262729',
+    marginBottom: 14,
+  },
+
+  // Navigation Links
   navScroll: {
     flex: 1,
   },
-  sectionHeader: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#8A8A8A',
-    letterSpacing: 0.8,
-    marginTop: 14,
-    marginBottom: 6,
-    fontFamily: FontFamily.poppins,
+  sectionTitle: {
+    fontFamily: FontFamily.bold,
+    fontSize: 11,
+    color: YellowTheme.drawerSectionText,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginBottom: 10,
+    marginLeft: 4,
   },
   navItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    gap: 12,
+    paddingVertical: 9,
+    paddingHorizontal: 8,
+    borderRadius: 8,
     marginBottom: 3,
   },
   navItemActive: {
-    backgroundColor: '#F4C430',
+    backgroundColor: YellowTheme.drawerActiveBg,
+  },
+  navIconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    backgroundColor: YellowTheme.drawerIconBadge,
+    borderWidth: 1,
+    borderColor: YellowTheme.drawerIconBadgeBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  navIconBoxActive: {
+    backgroundColor: 'rgba(244, 196, 48, 0.15)',
+    borderColor: YellowTheme.primaryYellow,
   },
   navItemText: {
     flex: 1,
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#374151',
-    fontFamily: FontFamily.poppins,
+    fontFamily: FontFamily.medium,
+    fontSize: 14,
+    color: YellowTheme.drawerItemText,
   },
   navItemTextActive: {
-    color: '#111827',
-    fontWeight: '800',
+    fontFamily: FontFamily.bold,
+    color: YellowTheme.primaryYellow,
   },
-  navBadge: {
-    backgroundColor: '#FEF3C7',
+  navChevron: {
+    marginLeft: 6,
+  },
+  badgePill: {
+    backgroundColor: YellowTheme.primaryYellow,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 10,
+    marginRight: 4,
   },
-  navBadgeText: {
+  badgePillText: {
+    fontFamily: FontFamily.bold,
     fontSize: 10,
-    fontWeight: '700',
-    color: '#D97706',
-    fontFamily: FontFamily.poppins,
+    color: '#000000',
   },
-  roleSwitchSection: {
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#E8E5DC',
-  },
-  roleGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  roleChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: '#F3F4F6',
-    borderWidth: 1,
-    borderColor: '#E8E5DC',
-    gap: 4,
-  },
-  roleChipActive: {
-    backgroundColor: '#1A1B1C',
-    borderColor: '#1A1B1C',
-  },
-  roleChipText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#4B5563',
-    fontFamily: FontFamily.poppins,
-  },
-  roleChipTextActive: {
-    color: '#F4C430',
-  },
-  footer: {
+
+  // Bottom Footer Section
+  drawerFooter: {
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
-    gap: 8,
+    borderTopColor: '#222325',
   },
   logoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    height: 46,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: YellowTheme.primaryYellow,
+    backgroundColor: '#1E1F21',
     gap: 8,
-    paddingVertical: 6,
   },
   logoutText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#DC2626',
-    fontFamily: FontFamily.poppins,
+    fontFamily: FontFamily.bold,
+    fontSize: 14,
+    color: YellowTheme.primaryYellow,
   },
   versionText: {
-    fontSize: 10,
-    color: '#9CA3AF',
-    fontFamily: FontFamily.poppins,
+    fontFamily: FontFamily.regular,
+    fontSize: 11,
+    color: '#5A5A5A',
+    textAlign: 'center',
+    marginTop: 10,
   },
 });

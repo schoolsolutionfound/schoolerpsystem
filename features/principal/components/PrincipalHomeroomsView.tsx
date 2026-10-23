@@ -20,7 +20,6 @@ import { HomeroomSection } from '../types/principal.types';
 import {
   fetchClassSectionStudentsApi,
   StudentDetailDossier,
-  updateStudentDetailApi,
 } from '../../../api/principal';
 import { DEFAULT_INSTITUTION_CLASSES } from '../constants/defaultClasses';
 import { useUserStore } from '../../../store/useUserStore';
@@ -31,6 +30,7 @@ interface PrincipalHomeroomsViewProps {
   refreshing: boolean;
   onRefresh: () => void;
   onAssignTeacher: (section: HomeroomSection) => void;
+  title?: string;
 }
 
 // Deterministic generator helper to ensure 100% rich, interactive experience
@@ -91,7 +91,7 @@ function generateMockStudentsForClass(sec: HomeroomSection): StudentDetailDossie
       academicYear: sec.grade || '1st Year',
       section: sec.section || 'A',
       className: sec.name,
-      roomNumber: sec.roomNumber || 'Room 101',
+      roomNumber: '',
       classTeacherName: sec.homeroomTeacherName || 'Faculty Advisor',
       gender: i % 2 === 0 ? 'Male' : 'Female',
       dob: `2004-0${(i % 9) + 1}-15`,
@@ -135,7 +135,7 @@ function detectClassDepartment(sec: HomeroomSection): string {
     if (d.includes('sci') || d.includes('math') || d.includes('applied')) return 'Applied Sciences';
     return sec.department.trim();
   }
-  const text = `${sec.name || ''} ${sec.roomNumber || ''}`.toLowerCase();
+  const text = (sec.name || '').toLowerCase();
   if (text.includes('cse') || text.includes('computer')) return 'Computer Science';
   if (text.includes('ece') || text.includes('electronic')) return 'Electronics & Comm';
   if (text.includes('mech')) return 'Mechanical Eng';
@@ -181,6 +181,7 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
   refreshing,
   onRefresh,
   onAssignTeacher,
+  title = 'All Classes',
 }) => {
   const { width, height } = useWindowDimensions();
   const isDesktop = width >= 768;
@@ -209,6 +210,7 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
   // Level 2: Inside Class Student Search & Filter
   const [studentSearch, setStudentSearch] = useState('');
   const [studentFilter, setStudentFilter] = useState<'all' | 'fee_pending' | 'low_attendance' | 'top_cgpa'>('all');
+  const [studentFilterDropdownVisible, setStudentFilterDropdownVisible] = useState(false);
   const [classStudents, setClassStudents] = useState<StudentDetailDossier[]>([]);
   const [loadingClassStudents, setLoadingClassStudents] = useState(false);
 
@@ -227,102 +229,7 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
     }
   };
 
-  // Student Edit Modal State & Handlers
-  const [editingStudent, setEditingStudent] = useState<StudentDetailDossier | null>(null);
-  const [editForm, setEditForm] = useState({
-    fullName: '',
-    rollNoOrUSN: '',
-    phone: '',
-    parentPhone: '',
-    email: '',
-    gender: '',
-    dob: '',
-    bloodGroup: '',
-    address: '',
-    cgpa: '',
-    backlogs: '',
-    attendanceRate: '',
-    tenthScore: '',
-    twelfthScore: '',
-  });
-  const [isSavingEdit, setIsSavingEdit] = useState(false);
-  const [saveSuccessMsg, setSaveSuccessMsg] = useState(false);
 
-  const openEditModal = (stu: StudentDetailDossier) => {
-    setEditingStudent(stu);
-    setEditForm({
-      fullName: stu.fullName || '',
-      rollNoOrUSN: stu.rollNoOrUSN || '',
-      phone: stu.phone || '',
-      parentPhone: stu.parentPhone || '',
-      email: stu.email || '',
-      gender: stu.gender || 'Male',
-      dob: stu.dob || '',
-      bloodGroup: stu.bloodGroup || '',
-      address: stu.address || '',
-      cgpa: (stu.academics?.cgpa ?? '').toString(),
-      backlogs: (stu.academics?.backlogs ?? '').toString(),
-      attendanceRate: (stu.attendance?.rate ?? '').toString(),
-      tenthScore: stu.tenthPercentage || '',
-      twelfthScore: stu.twelfthPercentage || '',
-    });
-    setSaveSuccessMsg(false);
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editingStudent) return;
-    setIsSavingEdit(true);
-
-    const numCgpa = parseFloat(editForm.cgpa) || editingStudent.academics.cgpa;
-    const numBacklogs = parseInt(editForm.backlogs, 10) || 0;
-    const numAttRate = Math.min(100, Math.max(0, parseInt(editForm.attendanceRate, 10) || editingStudent.attendance.rate));
-
-    const updatedStudent: StudentDetailDossier = {
-      ...editingStudent,
-      fullName: editForm.fullName.trim() || editingStudent.fullName,
-      rollNoOrUSN: editForm.rollNoOrUSN.trim() || editingStudent.rollNoOrUSN,
-      phone: editForm.phone.trim() || editingStudent.phone,
-      parentPhone: editForm.parentPhone.trim() || editingStudent.parentPhone,
-      email: editForm.email.trim() || editingStudent.email,
-      gender: editForm.gender.trim() || editingStudent.gender,
-      dob: editForm.dob.trim() || editingStudent.dob,
-      bloodGroup: editForm.bloodGroup.trim() || editingStudent.bloodGroup,
-      address: editForm.address.trim() || editingStudent.address,
-      tenthPercentage: editForm.tenthScore.trim() || editingStudent.tenthPercentage,
-      twelfthPercentage: editForm.twelfthScore.trim() || editingStudent.twelfthPercentage,
-      attendance: {
-        ...editingStudent.attendance,
-        rate: numAttRate,
-        status: numAttRate >= 90 ? 'good' : numAttRate >= 75 ? 'normal' : 'at_risk',
-      },
-      academics: {
-        ...editingStudent.academics,
-        cgpa: numCgpa,
-        backlogs: numBacklogs,
-        status: numBacklogs === 0 ? 'passed' : 'reappear',
-      },
-    };
-
-    // Update in local classStudents state
-    setClassStudents((prev) =>
-      prev.map((s) => (s.id === updatedStudent.id ? updatedStudent : s))
-    );
-
-    // If viewing this student in the dossier modal, update it as well
-    if (selectedStudent?.id === updatedStudent.id) {
-      setSelectedStudent(updatedStudent);
-    }
-
-    // Sync to API
-    await updateStudentDetailApi(updatedStudent.id, updatedStudent);
-
-    setIsSavingEdit(false);
-    setSaveSuccessMsg(true);
-    setTimeout(() => {
-      setSaveSuccessMsg(false);
-      setEditingStudent(null);
-    }, 700);
-  };
 
   // Load students when a class is selected
   useEffect(() => {
@@ -364,6 +271,28 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
     return homerooms && homerooms.length > 0 ? homerooms : DEFAULT_INSTITUTION_CLASSES;
   }, [homerooms]);
 
+  // Matching students based on search query (lazily generated only when user searches with 2+ characters)
+  const matchingStudents = useMemo(() => {
+    const q = classSearch.trim().toLowerCase();
+    if (q.length < 2) return [];
+
+    const list: StudentDetailDossier[] = [];
+    for (const sec of effectiveHomerooms) {
+      const students = generateMockStudentsForClass(sec);
+      for (const stu of students) {
+        const matchesName = stu.fullName.toLowerCase().includes(q);
+        const matchesUSN = stu.rollNoOrUSN.toLowerCase().includes(q);
+        const matchesDept = (stu.department || '').toLowerCase().includes(q);
+        const matchesEmail = stu.email.toLowerCase().includes(q);
+        if (matchesName || matchesUSN || matchesDept || matchesEmail) {
+          list.push(stu);
+          if (list.length >= 18) return list;
+        }
+      }
+    }
+    return list;
+  }, [effectiveHomerooms, classSearch]);
+
   // Derived Department List for filter modal
   const availableDepartments = useMemo(() => {
     const set = new Set<string>();
@@ -397,8 +326,7 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
         const matches =
           sec.name.toLowerCase().includes(q) ||
           dept.toLowerCase().includes(q) ||
-          (sec.homeroomTeacherName && sec.homeroomTeacherName.toLowerCase().includes(q)) ||
-          (sec.roomNumber && sec.roomNumber.toLowerCase().includes(q));
+          (sec.homeroomTeacherName && sec.homeroomTeacherName.toLowerCase().includes(q));
         if (!matches) return false;
       }
       return true;
@@ -444,10 +372,161 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
     return effectiveHomerooms.reduce((acc, h) => acc + (h.studentCount || 40), 0);
   }, [effectiveHomerooms]);
 
+  // Single pass calculation of student filter counts
+  const classStudentStats = useMemo(() => {
+    let defaulters = 0;
+    let lowAtt = 0;
+    let topCgpa = 0;
+    for (let i = 0; i < classStudents.length; i++) {
+      const s = classStudents[i];
+      if (s.fees.pendingFee > 0) defaulters++;
+      if (s.attendance.rate < 75) lowAtt++;
+      if (s.academics.cgpa >= 8.5) topCgpa++;
+    }
+    return { defaulters, lowAtt, topCgpa };
+  }, [classStudents]);
+
+  // Level 1: Classes Pagination State
+  const [classesPage, setClassesPage] = useState(1);
+  const [isClassesPageLoading, setIsClassesPageLoading] = useState(false);
+  const CLASSES_PER_PAGE = 6;
+
+  useEffect(() => {
+    setClassesPage(1);
+  }, [classSearch, classDeptFilter, classYearFilter, classProgramFilter]);
+
+  const totalClassesPages = Math.max(1, Math.ceil(filteredClasses.length / CLASSES_PER_PAGE));
+  const safeClassesPage = Math.min(classesPage, totalClassesPages);
+
+  const paginatedClasses = useMemo(() => {
+    const startIndex = (safeClassesPage - 1) * CLASSES_PER_PAGE;
+    return filteredClasses.slice(startIndex, startIndex + CLASSES_PER_PAGE);
+  }, [filteredClasses, safeClassesPage]);
+
+  // Level 2: Student Roster Pagination State
+  const [studentsPage, setStudentsPage] = useState(1);
+  const [isStudentsPageLoading, setIsStudentsPageLoading] = useState(false);
+  const STUDENTS_PER_PAGE = 8;
+
+  useEffect(() => {
+    setStudentsPage(1);
+  }, [selectedClass, studentSearch, studentFilter]);
+
+  const totalStudentsPages = Math.max(1, Math.ceil(filteredStudents.length / STUDENTS_PER_PAGE));
+  const safeStudentsPage = Math.min(studentsPage, totalStudentsPages);
+
+  const paginatedStudents = useMemo(() => {
+    const startIndex = (safeStudentsPage - 1) * STUDENTS_PER_PAGE;
+    return filteredStudents.slice(startIndex, startIndex + STUDENTS_PER_PAGE);
+  }, [filteredStudents, safeStudentsPage]);
+
+  // Classes Pagination Controls
+  const renderClassesPaginationControls = () => {
+    if (filteredClasses.length <= CLASSES_PER_PAGE) return null;
+    const startItem = (safeClassesPage - 1) * CLASSES_PER_PAGE + 1;
+    const endItem = Math.min(safeClassesPage * CLASSES_PER_PAGE, filteredClasses.length);
+
+    return (
+      <View style={styles.paginationContainer}>
+        <Text style={styles.paginationCountText}>
+          Showing <Text style={{ fontFamily: FontFamily.bold }}>{startItem}-{endItem}</Text> of{' '}
+          <Text style={{ fontFamily: FontFamily.bold }}>{filteredClasses.length}</Text> Classes
+        </Text>
+
+        <View style={styles.paginationActionRow}>
+          <TouchableOpacity
+            style={[styles.pageBtn, safeClassesPage === 1 && styles.pageBtnDisabled]}
+            disabled={safeClassesPage === 1}
+            onPress={() => {
+              setIsClassesPageLoading(true);
+              setClassesPage((prev) => Math.max(1, prev - 1));
+              setTimeout(() => setIsClassesPageLoading(false), 140);
+            }}
+            activeOpacity={0.8}
+          >
+            <Feather name="chevron-left" size={15} color={safeClassesPage === 1 ? '#94A3B8' : '#0F172A'} />
+            <Text style={[styles.pageBtnText, safeClassesPage === 1 && styles.pageBtnTextDisabled]}>Prev</Text>
+          </TouchableOpacity>
+
+          <View style={styles.pageIndicatorPill}>
+            <Text style={styles.pageIndicatorText}>
+              {safeClassesPage} / {totalClassesPages}
+            </Text>
+          </View>
+
+          <TouchableOpacity
+            style={[styles.pageBtn, safeClassesPage === totalClassesPages && styles.pageBtnDisabled]}
+            disabled={safeClassesPage === totalClassesPages}
+            onPress={() => {
+              setIsClassesPageLoading(true);
+              setClassesPage((prev) => Math.min(totalClassesPages, prev + 1));
+              setTimeout(() => setIsClassesPageLoading(false), 140);
+            }}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.pageBtnText, safeClassesPage === totalClassesPages && styles.pageBtnTextDisabled]}>Next</Text>
+            <Feather name="chevron-right" size={15} color={safeClassesPage === totalClassesPages ? '#94A3B8' : '#0F172A'} />
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
+  // Students Pagination Controls
+  const renderStudentsPaginationControls = () => {
+    if (filteredStudents.length <= STUDENTS_PER_PAGE) return null;
+    const startItem = (safeStudentsPage - 1) * STUDENTS_PER_PAGE + 1;
+    const endItem = Math.min(safeStudentsPage * STUDENTS_PER_PAGE, filteredStudents.length);
+
+    return (
+      <View style={styles.paginationContainer}>
+        <Text style={styles.paginationCountText}>
+          Showing <Text style={{ fontFamily: FontFamily.bold }}>{startItem}-{endItem}</Text> of{' '}
+          <Text style={{ fontFamily: FontFamily.bold }}>{filteredStudents.length}</Text> Students
+        </Text>
+
+        <View style={styles.paginationActionRow}>
+          <TouchableOpacity
+            style={[styles.pageBtn, safeStudentsPage === 1 && styles.pageBtnDisabled]}
+            disabled={safeStudentsPage === 1}
+            onPress={() => {
+              setIsStudentsPageLoading(true);
+              setStudentsPage((prev) => Math.max(1, prev - 1));
+              setTimeout(() => setIsStudentsPageLoading(false), 140);
+            }}
+            activeOpacity={0.8}
+          >
+            <Feather name="chevron-left" size={15} color={safeStudentsPage === 1 ? '#94A3B8' : '#0F172A'} />
+            <Text style={[styles.pageBtnText, safeStudentsPage === 1 && styles.pageBtnTextDisabled]}>Prev</Text>
+          </TouchableOpacity>
+
+          <View style={styles.pageIndicatorPill}>
+            <Text style={styles.pageIndicatorText}>
+              {safeStudentsPage} / {totalStudentsPages}
+            </Text>
+          </View>
+
+          <TouchableOpacity
+            style={[styles.pageBtn, safeStudentsPage === totalStudentsPages && styles.pageBtnDisabled]}
+            disabled={safeStudentsPage === totalStudentsPages}
+            onPress={() => {
+              setIsStudentsPageLoading(true);
+              setStudentsPage((prev) => Math.min(totalStudentsPages, prev + 1));
+              setTimeout(() => setIsStudentsPageLoading(false), 140);
+            }}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.pageBtnText, safeStudentsPage === totalStudentsPages && styles.pageBtnTextDisabled]}>Next</Text>
+            <Feather name="chevron-right" size={15} color={safeStudentsPage === totalStudentsPages ? '#94A3B8' : '#0F172A'} />
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
   // Render Level 2: Inside Class Student Roster View
   if (selectedClass) {
-    const totalClassDues = classStudents.reduce((acc, s) => acc + s.fees.pendingFee, 0);
-    const defaultersCount = classStudents.filter((s) => s.fees.pendingFee > 0).length;
+    const defaultersCount = classStudentStats.defaulters;
 
     return (
       <View style={styles.container}>
@@ -465,20 +544,27 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
 
             {/* Class Banner Card */}
             <View style={[styles.classDetailHeaderCard, isDesktop && styles.classDetailHeaderCardDesktop]}>
-              <View style={[{ flex: 1 }, isDesktop && { marginRight: 24 }]}>
+              <View style={{ width: '100%' }}>
                 <View style={styles.classTitleRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.classDetailTitle}>{selectedClass.name}</Text>
-                    <View style={styles.badgeRow}>
-                      <View style={styles.tagBadge}>
-                        <Text style={styles.tagBadgeText}>{detectClassDepartment(selectedClass)}</Text>
+                  <View style={{ flex: 1, marginRight: 12 }}>
+                    <Text style={styles.classDetailTitle} numberOfLines={1}>
+                      {selectedClass.name ||
+                        (selectedClass as any).className ||
+                        [selectedClass.department, selectedClass.grade, selectedClass.section].filter(Boolean).join(' ') ||
+                        'Class Roster'}
+                    </Text>
+                    <View style={styles.classTeacherContainer}>
+                      <View style={styles.classTeacherHeadingRow}>
+                        <MaterialCommunityIcons name="account-tie" size={13} color="#6B7280" />
+                        <Text style={styles.classTeacherHeading}>Teacher</Text>
+                        <Text style={styles.metaDot}>·</Text>
+                        <Text style={styles.classTeacherDeptText}>
+                          {selectedClass.department || 'Academics'}
+                        </Text>
                       </View>
-                      <View style={styles.tagBadgeNeutral}>
-                        <Text style={styles.tagBadgeNeutralText}>{detectClassProgram(selectedClass)}</Text>
-                      </View>
-                      <View style={styles.tagBadgeNeutral}>
-                        <Text style={styles.tagBadgeNeutralText}>{selectedClass.roomNumber || 'Room 101'}</Text>
-                      </View>
+                      <Text style={styles.classTeacherNameText} numberOfLines={1}>
+                        {selectedClass.homeroomTeacherName || 'Not Assigned'}
+                      </Text>
                     </View>
                   </View>
                   <TouchableOpacity
@@ -486,37 +572,16 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
                     onPress={() => onAssignTeacher(selectedClass)}
                     activeOpacity={0.8}
                   >
-                    <MaterialCommunityIcons name="account-tie" size={14} color="#000000" />
-                    <Text style={styles.reassignTeacherText}>Teacher</Text>
+                    <MaterialCommunityIcons name="account-edit" size={14} color="#000000" />
+                    <Text style={styles.reassignTeacherText}>
+                      {selectedClass.homeroomTeacherName ? 'Change Teacher' : 'Assign Teacher'}
+                    </Text>
                   </TouchableOpacity>
-                </View>
-              </View>
-
-              <View style={[styles.classStatsRow, isDesktop && styles.classStatsRowDesktop]}>
-                <View style={styles.classStatItem}>
-                  <Text style={[styles.classStatVal, isDesktop && { fontSize: 20 }]}>
-                    {classStudents.length || selectedClass.studentCount || 40}
-                  </Text>
-                  <Text style={styles.classStatLabel}>STUDENTS</Text>
-                </View>
-                <View style={styles.classStatDivider} />
-                <View style={styles.classStatItem}>
-                  <Text style={[styles.classStatVal, { color: '#B45309' }, isDesktop && { fontSize: 20 }]}>
-                    {defaultersCount}
-                  </Text>
-                  <Text style={styles.classStatLabel}>FEE DUES</Text>
-                </View>
-                <View style={styles.classStatDivider} />
-                <View style={styles.classStatItem}>
-                  <Text style={[styles.classStatVal, { color: '#16A34A' }, isDesktop && { fontSize: 20 }]}>
-                    {selectedClass.attendanceRate ? `${selectedClass.attendanceRate}%` : '93%'}
-                  </Text>
-                  <Text style={styles.classStatLabel}>ATTENDANCE</Text>
                 </View>
               </View>
             </View>
 
-            {/* Search Bar for Students (USN or Name) */}
+            {/* Search Bar for Students (USN or Name) with In-Bar Filter */}
             <View style={styles.searchBar}>
               <MaterialCommunityIcons name="magnify" size={20} color={YellowTheme.primaryYellow} style={styles.searchIcon} />
               <TextInput
@@ -527,35 +592,58 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
                 onChangeText={setStudentSearch}
               />
               {studentSearch ? (
-                <TouchableOpacity onPress={() => setStudentSearch('')}>
+                <TouchableOpacity onPress={() => setStudentSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                   <MaterialCommunityIcons name="close-circle" size={18} color="#9CA3AF" />
                 </TouchableOpacity>
               ) : null}
-            </View>
 
-            {/* Quick Filter Tabs */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterTabsRow}>
-              {[
-                { key: 'all' as const, label: `All Students (${classStudents.length})` },
-                { key: 'fee_pending' as const, label: `Fee Pending (${defaultersCount})` },
-                { key: 'low_attendance' as const, label: `Low Attendance (<75%)` },
-                { key: 'top_cgpa' as const, label: `Top CGPA (≥8.5)` },
-              ].map((tab) => {
-                const active = studentFilter === tab.key;
-                return (
+              {/* Search Filter Divider */}
+              <View style={styles.searchFilterDivider} />
+
+              {/* In-bar Filter Button */}
+              <TouchableOpacity
+                style={[
+                  styles.inBarFilterBtn,
+                  studentFilter !== 'all' && styles.inBarFilterBtnActive,
+                ]}
+                onPress={() => setStudentFilterDropdownVisible(true)}
+                activeOpacity={0.7}
+              >
+                <MaterialCommunityIcons
+                  name="tune-variant"
+                  size={15}
+                  color={studentFilter !== 'all' ? '#000000' : '#4B5563'}
+                />
+                <Text
+                  style={[
+                    styles.inBarFilterText,
+                    studentFilter !== 'all' && styles.inBarFilterTextActive,
+                  ]}
+                  numberOfLines={1}
+                >
+                  {studentFilter === 'all'
+                    ? 'Filter'
+                    : studentFilter === 'fee_pending'
+                    ? `Fee Pending (${defaultersCount})`
+                    : studentFilter === 'low_attendance'
+                    ? 'Low Attendance'
+                    : 'Top CGPA'}
+                </Text>
+                {studentFilter !== 'all' ? (
                   <TouchableOpacity
-                    key={tab.key}
-                    style={[styles.filterChip, active && styles.filterChipActive]}
-                    onPress={() => setStudentFilter(tab.key)}
-                    activeOpacity={0.8}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      setStudentFilter('all');
+                    }}
+                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                   >
-                    <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
-                      {tab.label}
-                    </Text>
+                    <Feather name="x" size={13} color="#000000" />
                   </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+                ) : (
+                  <Feather name="chevron-down" size={13} color="#6B7280" />
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
@@ -570,117 +658,204 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
             contentContainerStyle={[styles.scrollContent, { maxWidth: contentMaxWidth, alignSelf: 'center', width: '100%', paddingHorizontal: horizontalPadding }]}
             showsVerticalScrollIndicator={false}
           >
-            {filteredStudents.length === 0 ? (
+            {isStudentsPageLoading ? (
+              <View style={styles.inPageLoaderWrap}>
+                <ActivityIndicator size="large" color="#F4C430" />
+                <Text style={styles.inPageLoaderText}>Loading Student Records...</Text>
+              </View>
+            ) : filteredStudents.length === 0 ? (
               <View style={styles.emptyCard}>
                 <MaterialCommunityIcons name="account-search-outline" size={42} color="#9CA3AF" />
                 <Text style={styles.emptyTitle}>No matching students found</Text>
                 <Text style={styles.emptySub}>Try searching with a different name or USN number.</Text>
               </View>
             ) : (
-              <View style={[styles.studentsGrid, { flexDirection: 'row', flexWrap: 'wrap', gap: gridGap }]}>
-                {filteredStudents.map((stu) => {
-                  const isOverdue = stu.fees.pendingFee > 0;
-                  const isShortage = stu.attendance.rate < 75;
+              <>
+                <View style={[styles.studentsGrid, { flexDirection: 'row', flexWrap: 'wrap', gap: gridGap }]}>
+                  {paginatedStudents.map((stu) => {
+                    const isOverdue = stu.fees.pendingFee > 0;
+                    const isShortage = stu.attendance.rate < 75;
 
-                  return (
-                    <TouchableOpacity
-                      key={stu.id}
-                      style={[styles.studentCard, { width: cardWidth }]}
-                      onPress={() => {
-                        setSelectedStudent(stu);
-                        setStudentModalTab('biodata');
-                      }}
-                      activeOpacity={0.7}
-                    >
-                      <View style={styles.studentCardTop}>
-                        {/* Avatar initial */}
-                        <View style={styles.studentAvatar}>
-                          <Text style={styles.studentAvatarText}>
-                            {stu.fullName.substring(0, 2).toUpperCase()}
-                          </Text>
-                        </View>
+                    return (
+                      <TouchableOpacity
+                        key={stu.id}
+                        style={[styles.studentCard, { width: cardWidth }]}
+                        onPress={() => {
+                          setSelectedStudent(stu);
+                          setStudentModalTab('biodata');
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <View style={styles.studentCardTop}>
+                          {/* Avatar initial */}
+                          <View style={styles.studentAvatar}>
+                            <Text style={styles.studentAvatarText}>
+                              {stu.fullName.substring(0, 2).toUpperCase()}
+                            </Text>
+                          </View>
 
-                        {/* Main identity */}
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.studentName} numberOfLines={1}>
-                            {stu.fullName}
-                          </Text>
-                          <View style={styles.usnBadgeRow}>
-                            <View style={styles.usnBadge}>
-                              <Text style={styles.usnBadgeText}>{stu.rollNoOrUSN}</Text>
+                          {/* Main identity */}
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.studentName} numberOfLines={1}>
+                              {stu.fullName}
+                            </Text>
+                            <View style={styles.usnBadgeRow}>
+                              <View style={styles.usnBadge}>
+                                <Text style={styles.usnBadgeText}>{stu.rollNoOrUSN}</Text>
+                              </View>
+                              <Text style={styles.studentPhoneText} numberOfLines={1}>{stu.phone || stu.email}</Text>
                             </View>
-                            <Text style={styles.studentPhoneText} numberOfLines={1}>{stu.phone || stu.email}</Text>
                           </View>
                         </View>
 
-                        {/* Right Edit Icon */}
-                        <TouchableOpacity
-                          style={styles.studentCardEditBtn}
-                          onPress={(e) => {
-                            e.stopPropagation();
-                            openEditModal(stu);
-                          }}
-                          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                          activeOpacity={0.7}
-                        >
-                          <Feather name="edit-2" size={16} color="#4B5563" />
-                        </TouchableOpacity>
-                      </View>
-
-                      {/* Bottom Status Snapshot Row */}
-                      <View style={styles.studentCardStats}>
-                        {/* Attendance Pill (Text only, zero icon) */}
-                        <View
-                          style={[
-                            styles.statusBadge,
-                            isShortage ? styles.badgeDanger : styles.badgeSuccess,
-                          ]}
-                        >
-                          <Text
+                        {/* Bottom Status Snapshot Row */}
+                        <View style={styles.studentCardStats}>
+                          {/* Attendance Pill (Text only, zero icon) */}
+                          <View
                             style={[
-                              styles.statusBadgeText,
-                              isShortage ? styles.badgeDangerText : styles.badgeSuccessText,
+                              styles.statusBadge,
+                              isShortage ? styles.badgeDanger : styles.badgeSuccess,
                             ]}
                           >
-                            {stu.attendance.rate}% Att
-                          </Text>
-                        </View>
+                            <Text
+                              style={[
+                                styles.statusBadgeText,
+                                isShortage ? styles.badgeDangerText : styles.badgeSuccessText,
+                              ]}
+                            >
+                              {stu.attendance.rate}% Att
+                            </Text>
+                          </View>
 
-                        {/* Fees Due Pill (Text only, zero icon) */}
-                        <View
-                          style={[
-                            styles.statusBadge,
-                            isOverdue ? styles.badgeWarning : styles.badgeSuccess,
-                          ]}
-                        >
-                          <Text
+                          {/* Fees Due Pill (Text only, zero icon) */}
+                          <View
                             style={[
-                              styles.statusBadgeText,
-                              isOverdue ? styles.badgeWarningText : styles.badgeSuccessText,
+                              styles.statusBadge,
+                              isOverdue ? styles.badgeWarning : styles.badgeSuccess,
                             ]}
                           >
-                            {isOverdue ? `₹${stu.fees.pendingFee.toLocaleString()} Due` : 'Fees Paid'}
-                          </Text>
-                        </View>
+                            <Text
+                              style={[
+                                styles.statusBadgeText,
+                                isOverdue ? styles.badgeWarningText : styles.badgeSuccessText,
+                              ]}
+                            >
+                              {isOverdue ? `₹${stu.fees.pendingFee.toLocaleString()} Due` : 'Fees Paid'}
+                            </Text>
+                          </View>
 
-                        {/* CGPA */}
-                        <View style={[styles.statusBadge, styles.badgeNeutral]}>
-                          <Text style={styles.badgeNeutralText}>CGPA: {stu.academics.cgpa}</Text>
+                          {/* CGPA */}
+                          <View style={[styles.statusBadge, styles.badgeNeutral]}>
+                            <Text style={styles.badgeNeutralText}>CGPA: {stu.academics.cgpa}</Text>
+                          </View>
                         </View>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {renderStudentsPaginationControls()}
+              </>
             )}
             <View style={{ height: 40 }} />
           </ScrollView>
         )}
 
         {/* Level 3: Student Details & Bio Data Dossier Modal */}
+        {renderStudentFilterModal()}
         {renderStudentModal()}
-        {renderEditStudentModal()}
       </View>
+    );
+  }
+
+  // Helper renderer for Level 2 Student Filter Dropdown Modal
+  function renderStudentFilterModal() {
+    if (!studentFilterDropdownVisible) return null;
+
+    const defaultersCount = classStudentStats.defaulters;
+    const lowAttCount = classStudentStats.lowAtt;
+    const topCgpaCount = classStudentStats.topCgpa;
+
+    return (
+      <Modal
+        visible={studentFilterDropdownVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setStudentFilterDropdownVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.filterDropdownBackdrop}
+          activeOpacity={1}
+          onPress={() => setStudentFilterDropdownVisible(false)}
+        >
+          <View style={styles.filterDropdownCard}>
+            <View style={styles.filterDropdownHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <MaterialCommunityIcons name="tune-variant" size={18} color="#111827" />
+                <Text style={styles.filterDropdownTitle}>Filter Students</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setStudentFilterDropdownVisible(false)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Feather name="x" size={18} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.filterDropdownOptionsList}>
+              {[
+                { key: 'all' as const, label: 'All Students', count: classStudents.length, icon: 'account-group-outline' },
+                { key: 'fee_pending' as const, label: 'Fee Pending', count: defaultersCount, icon: 'currency-inr', color: '#B45309' },
+                { key: 'low_attendance' as const, label: 'Low Attendance (<75%)', count: lowAttCount, icon: 'alert-circle-outline', color: '#DC2626' },
+                { key: 'top_cgpa' as const, label: 'Top CGPA (≥8.5)', count: topCgpaCount, icon: 'star-outline', color: '#16A34A' },
+              ].map((opt) => {
+                const selected = studentFilter === opt.key;
+                return (
+                  <TouchableOpacity
+                    key={opt.key}
+                    style={[styles.filterDropdownOptionItem, selected && styles.filterDropdownOptionItemSelected]}
+                    onPress={() => {
+                      setStudentFilter(opt.key);
+                      setStudentFilterDropdownVisible(false);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <MaterialCommunityIcons
+                        name={opt.icon as any}
+                        size={18}
+                        color={selected ? '#111827' : (opt.color || '#6B7280')}
+                      />
+                      <Text style={[styles.filterDropdownOptionText, selected && styles.filterDropdownOptionTextSelected]}>
+                        {opt.label}
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Text style={[styles.filterDropdownCountBadge, selected && styles.filterDropdownCountBadgeSelected]}>
+                        {opt.count}
+                      </Text>
+                      {selected && <Feather name="check" size={16} color="#111827" />}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {studentFilter !== 'all' && (
+              <TouchableOpacity
+                style={styles.filterDropdownClearBtn}
+                onPress={() => {
+                  setStudentFilter('all');
+                  setStudentFilterDropdownVisible(false);
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.filterDropdownClearText}>Reset to All Students</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Modal>
     );
   }
 
@@ -724,13 +899,7 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
                 </View>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <TouchableOpacity
-                  onPress={() => openEditModal(selectedStudent)}
-                  style={styles.modalHeaderActionBtn}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <Feather name="edit-2" size={16} color="#000000" />
-                </TouchableOpacity>
+
                 <TouchableOpacity
                   onPress={() => setSelectedStudent(null)}
                   style={styles.modalCloseBtn}
@@ -1053,277 +1222,7 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
     );
   }
 
-  // Helper renderer for Level 3 Student Edit Modal
-  function renderEditStudentModal() {
-    if (!editingStudent) return null;
 
-    return (
-      <Modal
-        visible={!!editingStudent}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setEditingStudent(null)}
-      >
-        <View style={styles.modalBackdrop}>
-          <Pressable
-            style={StyleSheet.absoluteFill}
-            onPress={() => setEditingStudent(null)}
-          />
-          <View
-            style={[styles.editModalCard, { width: modalMaxWidth, maxWidth: modalMaxWidth, height: modalHeight }]}
-          >
-            {/* Header */}
-            <View style={styles.editModalHeader}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
-                <View style={styles.editModalIconBadge}>
-                  <Feather name="edit-2" size={16} color="#000000" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.editModalTitle}>Edit Student Record</Text>
-                  <Text style={styles.editModalSubtitle} numberOfLines={1}>
-                    USN: {editingStudent.rollNoOrUSN} · {editingStudent.className}
-                  </Text>
-                </View>
-              </View>
-              <TouchableOpacity
-                onPress={() => setEditingStudent(null)}
-                style={styles.modalCloseBtn}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Feather name="x" size={20} color="#111827" />
-              </TouchableOpacity>
-            </View>
-
-            {/* Scrollable Form */}
-            <ScrollView
-              style={styles.modalScrollBody}
-              contentContainerStyle={styles.modalScrollContent}
-              showsVerticalScrollIndicator={true}
-              nestedScrollEnabled={true}
-              keyboardShouldPersistTaps="handled"
-            >
-              {/* Section 1: Basic Information */}
-              <Text style={styles.formSectionHeading}>BASIC INFORMATION</Text>
-              <View style={styles.formRow}>
-                <View style={styles.formFieldFlex}>
-                  <Text style={styles.formLabel}>Full Name</Text>
-                  <TextInput
-                    style={styles.formInput}
-                    value={editForm.fullName}
-                    onChangeText={(val) => setEditForm((prev) => ({ ...prev, fullName: val }))}
-                    placeholder="Student Full Name"
-                    placeholderTextColor="#9CA3AF"
-                  />
-                </View>
-              </View>
-
-              <View style={styles.formRowTwoCol}>
-                <View style={styles.formCol}>
-                  <Text style={styles.formLabel}>USN / Roll No</Text>
-                  <TextInput
-                    style={styles.formInput}
-                    value={editForm.rollNoOrUSN}
-                    onChangeText={(val) => setEditForm((prev) => ({ ...prev, rollNoOrUSN: val }))}
-                    placeholder="e.g. 1VM26AIM001"
-                    placeholderTextColor="#9CA3AF"
-                    autoCapitalize="characters"
-                  />
-                </View>
-                <View style={styles.formCol}>
-                  <Text style={styles.formLabel}>Gender</Text>
-                  <TextInput
-                    style={styles.formInput}
-                    value={editForm.gender}
-                    onChangeText={(val) => setEditForm((prev) => ({ ...prev, gender: val }))}
-                    placeholder="Male / Female"
-                    placeholderTextColor="#9CA3AF"
-                  />
-                </View>
-              </View>
-
-              <View style={styles.formRowTwoCol}>
-                <View style={styles.formCol}>
-                  <Text style={styles.formLabel}>Date of Birth</Text>
-                  <TextInput
-                    style={styles.formInput}
-                    value={editForm.dob}
-                    onChangeText={(val) => setEditForm((prev) => ({ ...prev, dob: val }))}
-                    placeholder="YYYY-MM-DD"
-                    placeholderTextColor="#9CA3AF"
-                  />
-                </View>
-                <View style={styles.formCol}>
-                  <Text style={styles.formLabel}>Blood Group</Text>
-                  <TextInput
-                    style={styles.formInput}
-                    value={editForm.bloodGroup}
-                    onChangeText={(val) => setEditForm((prev) => ({ ...prev, bloodGroup: val }))}
-                    placeholder="e.g. O+, A+"
-                    placeholderTextColor="#9CA3AF"
-                  />
-                </View>
-              </View>
-
-              {/* Section 2: Contact & Address */}
-              <Text style={[styles.formSectionHeading, { marginTop: 14 }]}>CONTACT & ADDRESS</Text>
-              <View style={styles.formRowTwoCol}>
-                <View style={styles.formCol}>
-                  <Text style={styles.formLabel}>Student Phone</Text>
-                  <TextInput
-                    style={styles.formInput}
-                    value={editForm.phone}
-                    onChangeText={(val) => setEditForm((prev) => ({ ...prev, phone: val }))}
-                    placeholder="+91 XXXXXXXXXX"
-                    placeholderTextColor="#9CA3AF"
-                    keyboardType="phone-pad"
-                  />
-                </View>
-                <View style={styles.formCol}>
-                  <Text style={styles.formLabel}>Parent / Guardian Phone</Text>
-                  <TextInput
-                    style={styles.formInput}
-                    value={editForm.parentPhone}
-                    onChangeText={(val) => setEditForm((prev) => ({ ...prev, parentPhone: val }))}
-                    placeholder="+91 XXXXXXXXXX"
-                    placeholderTextColor="#9CA3AF"
-                    keyboardType="phone-pad"
-                  />
-                </View>
-              </View>
-
-              <View style={styles.formRow}>
-                <View style={styles.formFieldFlex}>
-                  <Text style={styles.formLabel}>Email Address</Text>
-                  <TextInput
-                    style={styles.formInput}
-                    value={editForm.email}
-                    onChangeText={(val) => setEditForm((prev) => ({ ...prev, email: val }))}
-                    placeholder="student@institution.edu"
-                    placeholderTextColor="#9CA3AF"
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                  />
-                </View>
-              </View>
-
-              <View style={styles.formRow}>
-                <View style={styles.formFieldFlex}>
-                  <Text style={styles.formLabel}>Residential Address</Text>
-                  <TextInput
-                    style={[styles.formInput, { height: 60, textAlignVertical: 'top' }]}
-                    value={editForm.address}
-                    onChangeText={(val) => setEditForm((prev) => ({ ...prev, address: val }))}
-                    placeholder="Complete residential address"
-                    placeholderTextColor="#9CA3AF"
-                    multiline
-                  />
-                </View>
-              </View>
-
-              {/* Section 3: Academics & Performance */}
-              <Text style={[styles.formSectionHeading, { marginTop: 14 }]}>ACADEMICS & PERFORMANCE</Text>
-              <View style={styles.formRowTwoCol}>
-                <View style={styles.formCol}>
-                  <Text style={styles.formLabel}>Current CGPA</Text>
-                  <TextInput
-                    style={styles.formInput}
-                    value={editForm.cgpa}
-                    onChangeText={(val) => setEditForm((prev) => ({ ...prev, cgpa: val }))}
-                    placeholder="e.g. 8.5"
-                    placeholderTextColor="#9CA3AF"
-                    keyboardType="decimal-pad"
-                  />
-                </View>
-                <View style={styles.formCol}>
-                  <Text style={styles.formLabel}>Backlogs Count</Text>
-                  <TextInput
-                    style={styles.formInput}
-                    value={editForm.backlogs}
-                    onChangeText={(val) => setEditForm((prev) => ({ ...prev, backlogs: val }))}
-                    placeholder="0"
-                    placeholderTextColor="#9CA3AF"
-                    keyboardType="number-pad"
-                  />
-                </View>
-              </View>
-
-              <View style={styles.formRowTwoCol}>
-                <View style={styles.formCol}>
-                  <Text style={styles.formLabel}>10th Board Score</Text>
-                  <TextInput
-                    style={styles.formInput}
-                    value={editForm.tenthScore}
-                    onChangeText={(val) => setEditForm((prev) => ({ ...prev, tenthScore: val }))}
-                    placeholder="e.g. 92.5%"
-                    placeholderTextColor="#9CA3AF"
-                  />
-                </View>
-                <View style={styles.formCol}>
-                  <Text style={styles.formLabel}>12th Board Score</Text>
-                  <TextInput
-                    style={styles.formInput}
-                    value={editForm.twelfthScore}
-                    onChangeText={(val) => setEditForm((prev) => ({ ...prev, twelfthScore: val }))}
-                    placeholder="e.g. 89.0%"
-                    placeholderTextColor="#9CA3AF"
-                  />
-                </View>
-              </View>
-
-              {/* Section 4: Attendance */}
-              <Text style={[styles.formSectionHeading, { marginTop: 14 }]}>ATTENDANCE</Text>
-              <View style={styles.formRow}>
-                <View style={styles.formFieldFlex}>
-                  <Text style={styles.formLabel}>Attendance Rate (%)</Text>
-                  <TextInput
-                    style={styles.formInput}
-                    value={editForm.attendanceRate}
-                    onChangeText={(val) => setEditForm((prev) => ({ ...prev, attendanceRate: val }))}
-                    placeholder="e.g. 85"
-                    placeholderTextColor="#9CA3AF"
-                    keyboardType="number-pad"
-                  />
-                </View>
-              </View>
-            </ScrollView>
-
-            {/* Footer Actions */}
-            <View style={styles.modalFooterActions}>
-              <TouchableOpacity
-                style={styles.editCancelBtn}
-                onPress={() => setEditingStudent(null)}
-                activeOpacity={0.8}
-                disabled={isSavingEdit}
-              >
-                <Text style={styles.editCancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.editSaveBtn, isSavingEdit && { opacity: 0.8 }]}
-                onPress={handleSaveEdit}
-                activeOpacity={0.8}
-                disabled={isSavingEdit}
-              >
-                {isSavingEdit ? (
-                  <ActivityIndicator size="small" color="#000000" />
-                ) : saveSuccessMsg ? (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Feather name="check" size={16} color="#000000" />
-                    <Text style={styles.editSaveBtnText}>Saved!</Text>
-                  </View>
-                ) : (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Feather name="check-circle" size={15} color="#000000" />
-                    <Text style={styles.editSaveBtnText}>Save Changes</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-    );
-  }
 
   // Render Level 1: Classes Directory Organized Department-Wise
   return (
@@ -1333,40 +1232,16 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
         <View style={[styles.headerInner, { maxWidth: contentMaxWidth }]}>
           <View style={styles.topActionRow}>
             <View>
-              <Text style={styles.pageTitle}>Classes</Text>
+              <Text style={styles.pageTitle}>{title}</Text>
             </View>
           </View>
 
-          {/* Global Overview Bar */}
-          <View style={styles.overviewBar}>
-            <View style={styles.overviewItem}>
-              <Text style={[styles.overviewVal, isDesktop && { fontSize: 22 }, isSmallMobile && { fontSize: 13 }]}>
-                {totalStudentsCount.toLocaleString()}
-              </Text>
-              <Text style={[styles.overviewLabel, isSmallMobile && { fontSize: 7 }]}>STUDENTS</Text>
-            </View>
-            <View style={styles.classStatDivider} />
-            <View style={styles.overviewItem}>
-              <Text style={[styles.overviewVal, isDesktop && { fontSize: 22 }, isSmallMobile && { fontSize: 13 }]}>
-                {effectiveHomerooms.length}
-              </Text>
-              <Text style={[styles.overviewLabel, isSmallMobile && { fontSize: 7 }]}>CLASSES</Text>
-            </View>
-            <View style={styles.classStatDivider} />
-            <View style={styles.overviewItem}>
-              <Text style={[styles.overviewVal, { color: '#16A34A' }, isDesktop && { fontSize: 22 }, isSmallMobile && { fontSize: 13 }]}>
-                94%
-              </Text>
-              <Text style={[styles.overviewLabel, isSmallMobile && { fontSize: 7 }]}>AVG ATTENDANCE</Text>
-            </View>
-          </View>
-
-          {/* Search Bar for Classes */}
+          {/* Search Bar for Classes & Students */}
           <View style={styles.searchBar}>
             <MaterialCommunityIcons name="magnify" size={20} color={YellowTheme.primaryYellow} style={styles.searchIcon} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search classes by department"
+              placeholder="Search classes or student"
               placeholderTextColor="#9CA3AF"
               value={classSearch}
               onChangeText={setClassSearch}
@@ -1381,7 +1256,7 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
           {/* Right Side Below Search Bar: Filter Button & Active Filter Tags */}
           <View style={styles.searchSubRow}>
             <View style={styles.filterTagsRow}>
-              {hasActiveClassFilters ? (
+              {hasActiveClassFilters && (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
                   {classDeptFilter !== 'all' && (
                     <View style={styles.activeTagPill}>
@@ -1408,10 +1283,6 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
                     </View>
                   )}
                 </ScrollView>
-              ) : (
-                <Text style={styles.filterSummaryText}>
-                  {filteredClasses.length} classes across {departmentGroups.length} departments
-                </Text>
               )}
             </View>
 
@@ -1441,11 +1312,132 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#F4C430']} />}
       >
-        {departmentGroups.length === 0 ? (
+        {/* Student Search Results (when searching by Name or USN) */}
+        {matchingStudents.length > 0 && (
+          <View style={styles.searchStudentsSection}>
+            <View style={styles.searchStudentsHeaderRow}>
+              <View style={styles.searchStudentsHeaderLeft}>
+                <View style={styles.searchStudentsIconWrap}>
+                  <MaterialCommunityIcons name="account-school-outline" size={18} color="#000000" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.searchStudentsHeaderTitle}>
+                    Students Found ({matchingStudents.length})
+                  </Text>
+                  <Text style={styles.searchStudentsHeaderSub}>
+                    Tap any student to view full dossier, bio data, academics & fee records
+                  </Text>
+                </View>
+              </View>
+              {matchingStudents.length >= 18 && (
+                <View style={styles.deptCountPill}>
+                  <Text style={styles.deptCountText}>Showing top 18</Text>
+                </View>
+              )}
+            </View>
+
+            <View style={[styles.studentsGrid, { flexDirection: 'row', flexWrap: 'wrap', gap: gridGap }]}>
+              {matchingStudents.map((stu) => {
+                const isOverdue = stu.fees.pendingFee > 0;
+                const isShortage = stu.attendance.rate < 75;
+
+                return (
+                  <TouchableOpacity
+                    key={stu.id}
+                    style={[styles.studentCard, { width: cardWidth }]}
+                    onPress={() => {
+                      setSelectedStudent(stu);
+                      setStudentModalTab('biodata');
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.studentCardTop}>
+                      {/* Avatar initial */}
+                      <View style={styles.studentAvatar}>
+                        <Text style={styles.studentAvatarText}>
+                          {stu.fullName.substring(0, 2).toUpperCase()}
+                        </Text>
+                      </View>
+
+                      {/* Main identity */}
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.studentName} numberOfLines={1}>
+                          {stu.fullName}
+                        </Text>
+                        <View style={styles.usnBadgeRow}>
+                          <View style={styles.usnBadge}>
+                            <Text style={styles.usnBadgeText}>{stu.rollNoOrUSN}</Text>
+                          </View>
+                          <Text style={styles.studentPhoneText} numberOfLines={1}>
+                            {stu.className || stu.department}
+                          </Text>
+                        </View>
+                      </View>
+
+                    </View>
+
+                    {/* Bottom Status Snapshot Row */}
+                    <View style={styles.studentCardStats}>
+                      <View
+                        style={[
+                          styles.statusBadge,
+                          isShortage ? styles.badgeDanger : styles.badgeSuccess,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.statusBadgeText,
+                            isShortage ? styles.badgeDangerText : styles.badgeSuccessText,
+                          ]}
+                        >
+                          {stu.attendance.rate}% Att
+                        </Text>
+                      </View>
+
+                      <View
+                        style={[
+                          styles.statusBadge,
+                          isOverdue ? styles.badgeWarning : styles.badgeSuccess,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.statusBadgeText,
+                            isOverdue ? styles.badgeWarningText : styles.badgeSuccessText,
+                          ]}
+                        >
+                          {isOverdue ? `₹${stu.fees.pendingFee.toLocaleString()} Due` : 'Fees Paid'}
+                        </Text>
+                      </View>
+
+                      <View style={[styles.statusBadge, styles.badgeNeutral]}>
+                        <Text style={styles.badgeNeutralText}>CGPA: {stu.academics.cgpa}</Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        {matchingStudents.length > 0 && filteredClasses.length > 0 && (
+          <View style={styles.matchingClassesDivider}>
+            <Text style={styles.matchingClassesHeaderTitle}>
+              Classes ({filteredClasses.length})
+            </Text>
+          </View>
+        )}
+
+        {filteredClasses.length === 0 && matchingStudents.length === 0 ? (
           <View style={styles.emptyCard}>
-            <MaterialCommunityIcons name="school-outline" size={44} color="#9CA3AF" />
-            <Text style={styles.emptyTitle}>No matching classes found</Text>
-            <Text style={styles.emptySub}>Try adjusting your search query or reset the filters.</Text>
+            <MaterialCommunityIcons name="account-search-outline" size={44} color="#9CA3AF" />
+            <Text style={styles.emptyTitle}>No matching classes or students found</Text>
+            <Text style={styles.emptySub}>
+              {classSearch.trim()
+                ? `No class or student found matching "${classSearch}". Try searching by USN (e.g. 1VM26AI001) or student name.`
+                : 'Try adjusting your search query or reset the filters.'}
+            </Text>
             <TouchableOpacity
               style={styles.resetFilterBtn}
               onPress={() => {
@@ -1458,72 +1450,56 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
               <Text style={styles.resetFilterBtnText}>Reset All Filters</Text>
             </TouchableOpacity>
           </View>
+        ) : isClassesPageLoading ? (
+          <View style={styles.inPageLoaderWrap}>
+            <ActivityIndicator size="large" color="#F4C430" />
+            <Text style={styles.inPageLoaderText}>Loading Classes...</Text>
+          </View>
         ) : (
-          departmentGroups.map((group) => (
-            <View key={group.department} style={styles.deptSectionBlock}>
-              {/* Department Section Header */}
-              <View style={styles.deptHeaderRow}>
-                <View style={styles.deptHeaderLeft}>
-                  <View style={styles.deptHeaderIconWrap}>
-                    <Feather
-                      name={getDepartmentIcon(group.department)}
-                      size={12}
-                      color="#111827"
-                    />
+          <>
+            <View style={[styles.classesGrid, { flexDirection: 'row', flexWrap: 'wrap', gap: gridGap }]}>
+              {paginatedClasses.map((sec) => (
+                <TouchableOpacity
+                  key={sec.id}
+                  style={[styles.classCard, { width: cardWidth }]}
+                  onPress={() => setSelectedClass(sec)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.classCardMain}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.classCardTitle} numberOfLines={1}>
+                        {sec.name}
+                      </Text>
+                      <View style={styles.classCardMetaRow}>
+                        <Text style={styles.classCardTeacher} numberOfLines={1}>
+                          {sec.homeroomTeacherName || 'No Teacher Assigned'}
+                        </Text>
+                      </View>
+                    </View>
                   </View>
-                  <Text style={styles.deptHeaderTitle}>{group.department}</Text>
-                </View>
-                <View style={styles.deptCountPill}>
-                  <Text style={styles.deptCountText}>
-                    {group.classes.length} {group.classes.length === 1 ? 'Class' : 'Classes'}
-                  </Text>
-                </View>
-              </View>
 
-              {/* Class Cards in this Department */}
-              <View style={[styles.classesGrid, { flexDirection: 'row', flexWrap: 'wrap', gap: gridGap }]}>
-                {group.classes.map((sec) => (
-                  <TouchableOpacity
-                    key={sec.id}
-                    style={[styles.classCard, { width: cardWidth }]}
-                    onPress={() => setSelectedClass(sec)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.classCardMain}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.classCardTitle} numberOfLines={1}>
-                          {sec.name}
-                        </Text>
-                        <View style={styles.classCardMetaRow}>
-                          <Text style={styles.classCardTeacher} numberOfLines={1}>
-                            {sec.homeroomTeacherName || 'No Teacher Assigned'}
-                          </Text>
-                        </View>
-                      </View>
-                      <Feather name="arrow-right" size={18} color="#9CA3AF" />
+                  {/* Class Stats Line */}
+                  <View style={styles.classCardFooter}>
+                    <View style={styles.classBadge}>
+                      <Text style={styles.classBadgeText}>{sec.studentCount || 40} Students</Text>
                     </View>
 
-                    {/* Class Stats Line */}
-                    <View style={styles.classCardFooter}>
-                      <View style={styles.classBadge}>
-                        <Text style={styles.classBadgeText}>{sec.studentCount || 40} Students</Text>
-                      </View>
-
-                      <View style={[styles.classBadge, styles.badgeSuccess]}>
-                        <Text style={styles.badgeSuccessText}>
-                          {sec.attendanceRate ? `${sec.attendanceRate}%` : '94%'} Att
-                        </Text>
-                      </View>
-
-                      <View style={styles.actionPill}>
-                        <Text style={styles.actionPillText}>View Students →</Text>
-                      </View>
+                    <View style={[styles.classBadge, styles.badgeSuccess]}>
+                      <Text style={styles.badgeSuccessText}>
+                        {sec.attendanceRate ? `${sec.attendanceRate}%` : '94%'} Att
+                      </Text>
                     </View>
-                  </TouchableOpacity>
-                ))}
-              </View>
+
+                    <View style={styles.actionPill}>
+                      <Text style={styles.actionPillText}>View Students</Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))}
             </View>
-          ))
+
+            {renderClassesPaginationControls()}
+          </>
         )}
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -1644,6 +1620,9 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
           </View>
         </View>
       </Modal>
+
+      {/* Level 3: Student Details Modal (available directly from Level 1 search results) */}
+      {renderStudentModal()}
     </View>
   );
 };
@@ -1730,7 +1709,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 8,
+    borderRadius: 5,
     paddingHorizontal: 12,
     height: 42,
   },
@@ -1743,6 +1722,122 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#111827',
     paddingVertical: 0,
+  },
+  searchFilterDivider: {
+    width: 1,
+    height: 20,
+    backgroundColor: '#E5E7EB',
+    marginHorizontal: 8,
+  },
+  inBarFilterBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 5,
+    backgroundColor: '#F3F4F6',
+  },
+  inBarFilterBtnActive: {
+    backgroundColor: '#FEF9C3',
+    borderWidth: 1,
+    borderColor: '#F4C430',
+  },
+  inBarFilterText: {
+    fontFamily: FontFamily.medium,
+    fontSize: 12,
+    color: '#4B5563',
+    maxWidth: 130,
+  },
+  inBarFilterTextActive: {
+    fontFamily: FontFamily.bold,
+    color: '#000000',
+  },
+
+  // Level 2 Student Filter Dropdown Modal
+  filterDropdownBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  filterDropdownCard: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 5,
+    padding: 18,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  filterDropdownHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  filterDropdownTitle: {
+    fontFamily: FontFamily.bold,
+    fontSize: 15,
+    color: '#111827',
+  },
+  filterDropdownOptionsList: {
+    gap: 8,
+  },
+  filterDropdownOptionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 5,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  filterDropdownOptionItemSelected: {
+    backgroundColor: '#FEF9C3',
+    borderColor: '#F4C430',
+  },
+  filterDropdownOptionText: {
+    fontFamily: FontFamily.medium,
+    fontSize: 13,
+    color: '#374151',
+  },
+  filterDropdownOptionTextSelected: {
+    fontFamily: FontFamily.bold,
+    color: '#000000',
+  },
+  filterDropdownCountBadge: {
+    fontFamily: FontFamily.bold,
+    fontSize: 11.5,
+    color: '#6B7280',
+    backgroundColor: '#E5E7EB',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 5,
+  },
+  filterDropdownCountBadgeSelected: {
+    color: '#000000',
+    backgroundColor: '#FDE047',
+  },
+  filterDropdownClearBtn: {
+    marginTop: 12,
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterDropdownClearText: {
+    fontFamily: FontFamily.semibold,
+    fontSize: 12.5,
+    color: '#DC2626',
   },
   searchSubRow: {
     flexDirection: 'row',
@@ -1767,7 +1862,7 @@ const styles = StyleSheet.create({
     borderColor: '#F4C430',
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 12,
+    borderRadius: 5,
   },
   activeTagPillText: {
     fontFamily: FontFamily.bold,
@@ -1780,7 +1875,7 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 8,
+    borderRadius: 5,
     backgroundColor: '#F3F4F6',
     borderWidth: 1,
     borderColor: '#E5E7EB',
@@ -1844,7 +1939,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 12,
+    borderRadius: 5,
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
@@ -1863,7 +1958,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 10,
+    borderRadius: 5,
     padding: 14,
     gap: 12,
     shadowColor: '#000000',
@@ -1876,6 +1971,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  classCardArrowWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 5,
+    backgroundColor: '#FEF9C3',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   classCardTitle: {
     fontFamily: FontFamily.bold,
@@ -1914,24 +2019,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'transparent',
-    paddingHorizontal: 0,
-    paddingVertical: 2,
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 5,
   },
   classBadgeText: {
-    fontFamily: FontFamily.medium,
-    fontSize: 12,
+    fontFamily: FontFamily.semibold,
+    fontSize: 11,
     color: '#374151',
   },
   actionPill: {
-    paddingHorizontal: 0,
-    paddingVertical: 2,
-    backgroundColor: 'transparent',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: '#F4C430',
+    borderRadius: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   actionPillText: {
     fontFamily: FontFamily.bold,
-    fontSize: 12,
+    fontSize: 11,
     color: '#000000',
+    letterSpacing: -0.1,
   },
 
   // Level 2 (Class View) Elements
@@ -1950,7 +2060,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 10,
+    borderRadius: 5,
     padding: 14,
     gap: 12,
   },
@@ -1970,6 +2080,32 @@ const styles = StyleSheet.create({
     fontSize: 17,
     color: '#111827',
   },
+  classTeacherContainer: {
+    marginTop: 4,
+    gap: 2,
+  },
+  classTeacherHeadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  classTeacherHeading: {
+    fontFamily: FontFamily.medium,
+    fontSize: 11,
+    color: '#6B7280',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  classTeacherDeptText: {
+    fontFamily: FontFamily.regular,
+    fontSize: 11.5,
+    color: '#6B7280',
+  },
+  classTeacherNameText: {
+    fontFamily: FontFamily.bold,
+    fontSize: 13,
+    color: '#111827',
+  },
   badgeRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1980,7 +2116,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF9C3',
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: 5,
   },
   tagBadgeText: {
     fontFamily: FontFamily.bold,
@@ -1991,7 +2127,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: 5,
   },
   tagBadgeNeutralText: {
     fontFamily: FontFamily.medium,
@@ -2001,15 +2137,16 @@ const styles = StyleSheet.create({
   reassignTeacherBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
     backgroundColor: '#F4C430',
     paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
+    paddingVertical: 6,
+    borderRadius: 5,
+    alignSelf: 'flex-start',
   },
   reassignTeacherText: {
     fontFamily: FontFamily.bold,
-    fontSize: 11,
+    fontSize: 11.5,
     color: '#000000',
   },
   classStatsRow: {
@@ -2054,7 +2191,7 @@ const styles = StyleSheet.create({
   filterChip: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 8,
+    borderRadius: 5,
     backgroundColor: '#F3F4F6',
   },
   filterChipActive: {
@@ -2075,7 +2212,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 10,
+    borderRadius: 5,
     padding: 14,
     gap: 10,
     shadowColor: '#000000',
@@ -2119,7 +2256,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: 5,
   },
   usnBadgeText: {
     fontFamily: FontFamily.bold,
@@ -2201,7 +2338,7 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 440,
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+    borderRadius: 5,
     padding: 18,
     gap: 14,
     shadowColor: '#000',
@@ -2221,7 +2358,7 @@ const styles = StyleSheet.create({
   filterModalIconWrap: {
     width: 30,
     height: 30,
-    borderRadius: 6,
+    borderRadius: 5,
     backgroundColor: '#F4C430',
     alignItems: 'center',
     justifyContent: 'center',
@@ -2250,7 +2387,7 @@ const styles = StyleSheet.create({
   modalChip: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 8,
+    borderRadius: 5,
     backgroundColor: '#F3F4F6',
     borderWidth: 1,
     borderColor: '#E5E7EB',
@@ -2279,7 +2416,7 @@ const styles = StyleSheet.create({
   filterResetBtn: {
     paddingHorizontal: 16,
     paddingVertical: 9,
-    borderRadius: 8,
+    borderRadius: 5,
     backgroundColor: '#DC2626',
     alignItems: 'center',
     justifyContent: 'center',
@@ -2293,7 +2430,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F4C430',
     paddingHorizontal: 18,
     paddingVertical: 9,
-    borderRadius: 8,
+    borderRadius: 5,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2310,7 +2447,7 @@ const styles = StyleSheet.create({
     height: '84%',
     maxHeight: 720,
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: 5,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.2,
@@ -2325,8 +2462,8 @@ const styles = StyleSheet.create({
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    borderTopLeftRadius: 5,
+    borderTopRightRadius: 5,
     backgroundColor: '#FFFFFF',
     flexShrink: 0,
   },
@@ -2440,57 +2577,51 @@ const styles = StyleSheet.create({
   },
   dossierItemHalf: {
     width: '48.5%',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: 'column',
+    justifyContent: 'flex-start',
     alignItems: 'flex-start',
-    paddingVertical: 9,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
-    gap: 10,
   },
   dossierItemFull: {
     width: '100%',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: 'column',
+    justifyContent: 'flex-start',
     alignItems: 'flex-start',
-    paddingVertical: 9,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
-    gap: 12,
   },
   dossierRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: 'column',
+    justifyContent: 'flex-start',
     alignItems: 'flex-start',
-    paddingVertical: 9,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
-    gap: 12,
   },
   dossierLabel: {
     fontFamily: FontFamily.medium,
-    fontSize: 13,
+    fontSize: 12,
     color: '#6B7280',
-    flexShrink: 0,
-    maxWidth: '45%',
+    marginBottom: 3,
   },
   dossierVal: {
-    fontFamily: FontFamily.regular,
-    fontSize: 13,
+    fontFamily: FontFamily.semibold,
+    fontSize: 13.5,
     color: '#111827',
-    flex: 1,
-    textAlign: 'right',
+    textAlign: 'left',
   },
   dossierPhoneBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end',
-    flex: 1,
-    gap: 5,
+    justifyContent: 'flex-start',
+    gap: 6,
+    marginTop: 2,
   },
   dossierPhoneVal: {
     fontFamily: FontFamily.bold,
-    flex: 0,
   },
   academicKpiBox: {
     flexDirection: 'row',
@@ -2567,7 +2698,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#FEE2E2',
     padding: 12,
-    borderRadius: 8,
+    borderRadius: 5,
     marginTop: 8,
   },
   shortageAlertText: {
@@ -2578,7 +2709,7 @@ const styles = StyleSheet.create({
   },
   feeDuesBanner: {
     padding: 14,
-    borderRadius: 10,
+    borderRadius: 5,
     alignItems: 'center',
     gap: 4,
     marginVertical: 4,
@@ -2616,8 +2747,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
+    borderBottomLeftRadius: 5,
+    borderBottomRightRadius: 5,
     flexShrink: 0,
   },
   modalSecondaryBtn: {
@@ -2627,7 +2758,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     paddingVertical: 10,
-    borderRadius: 8,
+    borderRadius: 5,
     backgroundColor: '#F3F4F6',
   },
   modalSecondaryBtnText: {
@@ -2640,7 +2771,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 10,
-    borderRadius: 8,
+    borderRadius: 5,
     backgroundColor: '#F4C430',
   },
   modalPrimaryBtnText: {
@@ -2654,7 +2785,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF9C3',
     borderWidth: 1,
     borderColor: '#FDE047',
-    borderRadius: 10,
+    borderRadius: 5,
     padding: 14,
     marginTop: 12,
     gap: 8,
@@ -2689,7 +2820,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#000000',
     paddingVertical: 10,
     paddingHorizontal: 16,
-    borderRadius: 8,
+    borderRadius: 5,
     marginTop: 4,
   },
   pdfReportBtnText: {
@@ -2782,15 +2913,15 @@ const styles = StyleSheet.create({
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    borderTopLeftRadius: 5,
+    borderTopRightRadius: 5,
     backgroundColor: '#FFFFFF',
     flexShrink: 0,
   },
   editModalIconBadge: {
     width: 34,
     height: 34,
-    borderRadius: 8,
+    borderRadius: 5,
     backgroundColor: '#F4C430',
     alignItems: 'center',
     justifyContent: 'center',
@@ -2837,7 +2968,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#D1D5DB',
     backgroundColor: '#FFFFFF',
-    borderRadius: 8,
+    borderRadius: 5,
     paddingHorizontal: 12,
     paddingVertical: 9,
     fontFamily: FontFamily.medium,
@@ -2849,7 +2980,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 11,
-    borderRadius: 8,
+    borderRadius: 5,
     backgroundColor: '#F3F4F6',
   },
   editCancelBtnText: {
@@ -2863,12 +2994,144 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 11,
-    borderRadius: 8,
+    borderRadius: 5,
     backgroundColor: '#F4C430',
   },
   editSaveBtnText: {
     fontFamily: FontFamily.bold,
     fontSize: 13,
     color: '#000000',
+  },
+  searchStudentsSection: {
+    marginBottom: 20,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 5,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  searchStudentsHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  searchStudentsHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  searchStudentsIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FEF9C3',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  searchStudentsHeaderTitle: {
+    fontFamily: FontFamily.bold,
+    fontSize: 15,
+    color: '#111827',
+  },
+  searchStudentsHeaderSub: {
+    fontFamily: FontFamily.regular,
+    fontSize: 11,
+    color: '#6B7280',
+    marginTop: 1,
+  },
+  matchingClassesDivider: {
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  matchingClassesHeaderTitle: {
+    fontFamily: FontFamily.bold,
+    fontSize: 14,
+    color: '#4B5563',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+
+  // In-page Loader
+  inPageLoaderWrap: {
+    paddingVertical: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  inPageLoaderText: {
+    fontFamily: FontFamily.medium,
+    fontSize: 14,
+    color: '#6B7280',
+  },
+
+  // Pagination Controls
+  paginationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 20,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  paginationCountText: {
+    fontFamily: FontFamily.regular,
+    fontSize: 13,
+    color: '#4B5563',
+  },
+  paginationActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  pageBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  pageBtnDisabled: {
+    opacity: 0.45,
+    backgroundColor: '#F9FAFB',
+  },
+  pageBtnText: {
+    fontFamily: FontFamily.semibold,
+    fontSize: 12,
+    color: '#111827',
+  },
+  pageBtnTextDisabled: {
+    color: '#9CA3AF',
+  },
+  pageIndicatorPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#FFD026',
+  },
+  pageIndicatorText: {
+    fontFamily: FontFamily.bold,
+    fontSize: 12,
+    color: '#111827',
   },
 });

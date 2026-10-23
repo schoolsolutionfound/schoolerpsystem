@@ -93,7 +93,7 @@ export const StudentHomePeriodsList: React.FC<StudentHomePeriodsListProps> = ({ 
                     <View>
                       <Text style={styles.subjectName}>{slot?.subject?.name || 'Subject'}</Text>
                       <Text style={styles.roomName}>
-                        {slot?.room ? `Room ${slot.room}` : slot?.teacher?.fullName || ''}
+                        {slot?.teacher?.fullName || ''}
                       </Text>
                     </View>
                   </View>

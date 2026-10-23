@@ -11,10 +11,10 @@ function getTenantAndDept(req: FastifyRequest): { instCode: string; department: 
   }
 
   // E8: Extract department from user account; if admin/principal, allow query override
-  let department = '';
-  if (user.scope && typeof user.scope === 'object' && user.scope.department) {
+  let department = user.department || '';
+  if (!department && user.scope && typeof user.scope === 'object' && user.scope.department) {
     department = user.scope.department;
-  } else if (typeof user.scope === 'string') {
+  } else if (!department && typeof user.scope === 'string') {
     try {
       const parsed = JSON.parse(user.scope);
       department = parsed.department || '';
@@ -211,3 +211,18 @@ export async function createNoticeHandler(request: FastifyRequest, reply: Fastif
     });
   }
 }
+
+export async function getStudentsHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const { instCode, department } = getTenantAndDept(request);
+    const { semester, search } = (request.query as any) || {};
+    const students = await hodService.getStudents(instCode, department, semester, search);
+    return reply.send({ success: true, data: students });
+  } catch (err: any) {
+    return reply.status(err.statusCode || 500).send({
+      success: false,
+      error: { message: err.message || 'Failed to fetch department students' },
+    });
+  }
+}
+

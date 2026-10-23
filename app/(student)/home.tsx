@@ -18,9 +18,10 @@ import { StudentBusTrackingView } from '../../features/student/components/Studen
 import { StudentHomeFeeSummary } from '../../features/student/components/StudentHomeFeeSummary';
 import { ShimmerProvider } from '../../features/student/components/ShimmerSkeleton';
 import { DocumentRequestsManagerView } from '../../features/shared/components/DocumentRequestsManagerView';
+import { StudentFeedbackReviewManagerView } from '../../features/shared/components/StudentFeedbackReviewManagerView';
 import { FontFamily } from '../../constants/fonts';
 
-  type Tab = 'home' | 'attendance' | 'bus' | 'marks' | 'schedule' | 'homework' | 'fees' | 'documents';
+type Tab = 'home' | 'attendance' | 'bus' | 'marks' | 'schedule' | 'homework' | 'fees' | 'documents' | 'feedback';
 
 function toMinutes(timeStr?: string): number | null {
   if (!timeStr) return null;
@@ -188,6 +189,15 @@ export default function HomeScreen() {
             currentStudentName={fullName}
             currentStudentUSN={rollNoOrUSN}
             institutionName={institutionName}
+          />
+        );
+      case 'feedback':
+        return (
+          <StudentFeedbackReviewManagerView
+            userRole="student"
+            currentUserId="stu-01"
+            currentUserName={fullName}
+            userDepartment="Computer Science"
           />
         );
       default:

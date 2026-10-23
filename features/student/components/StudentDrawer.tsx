@@ -39,6 +39,7 @@ const PRIMARY = [
   { key: 'marks', label: 'Marks & Grades', icon: 'certificate-outline', iconFilled: 'certificate', tab: 'marks' as const },
   { key: 'fees', label: 'Fee Summary', icon: 'cash', iconFilled: 'cash', tab: 'fees' as const },
   { key: 'documents', label: 'Certificates & Documents', icon: 'file-certificate-outline', iconFilled: 'file-certificate', tab: 'documents' as const },
+  { key: 'feedback', label: 'Teacher Feedback', icon: 'star-box-outline', iconFilled: 'star-box', tab: 'feedback' as const },
   { key: 'schedule', label: 'Schedule', icon: 'calendar-outline', iconFilled: 'calendar', tab: 'schedule' as const },
 ];
 
