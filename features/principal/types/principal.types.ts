@@ -49,6 +49,8 @@ export interface PrincipalStaffMember {
   experienceYears?: number;
   qualification?: string;
   avatarUrl?: string;
+  employeeId?: string;
+  cabinNumber?: string;
 }
 
 export interface HomeroomSection {
@@ -139,7 +141,6 @@ export type PrincipalTab =
   | 'attendance'
   | 'events'
   | 'leaves'
-  | 'payroll'
   | 'document_requests'
   | 'schedule'
   | 'mark_attendance'

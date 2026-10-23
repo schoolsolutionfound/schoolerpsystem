@@ -6,6 +6,7 @@ import {
   ExamEligibilityRecord,
   DepartmentNotice,
   HallTicketStatus,
+  HODDepartmentStudent,
 } from '../features/hod/types/hod.types';
 
 export async function fetchHODKPIsApi(department?: string): Promise<HODKPIs> {
@@ -219,3 +220,28 @@ export async function createDepartmentNoticeApi(
     },
   };
 }
+
+export async function fetchHODStudentsApi(
+  department?: string,
+  semester?: string,
+  search?: string
+): Promise<HODDepartmentStudent[]> {
+  try {
+    const params = new URLSearchParams();
+    if (department) params.append('department', department);
+    if (semester && semester !== 'all') params.append('semester', semester);
+    if (search && search.trim() !== '') params.append('search', search.trim());
+
+    const qs = params.toString();
+    const res = await apiClient<{ success?: boolean; data?: HODDepartmentStudent[] } | HODDepartmentStudent[]>(
+      `/admin/hod/students${qs ? `?${qs}` : ''}`
+    );
+    if (Array.isArray(res)) return res;
+    if (Array.isArray(res?.data)) return res.data;
+    return [];
+  } catch (err) {
+    console.warn('[fetchHODStudentsApi] error:', err);
+    return [];
+  }
+}
+

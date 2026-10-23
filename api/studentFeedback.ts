@@ -6,6 +6,7 @@ import {
   InstitutionalFeedbackSummary,
   CreateFeedbackCyclePayload,
   ReviewCycleStatus,
+  CourseSubjectAllocation,
 } from '../features/shared/types/studentFeedback.types';
 
 // In-memory store initialized with realistic institutional review data
@@ -54,34 +55,74 @@ let MOCK_CYCLES: StudentReviewCycle[] = [
   },
 ];
 
+// Student course allocations for their class (e.g. Dr. Rajesh Iyer teaching BOTH Maths and English)
+let MOCK_COURSE_ALLOCATIONS: CourseSubjectAllocation[] = [
+  {
+    id: 'alloc-01',
+    subjectName: 'Mathematics',
+    facultyId: 'fac-01',
+    facultyName: 'Dr. Rajesh Iyer',
+    facultyDepartment: 'Mathematics & Science',
+    classSection: 'Class 10-A / Sec A',
+    semester: 'Semester 5',
+  },
+  {
+    id: 'alloc-02',
+    subjectName: 'English',
+    facultyId: 'fac-01', // Same faculty teaching English!
+    facultyName: 'Dr. Rajesh Iyer',
+    facultyDepartment: 'Humanities & Languages',
+    classSection: 'Class 10-A / Sec A',
+    semester: 'Semester 5',
+  },
+  {
+    id: 'alloc-03',
+    subjectName: 'Physics',
+    facultyId: 'fac-02',
+    facultyName: 'Prof. Sneha Sharma',
+    facultyDepartment: 'Applied Sciences',
+    classSection: 'Class 10-A / Sec A',
+    semester: 'Semester 5',
+  },
+  {
+    id: 'alloc-04',
+    subjectName: 'Computer Science',
+    facultyId: 'fac-03',
+    facultyName: 'Dr. Anand Rao',
+    facultyDepartment: 'Computer Science',
+    classSection: 'Class 10-A / Sec A',
+    semester: 'Semester 5',
+  },
+];
+
 let MOCK_FACULTY_REVIEWS: FacultyReviewSubmission[] = [
   {
     id: 'frev-101',
     cycleId: 'cycle-001',
     cycleTitle: 'Mid-Semester Faculty & Campus Survey 2026',
-    studentId: 'stu-01',
-    studentName: 'Rahul Verma',
-    studentUSN: '1MS21CS042',
+    studentId: 'stu-02',
+    studentName: 'Anonymous Student',
+    studentUSN: 'Confidential',
     studentDepartment: 'Computer Science',
     studentSemester: 'Semester 5',
-    isAnonymous: false,
+    isAnonymous: true,
     facultyId: 'fac-01',
-    facultyName: 'Dr. Anand Rao',
-    facultyDepartment: 'Computer Science',
-    subjectName: 'Design & Analysis of Algorithms',
+    facultyName: 'Dr. Rajesh Iyer',
+    facultyDepartment: 'Mathematics & Science',
+    subjectName: 'Mathematics',
     ratings: {
       subjectKnowledge: 5,
       teachingClarity: 5,
       punctuality: 5,
-      doubtResolution: 4,
-      courseCoverage: 5,
+      doubtResolution: 5,
+      courseCoverage: 4,
     },
     overallRating: 4.8,
-    strengths: 'Explains complex dynamic programming and graph algorithms using real-world analogies. Highly inspiring.',
-    areasOfImprovement: 'Could provide extra practice problem sets for competitive programming before mid-terms.',
-    generalComments: 'One of the best professors in the department.',
+    strengths: 'Very systematic in calculus derivations and solving sample question papers step by step.',
+    areasOfImprovement: 'Could give more advanced practice questions for competitive exams.',
+    generalComments: 'Outstanding math teacher. Makes difficult concepts easy to grasp.',
     status: 'reviewed',
-    actionNote: 'Recommended for lead curriculum development committee.',
+    actionNote: 'Appreciated in departmental faculty meeting.',
     actionBy: 'Principal Office',
     createdAt: '2026-10-12T10:30:00Z',
   },
@@ -92,71 +133,41 @@ let MOCK_FACULTY_REVIEWS: FacultyReviewSubmission[] = [
     studentId: 'stu-02',
     studentName: 'Anonymous Student',
     studentUSN: 'Confidential',
-    studentDepartment: 'AIML',
-    studentSemester: 'Semester 3',
+    studentDepartment: 'Computer Science',
+    studentSemester: 'Semester 5',
     isAnonymous: true,
-    facultyId: 'fac-02',
-    facultyName: 'Prof. Sneha Sharma',
-    facultyDepartment: 'AIML',
-    subjectName: 'Neural Networks & Deep Learning',
+    facultyId: 'fac-01',
+    facultyName: 'Dr. Rajesh Iyer',
+    facultyDepartment: 'Humanities & Languages',
+    subjectName: 'English',
     ratings: {
       subjectKnowledge: 5,
       teachingClarity: 4,
       punctuality: 5,
-      doubtResolution: 5,
-      courseCoverage: 4,
+      doubtResolution: 4,
+      courseCoverage: 5,
     },
     overallRating: 4.6,
-    strengths: 'Very interactive sessions with hands-on PyTorch demos during class. Clears all math derivations patiently.',
-    areasOfImprovement: 'Slide notes could be shared on Google Classroom a day earlier.',
-    generalComments: 'Great teacher and mentor for hackathons.',
+    strengths: 'Passionate about literature and drama. Class discussions on prose and poetry are very engaging.',
+    areasOfImprovement: 'More grammar exercises and vocabulary quizzes in class.',
+    generalComments: 'Great communicator and mentor.',
     status: 'submitted',
-    createdAt: '2026-10-14T14:15:00Z',
+    createdAt: '2026-10-12T10:45:00Z',
   },
   {
     id: 'frev-103',
     cycleId: 'cycle-001',
     cycleTitle: 'Mid-Semester Faculty & Campus Survey 2026',
     studentId: 'stu-03',
-    studentName: 'Priya Nair',
-    studentUSN: '1MS22EC018',
-    studentDepartment: 'Electronics & Comm',
-    studentSemester: 'Semester 5',
-    isAnonymous: false,
-    facultyId: 'fac-03',
-    facultyName: 'Dr. Ramesh Kumar',
-    facultyDepartment: 'Electronics & Comm',
-    subjectName: 'Digital Signal Processing',
-    ratings: {
-      subjectKnowledge: 4,
-      teachingClarity: 3,
-      punctuality: 4,
-      doubtResolution: 3,
-      courseCoverage: 4,
-    },
-    overallRating: 3.6,
-    strengths: 'Very punctual and strict with syllabus milestones. Extensive theoretical background.',
-    areasOfImprovement: 'Need more MATLAB visual simulations for Fast Fourier Transform concepts.',
-    generalComments: 'Strict evaluator, but helpful when approached during office hours.',
-    status: 'action_taken',
-    actionNote: 'HOD arranged 2 additional lab demonstration sessions with teaching assistants.',
-    actionBy: 'HOD - ECE',
-    createdAt: '2026-10-15T09:45:00Z',
-  },
-  {
-    id: 'frev-104',
-    cycleId: 'cycle-001',
-    cycleTitle: 'Mid-Semester Faculty & Campus Survey 2026',
-    studentId: 'stu-04',
     studentName: 'Anonymous Student',
     studentUSN: 'Confidential',
-    studentDepartment: 'Mechanical Eng',
-    studentSemester: 'Semester 7',
+    studentDepartment: 'Computer Science',
+    studentSemester: 'Semester 5',
     isAnonymous: true,
-    facultyId: 'fac-04',
-    facultyName: 'Prof. Vikram Hegde',
-    facultyDepartment: 'Mechanical Eng',
-    subjectName: 'Thermodynamics & Heat Transfer',
+    facultyId: 'fac-01',
+    facultyName: 'Dr. Rajesh Iyer',
+    facultyDepartment: 'Mathematics & Science',
+    subjectName: 'Mathematics',
     ratings: {
       subjectKnowledge: 5,
       teachingClarity: 5,
@@ -165,11 +176,355 @@ let MOCK_FACULTY_REVIEWS: FacultyReviewSubmission[] = [
       courseCoverage: 5,
     },
     overallRating: 4.8,
-    strengths: 'Industrial case studies and visits to boiler plants made the subject fascinating.',
-    areasOfImprovement: 'None, fantastic methodology.',
-    generalComments: 'Role model professor.',
+    strengths: 'Never rushes through topics. Solves every doubt patiently.',
+    areasOfImprovement: 'None.',
+    generalComments: 'Best mathematics faculty in the institution.',
     status: 'reviewed',
-    createdAt: '2026-10-16T11:20:00Z',
+    createdAt: '2026-10-14T11:20:00Z',
+  },
+  {
+    id: 'frev-104',
+    cycleId: 'cycle-001',
+    cycleTitle: 'Mid-Semester Faculty & Campus Survey 2026',
+    studentId: 'stu-03',
+    studentName: 'Anonymous Student',
+    studentUSN: 'Confidential',
+    studentDepartment: 'Computer Science',
+    studentSemester: 'Semester 5',
+    isAnonymous: true,
+    facultyId: 'fac-01',
+    facultyName: 'Dr. Rajesh Iyer',
+    facultyDepartment: 'Humanities & Languages',
+    subjectName: 'English',
+    ratings: {
+      subjectKnowledge: 4,
+      teachingClarity: 4,
+      punctuality: 4,
+      doubtResolution: 4,
+      courseCoverage: 4,
+    },
+    overallRating: 4.0,
+    strengths: 'Helped improve our technical presentation and public speaking skills.',
+    areasOfImprovement: 'Assignments could be evaluated more promptly.',
+    generalComments: 'Good English class experience.',
+    hasComplaint: true,
+    complaintText: 'Assignments are returned late and doubts on unit 3 syllabus were dismissed in class without resolution.',
+    status: 'submitted',
+    createdAt: '2026-10-14T11:35:00Z',
+  },
+  {
+    id: 'frev-105',
+    cycleId: 'cycle-001',
+    cycleTitle: 'Mid-Semester Faculty & Campus Survey 2026',
+    studentId: 'stu-04',
+    studentName: 'Anonymous Student',
+    studentUSN: 'Confidential',
+    studentDepartment: 'Computer Science',
+    studentSemester: 'Semester 5',
+    isAnonymous: true,
+    facultyId: 'fac-02',
+    facultyName: 'Prof. Sneha Sharma',
+    facultyDepartment: 'Applied Sciences',
+    subjectName: 'Physics',
+    ratings: {
+      subjectKnowledge: 5,
+      teachingClarity: 4,
+      punctuality: 5,
+      doubtResolution: 5,
+      courseCoverage: 4,
+    },
+    overallRating: 4.6,
+    strengths: 'Hands-on lab experiments and practical examples for quantum physics concepts.',
+    areasOfImprovement: 'Slide notes could be shared prior to class.',
+    generalComments: 'Very helpful during lab hours.',
+    status: 'reviewed',
+    createdAt: '2026-10-15T14:10:00Z',
+  },
+  {
+    id: 'frev-106',
+    cycleId: 'cycle-001',
+    cycleTitle: 'Mid-Semester Faculty & Campus Survey 2026',
+    studentId: 'stu-04',
+    studentName: 'Anonymous Student',
+    studentUSN: 'Confidential',
+    studentDepartment: 'Computer Science',
+    studentSemester: 'Semester 5',
+    isAnonymous: true,
+    facultyId: 'fac-03',
+    facultyName: 'Dr. Anand Rao',
+    facultyDepartment: 'Computer Science',
+    subjectName: 'Computer Science',
+    ratings: {
+      subjectKnowledge: 5,
+      teachingClarity: 5,
+      punctuality: 5,
+      doubtResolution: 5,
+      courseCoverage: 5,
+    },
+    overallRating: 5.0,
+    strengths: 'Superb algorithm visualizations, live coding demonstrations, and dynamic programming walk-throughs.',
+    areasOfImprovement: 'None.',
+    generalComments: 'Brilliant teacher.',
+    status: 'reviewed',
+    actionNote: 'Recommended for lead curriculum development committee.',
+    actionBy: 'Principal Office',
+    createdAt: '2026-10-16T15:20:00Z',
+  },
+  {
+    id: 'frev-107',
+    cycleId: 'cycle-001',
+    cycleTitle: 'Mid-Semester Faculty & Campus Survey 2026',
+    studentId: 'stu-05',
+    studentName: 'Anonymous Student',
+    studentUSN: 'Confidential',
+    studentDepartment: 'Artificial Intelligence & Machine Learning',
+    studentSemester: 'Semester 5',
+    isAnonymous: true,
+    facultyId: 'fac-hinton',
+    facultyName: 'Dr. Geoffrey Hinton',
+    facultyDepartment: 'Artificial Intelligence & Machine Learning',
+    subjectName: 'Deep Learning & Neural Networks',
+    ratings: {
+      subjectKnowledge: 5,
+      teachingClarity: 5,
+      punctuality: 5,
+      doubtResolution: 5,
+      courseCoverage: 5,
+    },
+    overallRating: 5.0,
+    strengths: 'Deep intuitive explanations of loss surfaces, backpropagation, and latent representations.',
+    areasOfImprovement: 'Provide more GPU lab resources for final year project compute.',
+    generalComments: 'Incredible professor. Learned cutting-edge deep learning concepts with supreme clarity.',
+    status: 'reviewed',
+    actionNote: 'Commended for outstanding pedagogical innovation and research mentorship.',
+    actionBy: 'Principal Office',
+    createdAt: '2026-10-18T10:15:00Z',
+  },
+  {
+    id: 'frev-108',
+    cycleId: 'cycle-001',
+    cycleTitle: 'Mid-Semester Faculty & Campus Survey 2026',
+    studentId: 'stu-06',
+    studentName: 'Anonymous Student',
+    studentUSN: 'Confidential',
+    studentDepartment: 'Artificial Intelligence & Machine Learning',
+    studentSemester: 'Semester 5',
+    isAnonymous: true,
+    facultyId: 'fac-lecun',
+    facultyName: 'Prof. Yann LeCun',
+    facultyDepartment: 'Artificial Intelligence & Machine Learning',
+    subjectName: 'Computer Vision & Convolutional Nets',
+    ratings: {
+      subjectKnowledge: 5,
+      teachingClarity: 5,
+      punctuality: 4,
+      doubtResolution: 5,
+      courseCoverage: 4,
+    },
+    overallRating: 4.8,
+    strengths: 'Practical PyTorch implementations, architecture trade-offs, and self-supervised learning methods.',
+    areasOfImprovement: 'Assignments are quite challenging and take significant time.',
+    generalComments: 'Best practical computer vision course experience ever.',
+    status: 'reviewed',
+    createdAt: '2026-10-18T11:30:00Z',
+  },
+  {
+    id: 'frev-109',
+    cycleId: 'cycle-001',
+    cycleTitle: 'Mid-Semester Faculty & Campus Survey 2026',
+    studentId: 'stu-07',
+    studentName: 'Anonymous Student',
+    studentUSN: 'Confidential',
+    studentDepartment: 'Artificial Intelligence & Machine Learning',
+    studentSemester: 'Semester 5',
+    isAnonymous: true,
+    facultyId: 'fac-bengio',
+    facultyName: 'Dr. Yoshua Bengio',
+    facultyDepartment: 'Artificial Intelligence & Machine Learning',
+    subjectName: 'Natural Language Processing & LLMs',
+    ratings: {
+      subjectKnowledge: 5,
+      teachingClarity: 4,
+      punctuality: 5,
+      doubtResolution: 4,
+      courseCoverage: 5,
+    },
+    overallRating: 4.6,
+    strengths: 'Attention mechanism proofs, causal reasoning in AI, and transformer architectures.',
+    areasOfImprovement: 'Share lecture slide decks a day earlier for pre-reading.',
+    generalComments: 'Brilliant faculty with exceptional depth.',
+    status: 'reviewed',
+    createdAt: '2026-10-19T09:45:00Z',
+  },
+  {
+    id: 'frev-110',
+    cycleId: 'cycle-001',
+    cycleTitle: 'Mid-Semester Faculty & Campus Survey 2026',
+    studentId: 'stu-08',
+    studentName: 'Anonymous Student',
+    studentUSN: 'Confidential',
+    studentDepartment: 'Computer Science & Engineering',
+    studentSemester: 'Semester 5',
+    isAnonymous: true,
+    facultyId: 'fac-1',
+    facultyName: 'Dr. Linus Torvalds',
+    facultyDepartment: 'Computer Science & Engineering',
+    subjectName: 'Operating Systems & System Programming',
+    ratings: {
+      subjectKnowledge: 5,
+      teachingClarity: 5,
+      punctuality: 5,
+      doubtResolution: 4,
+      courseCoverage: 5,
+    },
+    overallRating: 4.8,
+    strengths: 'Kernel level memory architecture, concurrency, and real-world C system programming.',
+    areasOfImprovement: 'Kernel compilation labs need faster VM server specs.',
+    generalComments: 'Hands down the most rigorous and rewarding systems course.',
+    status: 'reviewed',
+    actionNote: 'Lab server upgrade approved for OS laboratory.',
+    actionBy: 'Principal Office',
+    createdAt: '2026-10-19T14:20:00Z',
+  },
+  {
+    id: 'frev-111',
+    cycleId: 'cycle-001',
+    cycleTitle: 'Mid-Semester Faculty & Campus Survey 2026',
+    studentId: 'stu-09',
+    studentName: 'Anonymous Student',
+    studentUSN: 'Confidential',
+    studentDepartment: 'Computer Science & Engineering',
+    studentSemester: 'Semester 5',
+    isAnonymous: true,
+    facultyId: 'fac-2',
+    facultyName: 'Prof. Dennis Ritchie',
+    facultyDepartment: 'Computer Science & Engineering',
+    subjectName: 'Database Management Systems & SQL',
+    ratings: {
+      subjectKnowledge: 5,
+      teachingClarity: 5,
+      punctuality: 5,
+      doubtResolution: 5,
+      courseCoverage: 4,
+    },
+    overallRating: 4.9,
+    strengths: 'B-tree index mechanics, ACID transaction internals, and query execution optimization.',
+    areasOfImprovement: 'Include more PostgreSQL advanced window functions in practical lab sessions.',
+    generalComments: 'Masterful teacher. Concepts stick forever.',
+    status: 'reviewed',
+    createdAt: '2026-10-20T11:00:00Z',
+  },
+  {
+    id: 'frev-112',
+    cycleId: 'cycle-001',
+    cycleTitle: 'Mid-Semester Faculty & Campus Survey 2026',
+    studentId: 'stu-10',
+    studentName: 'Anonymous Student',
+    studentUSN: 'Confidential',
+    studentDepartment: 'Computer Science & Engineering',
+    studentSemester: 'Semester 5',
+    isAnonymous: true,
+    facultyId: 'fac-3',
+    facultyName: 'Dr. Donald Knuth',
+    facultyDepartment: 'Computer Science & Engineering',
+    subjectName: 'Algorithm Analysis & TeX',
+    ratings: {
+      subjectKnowledge: 5,
+      teachingClarity: 5,
+      punctuality: 5,
+      doubtResolution: 5,
+      courseCoverage: 5,
+    },
+    overallRating: 5.0,
+    strengths: 'Rigorous asymptotic proofs, elegant algorithmic beauty, and crystal clear derivations.',
+    areasOfImprovement: 'None.',
+    generalComments: 'Living legend. True privilege to attend lectures.',
+    status: 'reviewed',
+    createdAt: '2026-10-20T12:00:00Z',
+  },
+  {
+    id: 'frev-113',
+    cycleId: 'cycle-001',
+    cycleTitle: 'Mid-Semester Faculty & Campus Survey 2026',
+    studentId: 'stu-11',
+    studentName: 'Anonymous Student',
+    studentUSN: 'Confidential',
+    studentDepartment: 'Computer Science & Engineering',
+    studentSemester: 'Semester 5',
+    isAnonymous: true,
+    facultyId: 'fac-4',
+    facultyName: 'Prof. Ada Lovelace',
+    facultyDepartment: 'Computer Science & Engineering',
+    subjectName: 'Computational Logic & Databases',
+    ratings: {
+      subjectKnowledge: 5,
+      teachingClarity: 5,
+      punctuality: 5,
+      doubtResolution: 4,
+      courseCoverage: 4,
+    },
+    overallRating: 4.7,
+    strengths: 'Relational algebra, boolean logic synthesis, and excellent query structuring.',
+    areasOfImprovement: 'Provide more practice worksheets for relational calculus.',
+    generalComments: 'Great lecturer and very inspiring.',
+    status: 'reviewed',
+    createdAt: '2026-10-21T09:30:00Z',
+  },
+  {
+    id: 'frev-114',
+    cycleId: 'cycle-001',
+    cycleTitle: 'Mid-Semester Faculty & Campus Survey 2026',
+    studentId: 'stu-12',
+    studentName: 'Anonymous Student',
+    studentUSN: 'Confidential',
+    studentDepartment: 'Computer Science & Engineering',
+    studentSemester: 'Semester 7',
+    isAnonymous: true,
+    facultyId: 'fac-5',
+    facultyName: 'Dr. Tim Berners-Lee',
+    facultyDepartment: 'Computer Science & Engineering',
+    subjectName: 'Distributed Systems & WWW',
+    ratings: {
+      subjectKnowledge: 5,
+      teachingClarity: 5,
+      punctuality: 5,
+      doubtResolution: 4,
+      courseCoverage: 5,
+    },
+    overallRating: 4.8,
+    strengths: 'Web protocols, consensus algorithms (Raft/Paxos), and microservice architectures.',
+    areasOfImprovement: 'Lab cluster setup had occasional DNS resolution hiccups.',
+    generalComments: 'Outstanding real world knowledge.',
+    status: 'reviewed',
+    createdAt: '2026-10-21T10:15:00Z',
+  },
+  {
+    id: 'frev-115',
+    cycleId: 'cycle-001',
+    cycleTitle: 'Mid-Semester Faculty & Campus Survey 2026',
+    studentId: 'stu-13',
+    studentName: 'Anonymous Student',
+    studentUSN: 'Confidential',
+    studentDepartment: 'Computer Science & Engineering',
+    studentSemester: 'Semester 7',
+    isAnonymous: true,
+    facultyId: 'fac-6',
+    facultyName: 'Dr. Bjarne Stroustrup',
+    facultyDepartment: 'Computer Science & Engineering',
+    subjectName: 'C++ & Object Oriented Design',
+    ratings: {
+      subjectKnowledge: 5,
+      teachingClarity: 4,
+      punctuality: 5,
+      doubtResolution: 4,
+      courseCoverage: 4,
+    },
+    overallRating: 4.5,
+    strengths: 'Deep dive into templates, move semantics, and RAII memory safety.',
+    areasOfImprovement: 'Code assignments are very lengthy.',
+    generalComments: 'Challenging course that significantly improved my coding standards.',
+    status: 'reviewed',
+    createdAt: '2026-10-21T14:40:00Z',
   },
 ];
 
@@ -179,11 +534,11 @@ let MOCK_COLLEGE_REVIEWS: CollegeReviewSubmission[] = [
     cycleId: 'cycle-001',
     cycleTitle: 'Mid-Semester Faculty & Campus Survey 2026',
     studentId: 'stu-01',
-    studentName: 'Rahul Verma',
-    studentUSN: '1MS21CS042',
-    studentDepartment: 'Computer Science',
+    studentName: 'Anonymous Student',
+    studentUSN: 'Confidential',
+    studentDepartment: 'Computer Science & Engineering',
     studentSemester: 'Semester 5',
-    isAnonymous: false,
+    isAnonymous: true,
     ratings: {
       infrastructureLabs: 5,
       libraryResources: 5,
@@ -207,7 +562,7 @@ let MOCK_COLLEGE_REVIEWS: CollegeReviewSubmission[] = [
     studentId: 'stu-02',
     studentName: 'Anonymous Student',
     studentUSN: 'Confidential',
-    studentDepartment: 'AIML',
+    studentDepartment: 'Computer Science & Engineering',
     studentSemester: 'Semester 3',
     isAnonymous: true,
     ratings: {
@@ -218,8 +573,8 @@ let MOCK_COLLEGE_REVIEWS: CollegeReviewSubmission[] = [
       adminStudentSupport: 4,
       placementsTraining: 5,
     },
-    overallRating: 4.2,
-    campusHighlights: 'GPU computing lab with NVIDIA A100 rigs is superb for our machine learning projects.',
+    overallRating: 4.5,
+    campusHighlights: 'Computing lab with modern Linux workstations is superb for our software systems projects.',
     improvementSuggestions: 'Need more badminton court lighting for evening sports after 6 PM.',
     status: 'reviewed',
     actionNote: 'Forwarded to Physical Education Director for LED spotlight installation.',
@@ -231,11 +586,11 @@ let MOCK_COLLEGE_REVIEWS: CollegeReviewSubmission[] = [
     cycleId: 'cycle-001',
     cycleTitle: 'Mid-Semester Faculty & Campus Survey 2026',
     studentId: 'stu-03',
-    studentName: 'Priya Nair',
-    studentUSN: '1MS22EC018',
+    studentName: 'Anonymous Student',
+    studentUSN: 'Confidential',
     studentDepartment: 'Electronics & Comm',
     studentSemester: 'Semester 5',
-    isAnonymous: false,
+    isAnonymous: true,
     ratings: {
       infrastructureLabs: 4,
       libraryResources: 5,
@@ -249,6 +604,30 @@ let MOCK_COLLEGE_REVIEWS: CollegeReviewSubmission[] = [
     improvementSuggestions: 'VLSI lab licenses for Cadence should be extended to remote VPN access during weekends.',
     status: 'submitted',
     createdAt: '2026-10-15T10:10:00Z',
+  },
+  {
+    id: 'crev-204',
+    cycleId: 'cycle-001',
+    cycleTitle: 'Mid-Semester Faculty & Campus Survey 2026',
+    studentId: 'stu-04',
+    studentName: 'Anonymous Student',
+    studentUSN: 'Confidential',
+    studentDepartment: 'Artificial Intelligence & Machine Learning',
+    studentSemester: 'Semester 5',
+    isAnonymous: true,
+    ratings: {
+      infrastructureLabs: 5,
+      libraryResources: 5,
+      canteenCleanliness: 4,
+      sportsExtracurriculars: 4,
+      adminStudentSupport: 5,
+      placementsTraining: 5,
+    },
+    overallRating: 4.8,
+    campusHighlights: 'AI GPU research server rack and fast internet connectivity in research labs.',
+    improvementSuggestions: 'Additional collaborative whiteboard spaces in library 2nd floor.',
+    status: 'reviewed',
+    createdAt: '2026-10-18T16:20:00Z',
   },
 ];
 
@@ -295,11 +674,45 @@ export async function updateCycleStatusApi(
   return false;
 }
 
+export async function fetchStudentAllocationsApi(
+  studentId: string = 'stu-01'
+): Promise<CourseSubjectAllocation[]> {
+  await delay();
+  return MOCK_COURSE_ALLOCATIONS.map((alloc) => {
+    const existing = MOCK_FACULTY_REVIEWS.find(
+      (r) =>
+        r.studentId === studentId &&
+        r.facultyId === alloc.facultyId &&
+        r.subjectName.toLowerCase() === alloc.subjectName.toLowerCase()
+    );
+    return {
+      ...alloc,
+      hasStudentReviewed: !!existing,
+      studentReviewRating: existing?.overallRating,
+    };
+  });
+}
+
+export function matchesDepartment(itemDept?: string, filterDept?: string): boolean {
+  if (!filterDept || filterDept === 'all') return true;
+  if (!itemDept) return true;
+  const d1 = itemDept.trim().toLowerCase();
+  const d2 = filterDept.trim().toLowerCase();
+  if (d1 === d2) return true;
+  if ((d1.includes('computer') || d1.includes('cse')) && (d2.includes('computer') || d2.includes('cse'))) return true;
+  if ((d1.includes('ai') || d1.includes('aiml') || d1.includes('machine') || d1.includes('intelligence')) && (d2.includes('ai') || d2.includes('aiml') || d2.includes('machine') || d2.includes('intelligence'))) return true;
+  if ((d1.includes('electronic') || d1.includes('ece')) && (d2.includes('electronic') || d2.includes('ece'))) return true;
+  if (d1.includes('mech') && d2.includes('mech')) return true;
+  if (d1.includes('civil') && d2.includes('civil')) return true;
+  return d1.includes(d2) || d2.includes(d1);
+}
+
 export async function fetchFacultyReviewsApi(filters?: {
   cycleId?: string;
   facultyId?: string;
   facultyName?: string;
   department?: string;
+  subjectName?: string;
   ratingMin?: number;
   studentId?: string;
 }): Promise<FacultyReviewSubmission[]> {
@@ -316,8 +729,13 @@ export async function fetchFacultyReviewsApi(filters?: {
       r.facultyName.toLowerCase().includes(filters.facultyName!.toLowerCase())
     );
   }
+  if (filters?.subjectName && filters.subjectName !== 'all') {
+    list = list.filter((r) =>
+      r.subjectName.toLowerCase() === filters.subjectName!.toLowerCase()
+    );
+  }
   if (filters?.department && filters.department !== 'all') {
-    list = list.filter((r) => r.facultyDepartment === filters.department);
+    list = list.filter((r) => matchesDepartment(r.facultyDepartment, filters.department));
   }
   if (filters?.ratingMin) {
     list = list.filter((r) => r.overallRating >= filters.ratingMin!);
@@ -339,7 +757,7 @@ export async function fetchCollegeReviewsApi(filters?: {
     list = list.filter((r) => r.cycleId === filters.cycleId);
   }
   if (filters?.department && filters.department !== 'all') {
-    list = list.filter((r) => r.studentDepartment === filters.department);
+    list = list.filter((r) => matchesDepartment(r.studentDepartment, filters.department));
   }
   if (filters?.studentId) {
     list = list.filter((r) => r.studentId === filters.studentId);
@@ -424,6 +842,22 @@ export async function fetchTeacherFeedbackStatsApi(
       ? Number((targetReviews.reduce((acc, r) => acc + r.overallRating, 0) / total).toFixed(1))
       : 4.8;
 
+  // Compute breakdown by subject
+  const subjectsMap: Record<string, { total: number; sum: number }> = {};
+  targetReviews.forEach((r) => {
+    if (!subjectsMap[r.subjectName]) {
+      subjectsMap[r.subjectName] = { total: 0, sum: 0 };
+    }
+    subjectsMap[r.subjectName].total += 1;
+    subjectsMap[r.subjectName].sum += r.overallRating;
+  });
+
+  const subjectBreakdown = Object.keys(subjectsMap).map((sub) => ({
+    subjectName: sub,
+    averageRating: Number((subjectsMap[sub].sum / subjectsMap[sub].total).toFixed(1)),
+    totalReviews: subjectsMap[sub].total,
+  }));
+
   const paramAvg = {
     subjectKnowledge: Number(
       (targetReviews.reduce((acc, r) => acc + r.ratings.subjectKnowledge, 0) / (total || 1)).toFixed(1)
@@ -454,6 +888,7 @@ export async function fetchTeacherFeedbackStatsApi(
     department: 'Computer Science',
     averageRating: avg,
     totalReviews: total,
+    subjectBreakdown,
     parameterAverages: paramAvg,
     ratingDistribution: dist,
     recentReviews: targetReviews,

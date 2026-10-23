@@ -28,8 +28,8 @@ interface TeacherDrawerProps {
   email?: string;
   profilePic?: string;
   institutionName?: string;
-  activeTab?: string;
-  onTabSwitch?: (tab: 'home' | 'schedule' | 'attendance' | 'marks' | 'reports' | 'homework' | 'chat' | 'locate' | 'profile' | 'payroll') => void;
+  activeTab?: 'home' | 'schedule' | 'attendance' | 'marks' | 'reports' | 'homework' | 'chat' | 'locate' | 'profile' | 'leaves' | 'reviews';
+  onTabSwitch?: (tab: 'home' | 'schedule' | 'attendance' | 'marks' | 'reports' | 'homework' | 'chat' | 'locate' | 'profile' | 'leaves' | 'reviews') => void;
 }
 
 const PRIMARY = [
@@ -39,7 +39,7 @@ const PRIMARY = [
   { key: 'marks', label: 'Marks & Grades', icon: 'certificate-outline', iconFilled: 'certificate', tab: 'marks' as const },
   { key: 'homework', label: 'Homework', icon: 'book-plus-outline', iconFilled: 'book-plus', tab: 'homework' as const },
   { key: 'reports', label: 'Attendance Reports', icon: 'chart-bar', iconFilled: 'chart-bar', tab: 'reports' as const },
-  { key: 'payroll', label: 'My Payslips & Salary', icon: 'cash-multiple', iconFilled: 'cash-multiple', tab: 'payroll' as const },
+  { key: 'reviews', label: 'Student Feedback', icon: 'star-circle-outline', iconFilled: 'star-circle', tab: 'reviews' as const },
   { key: 'chat', label: 'Parent Chat', icon: 'message-text-outline', iconFilled: 'message-text', tab: 'chat' as const },
   { key: 'locate', label: 'Locate Students', icon: 'map-marker-outline', iconFilled: 'map-marker', tab: 'locate' as const },
 ];
@@ -112,7 +112,7 @@ export const TeacherDrawer: React.FC<TeacherDrawerProps> = ({
     setTimeout(() => router.push(route as any), 120);
   };
 
-  const switchTabAndClose = (tab: 'home' | 'schedule' | 'attendance' | 'marks' | 'reports' | 'homework' | 'chat' | 'locate' | 'profile' | 'payroll') => {
+  const switchTabAndClose = (tab: 'home' | 'schedule' | 'attendance' | 'marks' | 'reports' | 'homework' | 'chat' | 'locate' | 'profile' | 'leaves' | 'reviews') => {
     if (onTabSwitch) {
       onTabSwitch(tab);
     } else {

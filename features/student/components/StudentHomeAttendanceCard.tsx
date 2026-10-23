@@ -66,11 +66,6 @@ export const StudentHomeAttendanceCard: React.FC<StudentHomeAttendanceCardProps>
             ) : (
               <Text style={styles.periodTime}>Free period</Text>
             )}
-            {currentSlot?.room ? (
-              <View style={styles.roomTag}>
-                <Text style={styles.roomTagText}>Room {currentSlot.room}</Text>
-              </View>
-            ) : null}
           </>
         )}
       </View>

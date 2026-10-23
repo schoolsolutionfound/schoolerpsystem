@@ -3,13 +3,18 @@ import { AppError } from '../utils/errorHandler';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 const getBaseUrl = (): string => {
-  // On web in PC browser, always connect to the matching hostname that served the web app
+  // 1. On web in PC browser, always connect to the matching hostname that served the web app
   if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.hostname) {
     const webHost = window.location.hostname;
     return `http://${webHost}:5000/api/v1`;
   }
 
-  // In development, dynamically connect to the active Metro host IP (handles mobile on Wi-Fi automatically)
+  // 2. Explicit API URL defined in .env (takes precedence over stale/cached network interfaces)
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
+  }
+
+  // 3. In development fallback, dynamically connect to active Metro host IP
   if (__DEV__) {
     const hostUri = Constants.expoConfig?.hostUri || (Constants as any).manifest2?.extra?.expoGo?.debuggerHost;
     if (hostUri) {
@@ -18,10 +23,6 @@ const getBaseUrl = (): string => {
         return `http://${hostIp}:5000/api/v1`;
       }
     }
-  }
-
-  if (process.env.EXPO_PUBLIC_API_URL) {
-    return process.env.EXPO_PUBLIC_API_URL;
   }
 
   return Platform.OS === 'android'
@@ -60,11 +61,27 @@ export async function apiClient<T = any>(
   const baseUrl = getBaseUrl();
   const url = `${baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
 
-  try {
-    const response = await fetch(url, {
-      ...options,
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeoutMs = 8000;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error('REQUEST_TIMEOUT'));
+    }, timeoutMs);
+  });
+
+  // Strip signal to avoid Expo Android NativeRequest crash
+  const { signal: _ignoredSignal, ...fetchOptions } = options;
+
+  const fetchPromise = (async () => {
+    return await fetch(url, {
+      ...fetchOptions,
       headers,
     });
+  })();
+
+  try {
+    const response = await Promise.race([fetchPromise, timeoutPromise]);
+    if (timeoutId) clearTimeout(timeoutId);
 
     const data = await response.json();
 
@@ -76,8 +93,16 @@ export async function apiClient<T = any>(
 
     return (data.data !== undefined ? data.data : data) as T;
   } catch (error: any) {
+    if (timeoutId) clearTimeout(timeoutId);
     if (error instanceof AppError) throw error;
-    console.log(`[API Client Network Info] Fastify API at ${url} unavailable (${error.message}). App falling back to cloud services.`);
-    throw new AppError(`API Network Error: Could not connect to backend server at ${url}.`, 'NETWORK_ERROR', 503);
+    const isTimeout = error.message === 'REQUEST_TIMEOUT';
+    console.log(`[API Client Network Info] Fastify API at ${url} ${isTimeout ? 'timed out after 8s' : 'unavailable'} (${error.message}).`);
+    throw new AppError(
+      isTimeout
+        ? `Connection timed out connecting to backend server at ${url}. Ensure mobile phone and PC are on the same Wi-Fi.`
+        : `API Network Error: Could not connect to backend server at ${url}.`,
+      'NETWORK_ERROR',
+      503
+    );
   }
 }

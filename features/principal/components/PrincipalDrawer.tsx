@@ -40,11 +40,10 @@ const MAIN_NAV: {
   { key: 'homerooms', label: 'Students', icon: 'account-group-outline' },
   { key: 'timetable', label: 'Timetable', icon: 'calendar-edit' },
   { key: 'staff', label: 'Faculty', icon: 'account-group-outline' },
-  { key: 'events', label: 'Academic Calendar & Events', icon: 'calendar-multiselect' },
+  { key: 'events', label: 'Events & Calendar', icon: 'calendar-multiselect' },
   { key: 'leaves', label: 'Leave Approvals', icon: 'account-clock-outline' },
-  { key: 'document_requests', label: 'Document Issuance & Requests', icon: 'file-certificate-outline' },
-  { key: 'payroll', label: 'Payroll & Compensation', icon: 'cash-register' },
-  { key: 'reviews', label: 'Reviews', icon: 'clipboard-text-outline' },
+  { key: 'document_requests', label: 'Document Desk', icon: 'file-certificate-outline' },
+  { key: 'reviews', label: 'Student Reviews', icon: 'clipboard-text-outline' },
 ];
 
 const TEACHING_NAV: {
@@ -57,8 +56,6 @@ const TEACHING_NAV: {
   { key: 'mark_attendance', label: 'Mark Attendance', icon: 'clipboard-check-outline' },
   { key: 'marks', label: 'Marks', icon: 'certificate-outline' },
   { key: 'homework', label: 'Homework', icon: 'book-plus-outline' },
-  { key: 'chat', label: 'Chat', icon: 'message-text-outline' },
-  { key: 'locate', label: 'Locate Students', icon: 'map-marker-outline' },
 ];
 
 export const PrincipalDrawer: React.FC<PrincipalDrawerProps> = ({
@@ -75,6 +72,7 @@ export const PrincipalDrawer: React.FC<PrincipalDrawerProps> = ({
   const fullName = useUserStore((state) => state.fullName) || 'Principal';
   const email = useUserStore((state) => state.email) || 'librarian@school.com';
   const institutionName = useUserStore((state) => state.institutionName) || 'SchoolHub Academy';
+  const hasModuleAccess = useUserStore((state) => state.hasModuleAccess);
 
   const [slideX] = useState(() => new Animated.Value(-width));
   const [fade] = useState(() => new Animated.Value(0));
@@ -219,11 +217,11 @@ export const PrincipalDrawer: React.FC<PrincipalDrawerProps> = ({
             <ScrollView style={styles.navScroll} showsVerticalScrollIndicator={false}>
               {/* MAIN SECTION */}
               <Text style={styles.sectionTitle}>MAIN</Text>
-              {MAIN_NAV.map(renderNavItem)}
+              {MAIN_NAV.filter((item) => hasModuleAccess(item.key)).map(renderNavItem)}
 
               {/* TEACHING OPERATIONS SECTION */}
               <Text style={[styles.sectionTitle, { marginTop: 18 }]}>OPERATIONS</Text>
-              {TEACHING_NAV.map(renderNavItem)}
+              {TEACHING_NAV.filter((item) => hasModuleAccess(item.key)).map(renderNavItem)}
 
               {/* ACCOUNT SECTION */}
               <Text style={[styles.sectionTitle, { marginTop: 18 }]}>ACCOUNT</Text>

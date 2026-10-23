@@ -11,7 +11,7 @@ import {
   useWindowDimensions,
   Platform,
   KeyboardAvoidingView,
-  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { FontFamily } from '../../../constants/fonts';
@@ -21,7 +21,6 @@ import {
   DocumentStatus,
   DOCUMENT_TYPE_CONFIG,
 } from '../types/documentRequest.types';
-import { generateAndShareCertificatePDF } from '../utils/generateInstitutionalCertificatePDF';
 
 interface DocumentRequestsManagerViewProps {
   userRole?: 'principal' | 'hod' | 'admin' | 'student';
@@ -31,6 +30,23 @@ interface DocumentRequestsManagerViewProps {
   userDepartment?: string;
   institutionName?: string;
 }
+
+export const QUERY_PRESETS = [
+  'Physical signature required on office register / application form',
+  'Original fee clearance receipt needed for verification',
+  'Previous semester marksheet copies missing / illegible',
+  'In-person consultation required with Academic Coordinator / HOD',
+  'Recent passport-size photograph submission required',
+  'Parent / Guardian consent endorsement letter needed',
+];
+
+export const PICKUP_LOCATION_PRESETS = [
+  'Administrative Office (Accounts Counter 2)',
+  'Administrative Office (Counter 3, Ground Floor)',
+  'Examination Cell (Window 1)',
+  'Department HOD Office',
+  'Academic Registrar Desk (Main Block)',
+];
 
 const INITIAL_REQUESTS: DocumentRequest[] = [
   {
@@ -45,13 +61,11 @@ const INITIAL_REQUESTS: DocumentRequest[] = [
     purpose: 'Higher Studies Admission (Master’s Program in AI)',
     urgency: 'urgent',
     copiesCount: 2,
+    feeAmount: 300,
+    paymentNote: 'Pay ₹300 must be paid while collecting document',
     studentRemarks: 'Need official sealed marks card for university application deadline on Friday.',
     appliedDate: '18-Oct-2026',
-    status: 'approved',
-    reviewedBy: 'Dr. Robert Chen (Principal)',
-    reviewDate: '18-Oct-2026',
-    reviewRemarks: 'Verified all semester credits and dues clearance. Approved for issuance.',
-    certificateNumber: 'MC-CSE-2026-0812',
+    status: 'pending',
     academicDetails: {
       semester: 'Semester V',
       academicYear: '2025 - 2026',
@@ -73,14 +87,16 @@ const INITIAL_REQUESTS: DocumentRequest[] = [
     purpose: 'Passport Application & International Hackathon Visa Endorsement',
     urgency: 'normal',
     copiesCount: 1,
+    feeAmount: 100,
+    paymentNote: 'Pay ₹100 must be paid while collecting document',
     studentRemarks: 'Passport office scheduled appointment for next Tuesday.',
     appliedDate: '17-Oct-2026',
-    status: 'generated',
-    reviewedBy: 'Dr. Priya Sundaram (HOD AIML)',
-    reviewDate: '17-Oct-2026',
-    reviewRemarks: 'Verified bona fide enrollment and attendance compliance.',
+    status: 'processed',
+    processedDate: '18-Oct-2026',
+    processedBy: 'Administrative Office',
+    pickupLocation: 'Administrative Office (Counter 3, Ground Floor)',
     certificateNumber: 'SC-AIML-2026-042',
-    generatedDate: '17-Oct-2026',
+    reviewRemarks: 'Physical certificate printed with official seal.',
     academicDetails: {
       semester: 'Semester VI',
       academicYear: '2025 - 2026',
@@ -97,12 +113,17 @@ const INITIAL_REQUESTS: DocumentRequest[] = [
     department: 'Electronics & Comm',
     classOrSemester: 'Semester IV',
     documentType: 'hall_ticket',
-    purpose: 'End Semester Regular Examinations Re-issuance',
+    purpose: 'End Semester Regular Examinations Duplicate Issuance',
     urgency: 'urgent',
     copiesCount: 1,
+    feeAmount: 0,
+    paymentNote: 'Free Official Issuance (₹0)',
     studentRemarks: 'Misplaced original hall ticket; exam starts day after tomorrow.',
     appliedDate: '18-Oct-2026',
-    status: 'pending',
+    status: 'query_raised',
+    queryText: 'Physical signature required on the lost hall-ticket affidavit along with recent passport-size photograph.',
+    queryDate: '19-Oct-2026',
+    queriedBy: 'HOD ECE Desk',
     academicDetails: {
       semester: 'Semester IV',
       academicYear: '2025 - 2026',
@@ -121,13 +142,11 @@ const INITIAL_REQUESTS: DocumentRequest[] = [
     purpose: 'Degree Course Completed & Relocation for Employment',
     urgency: 'normal',
     copiesCount: 2,
+    feeAmount: 500,
+    paymentNote: 'Pay ₹500 must be paid while collecting document',
     studentRemarks: 'Completed 8th semester and got placed at Tata Motors Pune.',
     appliedDate: '16-Oct-2026',
-    status: 'approved',
-    reviewedBy: 'Dr. Robert Chen (Principal)',
-    reviewDate: '17-Oct-2026',
-    reviewRemarks: 'All 8 semesters cleared and library dues settled.',
-    certificateNumber: 'TC-MECH-2026-091',
+    status: 'pending',
     academicDetails: {
       semester: 'Semester VIII',
       academicYear: '2024 - 2025',
@@ -147,13 +166,15 @@ const INITIAL_REQUESTS: DocumentRequest[] = [
     purpose: 'State Post-Matric Scholarship Submission & Loan Subsidy',
     urgency: 'normal',
     copiesCount: 1,
+    feeAmount: 0,
+    paymentNote: 'Free Official Issuance (₹0)',
     studentRemarks: 'Required by State Scholarship Portal by end of month.',
     appliedDate: '15-Oct-2026',
-    status: 'generated',
-    reviewedBy: 'Finance & Accounts Officer',
-    reviewDate: '16-Oct-2026',
+    status: 'processed',
+    processedDate: '16-Oct-2026',
+    processedBy: 'Finance & Accounts Officer',
+    pickupLocation: 'Administrative Office (Accounts Counter 2)',
     certificateNumber: 'FC-CIVIL-2026-029',
-    generatedDate: '16-Oct-2026',
     academicDetails: {
       feeStatus: 'paid',
       academicYear: '2025 - 2026',
@@ -171,8 +192,13 @@ const INITIAL_REQUESTS: DocumentRequest[] = [
     purpose: 'Off-Campus Internship at Google India Bengaluru',
     urgency: 'urgent',
     copiesCount: 1,
+    feeAmount: 100,
+    paymentNote: 'Pay ₹100 must be paid while collecting document',
     appliedDate: '18-Oct-2026',
-    status: 'pending',
+    status: 'query_raised',
+    queryText: 'Attendance falls below the minimum required 75% for conduct endorsement. Please consult office.',
+    queriedBy: 'Principal Office',
+    queryDate: '19-Oct-2026',
   },
 ];
 
@@ -207,21 +233,38 @@ export const DocumentRequestsManagerView: React.FC<DocumentRequestsManagerViewPr
   const [docTypeFilter, setDocTypeFilter] = useState<'all' | DocumentType>('all');
   const [selectedDeptFilter, setSelectedDeptFilter] = useState<string>('all');
   const [filterModalVisible, setFilterModalVisible] = useState(false);
+  // Card expansion state
+  const [expandedCardIds, setExpandedCardIds] = useState<Record<string, boolean>>({});
+  const toggleExpandCard = (id: string) => {
+    setExpandedCardIds((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
 
   // Action Modals
   const [selectedRequest, setSelectedRequest] = useState<DocumentRequest | null>(null);
   const [detailsModalVisible, setDetailsModalVisible] = useState(false);
-  const [approveModalVisible, setApproveModalVisible] = useState(false);
-  const [rejectModalVisible, setRejectModalVisible] = useState(false);
+  const [processModalVisible, setProcessModalVisible] = useState(false);
+  const [queryModalVisible, setQueryModalVisible] = useState(false);
   const [newRequestModalVisible, setNewRequestModalVisible] = useState(false);
 
   // Form states
+  const [pickupLocationInput, setPickupLocationInput] = useState('Administrative Office (Accounts Counter 2)');
+  const [pickupDropdownOpen, setPickupDropdownOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 600);
+  };
+  const [processRemarksInput, setProcessRemarksInput] = useState('');
+  const [queryTextInput, setQueryTextInput] = useState('');
+  const [selectedQueryPreset, setSelectedQueryPreset] = useState('');
   const [reviewRemarks, setReviewRemarks] = useState('');
-  const [certNumberInput, setCertNumberInput] = useState('');
-  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   // Student new request form state
   const [newDocType, setNewDocType] = useState<DocumentType>('marks_card');
+  const [docDropdownOpen, setDocDropdownOpen] = useState(false);
   const [newPurpose, setNewPurpose] = useState('');
   const [newCopies, setNewCopies] = useState(1);
   const [newUrgency, setNewUrgency] = useState<'normal' | 'urgent'>('normal');
@@ -241,14 +284,27 @@ export const DocumentRequestsManagerView: React.FC<DocumentRequestsManagerViewPr
     ];
   }, []);
 
+  // Filter check
+  const isAnyFilterActive =
+    statusFilter !== 'all' ||
+    docTypeFilter !== 'all' ||
+    selectedDeptFilter !== 'all' ||
+    searchQuery.trim().length > 0;
+
+  const handleClearAllFilters = () => {
+    setStatusFilter('all');
+    setDocTypeFilter('all');
+    setSelectedDeptFilter('all');
+    setSearchQuery('');
+  };
+
   // Filtered requests
   const filteredRequests = useMemo(() => {
-    return requests.filter((req) => {
+    const list = requests.filter((req) => {
       // Role scope
       if (userRole === 'student') {
         if (req.studentId !== currentStudentId && req.rollNoOrUSN !== currentStudentUSN) {
           // If we have existing mocked data, allow seeing student's own requests
-          // or top 3 for showcase
         }
       } else if (userRole === 'hod' && userDepartment) {
         if (req.department.toLowerCase() !== userDepartment.toLowerCase()) {
@@ -285,6 +341,28 @@ export const DocumentRequestsManagerView: React.FC<DocumentRequestsManagerViewPr
 
       return true;
     });
+
+    // Priority sorting:
+    // 1. Unprocessed / Pending (no queries raised) on TOP
+    // 2. Queries Raised (above processed ones)
+    // 3. Processed at the bottom
+    return [...list].sort((a, b) => {
+      const getPriority = (status: DocumentStatus) => {
+        if (status === 'pending' || status === 'approved') return 1;
+        if (status === 'query_raised') return 2;
+        return 3; // processed / generated
+      };
+
+      const pA = getPriority(a.status);
+      const pB = getPriority(b.status);
+      if (pA !== pB) return pA - pB;
+
+      // Within same status, urgent requests come first
+      if (a.urgency === 'urgent' && b.urgency !== 'urgent') return -1;
+      if (b.urgency === 'urgent' && a.urgency !== 'urgent') return 1;
+
+      return 0;
+    });
   }, [
     requests,
     userRole,
@@ -305,142 +383,142 @@ export const DocumentRequestsManagerView: React.FC<DocumentRequestsManagerViewPr
 
     return {
       total: list.length,
-      pending: list.filter((r) => r.status === 'pending').length,
-      approved: list.filter((r) => r.status === 'approved').length,
-      generated: list.filter((r) => r.status === 'generated').length,
+      pending: list.filter((r) => r.status === 'pending' || r.status === 'approved').length,
+      queryRaised: list.filter((r) => r.status === 'query_raised').length,
+      processed: list.filter((r) => r.status === 'processed' || r.status === 'generated').length,
     };
   }, [requests, userRole, userDepartment]);
 
-  // Handlers
-  const handleOpenApproveModal = (req: DocumentRequest) => {
+  // Process Handler
+  const handleOpenProcessModal = (req: DocumentRequest) => {
     setSelectedRequest(req);
-    const cfg = DOCUMENT_TYPE_CONFIG[req.documentType];
-    setCertNumberInput(
-      req.certificateNumber ||
-        `${cfg.prefix}-${req.department.slice(0, 3).toUpperCase()}-2026-${req.requestNumber.replace('DOC-2026-', '')}`
-    );
-    setReviewRemarks(req.reviewRemarks || 'Verified institutional records and cleared for issuance.');
-    setApproveModalVisible(true);
+    setPickupDropdownOpen(false);
+    setPickupLocationInput(req.pickupLocation || 'Administrative Office (Accounts Counter 2)');
+    setProcessRemarksInput(req.reviewRemarks || '');
+    setProcessModalVisible(true);
   };
 
-  const handleConfirmApproval = () => {
+  const handleConfirmProcess = () => {
     if (!selectedRequest) return;
+    const cfg = DOCUMENT_TYPE_CONFIG[selectedRequest.documentType];
+    const pickupLoc = pickupLocationInput.trim() || 'Administrative Office (Counter 3, Ground Floor)';
     const updated: DocumentRequest = {
       ...selectedRequest,
-      status: 'approved',
-      certificateNumber: certNumberInput.trim() || selectedRequest.certificateNumber,
-      reviewRemarks: reviewRemarks.trim(),
-      reviewedBy: userRole === 'principal' ? 'Principal Office' : 'Head of Department',
-      reviewDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+      status: 'processed',
+      processedDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+      processedBy: userRole === 'principal' ? 'Principal Office' : userRole === 'hod' ? 'Head of Department' : 'Administrative Office',
+      pickupLocation: pickupLoc,
+      reviewRemarks: processRemarksInput.trim() || selectedRequest.reviewRemarks,
     };
 
     setRequests((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
-    setApproveModalVisible(false);
-    setSelectedRequest(null);
-    Alert.alert('Request Approved', `Application ${updated.requestNumber} has been approved.`);
+    if (selectedRequest && selectedRequest.id === updated.id) {
+      setSelectedRequest(updated);
+    }
+    setPickupDropdownOpen(false);
+    setProcessModalVisible(false);
+
+    Alert.alert(
+      'Document Processed & Student Notified',
+      `Notification sent to ${updated.studentName}:\n\n"Your requested document (${cfg.label}) is processed. You can go and collect it from office (${pickupLoc})."`
+    );
   };
 
-  const handleOpenRejectModal = (req: DocumentRequest) => {
+  // Raise Query Handler
+  const handleOpenQueryModal = (req: DocumentRequest) => {
     setSelectedRequest(req);
-    setReviewRemarks('');
-    setRejectModalVisible(true);
+    setQueryTextInput(req.queryText || '');
+    setSelectedQueryPreset('');
+    setQueryModalVisible(true);
   };
 
-  const handleConfirmRejection = () => {
+  const handleConfirmQuery = () => {
     if (!selectedRequest) return;
-    if (!reviewRemarks.trim()) {
-      Alert.alert('Reason Required', 'Please enter a clear reason for rejecting the request.');
+    if (!queryTextInput.trim()) {
+      Alert.alert('Query Details Required', 'Please enter or select consultation requirements for the student.');
       return;
     }
-
+    const cfg = DOCUMENT_TYPE_CONFIG[selectedRequest.documentType];
     const updated: DocumentRequest = {
       ...selectedRequest,
-      status: 'rejected',
-      reviewRemarks: reviewRemarks.trim(),
-      reviewedBy: userRole === 'principal' ? 'Principal Office' : 'Head of Department',
-      reviewDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+      status: 'query_raised',
+      queryText: queryTextInput.trim(),
+      queryDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+      queriedBy: userRole === 'principal' ? 'Principal Office' : userRole === 'hod' ? 'Head of Department' : 'Administrative Office',
     };
 
     setRequests((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
-    setRejectModalVisible(false);
-    setSelectedRequest(null);
-    Alert.alert('Request Rejected', `Application ${updated.requestNumber} marked as rejected.`);
-  };
-
-  const handleGenerateDocument = async (req: DocumentRequest) => {
-    try {
-      setIsGeneratingPdf(true);
-      const generatedDate = new Date().toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: 'long',
-        year: 'numeric',
-      });
-
-      const updated: DocumentRequest = {
-        ...req,
-        status: 'generated',
-        generatedDate,
-        certificateNumber:
-          req.certificateNumber ||
-          `${DOCUMENT_TYPE_CONFIG[req.documentType].prefix}-2026-${req.requestNumber.replace('DOC-2026-', '')}`,
-      };
-
-      setRequests((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
-      if (selectedRequest && selectedRequest.id === updated.id) {
-        setSelectedRequest(updated);
-      }
-
-      await generateAndShareCertificatePDF(updated, institutionName);
-    } catch (err: any) {
-      Alert.alert('Generation Failed', err?.message || 'Unable to generate document certificate.');
-    } finally {
-      setIsGeneratingPdf(false);
+    if (selectedRequest && selectedRequest.id === updated.id) {
+      setSelectedRequest(updated);
     }
+    setQueryModalVisible(false);
+
+    Alert.alert(
+      'Query Dispatched & Student Notified',
+      `Notification sent to ${updated.studentName}:\n\n"Consultation / Action Required on requested document (${cfg.label}):\n${updated.queryText}\n\nPlease consult the office."`
+    );
   };
 
   const handleSubmitNewRequest = () => {
     if (!newPurpose.trim()) {
-      Alert.alert('Purpose Required', 'Please select or enter the purpose for this document request.');
+      Alert.alert('Reason / Purpose Required', 'Please provide a short description explaining why you need this document.');
       return;
     }
+
+    const selCfg = DOCUMENT_TYPE_CONFIG[newDocType];
+    const unitFee = selCfg?.fee ?? 0;
+    const totalFee = unitFee * newCopies;
+    const paymentNotice =
+      totalFee > 0
+        ? `Pay ₹${unitFee} × ${newCopies} = ₹${totalFee} must be paid while collecting document`
+        : 'Free Official Issuance (₹0)';
 
     const reqNum = `DOC-2026-${String(Math.floor(1000 + Math.random() * 9000))}`;
     const newReq: DocumentRequest = {
       id: `doc-${Date.now()}`,
       requestNumber: reqNum,
-      studentId: currentStudentId,
-      studentName: currentStudentName,
-      rollNoOrUSN: currentStudentUSN,
+      studentId: currentStudentId || 'std-101',
+      studentName: currentStudentName || 'Aarav Sharma',
+      rollNoOrUSN: currentStudentUSN || '1MS21CS001',
       department: userDepartment || 'Computer Science',
       classOrSemester: 'Semester V',
       documentType: newDocType,
       purpose: newPurpose.trim(),
       urgency: newUrgency,
       copiesCount: newCopies,
+      feeAmount: totalFee,
+      paymentNote: paymentNotice,
       studentRemarks: newRemarks.trim() || undefined,
       appliedDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
       status: 'pending',
     };
 
     setRequests((prev) => [newReq, ...prev]);
+    setDocDropdownOpen(false);
     setNewRequestModalVisible(false);
     setNewPurpose('');
     setNewRemarks('');
     setNewCopies(1);
     setNewUrgency('normal');
-    Alert.alert('Request Submitted', `Your application ${reqNum} has been submitted for institutional verification.`);
+    Alert.alert(
+      'Application Submitted',
+      `Your application ${reqNum} for ${selCfg.label} has been submitted.\n\n${paymentNotice}`
+    );
   };
 
   const getStatusBadge = (status: DocumentStatus) => {
     switch (status) {
       case 'pending':
-        return { label: 'PENDING APPROVAL', bg: '#FEF3C7', color: '#B45309', icon: 'clock-outline' };
+        return { label: 'Pending' };
+      case 'query_raised':
+        return { label: 'Query Raised' };
       case 'approved':
-        return { label: 'APPROVED / IN PROCESS', bg: '#EFF6FF', color: '#1D4ED8', icon: 'check-circle-outline' };
+        return { label: 'In Process' };
+      case 'processed':
       case 'generated':
-        return { label: 'DOCUMENT READY', bg: '#DCFCE7', color: '#15803D', icon: 'file-check-outline' };
+        return { label: 'Processed · Ready' };
       case 'rejected':
-        return { label: 'REJECTED / ON HOLD', bg: '#FEE2E2', color: '#B91C1C', icon: 'close-circle-outline' };
+        return { label: 'Rejected' };
     }
   };
 
@@ -449,12 +527,7 @@ export const DocumentRequestsManagerView: React.FC<DocumentRequestsManagerViewPr
       {/* Header bar */}
       <View style={styles.topHeader}>
         <View style={styles.headerTitleWrap}>
-          <Text style={styles.headerTitle}>Document Requests & Issuance</Text>
-          <Text style={styles.headerSub}>
-            {userRole === 'student'
-              ? 'Request & download marks cards, hall tickets, study certificates & TCs'
-              : 'Review student document applications, approve, and generate certified credentials'}
-          </Text>
+          <Text style={styles.headerTitle}>Document Desk</Text>
         </View>
 
         {userRole === 'student' && (
@@ -469,24 +542,19 @@ export const DocumentRequestsManagerView: React.FC<DocumentRequestsManagerViewPr
         )}
       </View>
 
-      {/* KPI Stats Strip (for Principal/HOD/Admin) */}
+      {/* Single Yellow Container: Documents Left for Processing & Queries */}
       {userRole !== 'student' && (
-        <View style={styles.statsStrip}>
-          <View style={[styles.statCard, { borderLeftColor: '#4F46E5' }]}>
-            <Text style={styles.statLabel}>TOTAL APPLICATIONS</Text>
-            <Text style={styles.statValue}>{stats.total}</Text>
-          </View>
-          <View style={[styles.statCard, { borderLeftColor: '#F59E0B' }]}>
-            <Text style={styles.statLabel}>PENDING VERIFICATION</Text>
-            <Text style={[styles.statValue, { color: '#B45309' }]}>{stats.pending}</Text>
-          </View>
-          <View style={[styles.statCard, { borderLeftColor: '#2563EB' }]}>
-            <Text style={styles.statLabel}>APPROVED IN PROCESS</Text>
-            <Text style={[styles.statValue, { color: '#1D4ED8' }]}>{stats.approved}</Text>
-          </View>
-          <View style={[styles.statCard, { borderLeftColor: '#16A34A' }]}>
-            <Text style={styles.statLabel}>GENERATED & ISSUED</Text>
-            <Text style={[styles.statValue, { color: '#15803D' }]}>{stats.generated}</Text>
+        <View style={styles.processingBannerContainer}>
+          <View style={styles.processingBanner}>
+            <View style={styles.processingBannerCountBadge}>
+              <Text style={styles.processingBannerCountText}>{stats.pending}</Text>
+            </View>
+            <View style={styles.processingBannerTextCol}>
+              <Text style={styles.processingBannerTitle}>Documents Left for Processing</Text>
+              <Text style={styles.processingBannerSub}>
+                Queries Raised: <Text style={styles.processingBannerQueryCount}>{stats.queryRaised}</Text>
+              </Text>
+            </View>
           </View>
         </View>
       )}
@@ -514,80 +582,62 @@ export const DocumentRequestsManagerView: React.FC<DocumentRequestsManagerViewPr
         </View>
 
         <TouchableOpacity
-          style={[styles.filterBtn, (statusFilter !== 'all' || docTypeFilter !== 'all') && styles.filterBtnActive]}
+          style={[
+            styles.filterBtn,
+            (statusFilter !== 'all' || docTypeFilter !== 'all' || selectedDeptFilter !== 'all') &&
+              styles.filterBtnActive,
+          ]}
           onPress={() => setFilterModalVisible(true)}
           activeOpacity={0.7}
         >
           <Feather
             name="sliders"
             size={16}
-            color={statusFilter !== 'all' || docTypeFilter !== 'all' ? '#111827' : '#4B5563'}
+            color={
+              statusFilter !== 'all' || docTypeFilter !== 'all' || selectedDeptFilter !== 'all'
+                ? '#111827'
+                : '#4B5563'
+            }
           />
           <Text
             style={[
               styles.filterBtnText,
-              (statusFilter !== 'all' || docTypeFilter !== 'all') && styles.filterBtnTextActive,
+              (statusFilter !== 'all' || docTypeFilter !== 'all' || selectedDeptFilter !== 'all') &&
+                styles.filterBtnTextActive,
             ]}
           >
             Filters
+            {(statusFilter !== 'all' || docTypeFilter !== 'all' || selectedDeptFilter !== 'all')
+              ? ` (${(statusFilter !== 'all' ? 1 : 0) + (docTypeFilter !== 'all' ? 1 : 0) + (selectedDeptFilter !== 'all' ? 1 : 0)})`
+              : ''}
           </Text>
         </TouchableOpacity>
+
+        {isAnyFilterActive && (
+          <TouchableOpacity
+            style={styles.clearFiltersBtn}
+            onPress={handleClearAllFilters}
+            activeOpacity={0.7}
+          >
+            <Feather name="rotate-ccw" size={13} color="#DC2626" />
+            <Text style={styles.clearFiltersBtnText}>Clear Filters</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
-      {/* Status Filter Chips */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.statusChipsContainer}
-      >
-        <TouchableOpacity
-          style={[styles.chip, statusFilter === 'all' && styles.chipActive]}
-          onPress={() => setStatusFilter('all')}
-        >
-          <Text style={[styles.chipText, statusFilter === 'all' && styles.chipTextActive]}>All Requests</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.chip, statusFilter === 'pending' && styles.chipActive]}
-          onPress={() => setStatusFilter('pending')}
-        >
-          <View style={[styles.dot, { backgroundColor: '#F59E0B' }]} />
-          <Text style={[styles.chipText, statusFilter === 'pending' && styles.chipTextActive]}>
-            Pending ({stats.pending})
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.chip, statusFilter === 'approved' && styles.chipActive]}
-          onPress={() => setStatusFilter('approved')}
-        >
-          <View style={[styles.dot, { backgroundColor: '#2563EB' }]} />
-          <Text style={[styles.chipText, statusFilter === 'approved' && styles.chipTextActive]}>
-            Approved ({stats.approved})
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.chip, statusFilter === 'generated' && styles.chipActive]}
-          onPress={() => setStatusFilter('generated')}
-        >
-          <View style={[styles.dot, { backgroundColor: '#16A34A' }]} />
-          <Text style={[styles.chipText, statusFilter === 'generated' && styles.chipTextActive]}>
-            Ready / Generated ({stats.generated})
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.chip, statusFilter === 'rejected' && styles.chipActive]}
-          onPress={() => setStatusFilter('rejected')}
-        >
-          <View style={[styles.dot, { backgroundColor: '#DC2626' }]} />
-          <Text style={[styles.chipText, statusFilter === 'rejected' && styles.chipTextActive]}>Rejected</Text>
-        </TouchableOpacity>
-      </ScrollView>
-
       {/* Requests List */}
-      <ScrollView contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={['#000000']}
+            tintColor="#000000"
+          />
+        }
+      >
         {filteredRequests.length === 0 ? (
           <View style={styles.emptyContainer}>
             <MaterialCommunityIcons name="file-document-outline" size={48} color="#D1D5DB" />
@@ -597,7 +647,13 @@ export const DocumentRequestsManagerView: React.FC<DocumentRequestsManagerViewPr
                 ? 'Try adjusting your search criteria or filter options.'
                 : 'No document requests have been submitted yet.'}
             </Text>
-            {userRole === 'student' && (
+            {isAnyFilterActive && (
+              <TouchableOpacity style={styles.emptyResetBtn} onPress={handleClearAllFilters}>
+                <Feather name="rotate-ccw" size={14} color="#111827" />
+                <Text style={styles.emptyResetBtnText}>Clear All Filters</Text>
+              </TouchableOpacity>
+            )}
+            {userRole === 'student' && !isAnyFilterActive && (
               <TouchableOpacity
                 style={styles.emptyActionBtn}
                 onPress={() => setNewRequestModalVisible(true)}
@@ -611,177 +667,168 @@ export const DocumentRequestsManagerView: React.FC<DocumentRequestsManagerViewPr
           filteredRequests.map((req) => {
             const cfg = DOCUMENT_TYPE_CONFIG[req.documentType];
             const badge = getStatusBadge(req.status);
+            const isExpanded = !!expandedCardIds[req.id];
 
             return (
               <View key={req.id} style={styles.requestCard}>
-                {/* Card Top Row */}
-                <View style={styles.cardHeaderRow}>
-                  <View style={styles.docTypeBadgeWrap}>
-                    <View style={[styles.docIconBox, { backgroundColor: cfg.badgeBg }]}>
-                      <MaterialCommunityIcons name={cfg.icon as any} size={20} color={cfg.color} />
-                    </View>
-                    <View>
+                {/* Main Important Summary - Always Visible & Clickable to Expand/Collapse */}
+                <TouchableOpacity
+                  style={styles.cardHeaderPressable}
+                  activeOpacity={0.7}
+                  onPress={() => toggleExpandCard(req.id)}
+                >
+                  <View style={styles.cardHeaderRow}>
+                    <View style={{ flex: 1, marginRight: 8 }}>
                       <Text style={styles.docTypeTitle}>{cfg.label}</Text>
-                      <Text style={styles.requestNumberText}>
-                        Ref: {req.requestNumber} • Applied: {req.appliedDate}
-                      </Text>
+                      {userRole !== 'student' ? (
+                        <Text style={styles.mainInfoText}>
+                          <Text style={styles.mainInfoStudent}>{req.studentName}</Text> · {req.rollNoOrUSN}
+                        </Text>
+                      ) : (
+                        <Text style={styles.mainInfoText}>
+                          Ref: {req.requestNumber} · {req.appliedDate}
+                        </Text>
+                      )}
+                    </View>
+
+                    <View style={styles.headerBadgesRight}>
+                      {req.urgency === 'urgent' && (
+                        <Text style={styles.urgentText}>URGENT</Text>
+                      )}
+                      <Text style={styles.statusPlainText}>{badge.label}</Text>
                     </View>
                   </View>
+                </TouchableOpacity>
 
-                  <View style={styles.headerBadgesRight}>
-                    {req.urgency === 'urgent' && (
-                      <View style={styles.urgentBadge}>
-                        <Feather name="zap" size={11} color="#B91C1C" />
-                        <Text style={styles.urgentBadgeText}>URGENT</Text>
+                {/* Full Data - Displayed Only When Pressed / Expanded */}
+                {isExpanded && (
+                  <View style={styles.expandedContentBox}>
+                    {/* Meta Strip */}
+                    <View style={styles.expandedMetaStrip}>
+                      <Text style={styles.expandedMetaText}>
+                        Ref: <Text style={styles.expandedMetaBold}>{req.requestNumber}</Text> · Applied: <Text style={styles.expandedMetaBold}>{req.appliedDate}</Text>
+                      </Text>
+                      {req.copiesCount > 1 && (
+                        <Text style={styles.expandedMetaBadge}>
+                          {req.copiesCount} Copies
+                        </Text>
+                      )}
+                    </View>
+
+                    {/* Department (Staff View) */}
+                    {userRole !== 'student' && (
+                      <View style={styles.expandedInfoRow}>
+                        <Text style={styles.expandedInfoLabel}>Department:</Text>
+                        <Text style={styles.expandedInfoVal}>{req.department}</Text>
                       </View>
                     )}
-                    <View style={[styles.statusBadge, { backgroundColor: badge.bg }]}>
-                      <MaterialCommunityIcons name={badge.icon as any} size={12} color={badge.color} />
-                      <Text style={[styles.statusBadgeText, { color: badge.color }]}>{badge.label}</Text>
+
+                    {/* Purpose / Reason */}
+                    <View style={styles.purposeBox}>
+                      <Text style={styles.purposeText}>
+                        <Text style={styles.purposeLabel}>Reason: </Text>
+                        {req.purpose}
+                      </Text>
+                      {req.studentRemarks && (
+                        <Text style={styles.studentNotesText}>
+                          Note: {req.studentRemarks}
+                        </Text>
+                      )}
                     </View>
-                  </View>
-                </View>
 
-                {/* Student Info Bar (Principal/HOD/Admin) */}
-                <View style={styles.studentInfoBar}>
-                  <View style={styles.studentInfoItem}>
-                    <Text style={styles.studentInfoLabel}>STUDENT</Text>
-                    <Text style={styles.studentInfoVal}>{req.studentName}</Text>
-                  </View>
-                  <View style={styles.studentInfoItem}>
-                    <Text style={styles.studentInfoLabel}>ROLL / USN</Text>
-                    <Text style={[styles.studentInfoVal, { fontFamily: FontFamily.semibold }]}>
-                      {req.rollNoOrUSN}
-                    </Text>
-                  </View>
-                  <View style={styles.studentInfoItem}>
-                    <Text style={styles.studentInfoLabel}>DEPARTMENT</Text>
-                    <Text style={styles.studentInfoVal}>{req.department}</Text>
-                  </View>
-                  <View style={styles.studentInfoItem}>
-                    <Text style={styles.studentInfoLabel}>COPIES</Text>
-                    <Text style={styles.studentInfoVal}>{req.copiesCount} Copy</Text>
-                  </View>
-                </View>
+                    {/* Collection Fee & Payment Note */}
+                    <View style={styles.feeNoticeRow}>
+                      <MaterialCommunityIcons
+                        name={req.feeAmount && req.feeAmount > 0 ? 'cash-check' : 'check-decagram-outline'}
+                        size={14}
+                        color={req.feeAmount && req.feeAmount > 0 ? '#B45309' : '#15803D'}
+                      />
+                      <Text
+                        style={[
+                          styles.feeNoticeText,
+                          (!req.feeAmount || req.feeAmount === 0) && { color: '#15803D' },
+                        ]}
+                      >
+                        {req.paymentNote ||
+                          (req.feeAmount && req.feeAmount > 0
+                            ? `Pay ₹${req.feeAmount} must be paid while collecting document`
+                            : 'Free Official Issuance (₹0)')}
+                      </Text>
+                    </View>
 
-                {/* Purpose and Remarks */}
-                <View style={styles.purposeBox}>
-                  <Text style={styles.purposeLabel}>PURPOSE / REASON</Text>
-                  <Text style={styles.purposeText}>{req.purpose}</Text>
-                  {req.studentRemarks && (
-                    <Text style={styles.studentNotesText}>
-                      <Text style={{ fontWeight: '700' }}>Note: </Text>
-                      {req.studentRemarks}
-                    </Text>
-                  )}
-                </View>
-
-                {/* Certificate Number & Reviewer remark (if available) */}
-                {(req.certificateNumber || req.reviewRemarks) && (
-                  <View style={styles.reviewBanner}>
-                    {req.certificateNumber && (
-                      <View style={styles.certNumRow}>
-                        <Feather name="award" size={13} color="#2563EB" />
-                        <Text style={styles.certNumText}>
-                          Cert No: <Text style={{ fontWeight: '700' }}>{req.certificateNumber}</Text>
+                    {/* Pickup Location Info */}
+                    {(req.status === 'processed' || req.status === 'generated') && req.pickupLocation && (
+                      <View style={styles.pickupInfoRow}>
+                        <Text style={styles.pickupInfoText}>
+                          Pickup Location: <Text style={{ fontFamily: FontFamily.bold }}>{req.pickupLocation}</Text>
                         </Text>
                       </View>
                     )}
-                    {req.reviewRemarks && (
-                      <Text style={styles.reviewRemarksText}>
-                        <Text style={{ fontWeight: '700' }}>Remark ({req.reviewedBy}): </Text>
-                        {req.reviewRemarks}
-                      </Text>
+
+                    {/* Query Alert Box */}
+                    {req.status === 'query_raised' && req.queryText && (
+                      <View style={styles.queryAlertBox}>
+                        <Text style={styles.queryAlertBody}>{req.queryText}</Text>
+                        {req.queriedBy && (
+                          <Text style={styles.queryAlertMeta}>
+                            From {req.queriedBy} · {req.queryDate}
+                          </Text>
+                        )}
+                      </View>
                     )}
+
+                    {/* Dossier & Actions */}
+                    <View style={styles.expandedActionsRow}>
+                      <TouchableOpacity
+                        style={styles.detailsBtn}
+                        onPress={() => {
+                          setSelectedRequest(req);
+                          setDetailsModalVisible(true);
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.detailsBtnText}>View Full Dossier</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 )}
 
-                {/* Card Action Buttons */}
+                {/* Primary Action Buttons & Expand Toggle */}
                 <View style={styles.cardActionsRow}>
                   <TouchableOpacity
-                    style={styles.detailsBtn}
-                    onPress={() => {
-                      setSelectedRequest(req);
-                      setDetailsModalVisible(true);
-                    }}
+                    onPress={() => toggleExpandCard(req.id)}
+                    style={styles.expandToggleTextBtn}
                     activeOpacity={0.7}
                   >
-                    <Feather name="eye" size={13} color="#4B5563" />
-                    <Text style={styles.detailsBtnText}>View Details</Text>
+                    <Text style={styles.expandToggleText}>
+                      {isExpanded ? 'Less info ▲' : 'More info ▼'}
+                    </Text>
                   </TouchableOpacity>
 
-                  {/* Actions for Principal/HOD/Admin */}
-                  {userRole !== 'student' && (
-                    <View style={styles.adminActionGroup}>
-                      {req.status === 'pending' && (
-                        <>
-                          <TouchableOpacity
-                            style={styles.rejectBtn}
-                            onPress={() => handleOpenRejectModal(req)}
-                            activeOpacity={0.7}
-                          >
-                            <Feather name="x" size={13} color="#DC2626" />
-                            <Text style={styles.rejectBtnText}>Reject</Text>
-                          </TouchableOpacity>
-
-                          <TouchableOpacity
-                            style={styles.approveBtn}
-                            onPress={() => handleOpenApproveModal(req)}
-                            activeOpacity={0.8}
-                          >
-                            <Feather name="check" size={13} color="#FFFFFF" />
-                            <Text style={styles.approveBtnText}>Accept / Approve</Text>
-                          </TouchableOpacity>
-                        </>
-                      )}
-
-                      {(req.status === 'approved' || req.status === 'generated') && (
+                  {userRole !== 'student' &&
+                    (req.status === 'pending' ||
+                      req.status === 'query_raised' ||
+                      req.status === 'approved') && (
+                      <View style={styles.adminActionGroup}>
                         <TouchableOpacity
-                          style={styles.generateBtn}
-                          onPress={() => handleGenerateDocument(req)}
-                          activeOpacity={0.8}
-                          disabled={isGeneratingPdf}
-                        >
-                          {isGeneratingPdf && selectedRequest?.id === req.id ? (
-                            <ActivityIndicator size="small" color="#111827" />
-                          ) : (
-                            <>
-                              <MaterialCommunityIcons name="file-pdf-box" size={16} color="#111827" />
-                              <Text style={styles.generateBtnText}>
-                                {req.status === 'generated' ? 'Print / Share PDF' : 'Generate Document'}
-                              </Text>
-                            </>
-                          )}
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  )}
-
-                  {/* Actions for Student */}
-                  {userRole === 'student' && (
-                    <View style={styles.adminActionGroup}>
-                      {req.status === 'generated' ? (
-                        <TouchableOpacity
-                          style={styles.downloadStudentBtn}
-                          onPress={() => handleGenerateDocument(req)}
+                          style={styles.raiseQueryBtn}
+                          onPress={() => handleOpenQueryModal(req)}
                           activeOpacity={0.8}
                         >
-                          <MaterialCommunityIcons name="download" size={16} color="#111827" />
-                          <Text style={styles.downloadStudentBtnText}>Download Certificate</Text>
+                          <Text style={styles.raiseQueryBtnText}>
+                            {req.status === 'query_raised' ? 'Update Query' : 'Raise Query'}
+                          </Text>
                         </TouchableOpacity>
-                      ) : req.status === 'approved' ? (
-                        <View style={styles.inProcessingPill}>
-                          <Feather name="refresh-cw" size={12} color="#2563EB" />
-                          <Text style={styles.inProcessingText}>Approved • Generating Seal</Text>
-                        </View>
-                      ) : req.status === 'pending' ? (
-                        <View style={styles.pendingReviewPill}>
-                          <Feather name="clock" size={12} color="#D97706" />
-                          <Text style={styles.pendingReviewText}>In Office Verification</Text>
-                        </View>
-                      ) : null}
-                    </View>
-                  )}
+
+                        <TouchableOpacity
+                          style={styles.processBtn}
+                          onPress={() => handleOpenProcessModal(req)}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={styles.processBtnText}>Processed</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
                 </View>
               </View>
             );
@@ -866,11 +913,10 @@ export const DocumentRequestsManagerView: React.FC<DocumentRequestsManagerViewPr
               <Text style={styles.filterSectionTitle}>APPLICATION STATUS</Text>
               <View style={styles.filterOptionsGrid}>
                 {[
-                  { key: 'all', label: 'All Statuses' },
-                  { key: 'pending', label: 'Pending Approval' },
-                  { key: 'approved', label: 'Approved In Process' },
-                  { key: 'generated', label: 'Document Ready' },
-                  { key: 'rejected', label: 'Rejected' },
+                  { key: 'all', label: `All Statuses (${stats.total})` },
+                  { key: 'pending', label: `Pending Review (${stats.pending})`, dotColor: '#F59E0B' },
+                  { key: 'query_raised', label: `Queries / Consultation (${stats.queryRaised})`, dotColor: '#B45309' },
+                  { key: 'processed', label: `Processed (${stats.processed})`, dotColor: '#16A34A' },
                 ].map((s) => {
                   const isSel = statusFilter === s.key;
                   return (
@@ -879,9 +925,21 @@ export const DocumentRequestsManagerView: React.FC<DocumentRequestsManagerViewPr
                       style={[styles.filterOptionChip, isSel && styles.filterOptionChipSelected]}
                       onPress={() => setStatusFilter(s.key as any)}
                     >
-                      <Text style={[styles.filterOptionText, isSel && styles.filterOptionTextSelected]}>
-                        {s.label}
-                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        {s.dotColor && (
+                          <View
+                            style={{
+                              width: 7,
+                              height: 7,
+                              borderRadius: 3.5,
+                              backgroundColor: isSel ? '#F4C430' : s.dotColor,
+                            }}
+                          />
+                        )}
+                        <Text style={[styles.filterOptionText, isSel && styles.filterOptionTextSelected]}>
+                          {s.label}
+                        </Text>
+                      </View>
                     </TouchableOpacity>
                   );
                 })}
@@ -895,6 +953,7 @@ export const DocumentRequestsManagerView: React.FC<DocumentRequestsManagerViewPr
                   setStatusFilter('all');
                   setDocTypeFilter('all');
                   setSelectedDeptFilter('all');
+                  setSearchQuery('');
                 }}
               >
                 <Text style={styles.resetFilterBtnText}>Reset All</Text>
@@ -916,150 +975,179 @@ export const DocumentRequestsManagerView: React.FC<DocumentRequestsManagerViewPr
         visible={newRequestModalVisible}
         transparent
         animationType="slide"
-        onRequestClose={() => setNewRequestModalVisible(false)}
+        onRequestClose={() => {
+          setDocDropdownOpen(false);
+          setNewRequestModalVisible(false);
+        }}
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.modalBackdrop}
         >
-          <View style={[styles.actionModalCard, { maxHeight: '90%' }]}>
+          <View style={[styles.actionModalCard, { maxHeight: '92%' }]}>
             <View style={styles.modalHeader}>
-              <View>
-                <Text style={styles.modalTitle}>Request Official Document</Text>
-                <Text style={styles.modalSubtitle}>
-                  Select document type, specify purpose, and submit for verification
-                </Text>
-              </View>
-              <TouchableOpacity onPress={() => setNewRequestModalVisible(false)}>
+              <Text style={styles.modalTitle}>Request Official Document</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setDocDropdownOpen(false);
+                  setNewRequestModalVisible(false);
+                }}
+              >
                 <Feather name="x" size={20} color="#6B7280" />
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} style={{ marginVertical: 12 }}>
-              {/* Document Type Selector */}
-              <Text style={styles.formLabel}>SELECT DOCUMENT TYPE</Text>
-              <View style={styles.docTypeSelectGrid}>
-                {Object.entries(DOCUMENT_TYPE_CONFIG).map(([typeKey, cfg]) => {
-                  const isSel = newDocType === typeKey;
-                  return (
-                    <TouchableOpacity
-                      key={typeKey}
-                      style={[styles.docTypeSelectItem, isSel && styles.docTypeSelectItemActive]}
-                      onPress={() => setNewDocType(typeKey as DocumentType)}
-                      activeOpacity={0.7}
-                    >
-                      <View style={[styles.docIconBoxSmall, { backgroundColor: cfg.badgeBg }]}>
-                        <MaterialCommunityIcons name={cfg.icon as any} size={18} color={cfg.color} />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.docTypeSelectName, isSel && styles.docTypeSelectNameActive]}>
-                          {cfg.label}
-                        </Text>
-                        <Text style={styles.docTypeSelectDesc} numberOfLines={2}>
-                          {cfg.description}
-                        </Text>
-                      </View>
-                      {isSel && <Feather name="check-circle" size={16} color="#16A34A" />}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+            {(() => {
+              const selectedDocConfig = DOCUMENT_TYPE_CONFIG[newDocType];
+              const unitFee = selectedDocConfig?.fee ?? 0;
+              const totalPayableFee = unitFee * newCopies;
 
-              {/* Purpose with quick chips */}
-              <Text style={styles.formLabel}>PURPOSE / ENDORSEMENT NEEDED</Text>
-              <TextInput
-                style={styles.formInput}
-                placeholder="e.g. Higher Studies, Passport Office, Education Loan..."
-                placeholderTextColor="#9CA3AF"
-                value={newPurpose}
-                onChangeText={setNewPurpose}
-              />
+              return (
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  style={{ marginVertical: 10 }}
+                  nestedScrollEnabled
+                >
+                  {/* Document Type Dropdown Selector */}
+                  <View style={styles.formSectionHeaderRow}>
+                    <Text style={styles.formLabel}>SELECT DOCUMENT</Text>
+                  </View>
 
-              <Text style={[styles.formLabel, { marginTop: 8, fontSize: 11, color: '#6B7280' }]}>
-                QUICK PURPOSE PRESETS:
-              </Text>
-              <View style={styles.presetChipsWrap}>
-                {PURPOSE_PRESETS.map((p) => (
                   <TouchableOpacity
-                    key={p}
-                    style={[styles.presetChip, newPurpose === p && styles.presetChipActive]}
-                    onPress={() => setNewPurpose(p)}
+                    style={[styles.dropdownTrigger, docDropdownOpen && styles.dropdownTriggerActive]}
+                    onPress={() => setDocDropdownOpen((prev) => !prev)}
+                    activeOpacity={0.8}
                   >
-                    <Text style={[styles.presetChipText, newPurpose === p && styles.presetChipTextActive]}>
-                      {p}
-                    </Text>
+                    <View style={{ flex: 1, marginRight: 10 }}>
+                      <Text style={styles.dropdownSelectedTitle}>{selectedDocConfig.label}</Text>
+                    </View>
+                    <View style={styles.dropdownTriggerRight}>
+                      <View style={styles.docFeePillSmall}>
+                        <Text style={styles.docFeePillText}>
+                          {unitFee > 0 ? `₹${unitFee}` : 'Free'}
+                        </Text>
+                      </View>
+                      <Feather
+                        name={docDropdownOpen ? 'chevron-up' : 'chevron-down'}
+                        size={18}
+                        color="#6B7280"
+                        style={{ marginLeft: 6 }}
+                      />
+                    </View>
                   </TouchableOpacity>
-                ))}
-              </View>
 
-              {/* Copies & Urgency */}
-              <View style={styles.rowFormFields}>
-                <View style={{ flex: 1, marginRight: 8 }}>
-                  <Text style={styles.formLabel}>NO. OF COPIES</Text>
-                  <View style={styles.counterRow}>
-                    <TouchableOpacity
-                      style={styles.counterBtn}
-                      onPress={() => setNewCopies((c) => Math.max(1, c - 1))}
-                    >
-                      <Feather name="minus" size={14} color="#111827" />
-                    </TouchableOpacity>
-                    <Text style={styles.counterVal}>{newCopies}</Text>
-                    <TouchableOpacity
-                      style={styles.counterBtn}
-                      onPress={() => setNewCopies((c) => Math.min(5, c + 1))}
-                    >
-                      <Feather name="plus" size={14} color="#111827" />
-                    </TouchableOpacity>
+                  {/* Dropdown Options List */}
+                  {docDropdownOpen && (
+                    <View style={styles.dropdownMenuContainer}>
+                      {Object.entries(DOCUMENT_TYPE_CONFIG).map(([typeKey, cfg]) => {
+                        const isSel = newDocType === typeKey;
+                        return (
+                          <TouchableOpacity
+                            key={typeKey}
+                            style={[styles.dropdownOptionItem, isSel && styles.dropdownOptionItemActive]}
+                            onPress={() => {
+                              setNewDocType(typeKey as DocumentType);
+                              setDocDropdownOpen(false);
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <View style={{ flex: 1, marginRight: 10 }}>
+                              <Text style={[styles.dropdownOptionTitle, isSel && styles.dropdownOptionTitleActive]}>
+                                {cfg.label}
+                              </Text>
+                            </View>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                              <View style={styles.docFeePillSmall}>
+                                <Text style={styles.docFeePillText}>
+                                  {cfg.fee > 0 ? `₹${cfg.fee}` : 'Free'}
+                                </Text>
+                              </View>
+                              {isSel && <Feather name="check" size={14} color="#111827" />}
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  )}
+
+                  {/* Reason / Short description why document is needed */}
+                  <View style={{ marginTop: 14 }}>
+                    <View style={styles.formSectionHeaderRow}>
+                      <Text style={styles.formLabel}>WHY DO YOU NEED THIS DOCUMENT?</Text>
+                      <Text style={styles.requiredFieldHint}>(Required)</Text>
+                    </View>
+                    <TextInput
+                      style={[styles.formInput, styles.purposeTextArea]}
+                      placeholder="Short description"
+                      placeholderTextColor="#9CA3AF"
+                      multiline
+                      numberOfLines={3}
+                      value={newPurpose}
+                      onChangeText={setNewPurpose}
+                    />
                   </View>
-                </View>
 
-                <View style={{ flex: 1, marginLeft: 8 }}>
-                  <Text style={styles.formLabel}>PROCESSING PRIORITY</Text>
-                  <View style={styles.urgencyToggleRow}>
-                    <TouchableOpacity
-                      style={[styles.urgencyBtn, newUrgency === 'normal' && styles.urgencyBtnActive]}
-                      onPress={() => setNewUrgency('normal')}
-                    >
-                      <Text style={[styles.urgencyBtnText, newUrgency === 'normal' && styles.urgencyBtnTextActive]}>
-                        Normal
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.urgencyBtn,
-                        newUrgency === 'urgent' && [styles.urgencyBtnActive, { borderColor: '#DC2626' }],
-                      ]}
-                      onPress={() => setNewUrgency('urgent')}
-                    >
-                      <Text
-                        style={[
-                          styles.urgencyBtnText,
-                          newUrgency === 'urgent' && { color: '#DC2626', fontWeight: '800' },
-                        ]}
+                  {/* Copies */}
+                  <View style={{ marginVertical: 10 }}>
+                    <Text style={styles.formLabel}>NO. OF COPIES</Text>
+                    <View style={[styles.counterRow, { width: 140 }]}>
+                      <TouchableOpacity
+                        style={styles.counterBtn}
+                        onPress={() => setNewCopies((c) => Math.max(1, c - 1))}
                       >
-                        ⚡ Urgent
-                      </Text>
-                    </TouchableOpacity>
+                        <Feather name="minus" size={14} color="#111827" />
+                      </TouchableOpacity>
+                      <Text style={styles.counterVal}>{newCopies}</Text>
+                      <TouchableOpacity
+                        style={styles.counterBtn}
+                        onPress={() => setNewCopies((c) => Math.min(5, c + 1))}
+                      >
+                        <Feather name="plus" size={14} color="#111827" />
+                      </TouchableOpacity>
+                    </View>
                   </View>
-                </View>
-              </View>
 
-              {/* Remarks */}
-              <Text style={styles.formLabel}>ADDITIONAL NOTES (OPTIONAL)</Text>
-              <TextInput
-                style={[styles.formInput, { height: 60, textAlignVertical: 'top' }]}
-                placeholder="Mention any deadlines, embassy requirements, or special details..."
-                placeholderTextColor="#9CA3AF"
-                multiline
-                value={newRemarks}
-                onChangeText={setNewRemarks}
-              />
-            </ScrollView>
+                  {/* Clean Collection Payment Notice Banner (Directly below copies) */}
+                  <View style={[styles.paymentNoticeCard, { marginTop: 4, marginBottom: 12, alignItems: 'center' }]}>
+                    <View style={styles.paymentNoticeIconBox}>
+                      <MaterialCommunityIcons
+                        name={totalPayableFee > 0 ? 'cash-check' : 'file-check-outline'}
+                        size={18}
+                        color="#111827"
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.paymentNoticeTitle}>
+                        {totalPayableFee > 0
+                          ? `Pay ₹${unitFee} × ${newCopies} = ₹${totalPayableFee} must be paid while collecting document`
+                          : 'Free Official Document (₹0)'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Remarks */}
+                  <View style={{ marginTop: 4 }}>
+                    <Text style={styles.formLabel}>ADDITIONAL NOTES (OPTIONAL)</Text>
+                    <TextInput
+                      style={[styles.formInput, { height: 56, textAlignVertical: 'top' }]}
+                      placeholder="Mention any deadlines, embassy requirements, or special details..."
+                      placeholderTextColor="#9CA3AF"
+                      multiline
+                      value={newRemarks}
+                      onChangeText={setNewRemarks}
+                    />
+                  </View>
+                </ScrollView>
+              );
+            })()}
 
             <View style={styles.actionModalFooter}>
               <TouchableOpacity
                 style={styles.cancelModalBtn}
-                onPress={() => setNewRequestModalVisible(false)}
+                onPress={() => {
+                  setDocDropdownOpen(false);
+                  setNewRequestModalVisible(false);
+                }}
               >
                 <Text style={styles.cancelModalBtnText}>Cancel</Text>
               </TouchableOpacity>
@@ -1073,12 +1161,12 @@ export const DocumentRequestsManagerView: React.FC<DocumentRequestsManagerViewPr
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* APPROVE / ACCEPT MODAL */}
+      {/* PROCESS DOCUMENT MODAL */}
       <Modal
-        visible={approveModalVisible}
+        visible={processModalVisible}
         transparent
         animationType="fade"
-        onRequestClose={() => setApproveModalVisible(false)}
+        onRequestClose={() => setProcessModalVisible(false)}
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -1086,213 +1174,178 @@ export const DocumentRequestsManagerView: React.FC<DocumentRequestsManagerViewPr
         >
           <View style={styles.actionModalCard}>
             <View style={styles.modalHeader}>
-              <View>
-                <Text style={styles.modalTitle}>Accept & Approve Request</Text>
-                <Text style={styles.modalSubtitle}>
-                  Authorize issuance for {selectedRequest?.studentName} ({selectedRequest?.rollNoOrUSN})
-                </Text>
-              </View>
-              <TouchableOpacity onPress={() => setApproveModalVisible(false)}>
-                <Feather name="x" size={20} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
-
-            <View style={{ marginVertical: 14 }}>
-              <Text style={styles.formLabel}>CERTIFICATE / REFERENCE NUMBER</Text>
-              <TextInput
-                style={styles.formInput}
-                value={certNumberInput}
-                onChangeText={setCertNumberInput}
-                placeholder="e.g. TC-CSE-2026-0812"
-              />
-
-              <Text style={[styles.formLabel, { marginTop: 12 }]}>APPROVAL / VERIFICATION REMARKS</Text>
-              <TextInput
-                style={[styles.formInput, { height: 75, textAlignVertical: 'top' }]}
-                value={reviewRemarks}
-                onChangeText={setReviewRemarks}
-                placeholder="Enter office verification remarks..."
-                multiline
-              />
-            </View>
-
-            <View style={styles.actionModalFooter}>
+              <Text style={styles.modalTitle}>Mark Document as Processed</Text>
               <TouchableOpacity
-                style={styles.cancelModalBtn}
-                onPress={() => setApproveModalVisible(false)}
+                onPress={() => {
+                  setPickupDropdownOpen(false);
+                  setProcessModalVisible(false);
+                }}
               >
-                <Text style={styles.cancelModalBtnText}>Cancel</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.submitModalBtn, { backgroundColor: '#16A34A' }]}
-                onPress={handleConfirmApproval}
-              >
-                <Feather name="check" size={15} color="#FFFFFF" />
-                <Text style={[styles.submitModalBtnText, { color: '#FFFFFF' }]}>Confirm Approval</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* REJECT MODAL */}
-      <Modal
-        visible={rejectModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setRejectModalVisible(false)}
-      >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.modalBackdrop}
-        >
-          <View style={styles.actionModalCard}>
-            <View style={styles.modalHeader}>
-              <View>
-                <Text style={[styles.modalTitle, { color: '#DC2626' }]}>Reject Document Request</Text>
-                <Text style={styles.modalSubtitle}>
-                  Specify the reason for rejecting {selectedRequest?.requestNumber}
-                </Text>
-              </View>
-              <TouchableOpacity onPress={() => setRejectModalVisible(false)}>
-                <Feather name="x" size={20} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
-
-            <View style={{ marginVertical: 14 }}>
-              <Text style={styles.formLabel}>REJECTION REASON (COMMUNICATED TO STUDENT)</Text>
-              <TextInput
-                style={[styles.formInput, { height: 85, textAlignVertical: 'top', borderColor: '#FCA5A5' }]}
-                value={reviewRemarks}
-                onChangeText={setReviewRemarks}
-                placeholder="e.g. Pending fee dues in finance office, incomplete semester exam records..."
-                multiline
-              />
-            </View>
-
-            <View style={styles.actionModalFooter}>
-              <TouchableOpacity
-                style={styles.cancelModalBtn}
-                onPress={() => setRejectModalVisible(false)}
-              >
-                <Text style={styles.cancelModalBtnText}>Cancel</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.submitModalBtn, { backgroundColor: '#DC2626' }]}
-                onPress={handleConfirmRejection}
-              >
-                <Feather name="x-circle" size={15} color="#FFFFFF" />
-                <Text style={[styles.submitModalBtnText, { color: '#FFFFFF' }]}>Reject Request</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* DETAILS DOSSIER MODAL */}
-      <Modal
-        visible={detailsModalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setDetailsModalVisible(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.actionModalCard, { maxHeight: '85%' }]}>
-            <View style={styles.modalHeader}>
-              <View>
-                <Text style={styles.modalTitle}>Application Dossier</Text>
-                <Text style={styles.modalSubtitle}>Reference: {selectedRequest?.requestNumber}</Text>
-              </View>
-              <TouchableOpacity onPress={() => setDetailsModalVisible(false)}>
                 <Feather name="x" size={20} color="#6B7280" />
               </TouchableOpacity>
             </View>
 
             {selectedRequest && (
-              <ScrollView showsVerticalScrollIndicator={false} style={{ marginVertical: 12 }}>
-                <View style={styles.dossierRow}>
-                  <Text style={styles.dossierLabel}>Document Type</Text>
-                  <Text style={styles.dossierValue}>
-                    {DOCUMENT_TYPE_CONFIG[selectedRequest.documentType].label}
-                  </Text>
-                </View>
-                <View style={styles.dossierRow}>
-                  <Text style={styles.dossierLabel}>Student Name</Text>
-                  <Text style={[styles.dossierValue, { color: '#1E3A8A' }]}>
-                    {selectedRequest.studentName}
-                  </Text>
-                </View>
-                <View style={styles.dossierRow}>
-                  <Text style={styles.dossierLabel}>Roll No / USN</Text>
-                  <Text style={[styles.dossierValue, { fontFamily: FontFamily.semibold }]}>
-                    {selectedRequest.rollNoOrUSN}
-                  </Text>
-                </View>
-                <View style={styles.dossierRow}>
-                  <Text style={styles.dossierLabel}>Department & Class</Text>
-                  <Text style={styles.dossierValue}>
-                    {selectedRequest.department} ({selectedRequest.classOrSemester})
-                  </Text>
-                </View>
-                <View style={styles.dossierRow}>
-                  <Text style={styles.dossierLabel}>Purpose</Text>
-                  <Text style={styles.dossierValue}>{selectedRequest.purpose}</Text>
-                </View>
-                <View style={styles.dossierRow}>
-                  <Text style={styles.dossierLabel}>Date Applied</Text>
-                  <Text style={styles.dossierValue}>{selectedRequest.appliedDate}</Text>
-                </View>
-                <View style={styles.dossierRow}>
-                  <Text style={styles.dossierLabel}>Current Status</Text>
-                  <Text style={[styles.dossierValue, { fontWeight: '800' }]}>
-                    {getStatusBadge(selectedRequest.status).label}
-                  </Text>
-                </View>
-                {selectedRequest.certificateNumber && (
-                  <View style={styles.dossierRow}>
-                    <Text style={styles.dossierLabel}>Certificate Number</Text>
-                    <Text style={[styles.dossierValue, { color: '#16A34A', fontWeight: '800' }]}>
-                      {selectedRequest.certificateNumber}
-                    </Text>
-                  </View>
-                )}
-                {selectedRequest.reviewRemarks && (
-                  <View style={styles.dossierRow}>
-                    <Text style={styles.dossierLabel}>Reviewer Remarks</Text>
-                    <Text style={styles.dossierValue}>
-                      {selectedRequest.reviewRemarks} ({selectedRequest.reviewedBy || 'Office'})
-                    </Text>
-                  </View>
-                )}
-              </ScrollView>
+              <View style={styles.modalReqSummaryBox}>
+                <Text style={styles.modalReqSummaryTitle}>
+                  {DOCUMENT_TYPE_CONFIG[selectedRequest.documentType].label}
+                </Text>
+                <Text style={styles.modalReqSummarySub}>
+                  Student: {selectedRequest.studentName} · Roll: {selectedRequest.rollNoOrUSN} · Ref: {selectedRequest.requestNumber}
+                </Text>
+              </View>
             )}
+
+            <View style={{ marginVertical: 12 }}>
+              <Text style={styles.formLabel}>COLLECTION COUNTER / PICKUP LOCATION</Text>
+
+              <TouchableOpacity
+                style={[styles.dropdownTrigger, pickupDropdownOpen && styles.dropdownTriggerActive]}
+                onPress={() => setPickupDropdownOpen((prev) => !prev)}
+                activeOpacity={0.8}
+              >
+                <View style={{ flex: 1, marginRight: 10 }}>
+                  <Text style={styles.dropdownSelectedTitle}>
+                    {pickupLocationInput || 'Select Pickup Location'}
+                  </Text>
+                </View>
+                <Feather
+                  name={pickupDropdownOpen ? 'chevron-up' : 'chevron-down'}
+                  size={18}
+                  color="#6B7280"
+                />
+              </TouchableOpacity>
+
+              {pickupDropdownOpen && (
+                <View style={styles.dropdownMenuContainer}>
+                  {PICKUP_LOCATION_PRESETS.map((loc) => {
+                    const isSel = pickupLocationInput === loc;
+                    return (
+                      <TouchableOpacity
+                        key={loc}
+                        style={[styles.dropdownOptionItem, isSel && styles.dropdownOptionItemActive]}
+                        onPress={() => {
+                          setPickupLocationInput(loc);
+                          setPickupDropdownOpen(false);
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <View style={{ flex: 1, marginRight: 10 }}>
+                          <Text style={[styles.dropdownOptionTitle, isSel && styles.dropdownOptionTitleActive]}>
+                            {loc}
+                          </Text>
+                        </View>
+                        {isSel && <Feather name="check" size={14} color="#111827" />}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+
+              <View style={{ marginTop: 10 }}>
+                <Text style={styles.formLabel}>OFFICE NOTE (OPTIONAL)</Text>
+                <TextInput
+                  style={[styles.formInput, { height: 56, textAlignVertical: 'top' }]}
+                  value={processRemarksInput}
+                  onChangeText={setProcessRemarksInput}
+                  placeholder="Short note (optional)..."
+                  placeholderTextColor="#9CA3AF"
+                  multiline
+                />
+              </View>
+            </View>
 
             <View style={styles.actionModalFooter}>
               <TouchableOpacity
                 style={styles.cancelModalBtn}
-                onPress={() => setDetailsModalVisible(false)}
+                onPress={() => {
+                  setPickupDropdownOpen(false);
+                  setProcessModalVisible(false);
+                }}
               >
-                <Text style={styles.cancelModalBtnText}>Close</Text>
+                <Text style={styles.cancelModalBtnText}>Cancel</Text>
               </TouchableOpacity>
 
-              {selectedRequest &&
-                (selectedRequest.status === 'approved' || selectedRequest.status === 'generated') && (
-                  <TouchableOpacity
-                    style={[styles.submitModalBtn, { backgroundColor: '#F4C430' }]}
-                    onPress={() => {
-                      setDetailsModalVisible(false);
-                      handleGenerateDocument(selectedRequest);
-                    }}
-                  >
-                    <MaterialCommunityIcons name="file-pdf-box" size={16} color="#111827" />
-                    <Text style={styles.submitModalBtnText}>Generate / Share PDF</Text>
-                  </TouchableOpacity>
-                )}
+              <TouchableOpacity
+                style={styles.submitModalBtn}
+                onPress={handleConfirmProcess}
+              >
+                <Feather name="check-circle" size={15} color="#111827" />
+                <Text style={styles.submitModalBtnText}>
+                  Confirm & Notify Student
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* RAISE QUERY / CONSULTATION MODAL */}
+      <Modal
+        visible={queryModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setQueryModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.modalBackdrop}
+        >
+          <View style={styles.actionModalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Raise Query / Consultation</Text>
+              <TouchableOpacity onPress={() => setQueryModalVisible(false)}>
+                <Feather name="x" size={20} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            {selectedRequest && (
+              <View style={styles.modalReqSummaryBox}>
+                <Text style={styles.modalReqSummaryTitle}>
+                  {DOCUMENT_TYPE_CONFIG[selectedRequest.documentType].label}
+                </Text>
+                <Text style={styles.modalReqSummarySub}>
+                  Student: {selectedRequest.studentName} · Roll: {selectedRequest.rollNoOrUSN} · Ref: {selectedRequest.requestNumber}
+                </Text>
+              </View>
+            )}
+
+            <View style={{ marginVertical: 12 }}>
+              <View style={styles.formSectionHeaderRow}>
+                <Text style={styles.formLabel}>DESCRIPTION</Text>
+                <Text style={styles.requiredFieldHint}>(Required)</Text>
+              </View>
+              <TextInput
+                style={[styles.formInput, { height: 72, textAlignVertical: 'top' }]}
+                value={queryTextInput}
+                onChangeText={setQueryTextInput}
+                placeholder="Short description"
+                placeholderTextColor="#9CA3AF"
+                multiline
+                numberOfLines={3}
+              />
+            </View>
+
+            <View style={styles.actionModalFooter}>
+              <TouchableOpacity
+                style={styles.cancelModalBtn}
+                onPress={() => setQueryModalVisible(false)}
+              >
+                <Text style={styles.cancelModalBtnText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.submitModalBtn}
+                onPress={handleConfirmQuery}
+              >
+                <Feather name="send" size={15} color="#111827" />
+                <Text style={styles.submitModalBtnText}>
+                  Send Query to Student
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -1344,34 +1397,53 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
 
-  // Stats Strip
-  statsStrip: {
-    flexDirection: 'row',
+  // Single Yellow Processing Banner
+  processingBannerContainer: {
     backgroundColor: '#FFFFFF',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-    gap: 8,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 4,
   },
-  statCard: {
+  processingBanner: {
+    backgroundColor: '#F4C430',
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  processingBannerCountBadge: {
+    backgroundColor: '#111827',
+    width: 38,
+    height: 38,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  processingBannerCountText: {
+    fontFamily: FontFamily.bold,
+    fontSize: 20,
+    color: '#F4C430',
+  },
+  processingBannerTextCol: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
-    padding: 8,
-    borderRadius: 6,
-    borderLeftWidth: 3,
   },
-  statLabel: {
+  processingBannerTitle: {
     fontFamily: FontFamily.bold,
-    fontSize: 8.5,
-    color: '#6B7280',
-    letterSpacing: 0.3,
+    fontSize: 13.5,
+    color: '#111827',
   },
-  statValue: {
-    fontFamily: FontFamily.bold,
-    fontSize: 16,
+  processingBannerSub: {
+    fontFamily: FontFamily.medium,
+    fontSize: 12,
     color: '#111827',
     marginTop: 2,
+    opacity: 0.85,
+  },
+  processingBannerQueryCount: {
+    fontFamily: FontFamily.bold,
+    color: '#111827',
   },
 
   // Controls bar
@@ -1425,29 +1497,60 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.bold,
   },
 
-  // Status Chips
+  // Clear Filters button in controls bar
+  clearFiltersBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    height: 40,
+    gap: 6,
+  },
+  clearFiltersBtnText: {
+    fontFamily: FontFamily.bold,
+    fontSize: 12,
+    color: '#DC2626',
+  },
+
+  // Status Chips ScrollView & Container - explicit minHeight prevents flex collapse
+  statusFilterScrollView: {
+    flexGrow: 0,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+    minHeight: 52,
+  },
   statusChipsContainer: {
     flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 8,
     gap: 8,
+    minHeight: 52,
     backgroundColor: '#FFFFFF',
   },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F3F4F6',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
     gap: 6,
+    height: 36,
   },
   chipActive: {
     backgroundColor: '#111827',
+    borderColor: '#111827',
   },
   chipText: {
     fontFamily: FontFamily.medium,
-    fontSize: 12,
+    fontSize: 12.5,
     color: '#4B5563',
   },
   chipTextActive: {
@@ -1455,9 +1558,26 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.bold,
   },
   dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+  },
+  clearStatusChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 18,
+    height: 36,
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    gap: 5,
+  },
+  clearStatusChipText: {
+    fontFamily: FontFamily.bold,
+    fontSize: 12,
+    color: '#DC2626',
   },
 
   // List
@@ -1483,6 +1603,23 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     textAlign: 'center',
     marginTop: 4,
+  },
+  emptyResetBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 6,
+    marginTop: 14,
+  },
+  emptyResetBtnText: {
+    fontFamily: FontFamily.bold,
+    fontSize: 12.5,
+    color: '#111827',
   },
   emptyActionBtn: {
     flexDirection: 'row',
@@ -1539,121 +1676,256 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#111827',
   },
-  requestNumberText: {
+  cardHeaderPressable: {
+    width: '100%',
+  },
+  mainInfoText: {
+    fontFamily: FontFamily.regular,
+    fontSize: 12,
+    color: '#4B5563',
+    marginTop: 2,
+  },
+  mainInfoStudent: {
+    fontFamily: FontFamily.bold,
+    color: '#111827',
+  },
+  chevronBox: {
+    width: 22,
+    height: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 2,
+  },
+  expandedContentBox: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  expandedMetaStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  expandedMetaText: {
     fontFamily: FontFamily.regular,
     fontSize: 11,
     color: '#6B7280',
-    marginTop: 1,
+  },
+  expandedMetaBold: {
+    fontFamily: FontFamily.bold,
+    color: '#374151',
+  },
+  expandedMetaBadge: {
+    fontFamily: FontFamily.bold,
+    fontSize: 10.5,
+    color: '#4B5563',
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  expandedInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+    gap: 6,
+  },
+  expandedInfoLabel: {
+    fontFamily: FontFamily.medium,
+    fontSize: 11.5,
+    color: '#6B7280',
+  },
+  expandedInfoVal: {
+    fontFamily: FontFamily.bold,
+    fontSize: 12,
+    color: '#111827',
+  },
+  expandedActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  expandToggleTextBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 2,
+  },
+  expandToggleText: {
+    fontFamily: FontFamily.bold,
+    fontSize: 11.5,
+    color: '#6B7280',
   },
   headerBadgesRight: {
     alignItems: 'flex-end',
     gap: 4,
   },
-  urgentBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FEE2E2',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    gap: 3,
-  },
-  urgentBadgeText: {
-    fontFamily: FontFamily.bold,
-    fontSize: 9,
-    color: '#B91C1C',
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    gap: 4,
-  },
-  statusBadgeText: {
+  urgentText: {
     fontFamily: FontFamily.bold,
     fontSize: 10,
+    color: '#111827',
+    letterSpacing: 0.4,
+  },
+  statusPlainText: {
+    fontFamily: FontFamily.medium,
+    fontSize: 12,
+    color: '#111827',
   },
 
   // Student info bar
   studentInfoBar: {
     flexDirection: 'row',
     backgroundColor: '#F9FAFB',
-    borderRadius: 8,
-    padding: 8,
-    marginVertical: 8,
+    borderRadius: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    marginVertical: 6,
     justifyContent: 'space-between',
   },
   studentInfoItem: {
     flex: 1,
   },
   studentInfoLabel: {
-    fontFamily: FontFamily.semibold,
+    fontFamily: FontFamily.medium,
     fontSize: 8.5,
-    color: '#9CA3AF',
+    color: '#6B7280',
     letterSpacing: 0.3,
   },
   studentInfoVal: {
     fontFamily: FontFamily.bold,
     fontSize: 11.5,
-    color: '#1F2937',
+    color: '#111827',
     marginTop: 1,
   },
 
   // Purpose box
   purposeBox: {
-    backgroundColor: '#F8FAFC',
-    borderLeftWidth: 3,
-    borderLeftColor: '#3B82F6',
-    padding: 8,
-    borderRadius: 4,
-    marginVertical: 6,
+    marginVertical: 4,
   },
   purposeLabel: {
     fontFamily: FontFamily.bold,
-    fontSize: 8.5,
-    color: '#3B82F6',
-    letterSpacing: 0.3,
+    fontSize: 11.5,
+    color: '#4B5563',
   },
   purposeText: {
     fontFamily: FontFamily.regular,
-    fontSize: 12,
-    color: '#1F2937',
-    marginTop: 2,
+    fontSize: 11.5,
+    color: '#374151',
+    lineHeight: 16,
   },
   studentNotesText: {
     fontFamily: FontFamily.regular,
     fontSize: 11,
-    color: '#4B5563',
-    marginTop: 4,
+    color: '#6B7280',
+    marginTop: 2,
     fontStyle: 'italic',
   },
 
-  // Review banner
-  reviewBanner: {
-    backgroundColor: '#F0FDF4',
-    borderWidth: 1,
-    borderColor: '#DCFCE7',
+  // Query Alert Box
+  queryAlertBox: {
+    backgroundColor: '#FFFBEB',
+    borderLeftWidth: 3,
+    borderLeftColor: '#F59E0B',
     borderRadius: 6,
-    padding: 8,
+    padding: 10,
     marginVertical: 6,
   },
-  certNumRow: {
+  queryAlertHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    marginBottom: 3,
   },
-  certNumText: {
+  queryAlertTitle: {
+    fontFamily: FontFamily.bold,
+    fontSize: 11.5,
+    color: '#B45309',
+    letterSpacing: 0.3,
+  },
+  queryAlertBody: {
+    fontFamily: FontFamily.medium,
+    fontSize: 12,
+    color: '#92400E',
+    lineHeight: 17,
+  },
+  queryAlertMeta: {
+    fontFamily: FontFamily.regular,
+    fontSize: 10.5,
+    color: '#D97706',
+    marginTop: 4,
+  },
+
+  // Pickup Info Row
+  pickupInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0FDF4',
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+    borderRadius: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    marginVertical: 4,
+    gap: 6,
+  },
+  pickupInfoText: {
     fontFamily: FontFamily.regular,
     fontSize: 11.5,
-    color: '#166534',
+    color: '#15803D',
   },
-  reviewRemarksText: {
+
+  // Processed Notice Box
+  processedNoticeBox: {
+    backgroundColor: '#F0FDF4',
+    borderLeftWidth: 3,
+    borderLeftColor: '#16A34A',
+    borderRadius: 6,
+    padding: 10,
+    marginVertical: 6,
+  },
+  processedNoticeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 3,
+  },
+  processedNoticeTitle: {
+    fontFamily: FontFamily.bold,
+    fontSize: 11.5,
+    color: '#16A34A',
+    letterSpacing: 0.3,
+  },
+  processedNoticeBody: {
     fontFamily: FontFamily.regular,
-    fontSize: 11,
-    color: '#166534',
-    marginTop: 2,
+    fontSize: 12,
+    color: '#15803D',
+    lineHeight: 17,
+  },
+
+  // Rejection Notice Box
+  rejectedNoticeBox: {
+    backgroundColor: '#FEF2F2',
+    borderLeftWidth: 3,
+    borderLeftColor: '#DC2626',
+    borderRadius: 6,
+    padding: 10,
+    marginVertical: 6,
+  },
+  rejectedNoticeTitle: {
+    fontFamily: FontFamily.bold,
+    fontSize: 11.5,
+    color: '#DC2626',
+    marginBottom: 2,
+  },
+  rejectedNoticeText: {
+    fontFamily: FontFamily.regular,
+    fontSize: 12,
+    color: '#991B1B',
+    lineHeight: 17,
   },
 
   // Card Actions
@@ -1661,19 +1933,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 10,
-    paddingTop: 10,
+    marginTop: 8,
+    paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: '#F3F4F6',
   },
   detailsBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 6,
-    backgroundColor: '#F3F4F6',
-    gap: 5,
+    paddingHorizontal: 0,
+    backgroundColor: 'transparent',
   },
   detailsBtnText: {
     fontFamily: FontFamily.medium,
@@ -1686,88 +1954,114 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   rejectBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 6,
-    backgroundColor: '#FEE2E2',
-    gap: 4,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   rejectBtnText: {
-    fontFamily: FontFamily.bold,
+    fontFamily: FontFamily.medium,
     fontSize: 11.5,
-    color: '#DC2626',
+    color: '#111827',
   },
-  approveBtn: {
+  raiseQueryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
-    backgroundColor: '#16A34A',
-    gap: 4,
+    gap: 5,
   },
-  approveBtnText: {
+  raiseQueryBtnText: {
     fontFamily: FontFamily.bold,
     fontSize: 11.5,
-    color: '#FFFFFF',
-  },
-  generateBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 6,
-    backgroundColor: '#F4C430',
-    gap: 5,
-  },
-  generateBtnText: {
-    fontFamily: FontFamily.bold,
-    fontSize: 12,
     color: '#111827',
   },
-  downloadStudentBtn: {
+  processBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 6,
     backgroundColor: '#F4C430',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
     gap: 5,
   },
-  downloadStudentBtnText: {
+  processBtnText: {
     fontFamily: FontFamily.bold,
-    fontSize: 12,
+    fontSize: 11.5,
     color: '#111827',
   },
-  inProcessingPill: {
+  pickupEditBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+  },
+  pickupEditBtnText: {
+    fontFamily: FontFamily.medium,
+    fontSize: 11.5,
+    color: '#111827',
+  },
+  readyStudentBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: '#DCFCE7',
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 6,
+    borderRadius: 12,
     gap: 5,
   },
-  inProcessingText: {
-    fontFamily: FontFamily.semibold,
-    fontSize: 11,
-    color: '#1D4ED8',
+  readyStudentBadgeText: {
+    fontFamily: FontFamily.bold,
+    fontSize: 11.5,
+    color: '#15803D',
   },
-  pendingReviewPill: {
+  actionRequiredStudentBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FEF3C7',
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 6,
+    borderRadius: 12,
     gap: 5,
   },
-  pendingReviewText: {
-    fontFamily: FontFamily.semibold,
-    fontSize: 11,
+  actionRequiredStudentBadgeText: {
+    fontFamily: FontFamily.bold,
+    fontSize: 11.5,
     color: '#B45309',
+  },
+  pendingReviewText: {
+    fontFamily: FontFamily.medium,
+    fontSize: 11.5,
+    color: '#D97706',
+  },
+
+  // Modal Request Summary
+  modalReqSummaryBox: {
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 8,
+  },
+  modalReqSummaryTitle: {
+    fontFamily: FontFamily.bold,
+    fontSize: 13,
+    color: '#111827',
+  },
+  modalReqSummarySub: {
+    fontFamily: FontFamily.regular,
+    fontSize: 11,
+    color: '#6B7280',
+    marginTop: 2,
   },
 
   // Modals
@@ -1937,45 +2231,206 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
 
-  // Student New Request Grid
-  docTypeSelectGrid: {
-    gap: 6,
-    marginBottom: 12,
+  // Form Section Header & Badges
+  formSectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
   },
-  docTypeSelectItem: {
+  adminConfigHint: {
+    fontFamily: FontFamily.medium,
+    fontSize: 11,
+    color: '#6B7280',
+  },
+  requiredFieldHint: {
+    fontFamily: FontFamily.regular,
+    fontSize: 11,
+    color: '#6B7280',
+  },
+  formFieldHint: {
+    fontFamily: FontFamily.regular,
+    fontSize: 11,
+    color: '#6B7280',
+    marginBottom: 6,
+  },
+
+  // Document Dropdown Selector
+  dropdownTrigger: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#E5E7EB',
     borderRadius: 8,
-    padding: 8,
-    backgroundColor: '#F9FAFB',
-    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    backgroundColor: '#FFFFFF',
   },
-  docTypeSelectItemActive: {
-    borderColor: '#16A34A',
-    backgroundColor: '#F0FDF4',
+  dropdownTriggerActive: {
+    borderColor: '#111827',
+    backgroundColor: '#FAFAFA',
+  },
+  dropdownSelectedTitle: {
+    fontFamily: FontFamily.bold,
+    fontSize: 13,
+    color: '#111827',
+  },
+  dropdownSelectedSub: {
+    fontFamily: FontFamily.regular,
+    fontSize: 11,
+    color: '#6B7280',
+    marginTop: 1,
+  },
+  dropdownTriggerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  docFeePillSmall: {
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  docFeePillText: {
+    fontFamily: FontFamily.bold,
+    fontSize: 11,
+    color: '#111827',
+  },
+
+  // Dropdown Menu
+  dropdownMenuContainer: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    marginTop: 6,
+    marginBottom: 10,
+    padding: 4,
+    shadowColor: '#000000',
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  dropdownMenuHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  dropdownMenuHeaderText: {
+    fontFamily: FontFamily.bold,
+    fontSize: 10,
+    color: '#6B7280',
+    letterSpacing: 0.4,
+  },
+  dropdownMenuHeaderHint: {
+    fontFamily: FontFamily.medium,
+    fontSize: 9.5,
+    color: '#9CA3AF',
+  },
+  dropdownOptionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    marginVertical: 1,
+  },
+  dropdownOptionItemActive: {
+    backgroundColor: '#F3F4F6',
+  },
+  dropdownOptionTitle: {
+    fontFamily: FontFamily.bold,
+    fontSize: 12.5,
+    color: '#111827',
+  },
+  dropdownOptionTitleActive: {
+    color: '#111827',
+  },
+  dropdownOptionDesc: {
+    fontFamily: FontFamily.regular,
+    fontSize: 10.5,
+    color: '#6B7280',
+    marginTop: 1,
   },
   docIconBoxSmall: {
     width: 32,
     height: 32,
     borderRadius: 6,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  docTypeSelectName: {
+
+  // Clean Collection Payment Notice Banner
+  paymentNoticeCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 10,
+    gap: 10,
+  },
+  paymentNoticeIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 6,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  paymentNoticeTitle: {
     fontFamily: FontFamily.bold,
     fontSize: 12.5,
-    color: '#1F2937',
+    color: '#111827',
+    letterSpacing: 0.1,
   },
-  docTypeSelectNameActive: {
-    color: '#15803D',
-  },
-  docTypeSelectDesc: {
+  paymentNoticeSub: {
     fontFamily: FontFamily.regular,
-    fontSize: 10.5,
-    color: '#6B7280',
-    marginTop: 1,
+    fontSize: 11,
+    color: '#4B5563',
+    marginTop: 2,
+    lineHeight: 15,
+  },
+
+  // Purpose text area
+  purposeTextArea: {
+    minHeight: 72,
+    textAlignVertical: 'top',
+    paddingTop: 8,
+    lineHeight: 18,
+  },
+
+  // Fee Notice in Expanded Cards
+  feeNoticeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+  },
+  feeNoticeText: {
+    fontFamily: FontFamily.bold,
+    fontSize: 11.5,
+    color: '#111827',
   },
   presetChipsWrap: {
     flexDirection: 'row',
@@ -1984,15 +2439,16 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   presetChip: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
     paddingHorizontal: 9,
     paddingVertical: 5,
-    borderRadius: 4,
+    borderRadius: 6,
   },
   presetChipActive: {
-    backgroundColor: '#FEF3C7',
-    borderWidth: 1,
-    borderColor: '#F59E0B',
+    backgroundColor: '#111827',
+    borderColor: '#111827',
   },
   presetChipText: {
     fontFamily: FontFamily.medium,
@@ -2000,7 +2456,7 @@ const styles = StyleSheet.create({
     color: '#4B5563',
   },
   presetChipTextActive: {
-    color: '#111827',
+    color: '#FFFFFF',
     fontFamily: FontFamily.bold,
   },
   rowFormFields: {
@@ -2039,15 +2495,14 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#FFFFFF',
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
   urgencyBtnActive: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#111827',
     borderColor: '#111827',
-    borderWidth: 1.5,
   },
   urgencyBtnText: {
     fontFamily: FontFamily.medium,
@@ -2056,7 +2511,7 @@ const styles = StyleSheet.create({
   },
   urgencyBtnTextActive: {
     fontFamily: FontFamily.bold,
-    color: '#111827',
+    color: '#FFFFFF',
   },
 
   // Dossier details

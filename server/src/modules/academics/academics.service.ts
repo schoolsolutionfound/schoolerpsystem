@@ -821,7 +821,7 @@ export class AcademicsService {
     const maxStart = this.dateStr(new Date(new Date(`${end}T00:00:00Z`).getTime() - 365 * 86400000));
     const from = startRaw < maxStart ? maxStart : startRaw;
 
-    const { days, studentStats, subjectStats } = await academicsRepository.getClassAttendanceAggregates(classSectionId, from, end);
+    const { days, studentStats, subjectStats } = await academicsRepository.getClassAttendanceAggregates(resolvedClassSectionId, from, end);
 
     const totalMarks = studentStats.reduce((s, x) => s + (Number(x.total) || 0), 0);
     const presentMarks = studentStats.reduce((s, x) => s + (Number(x.present) || 0), 0);

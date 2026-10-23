@@ -11,6 +11,7 @@ import {
   useWindowDimensions,
   Platform,
   KeyboardAvoidingView,
+  Pressable,
 } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { FontFamily } from '../../../constants/fonts';
@@ -65,6 +66,60 @@ const EVENT_TYPE_LABELS: Record<EventType, string> = {
   faculty_dev: 'Faculty Development',
 };
 
+const getEventTypeBadgeStyle = (type: EventType) => {
+  switch (type) {
+    case 'exam':
+      return {
+        bg: '#FEF3C7',
+        border: '#FDE68A',
+        text: '#92400E',
+        icon: 'clipboard-list-outline' as const,
+      };
+    case 'symposium':
+      return {
+        bg: '#111827',
+        border: '#111827',
+        text: '#F4C430',
+        icon: 'account-group-outline' as const,
+      };
+    case 'workshop':
+      return {
+        bg: '#FEF9C3',
+        border: '#FDE68A',
+        text: '#B45309',
+        icon: 'tools' as const,
+      };
+    case 'holiday':
+      return {
+        bg: '#DCFCE7',
+        border: '#BBF7D0',
+        text: '#15803D',
+        icon: 'beach' as const,
+      };
+    case 'faculty_dev':
+      return {
+        bg: '#EDE9FE',
+        border: '#DDD6FE',
+        text: '#6D28D9',
+        icon: 'school-outline' as const,
+      };
+    case 'cultural':
+      return {
+        bg: '#FCE7F3',
+        border: '#FBCFE8',
+        text: '#BE185D',
+        icon: 'trophy-outline' as const,
+      };
+    default:
+      return {
+        bg: '#F3F4F6',
+        border: '#E5E7EB',
+        text: '#374151',
+        icon: 'calendar-outline' as const,
+      };
+  }
+};
+
 export const INITIAL_EVENTS: CalendarEvent[] = [
   {
     id: 'evt-1',
@@ -75,7 +130,7 @@ export const INITIAL_EVENTS: CalendarEvent[] = [
     endDate: '2026-10-28',
     time: '09:30 AM - 12:30 PM',
     venue: 'Campus Examination Halls & Exam Block',
-    description: 'Centralized mid-term evaluations across B.Tech and M.Tech programs with biometric student verification.',
+    description: 'Centralized mid-term evaluations across degree programs with biometric student verification.',
     organizer: 'Controller of Examinations & Principal Office',
   },
   {
@@ -170,6 +225,13 @@ export const AcademicCalendarEventsView: React.FC<AcademicCalendarEventsViewProp
   const [search, setSearch] = useState('');
   const [activeScopeFilter, setActiveScopeFilter] = useState<'all' | 'institution' | 'department' | 'exam' | 'holiday'>('all');
   const [selectedDept, setSelectedDept] = useState<string>('all');
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const hasActiveFilters = activeScopeFilter !== 'all' || selectedDept !== 'all';
+  const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
+
+  const toggleExpand = (id: string) => {
+    setExpandedIds((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
 
   // Modal State for Create / Edit
   const [modalVisible, setModalVisible] = useState(false);
@@ -178,6 +240,8 @@ export const AcademicCalendarEventsView: React.FC<AcademicCalendarEventsViewProp
   const [formType, setFormType] = useState<EventType>('academic');
   const [formScope, setFormScope] = useState<'institution' | 'department'>('institution');
   const [formDept, setFormDept] = useState(userDepartment || 'Computer Science');
+  const [scopeDropdownOpen, setScopeDropdownOpen] = useState(false);
+  const [deptDropdownOpen, setDeptDropdownOpen] = useState(false);
   const [formStartDate, setFormStartDate] = useState('');
   const [formEndDate, setFormEndDate] = useState('');
   const [formTime, setFormTime] = useState('');
@@ -202,6 +266,8 @@ export const AcademicCalendarEventsView: React.FC<AcademicCalendarEventsViewProp
     setFormType('academic');
     setFormScope(canManageDeptOnly && !isPrincipalOrAdmin ? 'department' : 'institution');
     setFormDept(userDepartment || 'Computer Science');
+    setScopeDropdownOpen(false);
+    setDeptDropdownOpen(false);
     setFormStartDate(new Date().toISOString().slice(0, 10));
     setFormEndDate(new Date().toISOString().slice(0, 10));
     setFormTime('09:30 AM - 04:30 PM');
@@ -217,6 +283,8 @@ export const AcademicCalendarEventsView: React.FC<AcademicCalendarEventsViewProp
     setFormType(evt.type);
     setFormScope(evt.scope);
     setFormDept(evt.department || 'Computer Science');
+    setScopeDropdownOpen(false);
+    setDeptDropdownOpen(false);
     setFormStartDate(evt.startDate);
     setFormEndDate(evt.endDate);
     setFormTime(evt.time || '');
@@ -322,27 +390,24 @@ export const AcademicCalendarEventsView: React.FC<AcademicCalendarEventsViewProp
     <View style={styles.container}>
       {/* 1. Header Row */}
       <View style={styles.headerRow}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.pageHeading} numberOfLines={1}>
-            Academic Calendar & Events
-          </Text>
-          <Text style={styles.pageSubText}>
-            Institutional milestones, department symposiums, and exam schedules
+        <View style={{ flex: 1, marginRight: 10 }}>
+          <Text style={styles.pageHeading}>
+            Events & Calendar
           </Text>
         </View>
 
         {(isPrincipalOrAdmin || canManageDeptOnly) && (
-          <TouchableOpacity style={styles.newEventBtn} onPress={handleOpenCreate} activeOpacity={0.8}>
-            <Feather name="plus" size={13} color="#FFFFFF" />
+          <TouchableOpacity style={styles.newEventBtn} onPress={handleOpenCreate} activeOpacity={0.85}>
+            <Feather name="plus" size={15} color="#111827" />
             <Text style={styles.newEventBtnText}>Schedule Event</Text>
           </TouchableOpacity>
         )}
       </View>
 
-      {/* 2. Search & Filter Bar */}
+      {/* 2. Top Search & Filter Bar (Matching Staff Directory, Homerooms & Fee Ledger) */}
       <View style={styles.searchSectionWrap}>
         <View style={styles.searchBar}>
-          <Feather name="search" size={14} color="#9CA3AF" style={styles.searchIcon} />
+          <MaterialCommunityIcons name="magnify" size={20} color="#F4C430" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search events, venues, symposiums..."
@@ -352,76 +417,66 @@ export const AcademicCalendarEventsView: React.FC<AcademicCalendarEventsViewProp
             autoCorrect={false}
           />
           {search ? (
-            <TouchableOpacity onPress={() => setSearch('')} style={styles.clearSearchBtn}>
-              <Feather name="x" size={13} color="#9CA3AF" />
+            <TouchableOpacity onPress={() => setSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <MaterialCommunityIcons name="close-circle" size={18} color="#9CA3AF" />
             </TouchableOpacity>
           ) : null}
         </View>
 
-        {/* Scope Filter Chips */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
-          {[
-            { key: 'all' as const, label: `All Events (${events.length})` },
-            { key: 'institution' as const, label: 'Institution Wide' },
-            { key: 'department' as const, label: 'Dept Activities' },
-            { key: 'exam' as const, label: 'Examinations' },
-            { key: 'holiday' as const, label: 'Holidays & Recess' },
-          ].map((item) => {
-            const active = activeScopeFilter === item.key;
-            return (
-              <TouchableOpacity
-                key={item.key}
-                style={[styles.filterChip, active && styles.filterChipActive]}
-                onPress={() => setActiveScopeFilter(item.key)}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
-                  {item.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+        {/* Sub-row: Active Filter Tags & Filter Action Button */}
+        <View style={styles.searchSubRow}>
+          <View style={styles.filterTagsRow}>
+            {hasActiveFilters ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+                {activeScopeFilter !== 'all' && (
+                  <View style={styles.activeTagPill}>
+                    <Text style={styles.activeTagPillText}>
+                      {activeScopeFilter === 'institution'
+                        ? 'Institution Wide'
+                        : activeScopeFilter === 'department'
+                        ? 'Dept Activities'
+                        : activeScopeFilter === 'exam'
+                        ? 'Examinations'
+                        : 'Holidays'}
+                    </Text>
+                    <TouchableOpacity onPress={() => setActiveScopeFilter('all')}>
+                      <Feather name="x" size={12} color="#111827" />
+                    </TouchableOpacity>
+                  </View>
+                )}
+                {selectedDept !== 'all' && (
+                  <View style={styles.activeTagPill}>
+                    <Text style={styles.activeTagPillText}>Dept: {selectedDept}</Text>
+                    <TouchableOpacity onPress={() => setSelectedDept('all')}>
+                      <Feather name="x" size={12} color="#111827" />
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </ScrollView>
+            ) : (
+              <Text style={styles.filterSummaryText}>
+                {filteredEvents.length} events across all categories
+              </Text>
+            )}
+          </View>
 
-        {/* Department Quick Filter */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.deptScroll}>
-          {['all', ...INSTITUTION_DEPARTMENTS].map((dept) => {
-            const active = selectedDept.toLowerCase() === dept.toLowerCase();
-            return (
-              <TouchableOpacity
-                key={dept}
-                style={[styles.deptChip, active && styles.deptChipActive]}
-                onPress={() => setSelectedDept(dept)}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.deptChipText, active && styles.deptChipTextActive]}>
-                  {dept === 'all' ? 'All Departments' : dept}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </View>
-
-      {/* 3. Event List Count Header */}
-      <View style={styles.listMetaRow}>
-        <Text style={styles.listMetaCount}>
-          {filteredEvents.length} {filteredEvents.length === 1 ? 'Scheduled Event' : 'Scheduled Events'}
-        </Text>
-        {(activeScopeFilter !== 'all' || selectedDept !== 'all' || search.length > 0) && (
+          {/* Filter Button on the Right */}
           <TouchableOpacity
-            style={styles.resetFilterBtn}
-            onPress={() => {
-              setActiveScopeFilter('all');
-              setSelectedDept('all');
-              setSearch('');
-            }}
-            activeOpacity={0.7}
+            style={[styles.filterActionBtn, hasActiveFilters && styles.filterActionBtnActive]}
+            onPress={() => setFilterModalVisible(true)}
+            activeOpacity={0.8}
           >
-            <Feather name="rotate-ccw" size={11} color="#4B5563" />
-            <Text style={styles.resetFilterText}>Reset</Text>
+            <MaterialCommunityIcons
+              name="tune-variant"
+              size={18}
+              color={hasActiveFilters ? '#000000' : '#4B5563'}
+            />
+            <Text style={[styles.filterActionBtnText, hasActiveFilters && styles.filterActionBtnTextActive]}>
+              Filter
+            </Text>
+            {hasActiveFilters && <View style={styles.filterActiveDot} />}
           </TouchableOpacity>
-        )}
+        </View>
       </View>
 
       {/* 4. Events Cards List */}
@@ -452,80 +507,94 @@ export const AcademicCalendarEventsView: React.FC<AcademicCalendarEventsViewProp
                 evt.startDate === evt.endDate
                   ? evt.startDate
                   : `${evt.startDate} → ${evt.endDate}`;
+              const isExpanded = !!expandedIds[evt.id];
 
               return (
                 <View key={evt.id} style={[styles.card, { width: cardWidth }]}>
-                  {/* Top Meta: Scope & Type + Action Buttons */}
+                  {/* Top Row: Event Title and Actions (Edit & Delete) */}
                   <View style={styles.cardTopRow}>
-                    <View style={styles.badgeRow}>
-                      <View style={styles.typeBadge}>
-                        <Text style={styles.typeBadgeText}>
-                          {EVENT_TYPE_LABELS[evt.type] || evt.type.toUpperCase()}
-                        </Text>
-                      </View>
-
-                      <Text style={styles.metaDivider}>·</Text>
-                      <Text style={styles.scopeBadgeText}>
-                        {evt.scope === 'institution'
-                          ? 'Institution-Wide'
-                          : evt.department || 'Department Activity'}
-                      </Text>
-                    </View>
+                    <TouchableOpacity
+                      style={styles.cardTitleWrap}
+                      onPress={() => toggleExpand(evt.id)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.cardTitle}>{evt.title}</Text>
+                    </TouchableOpacity>
 
                     {canEdit && (
                       <View style={styles.cardActionsRow}>
                         <TouchableOpacity
-                          style={styles.actionBtn}
+                          style={styles.cardActionBtn}
                           onPress={() => handleOpenEdit(evt)}
-                          activeOpacity={0.6}
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          activeOpacity={0.7}
                         >
-                          <Feather name="edit-2" size={13} color="#374151" />
+                          <Text style={styles.cardActionBtnText}>Edit</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
-                          style={styles.actionBtn}
+                          style={styles.cardActionDeleteBtn}
                           onPress={() => handleDeleteEvent(evt.id, evt.title)}
-                          activeOpacity={0.6}
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          activeOpacity={0.7}
                         >
-                          <Feather name="trash-2" size={13} color="#9CA3AF" />
+                          <Text style={styles.cardActionDeleteBtnText}>Delete</Text>
                         </TouchableOpacity>
                       </View>
                     )}
                   </View>
 
-                  {/* Title */}
-                  <Text style={styles.cardTitle}>{evt.title}</Text>
+                  {/* Clickable body to reveal details */}
+                  <TouchableOpacity
+                    style={styles.cardBody}
+                    onPress={() => toggleExpand(evt.id)}
+                    activeOpacity={0.7}
+                  >
+                    {/* Scheduled Date and Time - No icons, no text backgrounds */}
+                    <View style={styles.scheduleInfoBlock}>
+                      <View style={styles.scheduleField}>
+                        <Text style={styles.scheduleFieldLabel}>Scheduled Date</Text>
+                        <Text style={styles.scheduleFieldValue}>{dateDisplay}</Text>
+                      </View>
 
-                  {/* Date, Time & Venue */}
-                  <View style={styles.detailsBox}>
-                    <View style={styles.detailRow}>
-                      <MaterialCommunityIcons name="calendar-clock" size={14} color="#6B7280" />
-                      <Text style={styles.detailText}>{dateDisplay}</Text>
-                      {evt.time ? <Text style={styles.detailSubText}>({evt.time})</Text> : null}
+                      {evt.time ? (
+                        <View style={styles.scheduleField}>
+                          <Text style={styles.scheduleFieldLabel}>Time Duration</Text>
+                          <Text style={styles.scheduleFieldValue}>{evt.time}</Text>
+                        </View>
+                      ) : null}
                     </View>
-                    <View style={styles.detailRow}>
-                      <MaterialCommunityIcons name="map-marker-outline" size={14} color="#6B7280" />
-                      <Text style={styles.detailText} numberOfLines={1}>
-                        {evt.venue}
+
+                    {/* Expandable Details: Only shown when clicked */}
+                    {isExpanded && (
+                      <View style={styles.expandedContentBlock}>
+                        {evt.description ? (
+                          <View style={styles.expandedField}>
+                            <Text style={styles.expandedFieldLabel}>Description</Text>
+                            <Text style={styles.expandedDescriptionText}>{evt.description}</Text>
+                          </View>
+                        ) : null}
+
+                        {evt.venue ? (
+                          <View style={styles.expandedField}>
+                            <Text style={styles.expandedFieldLabel}>Venue</Text>
+                            <Text style={styles.expandedFieldValue}>{evt.venue}</Text>
+                          </View>
+                        ) : null}
+
+                        {evt.organizer ? (
+                          <View style={styles.expandedField}>
+                            <Text style={styles.expandedFieldLabel}>Organizer</Text>
+                            <Text style={styles.expandedFieldValue}>{evt.organizer}</Text>
+                          </View>
+                        ) : null}
+                      </View>
+                    )}
+
+                    {/* Minimal text indicator */}
+                    <View style={styles.expandToggleRow}>
+                      <Text style={styles.expandToggleText}>
+                        {isExpanded ? 'Hide details' : 'View details'}
                       </Text>
                     </View>
-                  </View>
-
-                  {/* Description */}
-                  {evt.description ? (
-                    <Text style={styles.cardDescription} numberOfLines={3}>
-                      {evt.description}
-                    </Text>
-                  ) : null}
-
-                  {/* Footer: Organizer */}
-                  <View style={styles.cardFooter}>
-                    <MaterialCommunityIcons name="account-tie-outline" size={13} color="#9CA3AF" />
-                    <Text style={styles.organizerText} numberOfLines={1}>
-                      Organized by {evt.organizer}
-                    </Text>
-                  </View>
+                  </TouchableOpacity>
                 </View>
               );
             })}
@@ -568,105 +637,141 @@ export const AcademicCalendarEventsView: React.FC<AcademicCalendarEventsViewProp
                 />
               </View>
 
-              {/* Event Type */}
-              <View style={styles.modalFieldGroup}>
-                <Text style={styles.modalLabel}>Category / Event Type *</Text>
-                <View style={styles.modalChipsWrap}>
-                  {(
-                    [
-                      { key: 'academic', label: 'Academic' },
-                      { key: 'exam', label: 'Examination' },
-                      { key: 'symposium', label: 'Symposium' },
-                      { key: 'workshop', label: 'Workshop' },
-                      { key: 'holiday', label: 'Holiday' },
-                      { key: 'faculty_dev', label: 'Faculty Dev' },
-                      { key: 'cultural', label: 'Cultural / Sports' },
-                    ] as const
-                  ).map((t) => {
-                    const active = formType === t.key;
-                    return (
-                      <TouchableOpacity
-                        key={t.key}
-                        style={[styles.modalChip, active && styles.modalChipActive]}
-                        onPress={() => setFormType(t.key)}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={[styles.modalChipText, active && styles.modalChipTextActive]}>
-                          {t.label}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              </View>
-
-              {/* Scope (Institution vs Department) */}
-              <View style={styles.modalFieldGroup}>
+              {/* Scope Dropdown */}
+              <View style={[styles.modalFieldGroup, { zIndex: 30 }]}>
                 <Text style={styles.modalLabel}>Authority / Scope *</Text>
-                <View style={styles.modalPriorityRow}>
+                <View style={styles.formDropdownWrap}>
                   <TouchableOpacity
                     disabled={!isPrincipalOrAdmin}
                     style={[
-                      styles.modalPriorityBtn,
-                      formScope === 'institution' && styles.modalPriorityBtnActive,
-                      !isPrincipalOrAdmin && { opacity: 0.5 },
+                      styles.formDropdownBtn,
+                      scopeDropdownOpen && styles.formDropdownBtnActive,
+                      !isPrincipalOrAdmin && { opacity: 0.6 },
                     ]}
-                    onPress={() => setFormScope('institution')}
+                    onPress={() => {
+                      setScopeDropdownOpen(!scopeDropdownOpen);
+                      setDeptDropdownOpen(false);
+                    }}
                     activeOpacity={0.7}
                   >
-                    <Text
-                      style={[
-                        styles.modalPriorityText,
-                        formScope === 'institution' && styles.modalPriorityTextActive,
-                      ]}
-                    >
-                      Campus / Institution Wide
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <MaterialCommunityIcons
+                        name={formScope === 'institution' ? 'domain' : 'office-building'}
+                        size={17}
+                        color="#D97706"
+                      />
+                      <Text style={styles.formDropdownText}>
+                        {formScope === 'institution' ? 'Campus / Institution Wide' : 'Department Specific'}
+                      </Text>
+                    </View>
+                    <Feather
+                      name={scopeDropdownOpen ? 'chevron-up' : 'chevron-down'}
+                      size={18}
+                      color="#6B7280"
+                    />
                   </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={[styles.modalPriorityBtn, formScope === 'department' && styles.modalPriorityBtnActive]}
-                    onPress={() => setFormScope('department')}
-                    activeOpacity={0.7}
-                  >
-                    <Text
-                      style={[
-                        styles.modalPriorityText,
-                        formScope === 'department' && styles.modalPriorityTextActive,
-                      ]}
-                    >
-                      Department Specific
-                    </Text>
-                  </TouchableOpacity>
+                  {scopeDropdownOpen && (
+                    <View style={styles.formDropdownMenu}>
+                      <TouchableOpacity
+                        style={[
+                          styles.formDropdownItem,
+                          formScope === 'institution' && styles.formDropdownItemActive,
+                        ]}
+                        onPress={() => {
+                          setFormScope('institution');
+                          setScopeDropdownOpen(false);
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.formDropdownItemText,
+                            formScope === 'institution' && styles.formDropdownItemTextActive,
+                          ]}
+                        >
+                          Campus / Institution Wide
+                        </Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[
+                          styles.formDropdownItem,
+                          formScope === 'department' && styles.formDropdownItemActive,
+                        ]}
+                        onPress={() => {
+                          setFormScope('department');
+                          setScopeDropdownOpen(false);
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.formDropdownItemText,
+                            formScope === 'department' && styles.formDropdownItemTextActive,
+                          ]}
+                        >
+                          Department Specific
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
                 </View>
               </View>
 
-              {/* If Department, Select Department */}
+              {/* Department Dropdown (only when Department Specific is selected) */}
               {formScope === 'department' && (
-                <View style={styles.modalFieldGroup}>
+                <View style={[styles.modalFieldGroup, { zIndex: 20 }]}>
                   <Text style={styles.modalLabel}>Target Department *</Text>
-                  <View style={styles.modalChipsWrap}>
-                    {INSTITUTION_DEPARTMENTS.map((dept) => {
-                      const active = formDept.toLowerCase() === dept.toLowerCase();
-                      const disabled = Boolean(!isPrincipalOrAdmin && userDepartment && dept.toLowerCase() !== userDepartment.toLowerCase());
-                      return (
-                        <TouchableOpacity
-                          key={dept}
-                          disabled={disabled}
-                          style={[
-                            styles.modalChip,
-                            active && styles.modalChipActive,
-                            disabled && { opacity: 0.4 },
-                          ]}
-                          onPress={() => setFormDept(dept)}
-                          activeOpacity={0.7}
-                        >
-                          <Text style={[styles.modalChipText, active && styles.modalChipTextActive]}>
-                            {dept}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
+                  <View style={styles.formDropdownWrap}>
+                    <TouchableOpacity
+                      disabled={Boolean(!isPrincipalOrAdmin && userDepartment)}
+                      style={[
+                        styles.formDropdownBtn,
+                        deptDropdownOpen && styles.formDropdownBtnActive,
+                        Boolean(!isPrincipalOrAdmin && userDepartment) && { opacity: 0.6 },
+                      ]}
+                      onPress={() => {
+                        setDeptDropdownOpen(!deptDropdownOpen);
+                        setScopeDropdownOpen(false);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <MaterialCommunityIcons name="school-outline" size={17} color="#D97706" />
+                        <Text style={styles.formDropdownText}>{formDept}</Text>
+                      </View>
+                      <Feather
+                        name={deptDropdownOpen ? 'chevron-up' : 'chevron-down'}
+                        size={18}
+                        color="#6B7280"
+                      />
+                    </TouchableOpacity>
+
+                    {deptDropdownOpen && (
+                      <View style={styles.formDropdownMenu}>
+                        {INSTITUTION_DEPARTMENTS.map((dept) => {
+                          const active = formDept.toLowerCase() === dept.toLowerCase();
+                          return (
+                            <TouchableOpacity
+                              key={dept}
+                              style={[styles.formDropdownItem, active && styles.formDropdownItemActive]}
+                              onPress={() => {
+                                setFormDept(dept);
+                                setDeptDropdownOpen(false);
+                              }}
+                            >
+                              <Text
+                                style={[
+                                  styles.formDropdownItemText,
+                                  active && styles.formDropdownItemTextActive,
+                                ]}
+                              >
+                                {dept}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    )}
                   </View>
                 </View>
               )}
@@ -712,7 +817,7 @@ export const AcademicCalendarEventsView: React.FC<AcademicCalendarEventsViewProp
                 <Text style={styles.modalLabel}>Venue / Location *</Text>
                 <TextInput
                   style={styles.modalInput}
-                  placeholder="e.g. Dr. Kalam Tech Hall, Seminar Room 2"
+                  placeholder="e.g. Main Auditorium, Seminar Hall, Tech Center"
                   placeholderTextColor="#9CA3AF"
                   value={formVenue}
                   onChangeText={setFormVenue}
@@ -761,6 +866,108 @@ export const AcademicCalendarEventsView: React.FC<AcademicCalendarEventsViewProp
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Filter Modal (Category & Department) */}
+      <Modal
+        visible={filterModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setFilterModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setFilterModalVisible(false)}
+          />
+          <View
+            style={[styles.filterModalCard, { width: isDesktop ? 500 : '92%', maxWidth: 500 }]}
+          >
+            <View style={styles.filterModalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={styles.filterModalIconWrap}>
+                  <MaterialCommunityIcons name="tune-variant" size={18} color="#000000" />
+                </View>
+                <Text style={styles.filterModalTitle}>Filter Academic Events</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setFilterModalVisible(false)}
+                style={styles.filterModalCloseBtn}
+              >
+                <Feather name="x" size={18} color="#111827" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 420 }}>
+              {/* Event Scope / Category */}
+              <Text style={styles.filterGroupTitle}>EVENT CATEGORY</Text>
+              <View style={styles.filterChipsWrap}>
+                {[
+                  { key: 'all', label: 'All Events' },
+                  { key: 'institution', label: 'Institution Wide' },
+                  { key: 'department', label: 'Dept Activities' },
+                  { key: 'exam', label: 'Examinations' },
+                  { key: 'holiday', label: 'Holidays & Recess' },
+                ].map((item) => {
+                  const active = activeScopeFilter === item.key;
+                  return (
+                    <TouchableOpacity
+                      key={item.key}
+                      style={[styles.modalChip, active && styles.modalChipActive]}
+                      onPress={() => setActiveScopeFilter(item.key as any)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.modalChipText, active && styles.modalChipTextActive]}>
+                        {item.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Department Filter */}
+              <Text style={[styles.filterGroupTitle, { marginTop: 14 }]}>DEPARTMENT</Text>
+              <View style={styles.filterChipsWrap}>
+                {['all', ...INSTITUTION_DEPARTMENTS].map((dept) => {
+                  const active = selectedDept === dept;
+                  return (
+                    <TouchableOpacity
+                      key={dept}
+                      style={[styles.modalChip, active && styles.modalChipActive]}
+                      onPress={() => setSelectedDept(dept)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.modalChipText, active && styles.modalChipTextActive]}>
+                        {dept === 'all' ? 'All Departments' : dept}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </ScrollView>
+
+            {/* Modal Actions */}
+            <View style={styles.filterModalFooter}>
+              <TouchableOpacity
+                style={styles.filterResetBtn}
+                onPress={() => {
+                  setActiveScopeFilter('all');
+                  setSelectedDept('all');
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.filterResetText}>Reset Filters</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.filterApplyBtn}
+                onPress={() => setFilterModalVisible(false)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.filterApplyText}>Apply Filters</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -775,8 +982,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8,
+    paddingTop: 14,
+    paddingBottom: 10,
     backgroundColor: '#FFFFFF',
   },
   pageHeading: {
@@ -787,28 +994,33 @@ const styles = StyleSheet.create({
   },
   pageSubText: {
     fontFamily: FontFamily.regular,
-    fontSize: 11.5,
+    fontSize: 12,
     color: '#6B7280',
     marginTop: 2,
   },
   newEventBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#111827',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 6,
+    gap: 6,
+    backgroundColor: '#F4C430',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
   },
   newEventBtnText: {
     fontFamily: FontFamily.bold,
-    fontSize: 11.5,
-    color: '#FFFFFF',
+    fontSize: 12.5,
+    color: '#111827',
   },
   searchSectionWrap: {
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
-    paddingBottom: 10,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
   },
@@ -818,10 +1030,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 7,
-    paddingHorizontal: 10,
-    height: 38,
-    marginBottom: 8,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    height: 40,
+    marginBottom: 10,
   },
   searchIcon: {
     marginRight: 8,
@@ -836,92 +1048,171 @@ const styles = StyleSheet.create({
   clearSearchBtn: {
     padding: 4,
   },
-  filterScroll: {
+  searchSubRow: {
     flexDirection: 'row',
-    gap: 6,
-    paddingVertical: 1,
-    marginBottom: 6,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
   },
-  filterChip: {
+  filterTagsRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  activeTagPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FEF9C3',
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 6,
-    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#F4C430',
   },
-  filterChipActive: {
-    backgroundColor: '#111827',
-    borderColor: '#111827',
-  },
-  filterChipText: {
-    fontFamily: FontFamily.medium,
-    fontSize: 11.5,
-    color: '#4B5563',
-  },
-  filterChipTextActive: {
+  activeTagPillText: {
     fontFamily: FontFamily.bold,
-    color: '#FFFFFF',
+    fontSize: 11.5,
+    color: '#000000',
   },
-  deptScroll: {
-    flexDirection: 'row',
-    gap: 5,
-  },
-  deptChip: {
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: 5,
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  deptChipActive: {
-    backgroundColor: '#374151',
-    borderColor: '#374151',
-  },
-  deptChipText: {
-    fontFamily: FontFamily.medium,
-    fontSize: 10.5,
+  filterSummaryText: {
+    fontFamily: FontFamily.regular,
+    fontSize: 12,
     color: '#6B7280',
   },
-  deptChipTextActive: {
-    fontFamily: FontFamily.bold,
-    color: '#FFFFFF',
+  filterActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
-  listMetaRow: {
+  filterActionBtnActive: {
+    backgroundColor: '#FEF9C3',
+    borderColor: '#F4C430',
+  },
+  filterActionBtnText: {
+    fontFamily: FontFamily.bold,
+    fontSize: 12,
+    color: '#4B5563',
+  },
+  filterActionBtnTextActive: {
+    color: '#000000',
+  },
+  filterActiveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#000000',
+    marginLeft: 2,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 20,
+  },
+  filterModalCard: {
+    width: '100%',
+    maxWidth: 480,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 18,
+    gap: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  filterModalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: '#FAFAFA',
+    paddingBottom: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
   },
-  listMetaCount: {
-    fontFamily: FontFamily.medium,
-    fontSize: 11.5,
-    color: '#6B7280',
-  },
-  resetFilterBtn: {
-    flexDirection: 'row',
+  filterModalIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#FEF9C3',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
     alignItems: 'center',
-    gap: 4,
+    justifyContent: 'center',
   },
-  resetFilterText: {
+  filterModalTitle: {
     fontFamily: FontFamily.bold,
-    fontSize: 11,
-    color: '#4B5563',
+    fontSize: 15,
+    color: '#111827',
+  },
+  filterModalCloseBtn: {
+    padding: 4,
+  },
+  filterGroupTitle: {
+    fontFamily: FontFamily.bold,
+    fontSize: 10,
+    color: '#6B7280',
+    letterSpacing: 0.6,
+    marginBottom: 8,
+  },
+  filterChipsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  filterModalFooter: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: 10,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  filterResetBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 8,
+    backgroundColor: '#DC2626',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterResetText: {
+    fontFamily: FontFamily.bold,
+    fontSize: 13,
+    color: '#FFFFFF',
+  },
+  filterApplyBtn: {
+    backgroundColor: '#F4C430',
+    paddingHorizontal: 18,
+    paddingVertical: 9,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterApplyText: {
+    fontFamily: FontFamily.bold,
+    fontSize: 13,
+    color: '#000000',
   },
   list: {
     flex: 1,
   },
   listContent: {
-    padding: 14,
+    padding: 16,
     paddingBottom: 110,
   },
   cardsGrid: {
-    gap: 10,
+    gap: 12,
   },
   cardsGridDesktop: {
     flexDirection: 'row',
@@ -931,158 +1222,178 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    borderRadius: 12,
+    padding: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.02,
-    shadowRadius: 2,
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
     elevation: 1,
   },
   cardTopRow: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
+    gap: 12,
+    marginBottom: 10,
   },
-  badgeRow: {
+  cardTitleWrap: {
+    flex: 1,
+  },
+  cardTitle: {
+    fontFamily: FontFamily.bold,
+    fontSize: 15.5,
+    color: '#111827',
+    lineHeight: 22,
+  },
+  cardActionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    flex: 1,
-    marginRight: 8,
+    gap: 6,
+    flexShrink: 0,
   },
-  typeBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+  cardActionBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
     backgroundColor: '#F3F4F6',
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
-  typeBadgeText: {
+  cardActionBtnText: {
     fontFamily: FontFamily.bold,
-    fontSize: 9.5,
-    color: '#374151',
-    letterSpacing: 0.3,
-  },
-  metaDivider: {
-    fontSize: 10,
-    color: '#D1D5DB',
-  },
-  scopeBadgeText: {
-    fontFamily: FontFamily.medium,
-    fontSize: 11,
-    color: '#6B7280',
-  },
-  cardActionsRow: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  actionBtn: {
-    padding: 4,
-    borderRadius: 4,
-    backgroundColor: '#F3F4F6',
-  },
-  cardTitle: {
-    fontFamily: FontFamily.bold,
-    fontSize: 14.5,
-    color: '#111827',
-    lineHeight: 19,
-    marginBottom: 8,
-  },
-  detailsBox: {
-    backgroundColor: '#F9FAFB',
-    borderRadius: 6,
-    padding: 8,
-    gap: 4,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
-  },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  detailText: {
-    fontFamily: FontFamily.medium,
-    fontSize: 11.5,
-    color: '#374151',
-  },
-  detailSubText: {
-    fontFamily: FontFamily.regular,
-    fontSize: 11,
-    color: '#6B7280',
-  },
-  cardDescription: {
-    fontFamily: FontFamily.regular,
     fontSize: 12,
-    color: '#4B5563',
-    lineHeight: 17,
-    marginBottom: 8,
+    color: '#374151',
   },
-  cardFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
-    paddingTop: 6,
+  cardActionDeleteBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
   },
-  organizerText: {
+  cardActionDeleteBtnText: {
+    fontFamily: FontFamily.bold,
+    fontSize: 12,
+    color: '#DC2626',
+  },
+  cardBody: {
+    gap: 8,
+  },
+  scheduleInfoBlock: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    gap: 8,
+  },
+  scheduleField: {
+    gap: 2,
+  },
+  scheduleFieldLabel: {
     fontFamily: FontFamily.medium,
     fontSize: 11,
     color: '#6B7280',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  scheduleFieldValue: {
+    fontFamily: FontFamily.bold,
+    fontSize: 13,
+    color: '#111827',
+    lineHeight: 18,
+  },
+  expandedContentBlock: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    gap: 10,
+  },
+  expandedField: {
+    gap: 2,
+  },
+  expandedFieldLabel: {
+    fontFamily: FontFamily.medium,
+    fontSize: 11,
+    color: '#6B7280',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  expandedFieldValue: {
+    fontFamily: FontFamily.medium,
+    fontSize: 12.5,
+    color: '#374151',
+    lineHeight: 18,
+  },
+  expandedDescriptionText: {
+    fontFamily: FontFamily.regular,
+    fontSize: 13,
+    color: '#374151',
+    lineHeight: 19,
+  },
+  expandToggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingTop: 4,
+  },
+  expandToggleText: {
+    fontFamily: FontFamily.bold,
+    fontSize: 11.5,
+    color: '#92400E',
   },
   emptyCard: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 8,
-    padding: 28,
+    borderRadius: 12,
+    padding: 32,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 20,
   },
   emptyIconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#F3F4F6',
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#FEF9C3',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   emptyTitle: {
     fontFamily: FontFamily.bold,
-    fontSize: 15,
+    fontSize: 16,
     color: '#111827',
-    marginBottom: 3,
+    marginBottom: 4,
   },
   emptySub: {
     fontFamily: FontFamily.regular,
-    fontSize: 12,
+    fontSize: 12.5,
     color: '#6B7280',
     textAlign: 'center',
-    maxWidth: 290,
-    lineHeight: 17,
-    marginBottom: 14,
+    maxWidth: 300,
+    lineHeight: 18,
+    marginBottom: 16,
   },
   emptyActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#111827',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 6,
+    gap: 6,
+    backgroundColor: '#F4C430',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
   },
   emptyActionBtnText: {
     fontFamily: FontFamily.bold,
-    fontSize: 12,
-    color: '#FFFFFF',
+    fontSize: 12.5,
+    color: '#111827',
   },
   modalOverlay: {
     flex: 1,
@@ -1096,20 +1407,20 @@ const styles = StyleSheet.create({
     maxWidth: 520,
     maxHeight: '90%',
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 18,
+    borderRadius: 16,
+    padding: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.12,
-    shadowRadius: 12,
-    elevation: 6,
+    shadowRadius: 16,
+    elevation: 8,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
-    paddingBottom: 10,
+    marginBottom: 14,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
   },
@@ -1119,22 +1430,22 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   modalIconSquare: {
-    width: 32,
-    height: 32,
-    borderRadius: 6,
-    backgroundColor: '#F3F4F6',
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: '#FEF9C3',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#FDE68A',
     alignItems: 'center',
     justifyContent: 'center',
   },
   modalTitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontFamily: FontFamily.bold,
     color: '#111827',
   },
   modalSubtitle: {
-    fontSize: 11,
+    fontSize: 11.5,
     color: '#6B7280',
     fontFamily: FontFamily.regular,
     marginTop: 1,
@@ -1152,6 +1463,58 @@ const styles = StyleSheet.create({
   modalFieldGroup: {
     gap: 5,
   },
+  formDropdownWrap: {
+    position: 'relative',
+  },
+  formDropdownBtn: {
+    height: 40,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  formDropdownBtnActive: {
+    borderColor: '#F4C430',
+    backgroundColor: '#FFFFFF',
+  },
+  formDropdownText: {
+    fontFamily: FontFamily.medium,
+    fontSize: 13,
+    color: '#111827',
+  },
+  formDropdownMenu: {
+    marginTop: 4,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    paddingVertical: 4,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  formDropdownItem: {
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  formDropdownItemActive: {
+    backgroundColor: '#FEF9C3',
+  },
+  formDropdownItemText: {
+    fontFamily: FontFamily.regular,
+    fontSize: 12.5,
+    color: '#374151',
+  },
+  formDropdownItemTextActive: {
+    fontFamily: FontFamily.bold,
+    color: '#92400E',
+  },
   modalRowFields: {
     flexDirection: 'row',
     gap: 10,
@@ -1162,18 +1525,18 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.bold,
   },
   modalInput: {
-    height: 38,
+    height: 40,
     backgroundColor: '#F9FAFB',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 6,
-    paddingHorizontal: 10,
+    borderRadius: 8,
+    paddingHorizontal: 12,
     fontSize: 13,
     color: '#111827',
     fontFamily: FontFamily.regular,
   },
   modalTextArea: {
-    height: 72,
+    height: 74,
     paddingVertical: 8,
   },
   modalChipsWrap: {
@@ -1184,14 +1547,14 @@ const styles = StyleSheet.create({
   modalChip: {
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 5,
+    borderRadius: 6,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
   modalChipActive: {
-    backgroundColor: '#111827',
-    borderColor: '#111827',
+    backgroundColor: '#F4C430',
+    borderColor: '#D97706',
   },
   modalChipText: {
     fontSize: 11.5,
@@ -1199,7 +1562,7 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.medium,
   },
   modalChipTextActive: {
-    color: '#FFFFFF',
+    color: '#111827',
     fontFamily: FontFamily.bold,
   },
   modalPriorityRow: {
@@ -1233,35 +1596,35 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
     alignItems: 'center',
-    gap: 8,
-    marginTop: 12,
+    gap: 10,
+    marginTop: 14,
     borderTopWidth: 1,
     borderTopColor: '#F3F4F6',
-    paddingTop: 10,
+    paddingTop: 12,
   },
   modalCancelBtn: {
     paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 6,
+    borderRadius: 8,
     backgroundColor: '#F3F4F6',
   },
   modalCancelText: {
-    fontSize: 12,
+    fontSize: 12.5,
     color: '#374151',
     fontFamily: FontFamily.medium,
   },
   modalSaveBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#111827',
+    gap: 6,
+    backgroundColor: '#F4C430',
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 6,
+    borderRadius: 8,
   },
   modalSaveText: {
-    fontSize: 12,
-    color: '#FFFFFF',
+    fontSize: 12.5,
+    color: '#111827',
     fontFamily: FontFamily.bold,
   },
 });

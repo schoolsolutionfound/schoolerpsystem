@@ -113,9 +113,7 @@ export const AssignHomeroomModal: React.FC<AssignHomeroomModalProps> = ({
               </View>
               <View>
                 <Text style={styles.title}>Assign Class Teacher</Text>
-                <Text style={styles.subTitle}>
-                  {section.name} • {section.roomNumber || 'Room unassigned'}
-                </Text>
+                <Text style={styles.subTitle}>{section.name}</Text>
               </View>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>

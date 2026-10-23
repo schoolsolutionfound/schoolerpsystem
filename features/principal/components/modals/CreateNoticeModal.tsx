@@ -81,9 +81,6 @@ export const CreateNoticeModal: React.FC<CreateNoticeModalProps> = ({
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerTitleWrap}>
-              <View style={styles.iconSquare}>
-                <Feather name="bell" size={16} color="#111827" />
-              </View>
               <View>
                 <Text style={styles.title}>New Announcement</Text>
                 <Text style={styles.subTitle}>Publish circular to campus community</Text>
@@ -109,7 +106,7 @@ export const CreateNoticeModal: React.FC<CreateNoticeModalProps> = ({
 
             {/* Target Audience */}
             <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Target Audience *</Text>
+              <Text style={styles.label}>Audience *</Text>
               <View style={styles.chipsWrap}>
                 {(
                   [
@@ -138,7 +135,7 @@ export const CreateNoticeModal: React.FC<CreateNoticeModalProps> = ({
 
             {/* Target Department */}
             <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Target Department (Optional)</Text>
+              <Text style={styles.label}>Departments</Text>
               <View style={styles.chipsWrap}>
                 {[
                   { key: '', label: 'All Departments' },
@@ -229,13 +226,13 @@ export const CreateNoticeModal: React.FC<CreateNoticeModalProps> = ({
               ]}
             >
               {saving ? (
-                <ActivityIndicator size="small" color="#111827" />
+                <ActivityIndicator size="small" color="#F3F4F6" />
               ) : (
                 <>
                   <Feather
                     name="send"
                     size={13}
-                    color={!title.trim() || !content.trim() || saving ? '#9CA3AF' : '#000000'}
+                    color={!title.trim() || !content.trim() || saving ? '#9CA3AF' : '#F3F4F6'}
                   />
                   <Text
                     style={[
@@ -268,7 +265,7 @@ const styles = StyleSheet.create({
     maxWidth: 520,
     maxHeight: '90%',
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 5,
     padding: 18,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -289,16 +286,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-  },
-  iconSquare: {
-    width: 32,
-    height: 32,
-    borderRadius: 6,
-    backgroundColor: '#F3F4F6',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   title: {
     fontSize: 15,
@@ -334,7 +321,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 6,
+    borderRadius: 5,
     paddingHorizontal: 10,
     fontSize: 13,
     color: '#111827',
@@ -358,8 +345,8 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
   },
   chipActive: {
-    backgroundColor: '#111827',
-    borderColor: '#111827',
+    backgroundColor: '#F4C430',
+    borderColor: '#F4C430',
   },
   chipText: {
     fontSize: 11.5,
@@ -367,7 +354,7 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.medium,
   },
   chipTextActive: {
-    color: '#FFFFFF',
+    color: '#000000',
     fontFamily: FontFamily.bold,
   },
   priorityRow: {
@@ -377,7 +364,7 @@ const styles = StyleSheet.create({
   priorityBtn: {
     flex: 1,
     paddingVertical: 7,
-    borderRadius: 6,
+    borderRadius: 5,
     backgroundColor: '#F9FAFB',
     borderWidth: 1,
     borderColor: '#E5E7EB',
@@ -385,8 +372,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   priorityBtnActive: {
-    backgroundColor: '#111827',
-    borderColor: '#111827',
+    backgroundColor: '#F4C430',
+    borderColor: '#F4C430',
   },
   priorityBtnUrgent: {
     backgroundColor: '#FEF2F2',
@@ -398,7 +385,7 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.medium,
   },
   priorityTextActive: {
-    color: '#FFFFFF',
+    color: '#000000',
     fontFamily: FontFamily.bold,
   },
   priorityTextUrgent: {
@@ -418,7 +405,7 @@ const styles = StyleSheet.create({
   cancelBtn: {
     paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 6,
+    borderRadius: 5,
     backgroundColor: '#F3F4F6',
   },
   cancelText: {
@@ -430,17 +417,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#F4C430',
+    backgroundColor: '#000000',
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 6,
+    borderRadius: 5,
   },
   saveBtnDisabled: {
     backgroundColor: '#E5E7EB',
   },
   saveText: {
     fontSize: 12,
-    color: '#000000',
+    color: '#F3F4F6',
     fontFamily: FontFamily.bold,
   },
   saveTextDisabled: {

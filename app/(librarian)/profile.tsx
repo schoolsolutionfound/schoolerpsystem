@@ -3,7 +3,23 @@ import { View, StyleSheet, Text, ScrollView, TouchableOpacity, Alert } from 'rea
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { signOut } from 'firebase/auth';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+let NativeMCI: any = null;
+try {
+  NativeMCI = require('@expo/vector-icons')?.MaterialCommunityIcons;
+} catch (_e) {
+  NativeMCI = null;
+}
+
+const SafeMaterialCommunityIcons: React.FC<{ name: string; size?: number; color?: string; style?: any }> = ({ name, size = 18, color = '#374151', style }) => {
+  if (NativeMCI) {
+    try {
+      return <NativeMCI name={name as any} size={size} color={color} style={style} />;
+    } catch (_e) {}
+  }
+  return <Text style={[{ fontSize: Math.round(size * 0.85), color }, style]}>•</Text>;
+};
+
+const MaterialCommunityIcons = SafeMaterialCommunityIcons;
 import { auth } from '../../firebaseConfig';
 import { useUserStore } from '../../store/useUserStore';
 import { BorderRadius } from '../../constants/theme';
