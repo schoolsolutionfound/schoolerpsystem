@@ -111,117 +111,8 @@ export const LibrarianDashboardView: React.FC<LibrarianDashboardViewProps> = ({
     return { realDelayed: delayed, realIssued: issued };
   }, [loans, students, books, copies, studentMap, bookMap, copyMap]);
 
-  // Demo fallback items for rich visual experience if database has no active loans yet
-  const fallbackDelayed = useMemo(
-    () => [
-      {
-        id: 'fb-del-1',
-        studentName: 'Rohan Varma',
-        studentUsn: '2024CS104',
-        studentClass: 'Class 10-A',
-        studentPic: undefined,
-        bookTitle: 'Higher Engineering Mathematics',
-        bookNumber: 'BK-97801',
-        accessionNo: 'ACC-1049',
-        coverImage: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=120',
-        issueDate: '28 Sep 2026',
-        dueDate: '12 Oct 2026',
-        daysOverdue: 6,
-        daysRemaining: 0,
-        isDueToday: false,
-      },
-      {
-        id: 'fb-del-2',
-        studentName: 'Ananya Deshmukh',
-        studentUsn: '2024EC088',
-        studentClass: 'Class 11-B',
-        studentPic: undefined,
-        bookTitle: 'To Kill a Mockingbird',
-        bookNumber: 'BK-97814',
-        accessionNo: 'ACC-2091',
-        coverImage: undefined,
-        issueDate: '01 Oct 2026',
-        dueDate: '15 Oct 2026',
-        daysOverdue: 3,
-        daysRemaining: 0,
-        isDueToday: false,
-      },
-      {
-        id: 'fb-del-3',
-        studentName: 'Karthik Nair',
-        studentUsn: '2024ME035',
-        studentClass: 'Class 9-C',
-        studentPic: undefined,
-        bookTitle: 'Concepts of Physics - Part 1',
-        bookNumber: 'BK-97844',
-        accessionNo: 'ACC-3110',
-        coverImage: 'https://images.unsplash.com/photo-1532012197267-da84d127e765?w=120',
-        issueDate: '25 Sep 2026',
-        dueDate: '09 Oct 2026',
-        daysOverdue: 9,
-        daysRemaining: 0,
-        isDueToday: false,
-      },
-    ],
-    []
-  );
-
-  const fallbackIssued = useMemo(
-    () => [
-      {
-        id: 'fb-iss-1',
-        studentName: 'Sneha Patil',
-        studentUsn: '2024CS012',
-        studentClass: 'Class 10-B',
-        studentPic: undefined,
-        bookTitle: 'Atomic Habits',
-        bookNumber: 'BK-97888',
-        accessionNo: 'ACC-4022',
-        coverImage: 'https://images.unsplash.com/photo-1532012197267-da84d127e765?w=120',
-        issueDate: '14 Oct 2026',
-        dueDate: '28 Oct 2026',
-        daysOverdue: 0,
-        daysRemaining: 10,
-        isDueToday: false,
-      },
-      {
-        id: 'fb-iss-2',
-        studentName: 'Mohammad Zaid',
-        studentUsn: '2024CS056',
-        studentClass: 'Class 12-A',
-        studentPic: undefined,
-        bookTitle: 'Clean Code',
-        bookNumber: 'BK-97862',
-        accessionNo: 'ACC-5129',
-        coverImage: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=120',
-        issueDate: '16 Oct 2026',
-        dueDate: '30 Oct 2026',
-        daysOverdue: 0,
-        daysRemaining: 12,
-        isDueToday: false,
-      },
-      {
-        id: 'fb-iss-3',
-        studentName: 'Divya Krishnan',
-        studentUsn: '2024EE041',
-        studentClass: 'Class 11-A',
-        studentPic: undefined,
-        bookTitle: 'The Psychology of Money',
-        bookNumber: 'BK-97890',
-        accessionNo: 'ACC-6014',
-        coverImage: undefined,
-        issueDate: '12 Oct 2026',
-        dueDate: '26 Oct 2026',
-        daysOverdue: 0,
-        daysRemaining: 8,
-        isDueToday: false,
-      },
-    ],
-    []
-  );
-
-  const displayDelayed = loans.length > 0 ? realDelayed : fallbackDelayed;
-  const displayIssued = loans.length > 0 ? realIssued : fallbackIssued;
+  const displayDelayed = realDelayed;
+  const displayIssued = realIssued;
 
   // Sort delayed by highest overdue delay descending
   const sortedDelayed = useMemo(() => {
@@ -241,11 +132,9 @@ export const LibrarianDashboardView: React.FC<LibrarianDashboardViewProps> = ({
     const fromBooks = books.reduce((sum, b) => sum + (typeof b.availableCopies === 'number' ? b.availableCopies : 0), 0);
     if (fromBooks > 0) return fromBooks;
 
-    const totalCopies = books.reduce((sum, b) => sum + (b.totalCopies && b.totalCopies > 0 ? b.totalCopies : 1), 0);
+    const totalCopies = books.reduce((sum, b) => sum + (b.totalCopies || 0), 0);
     const activeLoanCount = realIssued.length + realDelayed.length;
-    if (totalCopies > 0) return Math.max(0, totalCopies - activeLoanCount);
-
-    return 11840;
+    return Math.max(0, totalCopies - activeLoanCount);
   }, [copies, books, realIssued.length, realDelayed.length]);
 
   // Dynamic Book Circulation stats for the week

@@ -18,6 +18,8 @@ vi.mock('../library.repository.js', () => ({
     listLoans: vi.fn(),
     listFines: vi.fn(),
     listMembers: vi.fn(),
+    updateMember: vi.fn(),
+    listAllCopies: vi.fn(),
     listReservations: vi.fn(),
     getFineById: vi.fn(),
     updateFine: vi.fn(),
@@ -372,6 +374,31 @@ describe('tenancy (institution scoping)', () => {
   it('getMemberDetails throws MEMBER_NOT_FOUND for cross-institution member', async () => {
     vi.mocked(libraryRepository.getMemberById).mockResolvedValue(mockStudent('s1', { institutionCode: 'OTHER_INST' }));
     await expect(svc.getMemberDetails(INST, 's1')).rejects.toMatchObject({ code: 'MEMBER_NOT_FOUND' });
+  });
+});
+
+describe('global copies and member updates', () => {
+  it('lists copies scoped to the librarian institution', async () => {
+    vi.mocked(libraryRepository.listAllCopies).mockResolvedValue([mockCopy('c1')] as any);
+
+    await expect(svc.listCopies(INST)).resolves.toHaveLength(1);
+    expect(libraryRepository.listAllCopies).toHaveBeenCalledWith(INST);
+  });
+
+  it('updates a member in the same institution', async () => {
+    vi.mocked(libraryRepository.getMemberById).mockResolvedValue(mockStudent('s1'));
+    vi.mocked(libraryRepository.updateMember).mockResolvedValue(mockStudent('s1', { fullName: 'Updated' }));
+
+    const result = await svc.updateMember(INST, 's1', { fullName: 'Updated' });
+    expect(result.fullName).toBe('Updated');
+    expect(libraryRepository.updateMember).toHaveBeenCalledWith('s1', { fullName: 'Updated' });
+  });
+
+  it('rejects member updates across institutions', async () => {
+    vi.mocked(libraryRepository.getMemberById).mockResolvedValue(mockStudent('s1', { institutionCode: 'OTHER_INST' }));
+
+    await expect(svc.updateMember(INST, 's1', { fullName: 'Nope' })).rejects.toMatchObject({ code: 'MEMBER_NOT_FOUND' });
+    expect(libraryRepository.updateMember).not.toHaveBeenCalled();
   });
 });
 

@@ -2,7 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   getMembersApi,
   getMemberApi,
+  updateMemberApi,
   MemberFilters,
+  UpdateMemberPayload,
 } from '../../../api/library';
 import { StudentProfile } from '../types';
 
@@ -50,6 +52,11 @@ export function useLibraryMembers(initialFilters?: MemberFilters) {
     return await getMemberApi(id);
   };
 
+  const updateMember = async (id: string, payload: UpdateMemberPayload) => {
+    await updateMemberApi(id, payload);
+    await fetchMembers();
+  };
+
   return {
     members,
     total,
@@ -57,5 +64,6 @@ export function useLibraryMembers(initialFilters?: MemberFilters) {
     error,
     refetch: fetchMembers,
     getMemberDetails,
+    updateMember,
   };
 }

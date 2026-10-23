@@ -17,6 +17,7 @@ import {
   CreateDamageFineInput,
   CreatePYQInput,
   UpdateLibrarySettingsInput,
+  UpdateMemberInput,
 } from './library.schema.js';
 
 export class LibraryService {
@@ -222,6 +223,10 @@ export class LibraryService {
   }
 
   // ==================== BOOK COPIES ====================
+
+  public async listCopies(institutionCode: string) {
+    return libraryRepository.listAllCopies(institutionCode);
+  }
 
   public async listCopiesByBook(institutionCode: string, bookId: string) {
     await this.getBook(institutionCode, bookId);
@@ -741,6 +746,14 @@ export class LibraryService {
     opts?: { limit?: number; offset?: number }
   ) {
     return libraryRepository.listMembers(institutionCode, filters, opts);
+  }
+
+  public async updateMember(institutionCode: string, studentId: string, input: UpdateMemberInput) {
+    const member = await libraryRepository.getMemberById(studentId);
+    if (!member || member.institutionCode.toLowerCase() !== institutionCode.toLowerCase()) {
+      throw { statusCode: 404, code: 'MEMBER_NOT_FOUND', message: 'Member not found' };
+    }
+    return libraryRepository.updateMember(studentId, input);
   }
 
   public async getMemberDetails(institutionCode: string, studentId: string) {

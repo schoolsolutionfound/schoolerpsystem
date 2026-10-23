@@ -36,6 +36,7 @@ export interface LibraryBook {
   subject?: string | null;
   edition?: string | null;
   pages?: number | null;
+  price?: string | number | null;
   shelfLocation?: string | null;
   bookType?: string | null;
   totalCopies: number;
@@ -50,6 +51,8 @@ export interface LibraryBookCopy {
   bookId: string;
   accessionNumber: string;
   barcode?: string | null;
+  rack?: string | null;
+  shelf?: string | null;
   condition: string;
   status: string;
   purchaseDate?: string | null;
@@ -133,14 +136,14 @@ export interface LibrarySettings {
   borrowingLimit: number;
   loanPeriodDays: number;
   gracePeriodDays: number;
-  finePerDay: string;
-  maxFine: string;
+  finePerDay: number;
+  maxFine: number;
   renewalLimit: number;
   allowReservation: boolean;
-  lostBookPenalty: string;
-  damagedBookPenalty: string;
+  lostBookPenalty: number;
+  damagedBookPenalty: number;
   reservationExpiryDays: number;
-  unpaidFineLockThreshold: string;
+  unpaidFineLockThreshold: number;
   openingHours: string;
   closingHours: string;
   openOnWeekends: boolean;
@@ -168,10 +171,10 @@ export interface LibraryDashboardStats {
   issuedCopies: number;
   activeLoans: number;
   overdueLoans: number;
-  totalFinesAmount: number;
-  unpaidFinesAmount: number;
+  totalMembers: number;
+  totalFinesCollected: number;
+  totalFinesOutstanding: number;
   recentLoans: LibraryLoan[];
-  recentFines: LibraryFine[];
 }
 
 export interface LibraryReportStats extends LibraryDashboardStats {}
@@ -208,7 +211,7 @@ export interface CreateBookPayload {
   shelfLocation?: string;
   bookType?: string;
   totalCopies?: number;
-  price?: string;
+  price?: number;
 }
 
 export type UpdateBookPayload = Partial<CreateBookPayload>;
@@ -229,6 +232,8 @@ export interface CreateAuthorPayload {
 export interface CreateCopyPayload {
   accessionNumber: string;
   barcode?: string;
+  rack?: string;
+  shelf?: string;
   condition?: string;
   status?: string;
   purchaseDate?: string;
@@ -326,6 +331,8 @@ export interface CreatePYQPayload {
   academicYear: string;
   classGrade?: string;
   examType?: string;
+  totalMarks?: number;
+  durationMinutes?: number;
   fileUrl: string;
   fileSize?: string;
 }
@@ -336,6 +343,12 @@ export interface MemberFilters {
   search?: string;
   limit?: number;
   offset?: number;
+}
+
+export interface UpdateMemberPayload {
+  fullName?: string;
+  admissionNo?: string;
+  phone?: string;
 }
 
 // ==================== BOOK APIS ====================
@@ -420,6 +433,10 @@ export async function createAuthorApi(payload: CreateAuthorPayload): Promise<Lib
 }
 
 // ==================== PHYSICAL COPY APIS ====================
+
+export async function getCopiesApi(): Promise<LibraryBookCopy[]> {
+  return apiClient<LibraryBookCopy[]>('/library/copies');
+}
 
 export async function getBookCopiesApi(bookId: string): Promise<LibraryBookCopy[]> {
   return apiClient<LibraryBookCopy[]>(`/library/books/${bookId}/copies`);
@@ -609,6 +626,13 @@ export async function getMembersApi(filters?: MemberFilters): Promise<PaginatedR
   if (filters?.offset) qs.set('offset', String(filters.offset));
   const q = qs.toString();
   return apiClient<PaginatedResult<LibraryMember>>(`/library/members${q ? `?${q}` : ''}`);
+}
+
+export async function updateMemberApi(id: string, payload: UpdateMemberPayload): Promise<LibraryMember> {
+  return apiClient<LibraryMember>(`/library/members/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
 }
 
 export async function getMemberApi(id: string): Promise<{

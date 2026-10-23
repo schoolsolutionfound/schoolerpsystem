@@ -799,6 +799,19 @@ export class LibraryRepository {
     return { items, total: Number(totalCount || 0) };
   }
 
+  public async updateMember(
+    studentId: string,
+    input: { fullName?: string; admissionNo?: string; phone?: string }
+  ): Promise<any | undefined> {
+    const updateData: Record<string, unknown> = { updatedAt: new Date() };
+    if (input.fullName !== undefined) updateData.fullName = input.fullName;
+    if (input.admissionNo !== undefined) updateData.rollNoOrUSN = input.admissionNo;
+    if (input.phone !== undefined) updateData.phone = input.phone;
+
+    await this.getDb().update(users).set(updateData).where(eq(users.id, studentId));
+    return this.getMemberById(studentId);
+  }
+
   public async getMemberById(studentId: string): Promise<any | undefined> {
     const [row] = await this.getDb()
       .select({
@@ -815,7 +828,7 @@ export class LibraryRepository {
       .from(users)
       .leftJoin(studentClasses, and(eq(studentClasses.studentId, users.id), eq(studentClasses.isActive, true)))
       .leftJoin(classSections, eq(studentClasses.classSectionId, classSections.id))
-      .where(eq(users.id, studentId));
+      .where(and(eq(users.id, studentId), eq(users.role, 'student')));
     if (!row) return undefined;
     return {
       id: row.id,

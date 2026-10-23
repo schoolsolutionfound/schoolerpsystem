@@ -35,6 +35,7 @@ export const CreateBookSchema = z.object({
   description: z.string().optional(),
   bookType: z.enum(BookTypes).optional().default('TEXTBOOK'),
   coverImage: z.string().optional(),
+  price: z.number().min(0).optional().transform((val) => (val === undefined ? undefined : String(val))),
   keywords: z.union([z.array(z.string()), z.string()]).optional().transform((val) => {
     if (!val) return [];
     if (Array.isArray(val)) return val;
@@ -174,6 +175,7 @@ export const CreatePYQSchema = z.object({
   totalMarks: z.number().int().optional().default(100),
   durationMinutes: z.number().int().optional().default(180),
   fileUrl: z.string().optional(),
+  fileSize: z.string().optional(),
 });
 
 export const PYQQuerySchema = z.object({
@@ -207,6 +209,12 @@ export const UpdateLibrarySettingsSchema = z.object({
 
 // ---------- Member Query Schema ----------
 
+export const UpdateMemberSchema = z.object({
+  fullName: z.string().min(1, 'Member name is required').optional(),
+  admissionNo: z.string().min(1, 'Admission number is required').optional(),
+  phone: z.string().optional(),
+});
+
 export const MemberQuerySchema = z.object({
   search: z.string().optional(),
   classSection: z.string().optional(),
@@ -228,6 +236,7 @@ export type IssueBookInput = z.infer<typeof IssueBookSchema>;
 export type ReturnBookInput = z.infer<typeof ReturnBookSchema>;
 export type RenewBookInput = z.infer<typeof RenewBookSchema>;
 export type PayFineInput = z.infer<typeof PayFineSchema>;
+export type UpdateMemberInput = z.infer<typeof UpdateMemberSchema>;
 export type WaiveFineInput = z.infer<typeof WaiveFineSchema>;
 export type CreateDamageFineInput = z.infer<typeof CreateDamageFineSchema>;
 export type CreatePYQInput = z.infer<typeof CreatePYQSchema>;

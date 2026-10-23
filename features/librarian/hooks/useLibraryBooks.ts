@@ -38,6 +38,7 @@ export function useLibraryBooks(initialFilters?: BookFilters) {
         description: b.description || undefined,
         bookType: (b.bookType as BookType) || 'TEXTBOOK',
         coverImage: b.coverImage || undefined,
+        price: b.price ?? undefined,
         totalCopies: b.totalCopies || 0,
         availableCopies: b.availableCopies || 0,
         keywords: b.keywords || [],

@@ -12,6 +12,7 @@ import {
   deleteCategoryHandler,
   listAuthorsHandler,
   createAuthorHandler,
+  listCopiesHandler,
   listCopiesByBookHandler,
   getCopyByIdHandler,
   createCopyHandler,
@@ -32,6 +33,7 @@ import {
   getSettingsHandler,
   updateSettingsHandler,
   listMembersHandler,
+  updateMemberHandler,
   getMemberDetailsHandler,
   getDashboardStatsHandler,
 } from './library.controller.js';
@@ -64,6 +66,7 @@ export async function libraryRoutes(fastify: FastifyInstance) {
   fastify.post('/authors', { preHandler: [requireLibraryStaff] }, (req, reply) => createAuthorHandler(req, reply));
 
   // Physical Book Copies
+  fastify.get('/copies', { preHandler: [requireLibraryStaff] }, (req, reply) => listCopiesHandler(req, reply));
   fastify.get('/books/:bookId/copies', { preHandler: [authenticate] }, (req: any, reply) => listCopiesByBookHandler(req, reply));
   fastify.get('/copies/:id', { preHandler: [authenticate] }, (req: any, reply) => getCopyByIdHandler(req, reply));
   fastify.post('/books/:bookId/copies', { preHandler: [requireLibraryStaff] }, (req: any, reply) => createCopyHandler(req, reply));
@@ -97,6 +100,7 @@ export async function libraryRoutes(fastify: FastifyInstance) {
   // Members / Students (PII — staff only)
   fastify.get('/members', { preHandler: [requireLibraryStaff] }, (req, reply) => listMembersHandler(req, reply));
   fastify.get('/members/:id', { preHandler: [requireLibraryStaff] }, (req: any, reply) => getMemberDetailsHandler(req, reply));
+  fastify.patch('/members/:id', { preHandler: [requireLibraryStaff] }, (req: any, reply) => updateMemberHandler(req, reply));
 
   // Dashboard & Reports (financials — staff only)
   fastify.get('/dashboard', { preHandler: [requireLibraryStaff] }, (req, reply) => getDashboardStatsHandler(req, reply));

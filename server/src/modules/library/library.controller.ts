@@ -22,6 +22,7 @@ import {
   PYQQuerySchema,
   UpdateLibrarySettingsSchema,
   MemberQuerySchema,
+  UpdateMemberSchema,
 } from './library.schema.js';
 
 function getInstCode(req: FastifyRequest): string {
@@ -182,6 +183,15 @@ export async function createAuthorHandler(request: FastifyRequest, reply: Fastif
 }
 
 // ==================== PHYSICAL COPIES ====================
+
+export async function listCopiesHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const data = await libraryService.listCopies(getInstCode(request));
+    return reply.send({ success: true, data });
+  } catch (err) {
+    return sendError(reply, err, 'Failed to fetch physical copies');
+  }
+}
 
 export async function listCopiesByBookHandler(request: FastifyRequest<{ Params: { bookId: string } }>, reply: FastifyReply) {
   try {
@@ -384,6 +394,16 @@ export async function listMembersHandler(request: FastifyRequest, reply: Fastify
     return reply.send({ success: true, data });
   } catch (err) {
     return sendError(reply, err, 'Failed to fetch library members');
+  }
+}
+
+export async function updateMemberHandler(request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
+  try {
+    const body = UpdateMemberSchema.parse(request.body);
+    const data = await libraryService.updateMember(getInstCode(request), request.params.id, body);
+    return reply.send({ success: true, data });
+  } catch (err) {
+    return sendError(reply, err, 'Failed to update library member');
   }
 }
 

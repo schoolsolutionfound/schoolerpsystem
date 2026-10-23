@@ -877,6 +877,7 @@ export const libraryBooks = pgTable('library_books', {
   coverImage: text('cover_image').default(''),
   keywords: jsonb('keywords').$type<string[]>().default([]),
   authorIds: jsonb('author_ids').$type<string[]>().default([]),
+  price: numeric('price', { precision: 10, scale: 2 }),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 }, (table) => ({
@@ -1021,6 +1022,7 @@ export const libraryQuestionPapers = pgTable('library_question_papers', {
   totalMarks: integer('total_marks').notNull().default(100),
   durationMinutes: integer('duration_minutes').notNull().default(180),
   fileUrl: text('file_url').default(''),
+  fileSize: varchar('file_size', { length: 50 }),
   downloadsCount: integer('downloads_count').notNull().default(0),
   uploadedBy: text('uploaded_by').notNull(),
   uploadedAt: timestamp('uploaded_at').defaultNow(),
