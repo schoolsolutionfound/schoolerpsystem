@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, Modal } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BusStop } from '../../../api/transport';
+import { FontFamily } from '../../../constants/fonts';
 import { BusMap } from '../../shared/maps/BusMap';
 
 export interface DriverTripStopsTimelineProps {
@@ -26,16 +26,15 @@ export const DriverTripStopsTimeline: React.FC<DriverTripStopsTimelineProps> = (
   return (
     <View style={styles.stopsCard}>
       <View style={styles.stopsHeader}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <MaterialCommunityIcons name="map-marker-path" size={18} color="#0EA5E9" />
+        <View style={styles.stopsTitleWrap}>
           <Text style={styles.stopsTitle}>Route Stops ({stops.length})</Text>
+          <View style={styles.titleUnderline} />
         </View>
         <TouchableOpacity
           style={styles.viewRouteBtn}
           onPress={() => setShowMapModal(true)}
           activeOpacity={0.8}
         >
-          <MaterialCommunityIcons name="map-outline" size={14} color="#0EA5E9" />
           <Text style={styles.viewRouteText}>View Map</Text>
         </TouchableOpacity>
       </View>
@@ -59,7 +58,7 @@ export const DriverTripStopsTimeline: React.FC<DriverTripStopsTimelineProps> = (
               style={styles.modalCloseBtn}
               onPress={() => setShowMapModal(false)}
             >
-              <MaterialCommunityIcons name="close" size={20} color="#1A1B1C" />
+              <Text style={styles.modalCloseText}>Close</Text>
             </TouchableOpacity>
           </View>
 
@@ -126,21 +125,34 @@ export const DriverTripStopsTimeline: React.FC<DriverTripStopsTimelineProps> = (
 const styles = StyleSheet.create({
   stopsCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: 14,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E8E5DC',
     gap: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
   },
   stopsHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  stopsTitleWrap: { alignSelf: 'flex-start' },
   stopsTitle: {
     fontSize: 14,
-    fontWeight: '800',
-    color: '#1A1B1C',
+    fontFamily: FontFamily.bold,
+    color: '#171717',
+  },
+  titleUnderline: {
+    height: 3,
+    width: 38,
+    borderRadius: 2,
+    backgroundColor: '#F4C430',
+    marginTop: 4,
   },
   viewRouteBtn: {
     flexDirection: 'row',
@@ -148,13 +160,15 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    backgroundColor: 'rgba(14, 165, 233, 0.08)',
-    borderRadius: 6,
+    backgroundColor: '#FFF4C7',
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
   },
   viewRouteText: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#0EA5E9',
+    fontFamily: FontFamily.bold,
+    color: '#B45309',
   },
   timelineList: {
     gap: 0,
@@ -171,7 +185,7 @@ const styles = StyleSheet.create({
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: '#E8E5DC',
     borderWidth: 2,
     borderColor: '#FFFFFF',
     justifyContent: 'center',
@@ -182,7 +196,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#9CA3AF',
   },
   stopDotCurrent: {
-    backgroundColor: '#0EA5E9',
+    backgroundColor: '#F4C430',
     width: 16,
     height: 16,
     borderRadius: 8,
@@ -191,12 +205,12 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#171717',
   },
   stopLine: {
     width: 2,
     flex: 1,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: '#E8E5DC',
     marginVertical: 2,
   },
   stopInfoCol: {
@@ -211,32 +225,35 @@ const styles = StyleSheet.create({
   },
   stopName: {
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: FontFamily.semibold,
     color: '#374151',
   },
   stopNameCurrent: {
-    color: '#0EA5E9',
-    fontWeight: '800',
+    color: '#B45309',
+    fontFamily: FontFamily.extrabold,
   },
   stopCoords: {
     fontSize: 11,
     color: '#9CA3AF',
+    fontFamily: FontFamily.regular,
   },
   currentBadge: {
-    backgroundColor: 'rgba(14, 165, 233, 0.12)',
+    backgroundColor: '#FFF4C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: 5,
   },
   currentBadgeText: {
     fontSize: 9,
-    fontWeight: '800',
-    color: '#0EA5E9',
+    fontFamily: FontFamily.bold,
+    color: '#B45309',
     letterSpacing: 0.5,
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F9FAFB',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -246,25 +263,31 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: '#E8E5DC',
     backgroundColor: '#FFFFFF',
   },
   modalTitle: {
     fontSize: 16,
-    fontWeight: '800',
-    color: '#1A1B1C',
+    fontFamily: FontFamily.bold,
+    color: '#171717',
   },
   modalSub: {
     fontSize: 12,
-    color: '#64748B',
+    color: '#6B7280',
     marginTop: 2,
+    fontFamily: FontFamily.regular,
   },
   modalCloseBtn: {
-    width: 32,
     height: 32,
+    paddingHorizontal: 14,
     borderRadius: 16,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#F3F4F6',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  modalCloseText: {
+    fontSize: 12,
+    fontFamily: FontFamily.bold,
+    color: '#1A1B1C',
   },
 });

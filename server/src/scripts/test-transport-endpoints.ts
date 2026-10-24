@@ -1,7 +1,12 @@
 async function testEndpoints() {
   const baseUrl = 'http://localhost:5000/api/v1/transport';
-  const driverToken = 'dev-hardcoded-driver-token';
-  const studentToken = 'dev-hardcoded-student-token';
+  const driverToken = process.env.TEST_DRIVER_TOKEN || '';
+  const studentToken = process.env.TEST_STUDENT_TOKEN || '';
+
+  if (!driverToken || !studentToken) {
+    console.error('Set TEST_DRIVER_TOKEN and TEST_STUDENT_TOKEN to valid Firebase ID tokens.');
+    return;
+  }
 
   console.log('=== TEST 1: Driver Assignment ===');
   const assignRes = await fetch(`${baseUrl}/driver/assignment`, {

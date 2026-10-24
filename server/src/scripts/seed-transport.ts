@@ -81,7 +81,7 @@ async function seedTransport() {
             scope = EXCLUDED.scope;
       `, [u.id, u.firebaseUid, u.email, u.fullName, u.role, institutionCode, institutionName, 'school', u.rollNoOrUSN, u.scope]);
     }
-    console.log('[Seed Transport] Dev bypass users verified (driver, student, parent).');
+    console.log('[Seed Transport] Demo users verified (driver, student, parent).');
 
     // 4. Bus Vehicle
     const vehicleId = 'veh_dev_01';

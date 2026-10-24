@@ -1,4 +1,4 @@
-import { Stack, usePathname, useRouter } from 'expo-router';
+import { Stack, usePathname, useRouter, useSegments } from 'expo-router';
 import { useFonts } from 'expo-font';
 import { Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold, Poppins_800ExtraBold } from '@expo-google-fonts/poppins';
 import * as SplashScreen from 'expo-splash-screen';
@@ -70,12 +70,13 @@ if (!Text.defaultProps?.fontFamily) {
 }
 
 const AppLayout = function Layout() {
-  const setUserProfile = useUserStore((state) => state.setUserProfile);
   const resetUser = useUserStore((state) => state.resetUser);
   const _hasHydrated = useUserStore((state) => state._hasHydrated);
   const userRole = useUserStore((state) => state.userRole);
   const pathname = usePathname();
+  const segments = useSegments();
   const router = useRouter();
+  const activeGroup = segments.find((segment) => segment.startsWith('(') && segment.endsWith(')'));
 
   const [userSession, setUserSession] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -127,6 +128,7 @@ const AppLayout = function Layout() {
     userSession,
     userRole,
     pathname,
+    activeGroup,
     authLoading,
     _hasHydrated,
     isProfileSynced,
@@ -197,7 +199,7 @@ const AppLayout = function Layout() {
       clearTimeout(splashTimeout);
       unsubAuth();
     };
-  }, [setUserProfile, validateAndRedirect, resetUser, setIsProfileSynced, institutionCode, setMaintenance]);
+  }, [validateAndRedirect, resetUser, setIsProfileSynced, institutionCode, setMaintenance]);
 
   const compareVersions = (v1: string, v2: string) => {
     const parts1 = v1.split('.').map(Number), parts2 = v2.split('.').map(Number);
@@ -233,7 +235,7 @@ const AppLayout = function Layout() {
     return null;
   }
 
-  const isDevPage = pathname.startsWith('/(developer)');
+  const isDevPage = activeGroup === '(developer)';
 
   if (needsUpdate && !isDevPage) {
     return (

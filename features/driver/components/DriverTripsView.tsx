@@ -1,14 +1,13 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   StyleSheet,
   Text,
   TouchableOpacity,
-  Linking,
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { FontFamily } from '../../../constants/fonts';
 import { useDriverLocationBroadcast } from '../hooks/useDriverLocationBroadcast';
 import {
   getDriverAssignmentApi,
@@ -21,6 +20,49 @@ import {
 import { DriverTripHero } from './DriverTripHero';
 import { DriverTripBroadcastCard } from './DriverTripBroadcastCard';
 import { DriverTripStopsTimeline } from './DriverTripStopsTimeline';
+
+const EARTH_RADIUS_KM = 6371;
+
+function distanceKm(
+  fromLat: number,
+  fromLng: number,
+  toLat: number,
+  toLng: number
+): number {
+  const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
+  const dLat = toRadians(toLat - fromLat);
+  const dLng = toRadians(toLng - fromLng);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRadians(fromLat)) *
+      Math.cos(toRadians(toLat)) *
+      Math.sin(dLng / 2) ** 2;
+  return EARTH_RADIUS_KM * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function findNearestStopIndex(
+  stops: BusStop[],
+  latitude: number,
+  longitude: number
+): number {
+  let nearestIndex = 0;
+  let nearestDistance = Number.POSITIVE_INFINITY;
+
+  stops.forEach((stop, index) => {
+    const distance = distanceKm(
+      latitude,
+      longitude,
+      Number(stop.latitude),
+      Number(stop.longitude)
+    );
+    if (distance < nearestDistance) {
+      nearestDistance = distance;
+      nearestIndex = index;
+    }
+  });
+
+  return nearestIndex;
+}
 
 export const DriverTripsView: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -77,6 +119,22 @@ export const DriverTripsView: React.FC = () => {
   const displaySpeed = autoBroadcast && simCoords
     ? simCoords.speed
     : (gps.lastFix?.speed ?? simCoords?.speed ?? null);
+
+  const displayLatitude = displayLocation?.latitude;
+  const displayLongitude = displayLocation?.longitude;
+
+  // Keep the stop timeline aligned with the real bus position instead of the
+  // simulated stop index, which only changes when the simulator advances.
+  const displayStopIndex = useMemo(() => {
+    if (
+      displayLatitude === undefined ||
+      displayLongitude === undefined ||
+      stops.length === 0
+    ) {
+      return currentStopIndex;
+    }
+    return findNearestStopIndex(stops, displayLatitude, displayLongitude);
+  }, [displayLatitude, displayLongitude, stops, currentStopIndex]);
 
   // Manual simulation location sender (fallback for dev / web)
   const broadcastSimLocation = useCallback(
@@ -170,16 +228,10 @@ export const DriverTripsView: React.FC = () => {
     }
   };
 
-  const today = new Date().toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'short',
-    day: 'numeric',
-  });
-
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#0EA5E9" />
+        <ActivityIndicator size="large" color="#F4C430" />
         <Text style={styles.loadingText}>Loading assigned route & bus...</Text>
       </View>
     );
@@ -194,8 +246,6 @@ export const DriverTripsView: React.FC = () => {
       <DriverTripHero
         routeName={routeName}
         regNo={regNo}
-        today={today}
-        isLive={isLive}
         stopsCount={stops.length}
         displaySpeed={displaySpeed}
       />
@@ -211,10 +261,7 @@ export const DriverTripsView: React.FC = () => {
           {actionLoading ? (
             <ActivityIndicator size="small" color="#FFFFFF" />
           ) : (
-            <>
-              <MaterialCommunityIcons name="stop-circle-outline" size={24} color="#FFFFFF" />
-              <Text style={styles.trackBtnText}>End Active Trip</Text>
-            </>
+            <Text style={[styles.trackBtnText, styles.trackBtnTextEnd]}>End Active Trip</Text>
           )}
         </TouchableOpacity>
       ) : (
@@ -225,12 +272,9 @@ export const DriverTripsView: React.FC = () => {
           activeOpacity={0.85}
         >
           {actionLoading ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
+            <ActivityIndicator size="small" color="#171717" />
           ) : (
-            <>
-              <MaterialCommunityIcons name="play-circle-outline" size={24} color="#FFFFFF" />
-              <Text style={styles.trackBtnText}>Start Live Trip</Text>
-            </>
+            <Text style={styles.trackBtnText}>Start Live Trip</Text>
           )}
         </TouchableOpacity>
       )}
@@ -250,76 +294,48 @@ export const DriverTripsView: React.FC = () => {
       {/* Route Stops Sequence & Interactive Map */}
       <DriverTripStopsTimeline
         stops={stops}
-        currentStopIndex={currentStopIndex}
+        currentStopIndex={displayStopIndex}
         isLive={isLive}
         routeName={routeName}
         regNo={regNo}
         displayLocation={displayLocation}
       />
 
-      {/* Quick Emergency / Support Actions */}
-      <View style={styles.actionsRow}>
-        <TouchableOpacity
-          style={styles.actionCard}
-          onPress={() => Linking.openURL('tel:100')}
-          activeOpacity={0.8}
-        >
-          <MaterialCommunityIcons name="phone-alert" size={24} color="#DC3545" />
-          <Text style={styles.actionText}>Emergency</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.actionCard}
-          onPress={fetchAssignment}
-          activeOpacity={0.8}
-        >
-          <MaterialCommunityIcons name="refresh" size={24} color="#0EA5E9" />
-          <Text style={styles.actionText}>Refresh</Text>
-        </TouchableOpacity>
-      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { gap: 16 },
+  container: { gap: 14 },
   loadingContainer: {
     padding: 40,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
   },
-  loadingText: { fontSize: 13, color: '#6B6B6B' },
+  loadingText: { fontSize: 13, color: '#6B7280', fontFamily: FontFamily.medium },
 
   trackBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    backgroundColor: '#0EA5E9',
-    borderRadius: 12,
+    backgroundColor: '#F4C430',
+    borderRadius: 5,
     paddingVertical: 16,
-    shadowColor: '#0EA5E9',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#EAB308',
+    shadowColor: '#171717',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 2,
   },
   trackBtnEnd: {
-    backgroundColor: '#DC2626',
-    shadowColor: '#DC2626',
+    backgroundColor: '#1A1B1C',
+    borderColor: '#1A1B1C',
+    shadowColor: '#1A1B1C',
   },
-  trackBtnText: { fontSize: 16, fontWeight: '800', color: '#FFFFFF' },
-
-  actionsRow: { flexDirection: 'row', gap: 12 },
-  actionCard: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    padding: 14,
-    alignItems: 'center',
-    gap: 6,
-    borderWidth: 1,
-    borderColor: '#E8E5DC',
-  },
-  actionText: { fontSize: 11, fontWeight: '700', color: '#171717' },
+  trackBtnText: { fontSize: 15, fontWeight: '800', color: '#171717', fontFamily: FontFamily.bold },
+  trackBtnTextEnd: { color: '#FFFFFF' },
 });

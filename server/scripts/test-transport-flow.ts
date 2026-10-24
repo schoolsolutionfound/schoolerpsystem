@@ -5,9 +5,9 @@
  */
 
 const BASE_URL = process.env.API_BASE_URL || 'http://localhost:5000/api/v1/transport';
-const DRIVER_TOKEN = 'dev-hardcoded-driver-token';
-const STUDENT_TOKEN = 'dev-hardcoded-student-token';
-const PARENT_TOKEN = 'dev-hardcoded-parent-token';
+const DRIVER_TOKEN = process.env.TEST_DRIVER_TOKEN || '';
+const STUDENT_TOKEN = process.env.TEST_STUDENT_TOKEN || '';
+const PARENT_TOKEN = process.env.TEST_PARENT_TOKEN || '';
 
 let passedChecks = 0;
 let failedChecks = 0;
@@ -36,6 +36,11 @@ async function request(path: string, options: RequestInit = {}) {
 }
 
 async function run() {
+  if (!DRIVER_TOKEN || !STUDENT_TOKEN || !PARENT_TOKEN) {
+    console.error('Set TEST_DRIVER_TOKEN, TEST_STUDENT_TOKEN, and TEST_PARENT_TOKEN to valid Firebase ID tokens.');
+    process.exit(1);
+  }
+
   console.log('====================================================');
   console.log('🧪 Starting Transport Flow Integration Test Suite');
   console.log(`🎯 Target API: ${BASE_URL}`);

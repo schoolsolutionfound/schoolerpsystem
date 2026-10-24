@@ -7,6 +7,7 @@ interface AuthGuardProps {
   userSession: any;
   userRole: string;
   pathname: string;
+  activeGroup?: string;
   authLoading: boolean;
   _hasHydrated: boolean;
   isProfileSynced: boolean;
@@ -16,6 +17,7 @@ export function useAuthGuard({
   userSession,
   userRole,
   pathname,
+  activeGroup,
   authLoading,
   _hasHydrated,
   isProfileSynced,
@@ -35,6 +37,13 @@ export function useAuthGuard({
     const isPublicAuthRoute = ['/', '/auth', '/index', '/welcome', '/change-password', '/complete-profile', '/verify-email', '/select-school'].includes(pathname);
     // Shared screens that any role may open — but only while signed in.
     const isSessionRequiredSharedRoute = pathname === '/notifications';
+
+    // usePathname() strips route groups, so role-group checks need the active
+    // group from useSegments(). Without this, every non-home role route (e.g.
+    // /announcements or /profile) is denied and redirected back to home.
+    const rolePathname = activeGroup
+      ? `/${activeGroup}${pathname === '/' ? '' : pathname}`
+      : pathname;
 
     if (userSession) {
       // Wait for the backend login-sync. Its flags (mustChangePassword,
@@ -91,7 +100,7 @@ export function useAuthGuard({
         return;
       }
 
-      if (!isRouteAllowedForRole(pathname, userRole)) {
+      if (!isRouteAllowedForRole(rolePathname, userRole)) {
         const targetRoute = getHomeRouteForRole(userRole);
         if (pathname !== targetRoute) {
           router.replace(targetRoute as any);
@@ -100,13 +109,13 @@ export function useAuthGuard({
     } else {
       if (isSessionRequiredSharedRoute) {
         router.replace('/auth');
-      } else if (!isPublicAuthRoute && !isRouteAllowedForRole(pathname, userRole)) {
+      } else if (!isPublicAuthRoute && !isRouteAllowedForRole(rolePathname, userRole)) {
         if (pathname !== '/auth') {
           router.replace('/auth');
         }
       }
     }
-  }, [pathname, userRole, userSession?.uid, _hasHydrated, authLoading, isProfileSynced, router, mustChangePassword, profileCompleted, isEmailVerified]);
+  }, [pathname, activeGroup, userRole, userSession?.uid, _hasHydrated, authLoading, isProfileSynced, router, mustChangePassword, profileCompleted, isEmailVerified]);
 
   return false;
 }

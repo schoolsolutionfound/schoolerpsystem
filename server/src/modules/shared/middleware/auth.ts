@@ -56,11 +56,6 @@ const EMAIL_GATE_EXEMPT_ROUTES = new Set([
   '/api/v1/users/complete-profile',
 ]);
 
-// Explicit opt-in for local transport demos. Never active in production, even
-// if the environment variable is accidentally set there.
-const DEV_AUTH_BYPASS_ENABLED =
-  process.env.NODE_ENV !== 'production' && process.env.GPS_DEV_BYPASS === 'true';
-
 export async function authenticate(request: FastifyRequest, reply: FastifyReply) {
   const authHeader = request.headers.authorization;
 
@@ -84,42 +79,6 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
         code: 'EMPTY_TOKEN',
       },
     });
-  }
-
-  // Dev bypass for hardcoded access
-  if (DEV_AUTH_BYPASS_ENABLED && token === 'dev-hardcoded-student-token') {
-    request.user = {
-      uid: 'student_dev_bypass',
-      email: 'alex.student@schoolerp.dev',
-      role: 'student',
-      institutionCode: 'REAL001',
-    };
-    return;
-  }
-
-  if (DEV_AUTH_BYPASS_ENABLED && token === 'dev-hardcoded-parent-token') {
-    request.user = {
-      uid: 'parent_dev_bypass',
-      email: 'parent@schoolerp.dev',
-      role: 'parent',
-      institutionCode: 'REAL001',
-    };
-    return;
-  }
-
-  if (
-    DEV_AUTH_BYPASS_ENABLED &&
-    (token === 'dev-hardcoded-driver-token' ||
-      token === 'dev-hardcoded-admin-token' ||
-      token === 'dev-bypass')
-  ) {
-    request.user = {
-      uid: 'driver_dev_bypass',
-      email: 'driver@schoolerp.dev',
-      role: 'driver',
-      institutionCode: 'REAL001',
-    };
-    return;
   }
 
   let firebaseUid = '';

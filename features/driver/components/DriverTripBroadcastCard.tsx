@@ -1,6 +1,5 @@
 import React from 'react';
 import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BusStop } from '../../../api/transport';
 import { UseDriverLocationBroadcastReturn } from '../hooks/useDriverLocationBroadcast';
 import { USE_REAL_DRIVER_GPS, SHOW_DRIVER_SIMULATOR } from '../../../constants/featureFlags';
@@ -52,6 +51,13 @@ export const DriverTripBroadcastCard: React.FC<DriverTripBroadcastCardProps> = (
 
   return (
     <>
+      <View style={styles.sectionHeaderRow}>
+        <View>
+          <Text style={styles.sectionTitle}>Live Tracking</Text>
+          <View style={styles.sectionUnderline} />
+        </View>
+      </View>
+
       {/* Broadcast Mode Segment Control (Live GPS vs Auto-Simulation) */}
       <View style={styles.modeSegmentContainer}>
         <TouchableOpacity
@@ -59,11 +65,6 @@ export const DriverTripBroadcastCard: React.FC<DriverTripBroadcastCardProps> = (
           onPress={() => onToggleAutoBroadcast(false)}
           activeOpacity={0.8}
         >
-          <MaterialCommunityIcons
-            name="crosshairs-gps"
-            size={16}
-            color={!autoBroadcast ? '#FFFFFF' : '#6B7280'}
-          />
           <Text style={[styles.modeSegmentText, !autoBroadcast && styles.modeSegmentTextActive]}>
             Real GPS
           </Text>
@@ -74,11 +75,6 @@ export const DriverTripBroadcastCard: React.FC<DriverTripBroadcastCardProps> = (
           onPress={() => onToggleAutoBroadcast(true)}
           activeOpacity={0.8}
         >
-          <MaterialCommunityIcons
-            name="play-circle-outline"
-            size={16}
-            color={autoBroadcast ? '#FFFFFF' : '#6B7280'}
-          />
           <Text style={[styles.modeSegmentText, autoBroadcast && styles.modeSegmentTextActive]}>
             Auto Simulation
           </Text>
@@ -183,12 +179,11 @@ export const DriverTripBroadcastCard: React.FC<DriverTripBroadcastCardProps> = (
           {/* Offline / error retry */}
           {(gps.status === 'offline' || gps.status === 'error') && (
             <View style={styles.warningNotice}>
-              <MaterialCommunityIcons name="alert-circle-outline" size={16} color="#92400E" />
               <Text style={styles.warningNoticeText}>
                 {gps.error || 'Location updates paused. Will retry automatically.'}
               </Text>
               <TouchableOpacity onPress={gps.retry}>
-                <Text style={{ color: '#0EA5E9', fontWeight: '700', fontSize: 12 }}>Retry</Text>
+                <Text style={{ color: '#D97706', fontWeight: '700', fontSize: 12 }}>Retry</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -220,7 +215,6 @@ export const DriverTripBroadcastCard: React.FC<DriverTripBroadcastCardProps> = (
               onPress={onSimulateNextStop}
               activeOpacity={0.8}
             >
-              <MaterialCommunityIcons name="map-marker-right" size={18} color="#0EA5E9" />
               <Text style={styles.simulateBtnText}>
                 Simulate Next Stop ({stops[currentStopIndex]?.name || 'Route'})
               </Text>
@@ -233,12 +227,32 @@ export const DriverTripBroadcastCard: React.FC<DriverTripBroadcastCardProps> = (
 };
 
 const styles = StyleSheet.create({
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  sectionTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#171717',
+  },
+  sectionUnderline: {
+    height: 3,
+    width: 44,
+    borderRadius: 2,
+    backgroundColor: '#F4C430',
+    marginTop: 4,
+  },
   modeSegmentContainer: {
     flexDirection: 'row',
-    backgroundColor: '#F3F4F6',
-    borderRadius: 12,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 7,
     padding: 4,
     gap: 4,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
   },
   modeSegmentBtn: {
     flex: 1,
@@ -247,14 +261,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     paddingVertical: 10,
-    borderRadius: 8,
+    borderRadius: 5,
   },
   modeSegmentBtnActive: {
-    backgroundColor: '#0EA5E9',
-    shadowColor: '#000',
+    backgroundColor: '#F4C430',
+    shadowColor: '#171717',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
     elevation: 2,
   },
   modeSegmentText: {
@@ -263,14 +277,14 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   modeSegmentTextActive: {
-    color: '#FFFFFF',
+    color: '#171717',
   },
   broadcastCard: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
     gap: 8,
   },
   broadcastHeader: {
@@ -292,30 +306,34 @@ const styles = StyleSheet.create({
   broadcastTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#171717',
   },
   autoPill: {
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 8,
-    backgroundColor: '#E2E8F0',
+    borderRadius: 5,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
   },
   autoPillActive: {
-    backgroundColor: '#0EA5E9',
+    backgroundColor: '#F4C430',
+    borderColor: '#EAB308',
   },
   autoPillText: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#64748B',
+    color: '#6B7280',
   },
   autoPillTextActive: {
-    color: '#FFFFFF',
+    color: '#171717',
   },
   autoPillGps: {
-    backgroundColor: '#E0F2FE',
+    backgroundColor: '#FFF4C7',
+    borderColor: '#FDE68A',
   },
   autoPillGpsText: {
-    color: '#0369A1',
+    color: '#B45309',
   },
   permRow: {
     backgroundColor: '#FEF2F2',
@@ -350,11 +368,11 @@ const styles = StyleSheet.create({
     color: '#DC2626',
   },
   gpsStatusCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F9FAFB',
     borderRadius: 8,
     padding: 10,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E8E5DC',
     gap: 6,
   },
   gpsStatusHeader: {
@@ -429,6 +447,6 @@ const styles = StyleSheet.create({
   simulateBtnText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#0EA5E9',
+    color: '#B45309',
   },
 });

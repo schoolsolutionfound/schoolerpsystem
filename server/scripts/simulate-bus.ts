@@ -18,7 +18,11 @@
 import { haversineDistanceKm } from '../src/modules/transport/transport.utils.js';
 
 const BASE_URL = process.env.API_BASE_URL || 'http://localhost:5000/api/v1/transport';
-const DRIVER_TOKEN = 'dev-hardcoded-driver-token';
+const DRIVER_TOKEN = process.env.TEST_DRIVER_TOKEN || '';
+if (!DRIVER_TOKEN) {
+  console.error('Set TEST_DRIVER_TOKEN to a valid Firebase ID token.');
+  process.exit(1);
+}
 
 // Parse CLI flags
 const args = process.argv.slice(2);

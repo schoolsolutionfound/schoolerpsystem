@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Linking, Platform } from 'react-native';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as Location from 'expo-location';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { updateDriverLocationApi } from '../../../api/transport';
@@ -35,6 +36,7 @@ export interface UseDriverLocationBroadcastReturn {
 const MIN_SEND_INTERVAL_MS = 4000;
 const MAX_CONSECUTIVE_FAILURES = 3;
 const KEEP_AWAKE_TAG = 'driver-trip-broadcast';
+const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
 export function useDriverLocationBroadcast(
   tripId: string | null,
@@ -161,14 +163,19 @@ export function useDriverLocationBroadcast(
 
       // 2. Attempt background permission & background TaskManager updates
       let bgStarted = false;
-      if (Platform.OS !== 'web') {
+      if (Platform.OS !== 'web' && !isExpoGo) {
         try {
           const { status: bgStatus } = await Location.requestBackgroundPermissionsAsync();
           if (bgStatus === 'granted') {
             bgStarted = await startDriverBackgroundLocation(tripId);
           }
-        } catch (bgErr) {
-          console.warn('[useDriverLocationBroadcast] Background permission check skipped:', bgErr);
+        } catch (bgErr: any) {
+          const isInfoPlistError =
+            bgErr?.code === 'ERR_LOCATION_INFO_PLIST' ||
+            String(bgErr?.message || '').includes('ERR_LOCATION_INFO_PLIST');
+          if (!isInfoPlistError) {
+            console.warn('[useDriverLocationBroadcast] Background permission check skipped:', bgErr);
+          }
         }
       }
 

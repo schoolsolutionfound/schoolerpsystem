@@ -38,7 +38,7 @@ SET institution_name    = EXCLUDED.institution_name,
     subscription_status = EXCLUDED.subscription_status;
 
 
--- 2. USERS  (Driver, Student, Parent - supporting both named IDs and dev bypass IDs)
+-- 2. USERS  (Driver, Student, Parent)
 INSERT INTO users (
   id, firebase_uid, email, full_name, role,
   institution_code, institution_name, institution_type,
@@ -159,7 +159,7 @@ SET capacity   = EXCLUDED.capacity,
 
 
 -- 4. BUS ROUTE  (Thokottu to Yenepoya)
--- Assigned to driver_dev_bypass for immediate mobile app testing
+-- Assigned to the demo driver for immediate mobile app testing
 INSERT INTO bus_routes (id, institution_code, name, vehicle_id, driver_id)
 VALUES (
   'real_route_01',
