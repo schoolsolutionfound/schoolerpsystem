@@ -6,6 +6,7 @@ import { BorderRadius } from '../../../constants/theme';
 const SCHOOL_ROLES = [
   { key: 'admin', label: 'Admin', icon: 'shield-account-outline' },
   { key: 'principal', label: 'Principal', icon: 'account-tie-outline' },
+  { key: 'admission_officer', label: 'Admission Officer', icon: 'account-plus-outline' },
   { key: 'teacher', label: 'Teacher', icon: 'human-male-board' },
   { key: 'student', label: 'Student', icon: 'account-school-outline' },
   { key: 'parent', label: 'Parent', icon: 'account-multiple-outline' },
@@ -17,6 +18,7 @@ const SCHOOL_ROLES = [
 const COLLEGE_ROLES = [
   { key: 'admin', label: 'Admin', icon: 'shield-account-outline' },
   { key: 'hod', label: 'HOD', icon: 'account-tie-outline' },
+  { key: 'admission_officer', label: 'Admission Officer', icon: 'account-plus-outline' },
   { key: 'teacher', label: 'Teacher', icon: 'human-male-board' },
   { key: 'placement_officer', label: 'Placement Officer', icon: 'briefcase-outline' },
   { key: 'student', label: 'Student', icon: 'account-school-outline' },
@@ -165,6 +167,7 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
       hod: '#FEF3C7',
       teacher: '#FFFDF7',
       placement_officer: '#FEF3C7',
+      admission_officer: '#FEF3C7',
       student: '#FFF4C7',
       parent: '#DCFCE7',
       accountant: '#FFF4C7',
@@ -181,6 +184,7 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
       hod: '#D97706',
       teacher: '#171717',
       placement_officer: '#D97706',
+      admission_officer: '#D97706',
       student: '#F4C430',
       parent: '#16A34A',
       accountant: '#DB2777',

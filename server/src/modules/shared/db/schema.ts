@@ -507,3 +507,88 @@ export const driveApplications = pgTable('drive_applications', {
 export type DriveApplicationRecord = typeof driveApplications.$inferSelect;
 export type NewDriveApplicationRecord = typeof driveApplications.$inferInsert;
 
+export interface QuotaAllocationItem {
+  quotaName: string;
+  seats: number;
+}
+
+export const admissionCourses = pgTable('admission_courses', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('ac')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  academicYear: varchar('academic_year', { length: 50 }).notNull(),
+  courseCode: varchar('course_code', { length: 50 }).notNull(),
+  courseName: text('course_name').notNull(),
+  programType: varchar('program_type', { length: 50 }).notNull().default('engineering'), // school | pu | engineering | degree
+  totalSeats: integer('total_seats').notNull().default(0),
+  quotas: jsonb('quotas').$type<QuotaAllocationItem[]>().default([]),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  instCodeIdx: index('idx_admission_courses_inst').on(table.institutionCode),
+  instYearCodeUnique: uniqueIndex('uq_admission_courses_inst_year_code').on(table.institutionCode, table.academicYear, table.courseCode),
+}));
+
+export type AdmissionCourseRecord = typeof admissionCourses.$inferSelect;
+export type NewAdmissionCourseRecord = typeof admissionCourses.$inferInsert;
+
+export const admissionApplications = pgTable('admission_applications', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('adm')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  academicYear: varchar('academic_year', { length: 50 }).notNull(),
+  applicationNumber: varchar('application_number', { length: 50 }).notNull(),
+  fullName: text('full_name').notNull(),
+  parentPhone: varchar('parent_phone', { length: 20 }).notNull().default(''),
+  dob: varchar('dob', { length: 20 }).default(''),
+  fatherName: text('father_name').default(''),
+  motherName: text('mother_name').default(''),
+  guardianPhone: varchar('guardian_phone', { length: 20 }).default(''),
+  address: text('address').default(''),
+  bloodGroup: varchar('blood_group', { length: 10 }).default(''),
+  programType: varchar('program_type', { length: 50 }).default('engineering'),
+  preferredCourseId: text('preferred_course_id'),
+  preferredCourseName: text('preferred_course_name').default(''),
+  // Status: waiting_list | allocated | confirmed | cancelled
+  status: varchar('status', { length: 30 }).notNull().default('waiting_list'),
+  allocatedCourseId: text('allocated_course_id'),
+  allocatedCourseName: text('allocated_course_name').default(''),
+  allocatedQuota: varchar('allocated_quota', { length: 50 }).default(''),
+  allocatedAt: timestamp('allocated_at'),
+  confirmedAt: timestamp('confirmed_at'),
+  notes: text('notes').default(''),
+  customFields: jsonb('custom_fields').$type<Record<string, any>>().default({}),
+  createdBy: text('created_by').default(''),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  instCodeIdx: index('idx_admission_apps_inst').on(table.institutionCode),
+  statusIdx: index('idx_admission_apps_status').on(table.status),
+  batchIdx: index('idx_admission_apps_batch').on(table.academicYear),
+  appNoUnique: uniqueIndex('uq_admission_apps_inst_no').on(table.institutionCode, table.applicationNumber),
+}));
+
+export type AdmissionApplicationRecord = typeof admissionApplications.$inferSelect;
+export type NewAdmissionApplicationRecord = typeof admissionApplications.$inferInsert;
+
+export const admissionFormConfigs = pgTable('admission_form_configs', {
+  id: text('id').primaryKey().$defaultFn(idPrefix('afc')),
+  institutionCode: varchar('institution_code', { length: 100 }).notNull(),
+  programType: varchar('program_type', { length: 50 }).notNull().default('all'), // school | pu | engineering | degree | all
+  fieldKey: varchar('field_key', { length: 100 }).notNull(),
+  label: text('label').notNull(),
+  fieldType: varchar('field_type', { length: 50 }).notNull().default('text'), // text | number | date | select | boolean | textarea
+  options: jsonb('options').$type<string[]>().default([]),
+  placeholder: text('placeholder').default(''),
+  isRequired: boolean('is_required').notNull().default(false),
+  order: integer('order').notNull().default(0),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  instCodeIdx: index('idx_admission_form_configs_inst').on(table.institutionCode),
+  instProgKeyUnique: uniqueIndex('uq_admission_form_configs_inst_prog_key').on(table.institutionCode, table.programType, table.fieldKey),
+}));
+
+export type AdmissionFormConfigRecord = typeof admissionFormConfigs.$inferSelect;
+export type NewAdmissionFormConfigRecord = typeof admissionFormConfigs.$inferInsert;
+
+

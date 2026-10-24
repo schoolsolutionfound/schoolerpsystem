@@ -104,6 +104,7 @@ const AppLayout = function Layout() {
         '/(developer)': 'dev',
         '/(driver)': 'driver',
         '/(placement)': 'placement_officer',
+        '/(admission)': 'admission_officer',
       };
       const requiredRole = groupToRole[routeGroup];
       if (requiredRole && requiredRole !== currentRole) {
@@ -116,6 +117,12 @@ const AppLayout = function Layout() {
             currentRole === 'admin'
           ) {
             // Authorized placement route
+          } else {
+            return;
+          }
+        } else if (routeGroup === '/(admission)') {
+          if (currentRole === 'admin' || currentRole === 'admission_officer') {
+            // Authorized admission route
           } else {
             return;
           }

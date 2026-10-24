@@ -98,8 +98,8 @@ export interface CreateTeacherPayload {
   institutionCode: string;
 }
 
-const SCHOOL_ROLES = ['admin', 'principal', 'teacher', 'student', 'parent', 'accountant', 'librarian'] as const;
-const COLLEGE_ROLES = ['admin', 'hod', 'teacher', 'placement_officer', 'student', 'parent', 'accountant', 'librarian'] as const;
+const SCHOOL_ROLES = ['admin', 'principal', 'teacher', 'student', 'parent', 'accountant', 'librarian', 'admission_officer'] as const;
+const COLLEGE_ROLES = ['admin', 'hod', 'teacher', 'placement_officer', 'admission_officer', 'student', 'parent', 'accountant', 'librarian'] as const;
 
 export interface CreateUserPayload {
   fullName: string;

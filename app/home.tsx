@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useUserStore } from '../store/useUserStore';
 import { getHomeRouteForRole } from '../features/shared/utils/routeGuards';
 import PlacementHomeScreen from './(placement)/home';
+import AdmissionHomeScreen from './(admission)/home';
 import StudentHomeScreen from './(student)/home';
 import TeacherHomeScreen from './(teacher)/home';
 import AdminHomeScreen from './(admin)/home';
@@ -36,6 +37,9 @@ export default function RootHomeScreen() {
 
   if (role === 'placement_officer') {
     return <PlacementHomeScreen />;
+  }
+  if (role === 'admission_officer') {
+    return <AdmissionHomeScreen />;
   }
   if (role === 'student') {
     return <StudentHomeScreen />;

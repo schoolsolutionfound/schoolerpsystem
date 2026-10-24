@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { secureStorage } from './secureStorage';
 
-export type UserRole = 'student' | 'teacher' | 'admin' | 'parent' | 'dev' | 'principal' | 'accountant' | 'hod' | 'librarian' | 'driver' | 'institution admin' | 'loading';
+export type UserRole = 'student' | 'teacher' | 'admin' | 'parent' | 'dev' | 'principal' | 'accountant' | 'hod' | 'librarian' | 'driver' | 'institution admin' | 'placement_officer' | 'admission_officer' | 'loading';
 export type InstitutionType = 'school' | 'college';
 
 interface UserState {

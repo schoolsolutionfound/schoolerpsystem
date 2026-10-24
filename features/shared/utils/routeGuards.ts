@@ -12,6 +12,7 @@ const ROLE_ROUTES: Record<string, string> = {
   librarian: '/(librarian)/home',
   driver: '/(driver)/home',
   placement_officer: '/(placement)/home',
+  admission_officer: '/(admission)/home',
 };
 
 const ROLE_GROUP: Record<string, string> = {
@@ -28,6 +29,7 @@ const ROLE_GROUP: Record<string, string> = {
   librarian: '/(librarian)',
   driver: '/(driver)',
   placement_officer: '/(placement)',
+  admission_officer: '/(admission)',
 };
 
 const SHARED_ROUTES = [
@@ -64,6 +66,12 @@ export function isRouteAllowedForRole(pathname: string, role?: string): boolean 
       placementAccess === 'head' ||
       placementAccess === 'member'
     ) {
+      return true;
+    }
+  }
+
+  if (pathGroup === '/(admission)') {
+    if (norm === 'admission_officer' || norm === 'admin') {
       return true;
     }
   }
