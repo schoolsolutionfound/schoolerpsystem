@@ -159,9 +159,17 @@ export default function HomeScreen() {
               showsVerticalScrollIndicator={false}
               refreshControl={refreshControl}
             >
-              <StudentHomeAttendanceCard loading={attendanceLoading || slotsLoading} overall={overall} currentSlot={currentSlot} />
-              <StudentHomeAnnouncements onPress={() => setActiveTab('announcements')} />
-              <StudentHomePeriodsList loading={slotsLoading} slots={todaySlots} />
+              <StudentHomeAttendanceCard
+                loading={attendanceLoading || slotsLoading}
+                overall={overall}
+                currentSlot={currentSlot}
+              />
+              <StudentHomeAnnouncements onPress={() => router.push('/notifications')} />
+              <StudentHomePeriodsList
+                loading={slotsLoading}
+                slots={todaySlots}
+                onSchedulePress={() => setActiveTab('schedule')}
+              />
             </ScrollView>
           </ShimmerProvider>
         );
@@ -172,17 +180,13 @@ export default function HomeScreen() {
       case 'attendance':
         return <StudentAttendanceView />;
       case 'marks':
-        return <StudentMarksView />;
+        return <StudentMarksView onBack={() => setActiveTab('home')} />;
       case 'homework':
         return <StudentHomeworkView />;
       case 'bus':
         return <StudentBusTrackingView />;
       case 'fees':
-        return (
-          <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} refreshControl={refreshControl}>
-            <StudentHomeFeeSummary />
-          </ScrollView>
-        );
+        return <StudentHomeFeeSummary onBack={() => setActiveTab('home')} />;
       default:
         return null;
     }
@@ -191,19 +195,23 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safe}>
-        <StudentHomeHeader
-          fullName={fullName}
-          profilePic={profilePic}
-          onMenuPress={() => setDrawerOpen(true)}
-          onNotificationsPress={() => router.push('/notifications')}
-          onProfilePress={() => router.push('/(student)/profile')}
-        />
+        {activeTab !== 'marks' && activeTab !== 'fees' && (
+          <StudentHomeHeader
+            fullName={fullName}
+            profilePic={profilePic}
+            onMenuPress={() => setDrawerOpen(true)}
+            onSettingsPress={() => router.push('/settings')}
+            onNotificationsPress={() => router.push('/notifications')}
+            onProfilePress={() => router.push('/(student)/profile')}
+            showProfile={activeTab === 'home'}
+          />
+        )}
 
         <View style={styles.content}>
           {renderTabContent()}
         </View>
 
-        {/* Bottom Tab Bar */}
+        {/* Bottom Tab Bar matching screenshot */}
         <View style={styles.tabBarBg}>
           <View style={styles.tabBar}>
             {TABS.map((tab) => {
@@ -218,16 +226,16 @@ export default function HomeScreen() {
                     onPress={() => setActiveTab(tab.key)}
                     activeOpacity={0.85}
                   >
-                    <View style={[styles.centerBtnRing, isActive && styles.centerBtnRingActive]}>
-                      <View style={[styles.centerBtn, isActive && styles.centerBtnActive]}>
-                          <MaterialCommunityIcons
-                          name={tab.iconFilled as any}
-                          size={26}
-                          color={isActive ? '#F4C430' : '#E8E5DC'}
-                        />
-                      </View>
+                    <View style={styles.centerBtnOuter}>
+                      <MaterialCommunityIcons
+                        name="bus"
+                        size={28}
+                        color="#111827"
+                      />
                     </View>
-                    <Text style={[styles.centerLabel, isActive && styles.centerLabelActive]}>{tab.label}</Text>
+                    <Text style={[styles.centerLabel, isActive && styles.centerLabelActive]}>
+                      {tab.label}
+                    </Text>
                   </TouchableOpacity>
                 );
               }
@@ -243,10 +251,13 @@ export default function HomeScreen() {
                     <MaterialCommunityIcons
                       name={isActive ? (tab.iconFilled as any) : (tab.icon as any)}
                       size={22}
-                      color={isActive ? '#1A1B1C' : '#9CA3AF'}
+                      color={isActive ? '#111827' : '#9CA3AF'}
                     />
                   </View>
-                  <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>{tab.label}</Text>
+                  <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
+                    {tab.label}
+                  </Text>
+                  {isActive && <View style={styles.activeIndicator} />}
                 </TouchableOpacity>
               );
             })}
@@ -269,15 +280,15 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFEFE' },
+  container: { flex: 1, backgroundColor: '#FAF8F5' },
   safe: { flex: 1 },
   content: { flex: 1 },
-  scroll: { paddingHorizontal: 20, paddingVertical: 14, gap: 16 },
+  scroll: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 20, gap: 16 },
 
   // Placeholder
   placeholderCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 10,
+    borderRadius: 5,
     padding: 30,
     alignItems: 'center',
     borderWidth: 1,
@@ -301,7 +312,7 @@ const styles = StyleSheet.create({
   // Tab hero block (LeetCode-style dark)
   heroBlock: {
     backgroundColor: '#1A1B1C',
-    borderRadius: 10,
+    borderRadius: 5,
     padding: 20,
     alignItems: 'center',
     borderWidth: 1,
@@ -326,7 +337,7 @@ const styles = StyleSheet.create({
     width: '100%',
     marginTop: 14,
     backgroundColor: '#232425',
-    borderRadius: 8,
+    borderRadius: 5,
     paddingVertical: 10,
     borderWidth: 1,
     borderColor: '#2A2B2C',
@@ -339,21 +350,23 @@ const styles = StyleSheet.create({
   // Tab bar
   tabBarBg: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 32,
+    borderRadius: 36,
     marginHorizontal: 16,
     marginBottom: Platform.OS === 'ios' ? 16 : 8,
     paddingTop: 8,
-    paddingBottom: Platform.OS === 'ios' ? 16 : 8,
+    paddingBottom: Platform.OS === 'ios' ? 14 : 8,
+    paddingHorizontal: 6,
+    borderWidth: 1,
+    borderColor: '#F2EFE8',
     shadowColor: '#171717',
-    shadowOffset: { width: 0, height: 6 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 16,
-    elevation: 12,
+    elevation: 8,
   },
   tabBar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    paddingHorizontal: 6,
   },
   tabItem: {
     flex: 1,
@@ -363,23 +376,30 @@ const styles = StyleSheet.create({
   },
   tabIconBg: {
     width: 44,
-    height: 34,
-    borderRadius: 17,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
   tabIconBgActive: {
-    backgroundColor: '#F4C430',
+    backgroundColor: '#FDC836',
   },
   tabLabel: {
     fontSize: 10,
     fontFamily: FontFamily.medium,
     color: '#9CA3AF',
-    marginTop: 4,
+    marginTop: 3,
   },
   tabLabelActive: {
-    color: '#1A1B1C',
+    color: '#111827',
     fontFamily: FontFamily.bold,
+  },
+  activeIndicator: {
+    width: 22,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: '#FDC836',
+    marginTop: 3,
   },
 
   // Center floating button
@@ -388,46 +408,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingBottom: 2,
-    marginTop: -28,
+    marginTop: -26,
   },
-  centerBtnRing: {
-    width: 66,
-    height: 66,
-    borderRadius: 33,
-    borderWidth: 3,
-    borderColor: '#E8E5DC',
+  centerBtnOuter: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#FDC836',
+    borderWidth: 3.5,
+    borderColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#171717',
+    shadowColor: '#D97706',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.35,
     shadowRadius: 8,
     elevation: 6,
-  },
-  centerBtnRingActive: {
-    borderColor: '#F4C430',
-    shadowColor: '#F4C430',
-    shadowOpacity: 0.35,
-  },
-  centerBtn: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#171717',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  centerBtnActive: {
-    backgroundColor: '#171717',
   },
   centerLabel: {
     fontSize: 10,
     fontFamily: FontFamily.medium,
-    color: '#9CA3AF',
-    marginTop: 5,
+    color: '#6B7280',
+    marginTop: 4,
   },
   centerLabelActive: {
-    color: '#F4C430',
+    color: '#111827',
     fontFamily: FontFamily.bold,
   },
 });

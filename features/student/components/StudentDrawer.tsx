@@ -33,19 +33,17 @@ interface StudentDrawerProps {
 
 const PRIMARY = [
   { key: 'home', label: 'Home', icon: 'home-outline', iconFilled: 'home', route: '/(student)/home' },
-  { key: 'announcements', label: 'Announcements', icon: 'bullhorn-outline', iconFilled: 'bullhorn', tab: 'announcements' as const },
   { key: 'attendance', label: 'Attendance', icon: 'book-outline', iconFilled: 'book', tab: 'attendance' as const },
-  { key: 'homework', label: 'Homework', icon: 'book-plus-outline', iconFilled: 'book-plus', tab: 'homework' as const },
+  { key: 'homework', label: 'Assignment', icon: 'book-plus-outline', iconFilled: 'book-plus', tab: 'homework' as const },
   { key: 'bus', label: 'Bus Tracking', icon: 'bus', iconFilled: 'bus', tab: 'bus' as const },
-  { key: 'marks', label: 'Marks & Grades', icon: 'certificate-outline', iconFilled: 'certificate', tab: 'marks' as const },
+  { key: 'marks', label: 'Marks', icon: 'certificate-outline', iconFilled: 'certificate', tab: 'marks' as const },
   { key: 'fees', label: 'Fee Summary', icon: 'cash', iconFilled: 'cash', tab: 'fees' as const },
   { key: 'schedule', label: 'Schedule', icon: 'calendar-outline', iconFilled: 'calendar', tab: 'schedule' as const },
+  { key: 'feedback', label: 'Feedback', icon: 'message-draw', route: '/(student)/feedback' },
 ];
 
 const SECONDARY = [
   { key: 'profile', label: 'Profile', icon: 'account-outline', route: '/(student)/profile' },
-  { key: 'notifications', label: 'Notifications', icon: 'bell-outline', route: '/notifications' },
-  { key: 'change-password', label: 'Change Password', icon: 'lock-reset', route: '/change-password' },
 ];
 
 export const StudentDrawer: React.FC<StudentDrawerProps> = ({
@@ -210,7 +208,7 @@ export const StudentDrawer: React.FC<StudentDrawerProps> = ({
 
           <View style={styles.footer}>
             <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.8}>
-              <MaterialCommunityIcons name="logout" size={18} color="#F4C430" />
+              <MaterialCommunityIcons name="logout" size={18} color="#FBBF24" />
               <Text style={styles.logoutText}>Logout</Text>
             </TouchableOpacity>
             <Text style={styles.version}>v1.0 · School ERP</Text>
@@ -255,7 +253,7 @@ backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.55)' },
   closeBtn: {
     width: 32,
     height: 32,
-    borderRadius: 6,
+    borderRadius: 5,
     backgroundColor: '#232425',
     borderWidth: 1,
     borderColor: '#2A2B2C',
@@ -279,12 +277,12 @@ backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.55)' },
     gap: 12,
     paddingHorizontal: 10,
     paddingVertical: 11,
-    borderRadius: 8,
+    borderRadius: 5,
   },
   menuIcon: {
     width: 32,
     height: 32,
-    borderRadius: 6,
+    borderRadius: 5,
     backgroundColor: '#232425',
     borderWidth: 1,
     borderColor: '#2A2B2C',
@@ -308,10 +306,10 @@ backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.55)' },
     gap: 8,
     paddingVertical: 11,
     borderRadius: 8,
-    backgroundColor: 'rgba(244, 196, 48, 0.12)',
+    backgroundColor: 'rgba(251, 191, 36, 0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(244, 196, 48, 0.3)',
+    borderColor: 'rgba(251, 191, 36, 0.3)',
   },
-  logoutText: { fontSize: 14, fontWeight: '800', color: '#F4C430', letterSpacing: 0.3 },
+  logoutText: { fontSize: 14, fontWeight: '800', color: '#FBBF24', letterSpacing: 0.3 },
   version: { fontSize: 10, color: '#5A5A5A', textAlign: 'center', marginTop: 10, letterSpacing: 0.5 },
 });

@@ -1,7 +1,7 @@
-﻿import React from 'react';
+import React from 'react';
 import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { BorderRadius } from '../../../constants/theme';
+import { FontFamily } from '../../../constants/fonts';
 
 interface StudentHomeAnnouncementsProps {
   onPress?: () => void;
@@ -10,17 +10,16 @@ interface StudentHomeAnnouncementsProps {
 export const StudentHomeAnnouncements: React.FC<StudentHomeAnnouncementsProps> = ({ onPress }) => {
   return (
     <TouchableOpacity style={styles.announcementCard} activeOpacity={0.8} onPress={onPress}>
-      <View style={styles.announcementIconWrap}>
-        <MaterialCommunityIcons name="bullhorn-outline" size={24} color="#1A1B1C" />
-      </View>
+      
+      
 
       <View style={styles.announcementContent}>
-        <View style={styles.announcementTop}>
-          <Text style={styles.announcementTitle}>Announcements</Text>
-        </View>
-        <Text style={styles.announcementBody}>Tap to view school announcements</Text>
-        <Text style={styles.announcementSub}>School & class updates appear here</Text>
+        <Text style={styles.announcementTitle}>Announcements</Text>
+       
+        <Text style={styles.announcementSub}>School &amp; class updates appear here</Text>
       </View>
+
+      <MaterialCommunityIcons name="chevron-right" size={22} color="#9CA3AF" />
     </TouchableOpacity>
   );
 };
@@ -29,24 +28,45 @@ const styles = StyleSheet.create({
   announcementCard: {
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.card,
-    padding: 14,
+    borderRadius: 5,
+    padding: 16,
     borderWidth: 1,
-    borderColor: '#E8E5DC',
-    gap: 12,
-    alignItems: 'flex-start',
+    borderColor: '#F3EFE8',
+    gap: 14,
+    alignItems: 'center',
+    shadowColor: '#171717',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
   announcementIconWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#F4C430',
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#FEF08A',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  announcementContent: { flex: 1, gap: 4 },
-  announcementTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  announcementTitle: { fontSize: 14, fontWeight: '700', color: '#171717' },
-  announcementBody: { fontSize: 12, color: '#6B6B6B', lineHeight: 17, fontWeight: '600' },
-  announcementSub: { fontSize: 11, color: '#6B6B6B', lineHeight: 15 },
+  announcementContent: {
+    flex: 1,
+  },
+  announcementTitle: {
+    fontSize: 16,
+    fontFamily: FontFamily.bold,
+    color: '#111827',
+  },
+  announcementBody: {
+    fontSize: 13,
+    fontFamily: FontFamily.medium,
+    color: '#4B5563',
+    marginTop: 2,
+  },
+  announcementSub: {
+    fontSize: 12,
+    fontFamily: FontFamily.regular,
+    color: '#9CA3AF',
+    marginTop: 2,
+  },
 });
+

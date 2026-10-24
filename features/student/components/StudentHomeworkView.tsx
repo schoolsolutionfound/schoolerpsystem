@@ -64,7 +64,7 @@ export const StudentHomeworkView: React.FC = () => {
 
       <ScrollView
         contentContainerStyle={styles.list}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1A1B1C" colors={['#1A1B1C']} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#000000" colors={['#000000']} progressBackgroundColor="#FFFFFF" />}
         showsVerticalScrollIndicator={false}
       >
         {loading ? (
@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(244, 196, 48, 0.15)',
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 6,
+    borderRadius: 5,
   },
   countText: { fontSize: 12, fontFamily: FontFamily.bold, color: '#D4A418' },
   list: { paddingHorizontal: 20, paddingBottom: 20, gap: 10 },
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
   emptySub: { fontSize: 12, fontFamily: FontFamily.regular, color: '#9CA3AF', textAlign: 'center', paddingHorizontal: 40 },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.card,
+    borderRadius: 5,
     padding: 14,
     borderWidth: 1,
     borderColor: '#E8E5DC',
@@ -156,13 +156,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEE2E2',
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 6,
+    borderRadius: 5,
   },
   overdueBadgeText: { fontSize: 10, fontFamily: FontFamily.bold, color: '#DC3545' },
   cardDesc: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B6B6B', lineHeight: 17 },
   cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   metaChip: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   metaText: { fontSize: 11, fontFamily: FontFamily.regular, color: '#6B6B6B' },
-  priorityBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
+  priorityBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 5 },
   priorityBadgeText: { fontSize: 10, fontFamily: FontFamily.bold },
 });

@@ -56,7 +56,7 @@ FIREBASE_PROJECT_ID=your-project-id
 | Developer | dev@schoolerp.dev | Dev@1234 | — |
 | Admin | safwancoding1919@gmail.com | Safwan@123 | TST001 |
 | Teacher (Kadar) | kadar@gmail.com | Kadar@123 | TST001 |
-| Student (Safwan) | safwanhaneef786@gmail.com | (ask Safwan) | TST001 |
+| Student (Safwan) | safwanhaneef786@gmail.com | Student@123 | TST001 |
 | Test Students | `<name>.student@schoolerp.test` | (fake Firebase — cannot login) | TST001 |
 
 > Test students (`*.student@schoolerp.test`) have synthetic Firebase UIDs and **cannot authenticate**. Use real accounts only.

@@ -207,7 +207,7 @@ export const AnnouncementList: React.FC<AnnouncementListProps> = ({
                 </TouchableOpacity>
               </View>
             </View>
-          ) : null
+          ) : undefined
         }
         contentContainerStyle={[
           styles.listContent,
