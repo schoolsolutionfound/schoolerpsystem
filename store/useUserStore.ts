@@ -165,6 +165,8 @@ export const useUserStore = create<UserState>()(
         fullName: state.fullName,
         email: state.email,
         phone: state.phone,
+        userRole: state.userRole,
+        roles: state.roles,
         institutionId: state.institutionId,
         institutionName: state.institutionName,
         institutionCode: state.institutionCode,
@@ -172,8 +174,6 @@ export const useUserStore = create<UserState>()(
         schoolName: state.schoolName,
         profilePic: state.profilePic,
         language: state.language,
-        // ← Persisted so role survives cold starts without network
-        userRole: state.userRole,
         isEmailVerified: state.isEmailVerified,
         institutionType: state.institutionType,
         profileExists: state.profileExists,

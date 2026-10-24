@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { and, count, desc, eq, sql } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, sql } from 'drizzle-orm';
 import * as schema from './schema.js';
 import { invalidateCachedAuth } from '../middleware/authCache.js';
 
@@ -153,6 +153,101 @@ export async function withTransaction<T>(fn: (tx: any) => Promise<T>): Promise<T
   return db.transaction(fn);
 }
 
+export async function initCustomTables() {
+  if (!queryClient) return;
+  try {
+    await queryClient`
+      CREATE TABLE IF NOT EXISTS school_notices (
+        id TEXT PRIMARY KEY,
+        institution_code VARCHAR(100) NOT NULL,
+        title VARCHAR(300) NOT NULL,
+        content TEXT NOT NULL,
+        target_audience VARCHAR(50) NOT NULL DEFAULT 'all',
+        department VARCHAR(100) DEFAULT '',
+        priority VARCHAR(20) NOT NULL DEFAULT 'normal',
+        author_id TEXT NOT NULL,
+        author_name TEXT NOT NULL,
+        author_role VARCHAR(50) NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+    `;
+    await queryClient`
+      CREATE TABLE IF NOT EXISTS counseling_records (
+        id TEXT PRIMARY KEY,
+        institution_code VARCHAR(100) NOT NULL,
+        student_id TEXT NOT NULL,
+        student_name VARCHAR(200) NOT NULL,
+        grade_section VARCHAR(100) DEFAULT '',
+        counselor_id TEXT NOT NULL,
+        counselor_name VARCHAR(200) NOT NULL,
+        concern_category VARCHAR(50) NOT NULL,
+        severity VARCHAR(20) NOT NULL DEFAULT 'medium',
+        action_plan TEXT DEFAULT '',
+        parent_contacted BOOLEAN DEFAULT FALSE,
+        status VARCHAR(30) NOT NULL DEFAULT 'active',
+        date DATE NOT NULL,
+        last_follow_up_date DATE,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+    `;
+    await queryClient`
+      CREATE TABLE IF NOT EXISTS department_courses (
+        id TEXT PRIMARY KEY,
+        institution_code VARCHAR(100) NOT NULL,
+        code VARCHAR(50) NOT NULL,
+        name VARCHAR(200) NOT NULL,
+        department VARCHAR(100) NOT NULL,
+        semester VARCHAR(50) NOT NULL,
+        batch_year VARCHAR(50) DEFAULT '',
+        type VARCHAR(30) NOT NULL DEFAULT 'theory',
+        credits INTEGER NOT NULL DEFAULT 3,
+        instructor_id TEXT DEFAULT '',
+        instructor_name VARCHAR(200) DEFAULT '',
+        instructor_rank VARCHAR(50) DEFAULT '',
+        enrolled_students_count INTEGER DEFAULT 0,
+        total_planned_hours INTEGER DEFAULT 45,
+        completed_hours INTEGER DEFAULT 0,
+        syllabus_progress_pct INTEGER DEFAULT 0,
+        lab_batches_count INTEGER DEFAULT 1,
+        version INTEGER DEFAULT 1,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+    `;
+    await queryClient`
+      CREATE TABLE IF NOT EXISTS exam_eligibility (
+        id TEXT PRIMARY KEY,
+        institution_code VARCHAR(100) NOT NULL,
+        student_id TEXT NOT NULL,
+        student_name VARCHAR(200) NOT NULL,
+        usn VARCHAR(50) NOT NULL,
+        semester VARCHAR(50) NOT NULL,
+        department VARCHAR(100) NOT NULL,
+        overall_attendance_pct NUMERIC(5, 2) NOT NULL DEFAULT 0,
+        courses_below_threshold INTEGER DEFAULT 0,
+        internal_assessment_score NUMERIC(5, 2) DEFAULT 0,
+        hall_ticket_status VARCHAR(30) NOT NULL DEFAULT 'detained',
+        condonation_reason TEXT DEFAULT '',
+        approved_by TEXT DEFAULT '',
+        approval_date DATE,
+        remarks TEXT DEFAULT '',
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+    `;
+    console.log('[PostgreSQL] Custom tables verified / created.');
+  } catch (err: any) {
+    console.warn('[PostgreSQL] initCustomTables warning:', err.message);
+  }
+}
+
+// Auto-run verification on load
+if (queryClient) {
+  initCustomTables().catch(() => {});
+}
+
 function safeJsonStringify(val: any, fallback: string): string {
   if (typeof val === 'string') return val;
   try { return JSON.stringify(val); } catch { return fallback; }
@@ -290,6 +385,77 @@ export async function dbFindUsersByInstitution(
         [u.fullName, u.rollNoOrUSN, u.admissionNo || '', u.email].some((v) => (v || '').toLowerCase().includes(needle)))
   );
   return all.slice(offset, offset + limit);
+}
+
+const FACULTY_ROLES = ['teacher', 'hod', 'principal', 'counselor', 'coordinator', 'admin', 'institution admin', 'professor', 'assistant_professor', 'associate_professor', 'lab_instructor'];
+
+export async function dbFindFacultyByInstitution(
+  institutionCode: string,
+  opts?: PaginationOptions
+): Promise<InMemoryUser[]> {
+  const { limit, offset } = normalizePagination(opts);
+  const term = (opts?.search || '').trim();
+  const conditions: any[] = [
+    eq(schema.users.institutionCode, institutionCode),
+    inArray(schema.users.role, FACULTY_ROLES),
+  ];
+  if (term) {
+    const pattern = `%${term}%`;
+    conditions.push(
+      sql`(${schema.users.fullName} ILIKE ${pattern} OR ${schema.users.email} ILIKE ${pattern} OR ${schema.users.rollNoOrUSN} ILIKE ${pattern})`
+    );
+  }
+  if (db) {
+    try {
+      const results = await db.select().from(schema.users).where(and(...conditions)).limit(limit).offset(offset);
+      return results.map(mapUserRow);
+    } catch (error: any) {
+      console.warn('[PostgreSQL Drizzle Warning] dbFindFacultyByInstitution query failed:', error.message);
+    }
+  }
+  const lowered = term.toLowerCase();
+  const all = inMemoryUserStore.getAll().filter(
+    (u) =>
+      u.institutionCode.toLowerCase() === institutionCode.toLowerCase() &&
+      FACULTY_ROLES.includes(u.role.toLowerCase()) &&
+      (!lowered ||
+        u.fullName?.toLowerCase().includes(lowered) ||
+        u.email?.toLowerCase().includes(lowered) ||
+        u.rollNoOrUSN?.toLowerCase().includes(lowered))
+  );
+  return all.slice(offset, offset + limit);
+}
+
+export async function dbCountFacultyByInstitution(institutionCode: string, search?: string): Promise<number> {
+  const term = (search || '').trim();
+  const conditions: any[] = [
+    eq(schema.users.institutionCode, institutionCode),
+    inArray(schema.users.role, FACULTY_ROLES),
+  ];
+  if (term) {
+    const pattern = `%${term}%`;
+    conditions.push(
+      sql`(${schema.users.fullName} ILIKE ${pattern} OR ${schema.users.email} ILIKE ${pattern} OR ${schema.users.rollNoOrUSN} ILIKE ${pattern})`
+    );
+  }
+  if (db) {
+    try {
+      const rows = await db.select({ count: count() }).from(schema.users).where(and(...conditions));
+      return Number(rows[0]?.count ?? 0);
+    } catch (error: any) {
+      console.warn('[PostgreSQL Drizzle Warning] dbCountFacultyByInstitution query failed:', error.message);
+    }
+  }
+  const lowered = term.toLowerCase();
+  return inMemoryUserStore.getAll().filter(
+    (u) =>
+      u.institutionCode.toLowerCase() === institutionCode.toLowerCase() &&
+      FACULTY_ROLES.includes(u.role.toLowerCase()) &&
+      (!lowered ||
+        u.fullName?.toLowerCase().includes(lowered) ||
+        u.email?.toLowerCase().includes(lowered) ||
+        u.rollNoOrUSN?.toLowerCase().includes(lowered))
+  ).length;
 }
 
 export async function dbCountUsersByInstitution(institutionCode?: string, role?: string): Promise<number> {

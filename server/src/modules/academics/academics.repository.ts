@@ -296,16 +296,48 @@ export class AcademicsRepository {
 
   // ---------- Class Sections ----------
   public async listClassSections(institutionCode: string): Promise<ClassSectionRecord[]> {
+    if (!institutionCode) return [];
     if (db) {
       try {
-        const rows = await db.select().from(classSections).where(eq(classSections.institutionCode, institutionCode));
+        const rows = await db
+          .select()
+          .from(classSections)
+          .where(sql`lower(${classSections.institutionCode}) = lower(${institutionCode})`);
         rows.forEach((r) => classSectionMem.save(toClassSection(r)));
-        return rows;
+        return rows.map(toClassSection);
       } catch (err: any) {
         console.warn('[PostgreSQL Academics Warning] listClassSections failed:', err.message);
       }
     }
-    return classSectionMem.filter((r) => r.institutionCode.toLowerCase() === institutionCode.toLowerCase());
+    return classSectionMem.filter((r) => (r.institutionCode || '').toLowerCase() === (institutionCode || '').toLowerCase());
+  }
+
+  public async listClassSectionsPaged(
+    institutionCode: string,
+    opts: { limit: number; offset: number }
+  ): Promise<{ items: ClassSectionRecord[]; total: number }> {
+    if (!institutionCode) return { items: [], total: 0 };
+    if (db) {
+      try {
+        const whereClause = sql`lower(${classSections.institutionCode}) = lower(${institutionCode})`;
+        const [totalRow] = await db.select({ count: count() }).from(classSections).where(whereClause);
+        const rows = await db
+          .select()
+          .from(classSections)
+          .where(whereClause)
+          .limit(opts.limit)
+          .offset(opts.offset);
+        rows.forEach((r) => classSectionMem.save(toClassSection(r)));
+        return { items: rows.map(toClassSection), total: Number(totalRow?.count ?? 0) };
+      } catch (err: any) {
+        console.warn('[PostgreSQL Academics Warning] listClassSectionsPaged failed:', err.message);
+      }
+    }
+    const filtered = classSectionMem.filter((r) => r.institutionCode.toLowerCase() === institutionCode.toLowerCase());
+    return {
+      items: filtered.slice(opts.offset, opts.offset + opts.limit),
+      total: filtered.length,
+    };
   }
 
   public async getClassSectionById(id: string): Promise<ClassSectionRecord | undefined> {
@@ -1205,23 +1237,6 @@ export class AcademicsRepository {
     };
   }
 
-  // ---------- Paged lists (large-user support) ----------
-  public async listClassSectionsPaged(institutionCode: string, opts: { limit: number; offset: number }) {
-    if (db) {
-      try {
-        const [rows, totalRows] = await Promise.all([
-          db.select().from(classSections).where(eq(classSections.institutionCode, institutionCode)).limit(opts.limit).offset(opts.offset),
-          db.select({ count: count() }).from(classSections).where(eq(classSections.institutionCode, institutionCode)),
-        ]);
-        rows.forEach((r) => classSectionMem.save(toClassSection(r)));
-        return { items: rows, total: Number(totalRows[0]?.count ?? 0) };
-      } catch (err: any) {
-        console.warn('[PostgreSQL Academics Warning] listClassSectionsPaged failed:', err.message);
-      }
-    }
-    const filtered = classSectionMem.filter((r) => r.institutionCode.toLowerCase() === institutionCode.toLowerCase());
-    return { items: filtered.slice(opts.offset, opts.offset + opts.limit), total: filtered.length };
-  }
 
   public async listSubjectsPaged(institutionCode: string, opts: { limit: number; offset: number }) {
     if (db) {

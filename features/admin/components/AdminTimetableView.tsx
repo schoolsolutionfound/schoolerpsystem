@@ -87,6 +87,83 @@ export const AdminTimetableView: React.FC<AdminTimetableViewProps> = ({
   );
 };
 
+export const PrincipalTimetableView: React.FC<{ classSections: any[] }> = ({ classSections }) => {
+  const [selectedId, setSelectedId] = useState<string>(classSections[0]?.id || '');
+
+  const cls = classSections.find((c: any) => c.id === selectedId) || null;
+
+  return (
+    <View style={principalStyles.container}>
+      <Text style={principalStyles.sectionTitle}>Select Class / Section</Text>
+      {classSections.length === 0 ? (
+        <View style={principalStyles.emptyCard}>
+          <MaterialCommunityIcons name="school-outline" size={40} color="#6B6B6B" />
+          <Text style={principalStyles.emptyTitle}>No classes yet</Text>
+          <Text style={principalStyles.emptySub}>Create a class/section first, then come back to build its timetable.</Text>
+        </View>
+      ) : (
+        <>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={principalStyles.chipRow}>
+            {classSections.map((c: any) => {
+              const selected = c.id === selectedId;
+              return (
+                <TouchableOpacity
+                  key={c.id}
+                  style={[principalStyles.chip, selected && principalStyles.chipSelected]}
+                  onPress={() => setSelectedId(c.id)}
+                >
+                  <Text style={[principalStyles.chipText, selected && principalStyles.chipTextSelected]}>{c.name}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
+          {cls ? (
+            <View style={principalStyles.builderWrap}>
+              <ClassTeacherTimetableBuilder key={cls.id} classSectionId={cls.id} classSectionName={cls.name} />
+            </View>
+          ) : (
+            <View style={principalStyles.emptyCard}>
+              <MaterialCommunityIcons name="timetable" size={40} color="#6B6B6B" />
+              <Text style={principalStyles.emptyTitle}>Select a class</Text>
+            </View>
+          )}
+        </>
+      )}
+    </View>
+  );
+};
+
+const principalStyles = StyleSheet.create({
+  container: { flex: 1, padding: 16, paddingBottom: 40, backgroundColor: '#FFFDF5' },
+  sectionTitle: { fontSize: 16, fontWeight: '800', color: '#000000', marginBottom: 12 },
+  chipRow: { gap: 8, paddingBottom: 4 },
+  chip: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#DFB020',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    marginRight: 6,
+  },
+  chipSelected: { backgroundColor: '#F4C430', borderColor: '#000000', borderWidth: 1.5 },
+  chipText: { fontSize: 12, fontWeight: '700', color: '#111827' },
+  chipTextSelected: { color: '#000000', fontWeight: '900' },
+  builderWrap: { flex: 1, marginTop: 14 },
+  emptyCard: {
+    backgroundColor: '#F4C430',
+    borderRadius: 12,
+    padding: 30,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#DFB020',
+    marginTop: 20,
+  },
+  emptyTitle: { fontSize: 15, fontWeight: '800', color: '#000000', marginTop: 10 },
+  emptySub: { fontSize: 12, color: '#111827', textAlign: 'center', marginTop: 4, lineHeight: 16 },
+});
+
 const styles = StyleSheet.create({
   container: { flex: 1 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },

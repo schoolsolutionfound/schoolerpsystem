@@ -13,6 +13,8 @@ import { uploadProfilePictureApi } from '../../api/upload';
 import { ProfileCustomFields } from '../../features/shared/formFields/ProfileCustomFields';
 import { useProfileCustomFields } from '../../features/shared/formFields/useProfileCustomFields';
 
+import { getHomeRouteForRole } from '../../features/shared/utils/routeGuards';
+
 interface StudentDocument {
   id: string;
   documentType: string;
@@ -25,6 +27,7 @@ const DOC_TYPES = ['ID Card', '10th Marksheet', '12th Marksheet', 'Photo', 'Othe
 
 export default function StudentProfileScreen() {
   const router = useRouter();
+  const userRole = useUserStore((s) => s.userRole);
   const fullName = useUserStore((s) => s.fullName) || 'Student';
   const email = useUserStore((s) => s.email) || '';
   const rollNoOrUSN = useUserStore((s) => s.rollNoOrUSN) || '';
@@ -40,6 +43,15 @@ export default function StudentProfileScreen() {
   const setUserProfile = useUserStore((s) => s.setUserProfile);
   const { fields: roleFields, values: roleFieldValues, save: saveRoleFields } = useProfileCustomFields();
   const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    if (userRole && userRole !== 'student' && userRole !== 'loading') {
+      const home = getHomeRouteForRole(userRole);
+      if (home && home !== '/auth') {
+        router.replace(home as any);
+      }
+    }
+  }, [userRole, router]);
 
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to log out?', [

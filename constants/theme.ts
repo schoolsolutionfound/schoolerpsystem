@@ -5,12 +5,12 @@ const tintColorDark = '#F4C430';
 
 export const BorderRadius = {
   input: 6,
-  button: 7,
+  button: 8,
   card: 8,
   modal: 10,
   bottomSheet: 12,
   profileImage: 999,
-  chip: 999,
+  chip: 6,
 };
 
 export const Colors = {

@@ -17,6 +17,7 @@ interface CachedAuthEntry {
   institutionCode: string;
   mustChangePassword: boolean;
   emailVerified: boolean;
+  department?: string;
   expiresAt: number;
 }
 
@@ -25,6 +26,7 @@ export interface CachedAuth {
   institutionCode: string;
   mustChangePassword: boolean;
   emailVerified: boolean;
+  department?: string;
 }
 
 const cache = new Map<string, CachedAuthEntry>();
@@ -44,6 +46,7 @@ export function getCachedAuth(uid: string): CachedAuth | undefined {
     institutionCode: entry.institutionCode,
     mustChangePassword: entry.mustChangePassword,
     emailVerified: entry.emailVerified,
+    department: entry.department,
   };
 }
 
@@ -52,7 +55,8 @@ export function setCachedAuth(
   role: string,
   institutionCode: string,
   mustChangePassword: boolean,
-  emailVerified: boolean
+  emailVerified: boolean,
+  department?: string
 ) {
   if (cache.has(uid)) cache.delete(uid);
   cache.set(uid, {
@@ -60,6 +64,7 @@ export function setCachedAuth(
     institutionCode,
     mustChangePassword: Boolean(mustChangePassword),
     emailVerified: Boolean(emailVerified),
+    department,
     expiresAt: Date.now() + AUTH_CACHE_TTL_MS,
   });
   // Evict least-recently-used entries beyond the cap (Map iterates oldest-first).

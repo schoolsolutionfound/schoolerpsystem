@@ -1,8 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Modal } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { BorderRadius } from '../../../constants/theme';
+import { FontFamily } from '../../../constants/fonts';
+import { useUserStore } from '../../../store/useUserStore';
 import {
   fetchMyClassSectionApi,
+  fetchClassSectionsApi,
   fetchClassTimetableApi,
   createTimetableApi,
   fetchSubjectsApi,
@@ -22,6 +26,11 @@ export const ClassTeacherTimetableBuilder: React.FC<ClassTeacherTimetableBuilder
   classSectionId,
   classSectionName,
 }) => {
+  const userRole = useUserStore((state) => state.userRole);
+  const userDepartment = useUserStore((state) => state.department);
+  const isAuthority = userRole === 'hod' || userRole === 'principal' || userRole === 'admin';
+
+  const [availableSections, setAvailableSections] = useState<any[]>([]);
   const [classSection, setClassSection] = useState<any>(null);
   const [periods, setPeriods] = useState<any[]>([]);
   const [subjects, setSubjects] = useState<any[]>([]);
@@ -34,12 +43,44 @@ export const ClassTeacherTimetableBuilder: React.FC<ClassTeacherTimetableBuilder
   const [picker, setPicker] = useState<{ key: string; options: { id: string; label: string }[] } | null>(null);
   const [view, setView] = useState<'grid' | 'list'>('grid');
 
+  const loadTimetableForSection = useCallback(async (sec: any) => {
+    if (!sec?.id) return;
+    try {
+      const tt = await fetchClassTimetableApi(sec.id).catch(() => null);
+      setExisting(tt?.slots || []);
+      const g: Record<string, string> = {};
+      for (const s of tt?.slots || []) {
+        g[`${s.dayOfWeek}:${s.period?.id || s.periodId}`] = s.subject?.id || s.subjectId;
+      }
+      setGrid(g);
+    } catch {
+      setGrid({});
+    }
+  }, []);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
       let cls: any = null;
+      let sectionsList: any[] = [];
+
       if (classSectionId) {
         cls = { id: classSectionId, name: classSectionName || 'Class' };
+      } else if (isAuthority) {
+        // HOD sets timetable for whole dept; in absence of HOD, Principal sets for whole campus
+        const allSections = await fetchClassSectionsApi().catch(() => []);
+        if (Array.isArray(allSections) && allSections.length > 0) {
+          if (userRole === 'hod' && userDepartment) {
+            const deptSections = allSections.filter((s: any) =>
+              s.department?.toLowerCase() === userDepartment.toLowerCase()
+            );
+            sectionsList = deptSections.length > 0 ? deptSections : allSections;
+          } else {
+            sectionsList = allSections;
+          }
+          setAvailableSections(sectionsList);
+          cls = sectionsList[0];
+        }
       } else {
         cls = await fetchMyClassSectionApi().catch(() => null);
       }
@@ -55,33 +96,28 @@ export const ClassTeacherTimetableBuilder: React.FC<ClassTeacherTimetableBuilder
       setAssignments(Array.isArray(assignmentsRes) ? assignmentsRes : []);
 
       if (cls) {
-        const tt = await fetchClassTimetableApi(cls.id).catch(() => null);
-        setExisting(tt?.slots || []);
-        const g: Record<string, string> = {};
-        for (const s of tt?.slots || []) {
-          g[`${s.dayOfWeek}:${s.period?.id || s.periodId}`] = s.subject?.id || s.subjectId;
-        }
-        setGrid(g);
+        await loadTimetableForSection(cls);
       }
     } catch (err: any) {
       Alert.alert('Error', err.message);
     } finally {
       setLoading(false);
     }
-  }, [classSectionId, classSectionName]);
+  }, [classSectionId, classSectionName, isAuthority, userRole, userDepartment, loadTimetableForSection]);
+
+  const handleSelectSection = async (sec: any) => {
+    setClassSection(sec);
+    await loadTimetableForSection(sec);
+  };
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
   }, [load]);
 
   const getSubjectOptions = (day: number, periodId: string) => {
     const key = `${day}:${periodId}`;
     const current = grid[key];
-    const forClass = classSection
-      ? assignments.filter((a: any) => a.classSectionId === classSection.id)
-      : assignments;
-    const assignedSubjectIds = new Set(forClass.map((a: any) => a.subjectId));
+    const assignedSubjectIds = new Set(assignments.map((a: any) => a.subjectId));
     const usedInThisSlot = subjects.filter((s: any) => assignedSubjectIds.has(s.id));
     return usedInThisSlot.map((s: any) => ({
       id: s.id,
@@ -146,6 +182,54 @@ export const ClassTeacherTimetableBuilder: React.FC<ClassTeacherTimetableBuilder
 
   return (
     <View style={styles.container}>
+      {/* Authority Banner for HOD and Principal */}
+      {isAuthority && availableSections.length > 0 && (
+        <View style={styles.authorityCard}>
+          <View style={styles.authorityHeader}>
+            <View style={styles.authorityIconBox}>
+              <MaterialCommunityIcons
+                name={userRole === 'hod' ? 'account-tie-voice' : 'shield-crown'}
+                size={18}
+                color="#F4C430"
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.authorityTitle}>
+                {userRole === 'hod'
+                  ? `Department Timetable Authority (${userDepartment || 'Dept'})`
+                  : userRole === 'principal'
+                  ? 'Campus Timetable Authority (Principal)'
+                  : 'Academic Timetable Authority'}
+              </Text>
+              <Text style={styles.authoritySub}>
+                {userRole === 'hod'
+                  ? 'HOD has full authority to configure weekly schedules for all departmental classes.'
+                  : 'Principal holds primary scheduling authority across all classes and cohorts.'}
+              </Text>
+            </View>
+          </View>
+
+          <Text style={styles.pickerLabel}>SELECT CLASS / SECTION TO CONFIGURE:</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sectionChipsRow}>
+            {availableSections.map((sec) => {
+              const active = classSection?.id === sec.id;
+              return (
+                <TouchableOpacity
+                  key={sec.id}
+                  style={[styles.sectionChip, active && styles.sectionChipActive]}
+                  onPress={() => handleSelectSection(sec)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.sectionChipText, active && styles.sectionChipTextActive]}>
+                    {sec.name}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
+
       <View style={styles.header}>
         <Text style={styles.title}>{classSection.name} — Weekly Timetable</Text>
         <Text style={styles.sub}>Tap a cell to assign a subject. Only subjects with a subject teacher appear.</Text>
@@ -264,7 +348,7 @@ export const ClassTeacherTimetableBuilder: React.FC<ClassTeacherTimetableBuilder
                     setPicker(null);
                   }}
                 >
-                  <MaterialCommunityIcons name="book-open-variant" size={16} color="#1A1B1C" />
+                  <MaterialCommunityIcons name="book-open-variant" size={16} color="#F4C430" />
                   <Text style={styles.optionText}>{opt.label.replace(' ✓', '')}</Text>
                   {grid[picker.key] === opt.id && <MaterialCommunityIcons name="check" size={16} color="#16A34A" />}
                 </TouchableOpacity>
@@ -290,34 +374,34 @@ export const ClassTeacherTimetableBuilder: React.FC<ClassTeacherTimetableBuilder
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { padding: 16, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#E8E5DC' },
-  title: { fontSize: 15, fontWeight: '800', color: '#1A1B1C' },
+  title: { fontSize: 15, fontWeight: '800', color: '#171717' },
   sub: { fontSize: 11, color: '#6B6B6B', marginTop: 4, lineHeight: 15 },
-  effectiveLabel: { fontSize: 11, color: '#6B6B6B', fontWeight: '700', marginTop: 6 },
+  effectiveLabel: { fontSize: 11, color: '#F4C430', fontWeight: '700', marginTop: 6 },
   viewRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
   viewChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 5,
+    backgroundColor: '#FFFDF7',
+    borderRadius: 16,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderWidth: 1,
     borderColor: '#E8E5DC',
   },
-  viewChipActive: { backgroundColor: '#1A1B1C', borderColor: '#1A1B1C' },
+  viewChipActive: { backgroundColor: '#FFF4C7', borderColor: '#F4C430' },
   viewChipText: { fontSize: 12, fontWeight: '700', color: '#6B6B6B' },
   viewChipTextActive: { color: '#F4C430' },
   listContainer: { padding: 16, gap: 12, paddingBottom: 20 },
   listDayCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 5,
+    borderRadius: BorderRadius.card,
     borderWidth: 1,
     borderColor: '#E8E5DC',
     overflow: 'hidden',
   },
   listDayTitle: {
-    backgroundColor: '#1A1B1C',
+    backgroundColor: '#FFF4C7',
     color: '#F4C430',
     fontSize: 13,
     fontWeight: '800',
@@ -331,38 +415,107 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderTopWidth: 0.5,
-    borderTopColor: '#E8E5DC',
+    borderTopColor: '#FFFDF7',
   },
   listTimeCol: { width: 52 },
-  listTime: { fontSize: 13, fontWeight: '800', color: '#1A1B1C' },
+  listTime: { fontSize: 13, fontWeight: '800', color: '#F4C430' },
   listTimeEnd: { fontSize: 10, color: '#6B6B6B' },
   listInfoCol: { flex: 1 },
-  listSubject: { fontSize: 13, fontWeight: '700', color: '#1A1B1C' },
+  listSubject: { fontSize: 13, fontWeight: '700', color: '#171717' },
   listMeta: { fontSize: 11, color: '#6B6B6B', marginTop: 2 },
   listFree: { fontSize: 13, color: '#6B6B6B' },
   centerBox: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 80 },
-  emptyCard: { backgroundColor: '#FFFFFF', borderRadius: 5, padding: 30, alignItems: 'center', borderWidth: 1, borderColor: '#E8E5DC', margin: 16, marginTop: 40 },
-  emptyTitle: { fontSize: 15, fontWeight: '700', color: '#1A1B1C', marginTop: 8 },
+  emptyCard: { backgroundColor: '#FFFFFF', borderRadius: BorderRadius.card, padding: 30, alignItems: 'center', borderWidth: 1, borderColor: '#E8E5DC', margin: 16, marginTop: 40 },
+  emptyTitle: { fontSize: 15, fontWeight: '700', color: '#171717', marginTop: 8 },
   emptySub: { fontSize: 12, color: '#6B6B6B', textAlign: 'center', marginTop: 4, lineHeight: 16 },
   gridHeaderRow: { flexDirection: 'row' },
   gridRow: { flexDirection: 'row' },
   cell: { width: 72, minHeight: 56, justifyContent: 'center', alignItems: 'center', borderWidth: 0.5, borderColor: '#E8E5DC', backgroundColor: '#FFFFFF' },
-  dayHeaderCell: { backgroundColor: '#1A1B1C' },
+  dayHeaderCell: { backgroundColor: '#FFF4C7' },
   dayHeaderText: { fontSize: 12, fontWeight: '800', color: '#F4C430' },
   periodCell: { backgroundColor: '#FFFDF7', width: 80, alignItems: 'flex-start', paddingLeft: 10 },
-  periodLabel: { fontSize: 11, fontWeight: '700', color: '#1A1B1C' },
+  periodLabel: { fontSize: 11, fontWeight: '700', color: '#171717' },
   periodTime: { fontSize: 10, color: '#6B6B6B', marginTop: 2 },
   slotCell: { gap: 2, paddingHorizontal: 4 },
-  slotCellFilled: { backgroundColor: '#F4C430' },
-  slotSubject: { fontSize: 11, fontWeight: '800', color: '#1A1B1C', textAlign: 'center' },
-  slotHint: { fontSize: 9, color: '#1A1B1C' },
+  slotCellFilled: { backgroundColor: '#FFF4C7' },
+  slotSubject: { fontSize: 11, fontWeight: '700', color: '#F4C430', textAlign: 'center' },
+  slotHint: { fontSize: 9, color: '#F4C430' },
   footer: { padding: 14, backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#E8E5DC' },
-  saveBtn: { backgroundColor: '#F4C430', borderRadius: 5, height: 48, alignItems: 'center', justifyContent: 'center' },
-  saveText: { color: '#1A1B1C', fontWeight: '800', fontSize: 14 },
+  saveBtn: { backgroundColor: '#F4C430', borderRadius: BorderRadius.button, height: 48, alignItems: 'center', justifyContent: 'center' },
+  saveText: { color: '#FFFFFF', fontWeight: '800', fontSize: 14 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 30 },
-  modalContent: { backgroundColor: '#FFFFFF', borderRadius: 5, padding: 18 },
-  modalTitle: { fontSize: 16, fontWeight: '800', color: '#1A1B1C', marginBottom: 10 },
+  modalContent: { backgroundColor: '#FFFFFF', borderRadius: BorderRadius.modal, padding: 18 },
+  modalTitle: { fontSize: 16, fontWeight: '800', color: '#171717', marginBottom: 10 },
   optionRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12 },
-  optionText: { fontSize: 14, color: '#1A1B1C', flex: 1 },
+  optionText: { fontSize: 14, color: '#171717', flex: 1 },
   hint: { fontSize: 12, color: '#6B6B6B', lineHeight: 17 },
+  authorityCard: {
+    backgroundColor: '#1A1B1C',
+    margin: 16,
+    marginBottom: 8,
+    borderRadius: BorderRadius.card,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#2A2B2D',
+  },
+  authorityHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  authorityIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(244, 196, 48, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  authorityTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FFFDF7',
+    fontFamily: FontFamily.bold,
+  },
+  authoritySub: {
+    fontSize: 11,
+    color: '#9CA3AF',
+    marginTop: 2,
+    fontFamily: FontFamily.regular,
+  },
+  pickerLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    color: '#F4C430',
+    marginBottom: 8,
+    fontFamily: FontFamily.semibold,
+  },
+  sectionChipsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingVertical: 2,
+  },
+  sectionChip: {
+    backgroundColor: '#2A2B2D',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#3D3E40',
+  },
+  sectionChipActive: {
+    backgroundColor: '#F4C430',
+    borderColor: '#F4C430',
+  },
+  sectionChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#E5E7EB',
+  },
+  sectionChipTextActive: {
+    color: '#1A1B1C',
+    fontWeight: '800',
+  },
 });

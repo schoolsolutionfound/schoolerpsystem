@@ -79,9 +79,9 @@ const donutStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  centerValue: { fontSize: 22, fontFamily: FontFamily.extrabold, color: '#171717' },
-  centerUnit: { fontSize: 9, fontFamily: FontFamily.regular, color: '#9CA3AF', marginTop: -1 },
-  label: { fontSize: 12, fontFamily: FontFamily.semibold, color: '#6B6B6B' },
+  centerValue: { fontSize: 24, fontFamily: FontFamily.bold, color: '#171717' },
+  centerUnit: { fontSize: 11, fontFamily: FontFamily.medium, color: '#9CA3AF', marginTop: 1 },
+  label: { fontSize: 13, fontFamily: FontFamily.semibold, color: '#6B6B6B' },
 });
 
 export const TeacherDonutCard: React.FC<TeacherDonutCardProps> = ({
@@ -127,6 +127,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: BorderRadius.card,
     padding: 18,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
   },
   header: {
     flexDirection: 'row',
@@ -134,8 +136,8 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: 20,
   },
-  title: { fontSize: 15, fontFamily: FontFamily.extrabold, color: '#171717' },
-  subtitle: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B6B6B', marginTop: 2 },
+  title: { fontSize: 16, fontFamily: FontFamily.bold, color: '#171717' },
+  subtitle: { fontSize: 13, fontFamily: FontFamily.regular, color: '#6B6B6B', marginTop: 2 },
   pctBadge: {
     backgroundColor: 'rgba(244, 196, 48, 0.15)',
     paddingHorizontal: 12,
@@ -143,8 +145,8 @@ const styles = StyleSheet.create({
     borderRadius: 99,
   },
   pctBadgeText: {
-    fontSize: 13,
-    fontFamily: FontFamily.extrabold,
+    fontSize: 12,
+    fontFamily: FontFamily.bold,
     color: '#D4A418',
   },
   loadingWrap: {

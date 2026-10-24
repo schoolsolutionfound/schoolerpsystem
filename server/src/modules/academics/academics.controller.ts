@@ -23,7 +23,13 @@ import { notifyAttendanceForSlot, notifyHomeworkAssigned, notifyExamPublishedFor
 
 function getInstCode(req: FastifyRequest): string {
   const user = (req as any).user;
-  return user?.institutionCode || '';
+  const instCode = user?.institutionCode;
+  if (!instCode) {
+    const error: any = new Error('TENANT_REQUIRED: No institution assigned to current user account.');
+    error.statusCode = 403;
+    throw error;
+  }
+  return instCode;
 }
 
 function getPagination(query: any): { limit: number; offset: number } | undefined {
@@ -150,6 +156,21 @@ export async function deleteClassSectionHandler(request: FastifyRequest<{ Params
     return reply.send({ success: true, data });
   } catch (err: any) {
     return sendError(reply, err, 'Failed to delete class section');
+  }
+}
+
+export async function getClassSectionStudentsHandler(
+  request: FastifyRequest<{ Params: { id: string } }>,
+  reply: FastifyReply
+) {
+  try {
+    const data = await academicsService.getClassSectionStudents(
+      getInstCode(request),
+      request.params.id
+    );
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to fetch students for class section');
   }
 }
 

@@ -157,8 +157,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   headerLeft: { flex: 1 },
-  title: { fontSize: 15, fontFamily: FontFamily.extrabold, color: '#171717' },
-  subtitle: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B6B6B', marginTop: 2 },
+  title: { fontSize: 16, fontFamily: FontFamily.bold, color: '#171717' },
+  subtitle: { fontSize: 13, fontFamily: FontFamily.regular, color: '#6B6B6B', marginTop: 2 },
   avgBadge: {
     backgroundColor: 'rgba(244, 196, 48, 0.15)',
     paddingHorizontal: 12,
@@ -168,8 +168,8 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(244, 196, 48, 0.3)',
     alignItems: 'center',
   },
-  avgValue: { fontSize: 16, fontFamily: FontFamily.extrabold, color: '#D4A418' },
-  avgLabel: { fontSize: 9, fontFamily: FontFamily.regular, color: '#9CA3AF', marginTop: 1 },
+  avgValue: { fontSize: 18, fontFamily: FontFamily.bold, color: '#D4A418' },
+  avgLabel: { fontSize: 11, fontFamily: FontFamily.medium, color: '#9CA3AF', marginTop: 1 },
   chartContainer: { gap: 12 },
   chartWithYAxis: {
     flexDirection: 'row',
@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingBottom: 8,
   },
-  yLabel: { fontSize: 9, color: '#9CA3AF', fontWeight: '600' },
+  yLabel: { fontSize: 11, color: '#9CA3AF', fontFamily: FontFamily.medium },
   barsWrap: { flex: 1 },
   labelsRow: {
     flexDirection: 'row',
@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
   },
   barValueHighlight: {
     color: '#171717',
-    fontFamily: FontFamily.extrabold,
+    fontFamily: FontFamily.bold,
   },
   barLabel: {
     fontSize: 11,
@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: '#F4C430',
   },
-  footerText: { fontSize: 10, color: '#9CA3AF' },
+  footerText: { fontSize: 12, fontFamily: FontFamily.regular, color: '#9CA3AF' },
   loadingWrap: {
     height: 140,
     justifyContent: 'center',

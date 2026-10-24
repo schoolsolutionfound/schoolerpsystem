@@ -6,6 +6,8 @@ import { RELATION_CANONICAL } from '../users/user.service.js';
 import {
   dbFindUsersByInstitution,
   dbCountUsersByInstitution,
+  dbFindFacultyByInstitution,
+  dbCountFacultyByInstitution,
   dbCountClassSectionsByInstitution,
   dbCountSubjectsByInstitution,
   dbCountAttendanceSessionsByInstitution,
@@ -868,11 +870,11 @@ export class AdminService {
     return { message: 'Document deleted successfully' };
   }
 
-  // --- Teacher Management ---
+  // --- Teacher / Faculty Management ---
   public async getTeachers(institutionCode: string, limit = 100, offset = 0, search = '') {
     const [items, total] = await Promise.all([
-      dbFindUsersByInstitution(institutionCode, 'teacher', { limit, offset, search: search || undefined }),
-      dbCountUsersByInstitution(institutionCode, 'teacher'),
+      dbFindFacultyByInstitution(institutionCode, { limit, offset, search: search || undefined }),
+      dbCountFacultyByInstitution(institutionCode, search || undefined),
     ]);
     return { data: items, total, limit, offset };
   }

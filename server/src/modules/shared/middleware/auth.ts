@@ -10,6 +10,7 @@ export interface AuthenticatedUser {
   displayName?: string;
   institutionCode?: string;
   emailVerified?: boolean;
+  department?: string;
 }
 
 declare module 'fastify' {
@@ -112,6 +113,7 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
   let institutionCode = '';
   let mustChangePassword = false;
   let emailVerified = true;
+  let department = '';
 
   const cached = getCachedAuth(firebaseUid);
   if (cached) {
@@ -119,6 +121,7 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
     institutionCode = cached.institutionCode;
     mustChangePassword = cached.mustChangePassword;
     emailVerified = cached.emailVerified;
+    department = cached.department || '';
   } else {
     try {
       const dbUser = await dbFindByUid(firebaseUid);
@@ -127,7 +130,12 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
         institutionCode = dbUser.institutionCode || '';
         mustChangePassword = Boolean(dbUser.mustChangePassword);
         emailVerified = dbUser.emailVerified ?? true;
-        setCachedAuth(firebaseUid, dbUserRole, institutionCode, mustChangePassword, emailVerified);
+        let scope: any = dbUser.scope;
+        if (typeof scope === 'string') {
+          try { scope = JSON.parse(scope); } catch { scope = {}; }
+        }
+        department = (dbUser as any).department || scope?.department || scope?.dept || '';
+        setCachedAuth(firebaseUid, dbUserRole, institutionCode, mustChangePassword, emailVerified, department);
       }
     } catch (err: any) {
       // Fail closed: a DB outage must not silently produce an empty-tenant principal.
@@ -193,6 +201,7 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
     role: dbUserRole,
     institutionCode,
     emailVerified,
+    department,
   };
 }
 
@@ -230,7 +239,16 @@ export function normalizeRole(role: string | undefined): string {
   // Canonical developer role is 'dev'; fold the docs spelling so guards and
   // client checks stay consistent.
   if (normalized === 'developer') return 'dev';
+  if (normalized === 'hid') return 'hod';
   return normalized;
+}
+
+export function getTenantInstitutionCode(request: FastifyRequest): string {
+  const code = request.user?.institutionCode;
+  if (!code) {
+    throw new Error('TENANT_REQUIRED: No institution assigned to current user account.');
+  }
+  return code;
 }
 
 export async function requireAdmin(request: FastifyRequest, reply: FastifyReply) {
@@ -249,16 +267,48 @@ export async function requireAdmin(request: FastifyRequest, reply: FastifyReply)
   }
 }
 
+export async function requireAdminOrPrincipal(request: FastifyRequest, reply: FastifyReply) {
+  await authenticate(request, reply);
+  if (reply.sent) return;
+
+  const role = normalizeRole(request.user?.role);
+  if (role !== 'admin' && role !== 'principal') {
+    return reply.status(403).send({
+      success: false,
+      error: {
+        message: 'Access denied: Administrator or Principal privileges required',
+        code: 'FORBIDDEN',
+      },
+    });
+  }
+}
+
+export async function requireHODOrAdmin(request: FastifyRequest, reply: FastifyReply) {
+  await authenticate(request, reply);
+  if (reply.sent) return;
+
+  const role = normalizeRole(request.user?.role);
+  if (role !== 'admin' && role !== 'principal' && role !== 'hod') {
+    return reply.status(403).send({
+      success: false,
+      error: {
+        message: 'Access denied: HOD or Administrator privileges required',
+        code: 'FORBIDDEN',
+      },
+    });
+  }
+}
+
 export async function requireTeacherOrAdmin(request: FastifyRequest, reply: FastifyReply) {
   await authenticate(request, reply);
   if (reply.sent) return;
 
   const role = normalizeRole(request.user?.role);
-  if (role !== 'admin' && role !== 'teacher' && role !== 'hod') {
+  if (role !== 'admin' && role !== 'teacher' && role !== 'hod' && role !== 'principal') {
     return reply.status(403).send({
       success: false,
       error: {
-        message: 'Access denied: Teacher or Administrator privileges required',
+        message: 'Access denied: Teacher, HOD, Principal, or Administrator privileges required',
         code: 'FORBIDDEN',
       },
     });

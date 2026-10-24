@@ -49,6 +49,7 @@ const ROLE_SCOPED_ROOT_ROUTES: Record<string, string[]> = {
 
 export function getHomeRouteForRole(role?: string): string {
   const norm = (role || '').toLowerCase().trim();
+  if (!norm || norm === 'loading') return '';
   return ROLE_ROUTES[norm] || '/auth';
 }
 
@@ -75,6 +76,20 @@ export function isRouteAllowedForRole(pathname: string, role?: string, roles?: s
   // Routes without a group prefix are denied unless listed in
   // SHARED_ROUTES or ROLE_SCOPED_ROOT_ROUTES above.
   if (!pathGroup) return false;
+
+  // Principals and HODs are educators and teachers too — grant educator cross-access
+  if (pathGroup === '/(teacher)' && allRoles.some((r) => ['principal', 'hod', 'admin', 'teacher'].includes(r))) {
+    return true;
+  }
+  if (pathGroup === '/(hod)' && allRoles.some((r) => ['principal', 'admin', 'hod'].includes(r))) {
+    return true;
+  }
+  if (pathGroup === '/(principal)' && allRoles.some((r) => ['principal', 'admin', 'institution admin'].includes(r))) {
+    return true;
+  }
+  if (pathGroup === '/(admin)' && allRoles.some((r) => ['admin', 'institution admin', 'principal'].includes(r))) {
+    return true;
+  }
 
   return allRoles.some((r) => ROLE_GROUP[r] === pathGroup);
 }

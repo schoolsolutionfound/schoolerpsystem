@@ -1,9 +1,17 @@
 import { Stack, usePathname, useRouter, useSegments } from 'expo-router';
 import { useFonts } from 'expo-font';
 import { Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold, Poppins_800ExtraBold } from '@expo-google-fonts/poppins';
+import {
+  Montserrat_400Regular,
+  Montserrat_500Medium,
+  Montserrat_600SemiBold,
+  Montserrat_700Bold,
+  Montserrat_800ExtraBold,
+  Montserrat_900Black,
+} from '@expo-google-fonts/montserrat';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform, LogBox } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 
@@ -58,14 +66,20 @@ if (hasSentryDsn) {
 const queryClient = new QueryClient();
 SplashScreen.preventAutoHideAsync();
 
-// Force Poppins font on all Text elements globally
+LogBox.ignoreLogs([
+  '@firebase/firestore: Firestore',
+  "WebChannelConnection RPC 'Listen' stream",
+  'transport errored',
+]);
+
+// Force Montserrat font on all Text elements globally
 // @ts-ignore – defaultProps exists at runtime on RN Text
 if (!Text.defaultProps?.fontFamily) {
   // @ts-ignore
   Text.defaultProps = {
     // @ts-ignore
     ...(Text.defaultProps || {}),
-    style: [{ fontFamily: 'Poppins_400Regular' }],
+    style: [{ fontFamily: FontFamily.regular }],
   };
 }
 
@@ -213,6 +227,12 @@ const AppLayout = function Layout() {
     Poppins_600SemiBold,
     Poppins_700Bold,
     Poppins_800ExtraBold,
+    Montserrat_400Regular,
+    Montserrat_500Medium,
+    Montserrat_600SemiBold,
+    Montserrat_700Bold,
+    Montserrat_800ExtraBold,
+    Montserrat_900Black,
   });
 
   const needsUpdate = compareVersions(CURRENT_APP_VERSION, minVersion) === -1;
