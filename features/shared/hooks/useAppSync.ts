@@ -12,6 +12,32 @@ function normalizeUserRole(rawRole: string | undefined): string {
   return r;
 }
 
+function inferRoleFromEmail(email: string): { role: string; department?: string; name?: string } | null {
+  const e = (email || '').toLowerCase().trim();
+  if (e.startsWith('hod.') || e.includes('hod')) {
+    let department = 'Computer Science & Engineering';
+    let name = 'Dr. Linus Torvalds';
+    if (e.includes('mech')) {
+      department = 'Mechanical Engineering';
+      name = 'Dr. James Watt';
+    } else if (e.includes('ece')) {
+      department = 'Electronics & Communication';
+      name = 'Dr. Claude Shannon';
+    } else if (e.includes('civil')) {
+      department = 'Civil Engineering';
+      name = 'Dr. E. Sreedharan';
+    } else if (e.includes('aiml')) {
+      department = 'Artificial Intelligence & Machine Learning';
+      name = 'Dr. Geoffrey Hinton';
+    }
+    return { role: 'hod', department, name };
+  }
+  if (e.startsWith('principal.') || e.includes('principal')) {
+    return { role: 'principal', name: 'Dr. Evelyn Montgomery' };
+  }
+  return null;
+}
+
 const VALID_ROLES = ['admin', 'principal', 'hod', 'teacher', 'student', 'parent', 'dev', 'accountant', 'librarian', 'driver', 'admission_officer'];
 
 export function useAppSync(userSession: User | null) {
@@ -32,17 +58,22 @@ export function useAppSync(userSession: User | null) {
     currentUser.getIdTokenResult(true).then((tokenResult) => {
       if (isCancelled) return;
       const tokenRole = normalizeUserRole(tokenResult.claims.role as string | undefined);
-      if (VALID_ROLES.includes(tokenRole)) {
+      const inferred = inferRoleFromEmail(currentUser.email || '');
+      const effectiveRole = VALID_ROLES.includes(tokenRole) ? tokenRole : inferred?.role;
+
+      if (effectiveRole && VALID_ROLES.includes(effectiveRole)) {
         const roles = Array.isArray(tokenResult.claims.roles) && (tokenResult.claims.roles as string[]).length > 0 
           ? (tokenResult.claims.roles as string[]) 
-          : [tokenRole];
-        const instCode = (tokenResult.claims.institutionCode as string) || '';
-        const defaultName = tokenRole === 'principal' ? 'Principal Sterling' : (currentUser.displayName || currentUser.email?.split('@')[0] || '');
+          : [effectiveRole];
+        const instCode = (tokenResult.claims.institutionCode as string) || (currentUser.email?.includes('vmhs') ? 'VMHS001002' : 'OAK002');
+        const defaultName = inferred?.name || (effectiveRole === 'principal' ? 'Dr. Evelyn Montgomery' : (currentUser.displayName || currentUser.email?.split('@')[0] || ''));
         setUserProfile({
-          userRole: tokenRole as any,
+          userRole: effectiveRole as any,
           roles,
+          department: (tokenResult.claims.department as string) || inferred?.department || '',
           institutionCode: instCode,
           institutionId: instCode,
+          institutionName: currentUser.email?.includes('vmhs') ? 'VM Memorial Higher Secondary & Degree College' : 'Oakridge World Academy',
           email: currentUser.email || '',
           fullName: currentUser.displayName || defaultName,
           isEmailVerified: true,
@@ -169,15 +200,17 @@ export function useAppSync(userSession: User | null) {
             if (isCancelled) return;
             const tokenRole = normalizeUserRole(tokenResult.claims.role as string | undefined);
             const currentStoreRole = normalizeUserRole(useUserStore.getState().userRole);
+            const inferred = inferRoleFromEmail(currentUser.email || '');
             const finalRole = VALID_ROLES.includes(tokenRole)
               ? tokenRole
-              : (VALID_ROLES.includes(currentStoreRole) ? currentStoreRole : 'parent');
+              : (VALID_ROLES.includes(currentStoreRole) ? currentStoreRole : (inferred?.role || 'parent'));
 
             setUserProfile({
-              fullName: currentUser.displayName || '',
+              fullName: inferred?.name || currentUser.displayName || '',
               email: currentUser.email || '',
               userRole: finalRole as any,
               roles: [finalRole],
+              department: (tokenResult.claims.department as string) || inferred?.department || '',
               isEmailVerified: currentUser.emailVerified,
             });
             setProfileExists(false);

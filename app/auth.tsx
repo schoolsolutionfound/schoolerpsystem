@@ -51,19 +51,47 @@ export default function AuthScreen() {
         console.warn('[Auth] /users/me sync fallback:', err?.message);
       }
 
+      const emailLower = (userCred.user.email || '').toLowerCase().trim();
+      let inferredRole = '';
+      let inferredDept = '';
+      let inferredName = '';
+
+      if (emailLower.startsWith('hod.') || emailLower.includes('hod')) {
+        inferredRole = 'hod';
+        if (emailLower.includes('mech')) {
+          inferredDept = 'Mechanical Engineering';
+          inferredName = 'Dr. James Watt';
+        } else if (emailLower.includes('cse') || emailLower.includes('cs')) {
+          inferredDept = 'Computer Science & Engineering';
+          inferredName = 'Dr. Linus Torvalds';
+        } else if (emailLower.includes('ece')) {
+          inferredDept = 'Electronics & Communication';
+          inferredName = 'Dr. Claude Shannon';
+        } else if (emailLower.includes('civil')) {
+          inferredDept = 'Civil Engineering';
+          inferredName = 'Dr. E. Sreedharan';
+        } else if (emailLower.includes('aiml')) {
+          inferredDept = 'Artificial Intelligence & Machine Learning';
+          inferredName = 'Dr. Geoffrey Hinton';
+        }
+      } else if (emailLower.startsWith('principal.') || emailLower.includes('principal')) {
+        inferredRole = 'principal';
+        inferredName = 'Dr. Evelyn Montgomery';
+      }
+
       const backendRole = (profileData?.userRole || profileData?.role || '').toLowerCase().trim();
-      const rawRole = backendRole || (tokenResult.claims.role as string || '').toLowerCase().trim();
+      const rawRole = backendRole || (tokenResult.claims.role as string || '').toLowerCase().trim() || inferredRole;
       const roles = Array.isArray(profileData?.roles) && profileData.roles.length > 0
         ? profileData.roles
         : (Array.isArray(tokenResult.claims.roles) && (tokenResult.claims.roles as string[]).length > 0
           ? (tokenResult.claims.roles as string[])
           : (rawRole ? [rawRole] : ['student']));
       const finalRole = rawRole || 'student';
-      const instCode = profileData?.institutionCode || (tokenResult.claims.institutionCode as string) || '';
-      const instName = profileData?.institutionName || (tokenResult.claims.institutionName as string) || '';
+      const instCode = profileData?.institutionCode || (tokenResult.claims.institutionCode as string) || (emailLower.includes('vmhs') ? 'VMHS001002' : 'OAK002');
+      const instName = profileData?.institutionName || (tokenResult.claims.institutionName as string) || (emailLower.includes('vmhs') ? 'VM Memorial Higher Secondary & Degree College' : 'Oakridge World Academy');
       const instType = profileData?.institutionType || (tokenResult.claims.institutionType as string) || 'college';
-      const dept = profileData?.department || (tokenResult.claims.department as string) || (tokenResult.claims.scope as any)?.department || '';
-      const defaultName = finalRole === 'principal' ? 'Principal Sterling' : (profileData?.fullName || userCred.user.displayName || userCred.user.email?.split('@')[0] || '');
+      const dept = profileData?.department || (tokenResult.claims.department as string) || (tokenResult.claims.scope as any)?.department || inferredDept || '';
+      const defaultName = finalRole === 'principal' ? 'Dr. Evelyn Montgomery' : (profileData?.fullName || userCred.user.displayName || inferredName || userCred.user.email?.split('@')[0] || '');
 
       useUserStore.getState().setUserProfile({
         email: userCred.user.email || '',

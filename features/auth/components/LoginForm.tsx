@@ -104,15 +104,15 @@ export const LoginForm: React.FC<LoginFormProps> = ({
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.demoChip, email === 'hod.cs@school.com' && styles.demoChipActive]}
+              style={[styles.demoChip, (email === 'hod.mech@vmhs.com' || email === 'hod.cs@school.com') && styles.demoChipActive]}
               onPress={() => {
-                setEmail('hod.cs@school.com');
+                setEmail('hod.mech@vmhs.com');
                 setPassword('Hod@123');
               }}
               activeOpacity={0.7}
             >
               <MaterialCommunityIcons name="domain" size={16} color="#EA580C" />
-              <Text style={styles.demoChipText}>HOD</Text>
+              <Text style={styles.demoChipText}>HOD (VMHS)</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
