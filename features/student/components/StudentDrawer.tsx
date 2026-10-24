@@ -39,6 +39,7 @@ const PRIMARY = [
   { key: 'marks', label: 'Marks', icon: 'certificate-outline', iconFilled: 'certificate', tab: 'marks' as const },
   { key: 'fees', label: 'Fee Summary', icon: 'cash', iconFilled: 'cash', tab: 'fees' as const },
   { key: 'schedule', label: 'Schedule', icon: 'calendar-outline', iconFilled: 'calendar', tab: 'schedule' as const },
+  { key: 'library', label: 'Library', icon: 'book-open-page-variant-outline', iconFilled: 'book-open-page-variant', tab: 'library' as const },
   { key: 'feedback', label: 'Feedback', icon: 'message-draw', route: '/(student)/feedback' },
 ];
 

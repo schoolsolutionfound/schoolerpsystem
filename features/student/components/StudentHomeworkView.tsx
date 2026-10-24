@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, StyleSheet, Text, ScrollView, RefreshControl } from 'react-native';
+import { View, StyleSheet, Text, ScrollView, RefreshControl, TouchableOpacity, Alert } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
 import { FontFamily } from '../../../constants/fonts';
@@ -39,6 +39,23 @@ export const StudentHomeworkView: React.FC = () => {
     setRefreshing(false);
   }, [fetchData]);
 
+  const handleClearAll = () => {
+    Alert.alert(
+      'Clear All Assignments',
+      'Are you sure you want to clear all assignments?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear All',
+          style: 'destructive',
+          onPress: () => {
+            setHomework([]);
+          },
+        },
+      ]
+    );
+  };
+
   const priorityColor = (p: string) => {
     switch (p) {
       case 'urgent': return '#DC3545';
@@ -56,10 +73,22 @@ export const StudentHomeworkView: React.FC = () => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Homework</Text>
-        <View style={styles.countBadge}>
-          <Text style={styles.countText}>{homework.length}</Text>
+        <View style={styles.headerLeft}>
+          <Text style={styles.title}>Assignment</Text>
+          <View style={styles.countBadge}>
+            <Text style={styles.countText}>{homework.length}</Text>
+          </View>
         </View>
+
+        {homework.length > 0 && (
+          <TouchableOpacity
+            onPress={handleClearAll}
+            activeOpacity={0.6}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Text style={styles.clearText}>Clear</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView
@@ -74,7 +103,7 @@ export const StudentHomeworkView: React.FC = () => {
         ) : homework.length === 0 ? (
           <View style={styles.emptyWrap}>
             <MaterialCommunityIcons name="book-check-outline" size={48} color="#E8E5DC" />
-            <Text style={styles.emptyTitle}>No Homework</Text>
+            <Text style={styles.emptyTitle}>No Assignments</Text>
             <Text style={styles.emptySub}>Your assignments will appear here.</Text>
           </View>
         ) : (
@@ -119,10 +148,15 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingTop: 14,
     paddingBottom: 10,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   title: { fontSize: 18, fontFamily: FontFamily.extrabold, color: '#171717' },
   countBadge: {
@@ -132,6 +166,11 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   countText: { fontSize: 12, fontFamily: FontFamily.bold, color: '#D4A418' },
+  clearText: {
+    fontSize: 14,
+    fontFamily: FontFamily.bold,
+    color: '#000000',
+  },
   list: { paddingHorizontal: 20, paddingBottom: 20, gap: 10 },
   emptyWrap: { alignItems: 'center', paddingTop: 60, gap: 8 },
   emptyText: { fontSize: 13, fontFamily: FontFamily.regular, color: '#9CA3AF' },

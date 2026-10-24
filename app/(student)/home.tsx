@@ -16,11 +16,12 @@ import { StudentHomeworkView } from '../../features/student/components/StudentHo
 import { StudentDrawer } from '../../features/student/components/StudentDrawer';
 import { StudentBusTrackingView } from '../../features/student/components/StudentBusTrackingView';
 import { StudentHomeFeeSummary } from '../../features/student/components/StudentHomeFeeSummary';
+import { StudentLibraryView } from '../../features/student/components/StudentLibraryView';
 import { ShimmerProvider } from '../../features/student/components/ShimmerSkeleton';
 import { FontFamily } from '../../constants/fonts';
 import { UserAnnouncementFeedView } from '../../features/announcements';
 
-type Tab = 'home' | 'attendance' | 'bus' | 'marks' | 'schedule' | 'homework' | 'fees' | 'announcements';
+type Tab = 'home' | 'attendance' | 'bus' | 'marks' | 'schedule' | 'homework' | 'fees' | 'announcements' | 'library';
 
 function toMinutes(timeStr?: string): number | null {
   if (!timeStr) return null;
@@ -187,6 +188,8 @@ export default function HomeScreen() {
         return <StudentBusTrackingView />;
       case 'fees':
         return <StudentHomeFeeSummary onBack={() => setActiveTab('home')} />;
+      case 'library':
+        return <StudentLibraryView onBack={() => setActiveTab('home')} />;
       default:
         return null;
     }
@@ -195,7 +198,7 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safe}>
-        {activeTab !== 'marks' && activeTab !== 'fees' && (
+        {activeTab !== 'marks' && activeTab !== 'fees' && activeTab !== 'library' && (
           <StudentHomeHeader
             fullName={fullName}
             profilePic={profilePic}
