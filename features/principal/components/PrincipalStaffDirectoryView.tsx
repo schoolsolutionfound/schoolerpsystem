@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   useWindowDimensions,
   Modal,
   Pressable,
+  ActivityIndicator,
 } from 'react-native';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { FontFamily } from '../../../constants/fonts';
@@ -26,6 +27,20 @@ interface PrincipalStaffDirectoryViewProps {
   staffList: PrincipalStaffMember[];
   refreshing: boolean;
   onRefresh: () => void;
+  title?: string;
+  restrictDepartment?: string;
+}
+
+function getDepartmentIcon(deptName: string): keyof typeof Feather.glyphMap {
+  const d = (deptName || '').toLowerCase();
+  if (d.includes('aiml') || d.includes('ai') || d.includes('machine')) return 'cpu';
+  if (d.includes('computer') || d.includes('cse') || d.includes('soft')) return 'code';
+  if (d.includes('electronic') || d.includes('ece') || d.includes('comm')) return 'zap';
+  if (d.includes('mech')) return 'settings';
+  if (d.includes('civil')) return 'layers';
+  if (d.includes('commerce') || d.includes('mgmt') || d.includes('business')) return 'briefcase';
+  if (d.includes('sci') || d.includes('applied') || d.includes('math')) return 'book-open';
+  return 'compass';
 }
 
 // Comprehensive realistic fallback faculty roster across departments
@@ -195,7 +210,7 @@ function getFacultyDossierDetails(staff: PrincipalStaffMember) {
   }
   const posHash = Math.abs(hash);
 
-  const empId = `EMP-${(staff.department?.slice(0, 3) || 'FAC').toUpperCase()}-${(100 + (posHash % 900))}`;
+  const empId = staff.employeeId || `EMP-${(staff.department?.slice(0, 3) || 'FAC').toUpperCase()}-${(100 + (posHash % 900))}`;
   const clTaken = (posHash % 5) + 2; // 2 to 6
   const clTotal = 12;
   const clAvailable = clTotal - clTaken;
@@ -222,7 +237,7 @@ function getFacultyDossierDetails(staff: PrincipalStaffMember) {
   const punchInTime = isPresent ? `08:${30 + (posHash % 25)} AM` : 'On Approved Leave';
 
   const blockLetter = posHash % 3 === 0 ? 'Block A' : posHash % 3 === 1 ? 'Block B' : 'Block C';
-  const cabinRoom = `${blockLetter}, Cabin ${100 + (posHash % 250)}`;
+  const cabinRoom = staff.cabinNumber || `${blockLetter}, Cabin ${100 + (posHash % 250)}`;
   const dateOfJoining = `15-Jul-${2015 + (posHash % 9)}`;
   const weeklyHours = 14 + (posHash % 6);
   const menteesCount = 18 + (posHash % 12);
@@ -264,9 +279,12 @@ export const INSTITUTION_DEPARTMENTS = [
 ] as const;
 
 // Helper to assign a deterministic valid department if missing from API or object
-function normalizeFacultyDepartment(staff: PrincipalStaffMember, index: number): string {
+function normalizeFacultyDepartment(staff: PrincipalStaffMember, index: number, fallbackDept?: string): string {
   if (staff.department && staff.department.trim()) {
     return staff.department.trim();
+  }
+  if (fallbackDept && fallbackDept.trim()) {
+    return fallbackDept.trim();
   }
   const text = `${staff.assignedClass || ''} ${(staff.assignedSubjects || []).join(' ')} ${staff.fullName || ''}`.toLowerCase();
   if (text.includes('cse') || text.includes('computer') || text.includes('software')) return 'Computer Science';
@@ -286,10 +304,141 @@ function normalizeFacultyDepartment(staff: PrincipalStaffMember, index: number):
   return INSTITUTION_DEPARTMENTS[Math.abs(hash + index) % INSTITUTION_DEPARTMENTS.length];
 }
 
+// Helper to assign a deterministic valid phone number if missing from API or roster
+function normalizeFacultyPhone(staff: PrincipalStaffMember, index: number): string {
+  if (staff.phone && staff.phone.trim().length > 0) {
+    return staff.phone.trim();
+  }
+  let hash = 0;
+  const key = staff.fullName || staff.id || String(index);
+  for (let i = 0; i < key.length; i++) {
+    hash = (hash << 5) - hash + key.charCodeAt(i);
+    hash |= 0;
+  }
+  const suffix = 10000 + (Math.abs(hash + index * 97) % 90000);
+  return `+91 9845${suffix}`;
+}
+
+export const SCHEDULE_DAYS = [
+  { dayIndex: 1, label: 'Mon', fullName: 'Monday' },
+  { dayIndex: 2, label: 'Tue', fullName: 'Tuesday' },
+  { dayIndex: 3, label: 'Wed', fullName: 'Wednesday' },
+  { dayIndex: 4, label: 'Thu', fullName: 'Thursday' },
+  { dayIndex: 5, label: 'Fri', fullName: 'Friday' },
+  { dayIndex: 6, label: 'Sat', fullName: 'Saturday' },
+];
+
+export interface FacultyPeriodSlot {
+  id: string;
+  periodNum: number;
+  periodLabel: string;
+  timeSlot: string;
+  startTime: string;
+  endTime: string;
+  subjectName: string;
+  subjectCode: string;
+  classSection: string;
+  room: string;
+  type: 'lecture' | 'lab' | 'tutorial';
+  status: 'completed' | 'ongoing' | 'upcoming';
+}
+
+// Generate realistic deterministic weekly timetable for any faculty member
+export function getFacultyDailySchedule(staff: PrincipalStaffMember, dayIndex: number): FacultyPeriodSlot[] {
+  let hash = 0;
+  const key = `${staff.fullName}_${staff.id || ''}_${dayIndex}`;
+  for (let i = 0; i < key.length; i++) {
+    hash = (hash << 5) - hash + key.charCodeAt(i);
+    hash |= 0;
+  }
+  const posHash = Math.abs(hash);
+
+  const dept = staff.department || 'Computer Science';
+  const subjects = staff.assignedSubjects && staff.assignedSubjects.length > 0
+    ? staff.assignedSubjects
+    : [
+        dept.includes('AI') ? 'Machine Learning Fundamentals' : 'Data Structures & Algorithms',
+        dept.includes('AI') ? 'Deep Learning & Neural Networks' : 'Database Management Systems',
+        dept.includes('AI') ? 'Applied AI Laboratory' : 'Algorithms & Programming Lab',
+      ];
+
+  const primaryClass = staff.assignedClass || `${dept.slice(0, 4).toUpperCase()} 3rd Year · Sec A`;
+  const secondaryClass = `${dept.slice(0, 4).toUpperCase()} 2nd Year · Sec B`;
+  const thirdClass = `${dept.slice(0, 4).toUpperCase()} 4th Year · Sec A`;
+
+  const roomBlock = posHash % 2 === 0 ? 'Tech Block' : 'Science Block';
+  const defaultRoom = `${roomBlock}`;
+  const labRoom = `${roomBlock} · Department Lab`;
+
+  const schedulePatterns: Record<number, number[]> = {
+    1: [1, 2, 4],
+    2: [2, 3, 5, 6],
+    3: [1, 3, 4],
+    4: [2, 4, 5],
+    5: [1, 2, 5],
+    6: [1, 3],
+  };
+
+  const periodNums = schedulePatterns[dayIndex] || [1, 3, 4];
+
+  // Current day and local hour calculation
+  const now = new Date();
+  const currentDayIndex = now.getDay();
+  const currentHour = now.getHours() + now.getMinutes() / 60;
+  const isViewingToday = currentDayIndex === dayIndex;
+
+  const PERIOD_DEFINITIONS = [
+    { num: 1, label: '1st Period', time: '09:00 AM - 09:50 AM', start: 9.0, end: 9.83 },
+    { num: 2, label: '2nd Period', time: '10:00 AM - 10:50 AM', start: 10.0, end: 10.83 },
+    { num: 3, label: '3rd Period', time: '11:15 AM - 12:05 PM', start: 11.25, end: 12.08 },
+    { num: 4, label: '4th Period', time: '12:10 PM - 01:00 PM', start: 12.16, end: 13.0 },
+    { num: 5, label: '5th Period', time: '01:45 PM - 02:35 PM', start: 13.75, end: 14.58 },
+    { num: 6, label: '6th Period', time: '02:45 PM - 03:35 PM', start: 14.75, end: 15.58 },
+  ];
+
+  return periodNums.map((pNum, idx) => {
+    const def = PERIOD_DEFINITIONS.find((d) => d.num === pNum)!;
+    const isLab = pNum === 5 || pNum === 6;
+    const subjIndex = isLab ? 2 : (idx % subjects.length);
+    const subjName = subjects[subjIndex % subjects.length] || subjects[0];
+    const subjCode = `${dept.slice(0, 2).toUpperCase()}${100 + pNum * 10 + (posHash % 9)}${isLab ? 'L' : ''}`;
+    const targetClass = idx === 0 ? primaryClass : idx === 1 ? secondaryClass : thirdClass;
+    const room = isLab ? labRoom : defaultRoom;
+
+    let status: 'completed' | 'ongoing' | 'upcoming' = 'upcoming';
+    if (isViewingToday) {
+      if (currentHour >= def.end) {
+        status = 'completed';
+      } else if (currentHour >= def.start && currentHour < def.end) {
+        status = 'ongoing';
+      } else {
+        status = 'upcoming';
+      }
+    }
+
+    return {
+      id: `slot_${staff.id}_${dayIndex}_${pNum}`,
+      periodNum: pNum,
+      periodLabel: def.label,
+      timeSlot: def.time,
+      startTime: def.time.split(' - ')[0],
+      endTime: def.time.split(' - ')[1],
+      subjectName: subjName,
+      subjectCode: subjCode,
+      classSection: targetClass,
+      room,
+      type: isLab ? 'lab' : idx % 3 === 0 ? 'tutorial' : 'lecture',
+      status,
+    };
+  });
+}
+
 export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewProps> = ({
   staffList,
   refreshing,
   onRefresh,
+  title,
+  restrictDepartment,
 }) => {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const maxContentWidth = Math.min(windowWidth, 1200);
@@ -297,13 +446,22 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
   const isTablet = windowWidth >= 540 && windowWidth < 768;
   const cardGap = 12;
   const cardWidth = isDesktop ? Math.floor((maxContentWidth - 32 - cardGap) / 2) : '100%';
-  const modalMaxWidth = isDesktop ? 580 : isTablet ? 500 : Math.min(windowWidth - 24, 440);
-  const modalHeight = Math.min(Math.round(windowHeight * 0.86), 660);
+  const modalMaxWidth = isDesktop ? 760 : isTablet ? 640 : '92%';
+  const modalMaxHeight = isDesktop ? 720 : Math.min(Math.round(windowHeight * 0.80), 650);
 
   // Active roster data with department normalization
   const activeStaffList = useMemo(() => {
     let rawList: PrincipalStaffMember[] = COMPREHENSIVE_STAFF_ROSTER;
-    if (staffList && staffList.length >= 8) {
+    if (restrictDepartment) {
+      if (staffList && staffList.length > 0) {
+        rawList = staffList;
+      } else {
+        const matched = COMPREHENSIVE_STAFF_ROSTER.filter(
+          (s) => (s.department || '').toLowerCase().includes(restrictDepartment.toLowerCase())
+        );
+        rawList = matched.length > 0 ? matched : COMPREHENSIVE_STAFF_ROSTER.slice(0, 6);
+      }
+    } else if (staffList && staffList.length >= 8) {
       rawList = staffList;
     } else if (staffList && staffList.length > 0) {
       const existingIds = new Set(staffList.map((s) => s.id));
@@ -312,9 +470,10 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
     }
     return rawList.map((staff, idx) => ({
       ...staff,
-      department: normalizeFacultyDepartment(staff, idx),
+      department: normalizeFacultyDepartment(staff, idx, restrictDepartment),
+      phone: normalizeFacultyPhone(staff, idx),
     }));
-  }, [staffList]);
+  }, [staffList, restrictDepartment]);
 
   // Search & Filter State
   const [search, setSearch] = useState('');
@@ -325,10 +484,23 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
 
   // Faculty Detail Dossier Modal State
   const [selectedStaff, setSelectedStaff] = useState<PrincipalStaffMember | null>(null);
-  const [staffModalTab, setStaffModalTab] = useState<'biodata' | 'leaves' | 'workload'>('biodata');
+  const [staffModalTab, setStaffModalTab] = useState<'biodata' | 'schedule' | 'leaves'>('biodata');
+  const [selectedScheduleDay, setSelectedScheduleDay] = useState<number>(() => {
+    const d = new Date().getDay();
+    return d === 0 ? 1 : d;
+  });
 
-  // Dynamic filter lists - always include all institutional departments
+  // Dynamic filter lists - include relevant departments
   const availableDepartments = useMemo(() => {
+    if (restrictDepartment) {
+      const set = new Set<string>();
+      activeStaffList.forEach((s) => {
+        if (s.department && s.department.trim()) {
+          set.add(s.department.trim());
+        }
+      });
+      return ['all', ...Array.from(set)];
+    }
     const set = new Set<string>(INSTITUTION_DEPARTMENTS);
     activeStaffList.forEach((s) => {
       if (s.department && s.department.trim()) {
@@ -336,7 +508,7 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
       }
     });
     return ['all', ...Array.from(set)];
-  }, [activeStaffList]);
+  }, [activeStaffList, restrictDepartment]);
 
   const availableDesignations = useMemo(() => {
     const set = new Set<StaffDesignation>();
@@ -379,13 +551,31 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
     });
   }, [activeStaffList, search, selectedDepartment, selectedDesignation, statusFilter]);
 
-  // Group filtered staff department-wise
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isPageLoading, setIsPageLoading] = useState(false);
+  const ITEMS_PER_PAGE = 6;
+
+  // Reset page when search or filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, selectedDepartment, selectedDesignation, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredStaff.length / ITEMS_PER_PAGE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+
+  const paginatedStaff = useMemo(() => {
+    const startIndex = (safeCurrentPage - 1) * ITEMS_PER_PAGE;
+    return filteredStaff.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredStaff, safeCurrentPage]);
+
+  // Group paginated staff department-wise
   const departmentSections = useMemo(() => {
     const map = new Map<string, PrincipalStaffMember[]>();
     // Pre-populate with standard institutional departments
     INSTITUTION_DEPARTMENTS.forEach((dept) => map.set(dept, []));
 
-    filteredStaff.forEach((staff) => {
+    paginatedStaff.forEach((staff) => {
       const dept = staff.department || 'Applied Sciences';
       if (!map.has(dept)) {
         map.set(dept, []);
@@ -401,10 +591,15 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
     });
 
     return sections;
-  }, [filteredStaff]);
+  }, [paginatedStaff]);
 
-  const presentCount = activeStaffList.filter((s) => s.attendanceToday === 'present').length;
-  const absentCount = activeStaffList.filter((s) => s.attendanceToday !== 'present').length;
+  const { presentCount, absentCount } = useMemo(() => {
+    let present = 0;
+    for (let i = 0; i < activeStaffList.length; i++) {
+      if (activeStaffList[i].attendanceToday === 'present') present++;
+    }
+    return { presentCount: present, absentCount: activeStaffList.length - present };
+  }, [activeStaffList]);
 
   const handleCall = async (phone?: string) => {
     if (!phone) return;
@@ -443,6 +638,58 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
     setStatusFilter('all');
   };
 
+  // Render Pagination Footer Controls
+  const renderPaginationControls = () => {
+    if (filteredStaff.length <= ITEMS_PER_PAGE) return null;
+    const startItem = (safeCurrentPage - 1) * ITEMS_PER_PAGE + 1;
+    const endItem = Math.min(safeCurrentPage * ITEMS_PER_PAGE, filteredStaff.length);
+
+    return (
+      <View style={styles.paginationContainer}>
+        <Text style={styles.paginationCountText}>
+          Showing <Text style={{ fontFamily: FontFamily.bold }}>{startItem}-{endItem}</Text> of{' '}
+          <Text style={{ fontFamily: FontFamily.bold }}>{filteredStaff.length}</Text> Faculty Members
+        </Text>
+
+        <View style={styles.paginationActionRow}>
+          <TouchableOpacity
+            style={[styles.pageBtn, safeCurrentPage === 1 && styles.pageBtnDisabled]}
+            disabled={safeCurrentPage === 1}
+            onPress={() => {
+              setIsPageLoading(true);
+              setCurrentPage((prev) => Math.max(1, prev - 1));
+              setTimeout(() => setIsPageLoading(false), 140);
+            }}
+            activeOpacity={0.8}
+          >
+            <Feather name="chevron-left" size={15} color={safeCurrentPage === 1 ? '#94A3B8' : '#0F172A'} />
+            <Text style={[styles.pageBtnText, safeCurrentPage === 1 && styles.pageBtnTextDisabled]}>Prev</Text>
+          </TouchableOpacity>
+
+          <View style={styles.pageIndicatorPill}>
+            <Text style={styles.pageIndicatorText}>
+              {safeCurrentPage} / {totalPages}
+            </Text>
+          </View>
+
+          <TouchableOpacity
+            style={[styles.pageBtn, safeCurrentPage === totalPages && styles.pageBtnDisabled]}
+            disabled={safeCurrentPage === totalPages}
+            onPress={() => {
+              setIsPageLoading(true);
+              setCurrentPage((prev) => Math.min(totalPages, prev + 1));
+              setTimeout(() => setIsPageLoading(false), 140);
+            }}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.pageBtnText, safeCurrentPage === totalPages && styles.pageBtnTextDisabled]}>Next</Text>
+            <Feather name="chevron-right" size={15} color={safeCurrentPage === totalPages ? '#94A3B8' : '#0F172A'} />
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
   // Render Faculty Detail Dossier Modal
   const renderFacultyModal = () => {
     if (!selectedStaff) return null;
@@ -454,6 +701,9 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
         border: '#E5E7EB',
       };
     const isPresent = selectedStaff.attendanceToday === 'present';
+    const selectedDayConfig =
+      SCHEDULE_DAYS.find((d) => d.dayIndex === selectedScheduleDay) || SCHEDULE_DAYS[0];
+    const selectedDaySchedule = getFacultyDailySchedule(selectedStaff, selectedScheduleDay);
 
     return (
       <Modal
@@ -470,7 +720,11 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
           <View
             style={[
               styles.staffModalCard,
-              { width: modalMaxWidth, maxWidth: modalMaxWidth, height: modalHeight },
+              {
+                width: modalMaxWidth,
+                maxWidth: isDesktop ? 760 : isTablet ? 640 : '92%',
+                maxHeight: modalMaxHeight,
+              },
             ]}
           >
             {/* Modal Header */}
@@ -488,19 +742,19 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
                   />
                 </View>
                 <View style={{ flex: 1, marginRight: 8, justifyContent: 'center' }}>
-                  <Text style={styles.modalStaffName} numberOfLines={1}>
+                  <Text style={styles.modalStaffName} numberOfLines={1} ellipsizeMode="tail">
                     {selectedStaff.fullName}
                   </Text>
-                  <Text style={styles.modalEmpIdText} numberOfLines={1}>
-                    {details.empId} · {selectedStaff.department || 'Faculty'}
-                  </Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-                    <View style={styles.designationBadgeSmall}>
-                      <Text style={styles.designationTextSmall}>
-                        {DESIGNATION_LABELS[selectedStaff.designation] || selectedStaff.designation}
-                      </Text>
-                    </View>
+                  <View style={styles.modalMetaRow}>
+                    <Text style={styles.modalEmpIdBadge}>{details.empId}</Text>
+                    <Text style={styles.modalMetaDivider}>•</Text>
+                    <Text style={styles.modalDeptText} numberOfLines={1} ellipsizeMode="tail">
+                      {selectedStaff.department || 'Faculty'}
+                    </Text>
                   </View>
+                  <Text style={styles.modalClassText} numberOfLines={1} ellipsizeMode="tail">
+                    {DESIGNATION_LABELS[selectedStaff.designation] || selectedStaff.designation}
+                  </Text>
                 </View>
               </View>
 
@@ -513,12 +767,12 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
               </TouchableOpacity>
             </View>
 
-            {/* Modal Navigation Tabs - Responsive Flex Row */}
+            {/* Modal Navigation Tabs (Full-width responsive segmented tabs) */}
             <View style={styles.modalTabBar}>
               {[
                 { key: 'biodata' as const, label: 'Bio Data' },
+                { key: 'schedule' as const, label: 'Schedule' },
                 { key: 'leaves' as const, label: 'Leaves' },
-                { key: 'workload' as const, label: 'Workload' },
               ].map((tab) => {
                 const active = staffModalTab === tab.key;
                 return (
@@ -548,87 +802,227 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
               {/* TAB 1: BIO DATA */}
               {staffModalTab === 'biodata' && (
                 <View style={styles.dossierSection}>
-                  <Text style={styles.dossierSectionTitle}>BIO DATA</Text>
+                  <Text style={styles.dossierSectionTitle}>PERSONAL & CONTACT BIO DATA</Text>
 
-                  <View style={styles.dossierGrid}>
-                    <View style={styles.dossierRow}>
+                  <View style={[styles.dossierGrid, (isDesktop || isTablet) && styles.dossierGridTwoCol]}>
+                    <View style={[(isDesktop || isTablet) ? styles.dossierItemHalf : styles.dossierRow]}>
                       <Text style={styles.dossierLabel}>Full Name</Text>
                       <Text style={styles.dossierVal}>{selectedStaff.fullName}</Text>
                     </View>
 
-                    <View style={styles.dossierRow}>
+                    <View style={[(isDesktop || isTablet) ? styles.dossierItemHalf : styles.dossierRow]}>
                       <Text style={styles.dossierLabel}>Employee Code</Text>
                       <Text style={[styles.dossierVal, { fontFamily: FontFamily.bold }]}>
                         {details.empId}
                       </Text>
                     </View>
 
-                    <View style={styles.dossierRow}>
-                      <Text style={styles.dossierLabel}>Designation</Text>
-                      <Text style={styles.dossierVal}>
-                        {DESIGNATION_LABELS[selectedStaff.designation] || selectedStaff.designation}
-                      </Text>
-                    </View>
-
-                    <View style={styles.dossierRow}>
-                      <Text style={styles.dossierLabel}>Department</Text>
-                      <Text style={styles.dossierVal}>{selectedStaff.department || 'Not Assigned'}</Text>
-                    </View>
-
-                    <View style={styles.dossierRow}>
-                      <Text style={styles.dossierLabel}>Highest Qualification</Text>
-                      <Text style={styles.dossierVal}>
-                        {selectedStaff.qualification || 'M.Tech / Ph.D.'}
-                      </Text>
-                    </View>
-
-                    <View style={styles.dossierRow}>
-                      <Text style={styles.dossierLabel}>Teaching Experience</Text>
-                      <Text style={styles.dossierVal}>
-                        {selectedStaff.experienceYears || 8} Years
-                      </Text>
-                    </View>
-
-                    <View style={styles.dossierRow}>
-                      <Text style={styles.dossierLabel}>Date of Joining</Text>
-                      <Text style={styles.dossierVal}>{details.dateOfJoining}</Text>
-                    </View>
-
-                    <View style={styles.dossierRow}>
-                      <Text style={styles.dossierLabel}>Cabin / Office Room</Text>
-                      <Text style={styles.dossierVal}>{details.cabinRoom}</Text>
-                    </View>
-
-                    <View style={styles.dossierRow}>
+                    <View style={[(isDesktop || isTablet) ? styles.dossierItemHalf : styles.dossierRow]}>
                       <Text style={styles.dossierLabel}>Official Email</Text>
                       <TouchableOpacity
                         onPress={() => handleEmail(selectedStaff.email)}
                         style={styles.dossierEmailBtn}
                         activeOpacity={0.7}
                       >
+                        <Feather name="mail" size={13} color="#111827" />
                         <Text style={styles.dossierEmailVal} numberOfLines={1}>
                           {selectedStaff.email}
                         </Text>
                       </TouchableOpacity>
                     </View>
 
-                    <View style={styles.dossierRow}>
+                    <View style={[(isDesktop || isTablet) ? styles.dossierItemHalf : styles.dossierRow]}>
                       <Text style={styles.dossierLabel}>Direct Contact</Text>
                       <TouchableOpacity
                         onPress={() => handleCall(selectedStaff.phone)}
                         style={styles.dossierPhoneBtn}
                         activeOpacity={0.7}
                       >
-                        <Text style={styles.dossierPhoneVal}>
+                        <Feather name="phone" size={13} color="#000000" />
+                        <Text style={[styles.dossierVal, styles.dossierPhoneVal]}>
                           {selectedStaff.phone || '+91 98450 00000'}
                         </Text>
                       </TouchableOpacity>
+                    </View>
+
+                    <View style={[(isDesktop || isTablet) ? styles.dossierItemHalf : styles.dossierRow]}>
+                      <Text style={styles.dossierLabel}>Department</Text>
+                      <Text style={styles.dossierVal}>{selectedStaff.department || 'Not Assigned'}</Text>
+                    </View>
+
+                    <View style={[(isDesktop || isTablet) ? styles.dossierItemHalf : styles.dossierRow]}>
+                      <Text style={styles.dossierLabel}>Designation</Text>
+                      <Text style={styles.dossierVal}>
+                        {DESIGNATION_LABELS[selectedStaff.designation] || selectedStaff.designation}
+                      </Text>
+                    </View>
+
+                    <View style={[(isDesktop || isTablet) ? styles.dossierItemHalf : styles.dossierRow]}>
+                      <Text style={styles.dossierLabel}>Highest Qualification</Text>
+                      <Text style={styles.dossierVal}>
+                        {selectedStaff.qualification || 'M.Tech / Ph.D.'}
+                      </Text>
+                    </View>
+
+                    <View style={[(isDesktop || isTablet) ? styles.dossierItemHalf : styles.dossierRow]}>
+                      <Text style={styles.dossierLabel}>Teaching Experience</Text>
+                      <Text style={styles.dossierVal}>
+                        {selectedStaff.experienceYears || 8} Years
+                      </Text>
+                    </View>
+
+                    <View style={[(isDesktop || isTablet) ? styles.dossierItemHalf : styles.dossierRow]}>
+                      <Text style={styles.dossierLabel}>Date of Joining</Text>
+                      <Text style={styles.dossierVal}>{details.dateOfJoining}</Text>
                     </View>
                   </View>
                 </View>
               )}
 
-              {/* TAB 2: LEAVES & ATTENDANCE */}
+              {/* TAB 2: FACULTY SCHEDULE & TIMETABLE */}
+              {staffModalTab === 'schedule' && (
+                <View style={styles.dossierSection}>
+                  <Text style={styles.dossierSectionTitle}>WEEKLY TEACHING SCHEDULE</Text>
+
+                  {/* Day Selector Pills */}
+                  <View style={styles.scheduleDaySelector}>
+                    {SCHEDULE_DAYS.map((d) => {
+                      const isSelected = selectedScheduleDay === d.dayIndex;
+                      const isToday = new Date().getDay() === d.dayIndex;
+                      return (
+                        <TouchableOpacity
+                          key={d.dayIndex}
+                          style={[
+                            styles.scheduleDayChip,
+                            isSelected && styles.scheduleDayChipActive,
+                          ]}
+                          onPress={() => setSelectedScheduleDay(d.dayIndex)}
+                          activeOpacity={0.7}
+                        >
+                          <Text
+                            style={[
+                              styles.scheduleDayChipText,
+                              isSelected && styles.scheduleDayChipTextActive,
+                            ]}
+                          >
+                            {d.label}
+                          </Text>
+                          {isToday && (
+                            <View
+                              style={[
+                                styles.scheduleTodayDot,
+                                isSelected && { backgroundColor: '#F4C430' },
+                              ]}
+                            />
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+
+                  {/* Day Header Banner */}
+                  <View style={styles.scheduleHeaderBanner}>
+                    <View style={{ flex: 1, marginRight: 8 }}>
+                      <Text style={styles.scheduleHeaderTitle}>
+                        {selectedDayConfig.fullName} Classes
+                      </Text>
+                      <Text style={styles.scheduleHeaderSub}>
+                        {selectedDaySchedule.length} session{selectedDaySchedule.length === 1 ? '' : 's'} scheduled • {selectedStaff.department || 'Faculty'}
+                      </Text>
+                    </View>
+                    <View style={styles.scheduleCountBadge}>
+                      <Text style={styles.scheduleCountBadgeText}>
+                        {selectedDaySchedule.length} Periods
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Scheduled Periods List */}
+                  {selectedDaySchedule.length === 0 ? (
+                    <View style={styles.emptyScheduleCard}>
+                      <MaterialCommunityIcons name="calendar-blank-outline" size={38} color="#9CA3AF" />
+                      <Text style={styles.emptyScheduleTitle}>No Classes Scheduled</Text>
+                      <Text style={styles.emptyScheduleSub}>
+                        Faculty has no teaching sessions scheduled on this day. Available for office hours and departmental research.
+                      </Text>
+                    </View>
+                  ) : (
+                    selectedDaySchedule.map((period) => {
+                      const isOngoing = period.status === 'ongoing';
+                      const isCompleted = period.status === 'completed';
+
+                      return (
+                        <View
+                          key={period.id}
+                          style={[
+                            styles.schedulePeriodCard,
+                            isOngoing && styles.schedulePeriodCardOngoing,
+                          ]}
+                        >
+                          {/* Period Top Bar: Time and Status */}
+                          <View style={styles.schedulePeriodTop}>
+                            <View style={styles.schedulePeriodTimeRow}>
+                              <View style={styles.schedulePeriodNumBadge}>
+                                <Text style={styles.schedulePeriodNumText}>
+                                  {period.periodLabel}
+                                </Text>
+                              </View>
+                              <Text style={styles.schedulePeriodTimeText}>
+                                {period.timeSlot}
+                              </Text>
+                            </View>
+
+                            <View
+                              style={[
+                                styles.scheduleStatusBadge,
+                                isOngoing
+                                  ? { backgroundColor: '#F4C430' }
+                                  : isCompleted
+                                  ? { backgroundColor: '#F3F4F6' }
+                                  : { backgroundColor: '#FEF9C3' },
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.scheduleStatusText,
+                                  isOngoing
+                                    ? { color: '#000000' }
+                                    : isCompleted
+                                    ? { color: '#4B5563' }
+                                    : { color: '#111827' },
+                                ]}
+                              >
+                                {isOngoing
+                                  ? '• Live Now'
+                                  : isCompleted
+                                  ? '✓ Completed'
+                                  : 'Upcoming'}
+                              </Text>
+                            </View>
+                          </View>
+
+                          {/* Subject Name */}
+                          <Text style={styles.scheduleSubjectTitle} numberOfLines={2}>
+                            {period.subjectName}
+                          </Text>
+
+                          {/* Class Section */}
+                          <View style={styles.scheduleBadgesRow}>
+                            <View style={styles.schedulePill}>
+                              <Text style={styles.schedulePillText}>
+                                {period.classSection}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+                      );
+                    })
+                  )}
+
+                </View>
+              )}
+
+              {/* TAB 3: LEAVES & ATTENDANCE */}
               {staffModalTab === 'leaves' && (
                 <View style={styles.dossierSection}>
                   <Text style={styles.dossierSectionTitle}>TODAY'S CAMPUS ATTENDANCE</Text>
@@ -638,8 +1032,8 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
                     style={[
                       styles.attendanceBanner,
                       {
-                        backgroundColor: isPresent ? '#F0FDF4' : '#FEF2F2',
-                        borderColor: isPresent ? '#BBF7D0' : '#FECACA',
+                        backgroundColor: isPresent ? '#FEF9C3' : '#F9FAFB',
+                        borderColor: isPresent ? '#F4C430' : '#E5E7EB',
                       },
                     ]}
                   >
@@ -647,13 +1041,13 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
                       <View
                         style={[
                           styles.attBannerDot,
-                          { backgroundColor: isPresent ? '#16A34A' : '#DC2626' },
+                          { backgroundColor: isPresent ? '#F4C430' : '#9CA3AF' },
                         ]}
                       />
                       <Text
                         style={[
                           styles.attBannerTitle,
-                          { color: isPresent ? '#166534' : '#991B1B' },
+                          { color: '#111827' },
                         ]}
                       >
                         {isPresent ? 'Present on Campus' : 'Absent / On Leave'}
@@ -668,16 +1062,17 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
                   </Text>
 
                   {/* Summary Box */}
+                  {/* Top Leave Summary Box (Taken / Available / Entitlement) */}
                   <View style={styles.leaveSummaryBox}>
                     <View style={styles.leaveSummaryCol}>
-                      <Text style={[styles.leaveSummaryVal, { color: '#DC2626' }]}>
+                      <Text style={[styles.leaveSummaryVal, { color: '#111827' }]}>
                         {details.totalTaken}d
                       </Text>
                       <Text style={styles.leaveSummaryLabel}>Taken</Text>
                     </View>
                     <View style={styles.leaveSummaryDivider} />
                     <View style={styles.leaveSummaryCol}>
-                      <Text style={[styles.leaveSummaryVal, { color: '#16A34A' }]}>
+                      <Text style={[styles.leaveSummaryVal, { color: '#111827' }]}>
                         {details.totalAvailable}d
                       </Text>
                       <Text style={styles.leaveSummaryLabel}>Available</Text>
@@ -700,11 +1095,11 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
                       </View>
                       <View style={styles.leaveNumbersRow}>
                         <View>
-                          <Text style={styles.leaveValNumRed}>{details.clTaken}</Text>
+                          <Text style={styles.leaveValNum}>{details.clTaken}</Text>
                           <Text style={styles.leaveSubText}>Taken</Text>
                         </View>
                         <View style={{ alignItems: 'flex-end' }}>
-                          <Text style={styles.leaveValNumGreen}>{details.clAvailable}</Text>
+                          <Text style={styles.leaveValNum}>{details.clAvailable}</Text>
                           <Text style={styles.leaveSubText}>Available</Text>
                         </View>
                       </View>
@@ -725,11 +1120,11 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
                       </View>
                       <View style={styles.leaveNumbersRow}>
                         <View>
-                          <Text style={styles.leaveValNumRed}>{details.slTaken}</Text>
+                          <Text style={styles.leaveValNum}>{details.slTaken}</Text>
                           <Text style={styles.leaveSubText}>Taken</Text>
                         </View>
                         <View style={{ alignItems: 'flex-end' }}>
-                          <Text style={styles.leaveValNumGreen}>{details.slAvailable}</Text>
+                          <Text style={styles.leaveValNum}>{details.slAvailable}</Text>
                           <Text style={styles.leaveSubText}>Available</Text>
                         </View>
                       </View>
@@ -750,11 +1145,11 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
                       </View>
                       <View style={styles.leaveNumbersRow}>
                         <View>
-                          <Text style={styles.leaveValNumRed}>{details.elTaken}</Text>
+                          <Text style={styles.leaveValNum}>{details.elTaken}</Text>
                           <Text style={styles.leaveSubText}>Taken</Text>
                         </View>
                         <View style={{ alignItems: 'flex-end' }}>
-                          <Text style={styles.leaveValNumGreen}>{details.elAvailable}</Text>
+                          <Text style={styles.leaveValNum}>{details.elAvailable}</Text>
                           <Text style={styles.leaveSubText}>Available</Text>
                         </View>
                       </View>
@@ -775,13 +1170,11 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
                       </View>
                       <View style={styles.leaveNumbersRow}>
                         <View>
-                          <Text style={[styles.leaveValNumRed, { color: '#2563EB' }]}>
-                            {details.odTaken}
-                          </Text>
+                          <Text style={styles.leaveValNum}>{details.odTaken}</Text>
                           <Text style={styles.leaveSubText}>Taken</Text>
                         </View>
                         <View style={{ alignItems: 'flex-end' }}>
-                          <Text style={[styles.leaveValNumGreen, { color: '#16A34A' }]}>Approved</Text>
+                          <Text style={styles.leaveValNum}>Approved</Text>
                           <Text style={styles.leaveSubText}>Status</Text>
                         </View>
                       </View>
@@ -789,7 +1182,7 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
                         <View
                           style={[
                             styles.leaveProgressBarFill,
-                            { width: '100%', backgroundColor: '#3B82F6' },
+                            { width: '100%' },
                           ]}
                         />
                       </View>
@@ -798,51 +1191,7 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
                 </View>
               )}
 
-              {/* TAB 3: WORKLOAD & CLASSES */}
-              {staffModalTab === 'workload' && (
-                <View style={styles.dossierSection}>
-                  <Text style={styles.dossierSectionTitle}>WORKLOAD</Text>
 
-                  <View style={styles.dossierGrid}>
-                    <View style={styles.dossierRow}>
-                      <Text style={styles.dossierLabel}>Class Advisor / Homeroom</Text>
-                      <Text style={[styles.dossierVal, { fontFamily: FontFamily.bold, color: '#166534' }]}>
-                        {selectedStaff.assignedClass || 'No Homeroom Class Assigned'}
-                      </Text>
-                    </View>
-
-                    <View style={styles.dossierRow}>
-                      <Text style={styles.dossierLabel}>Weekly Teaching Load</Text>
-                      <Text style={styles.dossierVal}>{details.weeklyHours} Hours / Week</Text>
-                    </View>
-
-                    <View style={styles.dossierRow}>
-                      <Text style={styles.dossierLabel}>Mentorship Batch</Text>
-                      <Text style={styles.dossierVal}>{details.menteesCount} Students Assigned</Text>
-                    </View>
-
-                    <View style={styles.dossierRow}>
-                      <Text style={styles.dossierLabel}>Cabin Consultation</Text>
-                      <Text style={styles.dossierVal}>Mon, Wed, Fri (03:30 PM - 05:00 PM)</Text>
-                    </View>
-                  </View>
-
-                  <Text style={[styles.dossierSectionTitle, { marginTop: 14 }]}>
-                    SUBJECTS
-                  </Text>
-
-                  <View style={styles.subjectsWrap}>
-                    {(selectedStaff.assignedSubjects && selectedStaff.assignedSubjects.length > 0
-                      ? selectedStaff.assignedSubjects
-                      : ['Advanced Course Specialization', 'Laboratory Practical Session']
-                    ).map((subj, idx) => (
-                      <View key={idx} style={styles.subjectPillItem}>
-                        <Text style={styles.subjectPillItemText}>{subj}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              )}
             </ScrollView>
 
             {/* Modal Bottom Actions */}
@@ -873,7 +1222,7 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
     <View style={styles.container}>
       {/* 1. Page Heading (Clean, no description below) */}
       <View style={styles.pageHeaderArea}>
-        <Text style={styles.pageHeading}>Faculty Directory</Text>
+        <Text style={styles.pageHeading}>{title || 'Faculty Directory'}</Text>
       </View>
 
       {/* 2. Top Search & Filter Bar (Matching Fee Ledger) */}
@@ -1053,12 +1402,14 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
               <TouchableOpacity
                 style={styles.filterResetBtn}
                 onPress={resetAllFilters}
+                activeOpacity={0.8}
               >
-                <Text style={styles.filterResetText}>Reset</Text>
+                <Text style={styles.filterResetText}>Reset Filters</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.filterApplyBtn}
                 onPress={() => setFilterModalVisible(false)}
+                activeOpacity={0.8}
               >
                 <Text style={styles.filterApplyText}>Apply Filters</Text>
               </TouchableOpacity>
@@ -1077,10 +1428,26 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#F4C430']} />}
         showsVerticalScrollIndicator={false}
       >
-        {departmentSections.map((section) => (
+        {isPageLoading ? (
+          <View style={styles.inPageLoaderWrap}>
+            <ActivityIndicator size="large" color="#F4C430" />
+            <Text style={styles.inPageLoaderText}>Loading Faculty Records...</Text>
+          </View>
+        ) : (
+          <>
+            {departmentSections.map((section) => (
           <View key={section.department} style={styles.deptSectionWrap}>
             <View style={styles.deptHeaderRow}>
-              <Text style={styles.deptHeaderTitle}>{section.department}</Text>
+              <View style={styles.deptHeaderLeft}>
+                <View style={styles.deptHeaderIconWrap}>
+                  <Feather
+                    name={getDepartmentIcon(section.department)}
+                    size={12}
+                    color="#111827"
+                  />
+                </View>
+                <Text style={styles.deptHeaderTitle}>{section.department}</Text>
+              </View>
               <View style={styles.deptCountPill}>
                 <Text style={styles.deptCountText}>
                   {section.staff.length} {section.staff.length === 1 ? 'Faculty' : 'Faculties'}
@@ -1129,19 +1496,17 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
 
                       {/* Quick Phone & Email Actions */}
                       <View style={styles.quickContactRow}>
-                        {staff.phone && (
-                          <TouchableOpacity
-                            style={styles.iconBtn}
-                            onPress={(e) => {
-                              e.stopPropagation();
-                              handleCall(staff.phone);
-                            }}
-                            activeOpacity={0.7}
-                            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                          >
-                            <Feather name="phone" size={15} color="#000000" />
-                          </TouchableOpacity>
-                        )}
+                        <TouchableOpacity
+                          style={styles.iconBtn}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            handleCall(staff.phone);
+                          }}
+                          activeOpacity={0.7}
+                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                        >
+                          <Feather name="phone" size={15} color="#000000" />
+                        </TouchableOpacity>
                         <TouchableOpacity
                           style={styles.iconBtn}
                           onPress={(e) => {
@@ -1189,7 +1554,7 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
 
                       <View style={styles.cardLeavesBadge}>
                         <Text style={styles.cardLeavesBadgeText}>
-                          Leaves Available: <Text style={{ fontFamily: FontFamily.bold, color: '#16A34A' }}>{details.totalAvailable}d</Text>
+                          Leaves Available: <Text style={{ fontFamily: FontFamily.bold, color: '#111827' }}>{details.totalAvailable}d</Text>
                         </Text>
                       </View>
                     </View>
@@ -1198,19 +1563,23 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
               })}
             </View>
           </View>
-        ))}
+            ))}
 
-        {filteredStaff.length === 0 && (
-          <View style={styles.emptyWrap}>
-            <MaterialCommunityIcons name="account-search" size={48} color="#D1D5DB" />
-            <Text style={styles.emptyTitle}>No faculty members found</Text>
-            <Text style={styles.emptySub}>Try adjusting your search query or active filters</Text>
-            {hasActiveFilters && (
-              <TouchableOpacity onPress={resetAllFilters} style={styles.emptyResetBtn}>
-                <Text style={styles.emptyResetBtnText}>Reset All Filters</Text>
-              </TouchableOpacity>
+            {renderPaginationControls()}
+
+            {filteredStaff.length === 0 && (
+              <View style={styles.emptyWrap}>
+                <MaterialCommunityIcons name="account-search" size={48} color="#D1D5DB" />
+                <Text style={styles.emptyTitle}>No faculty members found</Text>
+                <Text style={styles.emptySub}>Try adjusting your search query or active filters</Text>
+                {hasActiveFilters && (
+                  <TouchableOpacity onPress={resetAllFilters} style={styles.emptyResetBtn}>
+                    <Text style={styles.emptyResetBtnText}>Reset All Filters</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             )}
-          </View>
+          </>
         )}
       </ScrollView>
     </View>
@@ -1328,11 +1697,11 @@ const styles = StyleSheet.create({
   // Filter Modal
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.55)',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 24,
   },
   filterModalCard: {
     width: '100%',
@@ -1398,26 +1767,33 @@ const styles = StyleSheet.create({
   },
   filterModalFooter: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     alignItems: 'center',
-    paddingTop: 10,
+    gap: 10,
+    paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: '#E5E7EB',
   },
   filterResetBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 8,
+    backgroundColor: '#DC2626',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   filterResetText: {
-    fontFamily: FontFamily.medium,
+    fontFamily: FontFamily.bold,
     fontSize: 13,
-    color: '#6B7280',
+    color: '#FFFFFF',
   },
   filterApplyBtn: {
     backgroundColor: '#F4C430',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 9,
     borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   filterApplyText: {
     fontFamily: FontFamily.bold,
@@ -1442,6 +1818,21 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 10,
     paddingHorizontal: 4,
+  },
+  deptHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  deptHeaderIconWrap: {
+    width: 24,
+    height: 24,
+    borderRadius: 5,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   deptHeaderTitle: {
     fontFamily: FontFamily.bold,
@@ -1580,7 +1971,7 @@ const styles = StyleSheet.create({
   cardClassAdvisorText: {
     fontFamily: FontFamily.regular,
     fontSize: 11,
-    color: '#166534',
+    color: '#111827',
   },
   cardExpText: {
     fontFamily: FontFamily.regular,
@@ -1602,27 +1993,26 @@ const styles = StyleSheet.create({
   // Faculty Detail Dossier Modal
   staffModalCard: {
     width: '100%',
-    maxWidth: 680,
-    height: '84%',
-    maxHeight: 720,
+    maxWidth: 760,
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
+    overflow: 'hidden',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.2,
     shadowRadius: 20,
-    elevation: 6,
+    elevation: 8,
     flexDirection: 'column',
+    alignSelf: 'center',
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
     backgroundColor: '#FFFFFF',
     flexShrink: 0,
   },
@@ -1642,6 +2032,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
+    flexShrink: 0,
   },
   modalAvatarText: {
     fontFamily: FontFamily.bold,
@@ -1663,11 +2054,41 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#111827',
   },
-  modalEmpIdText: {
-    fontFamily: FontFamily.regular,
+  modalMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginTop: 2,
+  },
+  modalEmpIdBadge: {
+    fontFamily: FontFamily.bold,
     fontSize: 12,
+    color: '#111827',
+  },
+  modalMetaDivider: {
+    fontFamily: FontFamily.bold,
+    fontSize: 11,
+    color: '#9CA3AF',
+    marginHorizontal: 1,
+  },
+  modalDeptText: {
+    fontFamily: FontFamily.semibold,
+    fontSize: 12,
+    color: '#4B5563',
+    flexShrink: 1,
+  },
+  modalEmpIdText: {
+    fontFamily: FontFamily.bold,
+    fontSize: 12,
+    color: '#111827',
+    marginTop: 2,
+  },
+  modalClassText: {
+    fontFamily: FontFamily.regular,
+    fontSize: 11.5,
     color: '#6B7280',
-    marginTop: 1,
+    marginTop: 2,
   },
   designationBadgeSmall: {
     paddingHorizontal: 0,
@@ -1684,22 +2105,24 @@ const styles = StyleSheet.create({
     padding: 6,
     borderRadius: 6,
     backgroundColor: '#F3F4F6',
+    flexShrink: 0,
+    marginLeft: 6,
   },
   modalTabBar: {
     flexDirection: 'row',
+    alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
     backgroundColor: '#F9FAFB',
-    flexGrow: 0,
     flexShrink: 0,
-    height: 46,
+    height: 44,
   },
   modalTabBtn: {
     flex: 1,
-    height: 46,
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    borderBottomWidth: 2,
+    borderBottomWidth: 2.5,
     borderBottomColor: 'transparent',
   },
   modalTabBtnActive: {
@@ -1720,13 +2143,12 @@ const styles = StyleSheet.create({
   modalScrollBody: {
     flex: 1,
     flexGrow: 1,
-    minHeight: 280,
     width: '100%',
   },
   modalScrollContent: {
     flexGrow: 1,
-    padding: 16,
-    paddingBottom: 28,
+    padding: 14,
+    paddingBottom: 22,
   },
   dossierSection: {
     gap: 12,
@@ -1739,18 +2161,36 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   dossierGrid: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 4,
+    gap: 0,
+  },
+  dossierGridTwoCol: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  dossierItemHalf: {
+    width: '48.5%',
+    flexDirection: 'column',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-start',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  dossierItemFull: {
+    width: '100%',
+    flexDirection: 'column',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-start',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
   },
   dossierRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 9,
+    flexDirection: 'column',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-start',
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
   },
@@ -1758,42 +2198,37 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.medium,
     fontSize: 12,
     color: '#6B7280',
-    flexShrink: 0,
-    marginRight: 8,
+    marginBottom: 3,
   },
   dossierVal: {
-    fontFamily: FontFamily.medium,
-    fontSize: 13,
+    fontFamily: FontFamily.semibold,
+    fontSize: 13.5,
     color: '#111827',
-    textAlign: 'right',
-    flex: 1,
+    textAlign: 'left',
   },
   dossierPhoneBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'flex-start',
     gap: 6,
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-    backgroundColor: '#F0FDF4',
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#DCFCE7',
+    marginTop: 2,
   },
   dossierPhoneVal: {
     fontFamily: FontFamily.bold,
-    fontSize: 12,
-    color: '#16A34A',
-    includeFontPadding: false,
+    fontSize: 13,
+    color: '#000000',
   },
   dossierEmailBtn: {
-    alignItems: 'flex-end',
-    maxWidth: '65%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    gap: 6,
+    marginTop: 2,
   },
   dossierEmailVal: {
     fontFamily: FontFamily.medium,
-    fontSize: 12.5,
-    color: '#0284C7',
-    textAlign: 'right',
+    fontSize: 13,
+    color: '#111827',
   },
 
   // Attendance & Leaves Styles
@@ -1902,15 +2337,20 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  leaveValNum: {
+    fontFamily: FontFamily.bold,
+    fontSize: 16,
+    color: '#111827',
+  },
   leaveValNumRed: {
     fontFamily: FontFamily.bold,
     fontSize: 16,
-    color: '#DC2626',
+    color: '#111827',
   },
   leaveValNumGreen: {
     fontFamily: FontFamily.bold,
     fontSize: 16,
-    color: '#16A34A',
+    color: '#111827',
   },
   leaveSubText: {
     fontFamily: FontFamily.medium,
@@ -1925,41 +2365,21 @@ const styles = StyleSheet.create({
   },
   leaveProgressBarFill: {
     height: '100%',
-    backgroundColor: '#EF4444',
+    backgroundColor: '#F4C430',
     borderRadius: 3,
   },
 
-  // Workload tab
-  subjectsWrap: {
-    gap: 8,
-  },
-  subjectPillItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: '#FEF9C3',
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  subjectPillItemText: {
-    fontFamily: FontFamily.bold,
-    fontSize: 13,
-    color: '#854D0E',
-  },
+
 
   // Modal Footer Actions
   modalFooterActions: {
     flexDirection: 'row',
     gap: 10,
-    padding: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
     flexShrink: 0,
   },
   modalSecondaryBtn: {
@@ -1968,7 +2388,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 10,
+    minHeight: 44,
+    paddingVertical: 11,
     borderRadius: 8,
     backgroundColor: '#F3F4F6',
   },
@@ -1981,7 +2402,8 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
+    minHeight: 44,
+    paddingVertical: 11,
     borderRadius: 8,
     backgroundColor: '#F4C430',
   },
@@ -2022,5 +2444,280 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.bold,
     fontSize: 12,
     color: '#000000',
+  },
+
+  // Faculty Schedule Styles
+  scheduleDaySelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 5,
+    marginBottom: 12,
+  },
+  scheduleDayChip: {
+    flex: 1,
+    paddingVertical: 6,
+    paddingHorizontal: 2,
+    borderRadius: 6,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scheduleDayChipActive: {
+    backgroundColor: '#000000',
+    borderColor: '#000000',
+  },
+  scheduleDayChipText: {
+    fontFamily: FontFamily.bold,
+    fontSize: 11,
+    color: '#4B5563',
+  },
+  scheduleDayChipTextActive: {
+    color: '#FFFFFF',
+  },
+  scheduleTodayDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#F4C430',
+    marginTop: 2,
+  },
+  scheduleHeaderBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 10,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginBottom: 12,
+  },
+  scheduleHeaderTitle: {
+    fontFamily: FontFamily.bold,
+    fontSize: 13,
+    color: '#111827',
+  },
+  scheduleHeaderSub: {
+    fontFamily: FontFamily.regular,
+    fontSize: 11,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  scheduleCountBadge: {
+    backgroundColor: '#FEF9C3',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#FDE047',
+  },
+  scheduleCountBadgeText: {
+    fontFamily: FontFamily.bold,
+    fontSize: 11,
+    color: '#111827',
+  },
+  emptyScheduleCard: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginVertical: 8,
+  },
+  emptyScheduleTitle: {
+    fontFamily: FontFamily.bold,
+    fontSize: 14,
+    color: '#374151',
+  },
+  emptyScheduleSub: {
+    fontFamily: FontFamily.regular,
+    fontSize: 11.5,
+    color: '#6B7280',
+    textAlign: 'center',
+    maxWidth: 320,
+  },
+  schedulePeriodCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    padding: 12,
+    marginBottom: 10,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  schedulePeriodCardOngoing: {
+    borderColor: '#F4C430',
+    borderWidth: 1.5,
+    backgroundColor: '#FEF9C3',
+  },
+  schedulePeriodTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 8,
+  },
+  schedulePeriodTimeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  schedulePeriodNumBadge: {
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  schedulePeriodNumText: {
+    fontFamily: FontFamily.bold,
+    fontSize: 10.5,
+    color: '#111827',
+  },
+  schedulePeriodTimeText: {
+    fontFamily: FontFamily.bold,
+    fontSize: 12,
+    color: '#374151',
+  },
+  scheduleStatusBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 4,
+  },
+  scheduleStatusText: {
+    fontFamily: FontFamily.bold,
+    fontSize: 10.5,
+  },
+  scheduleSubjectTitle: {
+    fontFamily: FontFamily.bold,
+    fontSize: 13.5,
+    color: '#111827',
+    marginBottom: 6,
+  },
+  scheduleBadgesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 0,
+  },
+  schedulePill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  schedulePillText: {
+    fontFamily: FontFamily.bold,
+    fontSize: 11,
+    color: '#111827',
+  },
+  scheduleCabinNotice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: '#FEFCE8',
+    borderRadius: 10,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#FEF08A',
+    marginTop: 6,
+  },
+  scheduleCabinNoticeTitle: {
+    fontFamily: FontFamily.bold,
+    fontSize: 12,
+    color: '#854D0E',
+  },
+  scheduleCabinNoticeSub: {
+    fontFamily: FontFamily.regular,
+    fontSize: 11,
+    color: '#A16207',
+    marginTop: 2,
+  },
+
+  // In-page Loader
+  inPageLoaderWrap: {
+    paddingVertical: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  inPageLoaderText: {
+    fontFamily: FontFamily.medium,
+    fontSize: 14,
+    color: '#6B7280',
+  },
+
+  // Pagination Controls
+  paginationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 20,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  paginationCountText: {
+    fontFamily: FontFamily.regular,
+    fontSize: 13,
+    color: '#4B5563',
+  },
+  paginationActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  pageBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  pageBtnDisabled: {
+    opacity: 0.45,
+    backgroundColor: '#F9FAFB',
+  },
+  pageBtnText: {
+    fontFamily: FontFamily.semibold,
+    fontSize: 12,
+    color: '#111827',
+  },
+  pageBtnTextDisabled: {
+    color: '#9CA3AF',
+  },
+  pageIndicatorPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#FFD026',
+  },
+  pageIndicatorText: {
+    fontFamily: FontFamily.bold,
+    fontSize: 12,
+    color: '#111827',
   },
 });

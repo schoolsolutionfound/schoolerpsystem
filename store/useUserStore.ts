@@ -41,10 +41,11 @@ interface UserState {
   experience: string;
   libraryBadgeId: string;
   designation: string;
-  /** Settings → Form Fields: configured fields for this user's role. */
+  /** Settings �+' Form Fields: configured fields for this user's role. */
   profileFields: ProfileFormField[];
-  /** Settings → Form Fields: this user's saved values, keyed by field id. */
+  /** Settings �+' Form Fields: this user's saved values, keyed by field id. */
   customFields: CustomFieldValues;
+  accessibleModules: string[];
 
   setUserProfile: (data: Partial<UserState>) => void;
   switchRole: (newRole: UserRole) => void;
@@ -53,11 +54,16 @@ interface UserState {
   resetUser: () => void;
   setHasHydrated: (state: boolean) => void;
   setSelectedInstitution: (id: string, name: string) => void;
+  hasModuleAccess: (moduleKey: string) => boolean;
+  grantModuleAccess: (moduleKey: string) => void;
+  revokeModuleAccess: (moduleKey: string) => void;
+  toggleModuleAccess: (moduleKey: string) => void;
+  setAccessibleModules: (modules: string[]) => void;
 }
 
 export const useUserStore = create<UserState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       fullName: '',
       email: '',
       phone: '',
@@ -69,7 +75,7 @@ export const useUserStore = create<UserState>()(
       profilePic: '',
       language: 'en',
       userRole: 'loading',
-      roles: [],
+      roles: [] as string[],
       isEmailVerified: false,
       _hasHydrated: false,
       isProfileSynced: false,
@@ -94,6 +100,7 @@ export const useUserStore = create<UserState>()(
       designation: '',
       profileFields: [],
       customFields: {},
+      accessibleModules: ['leaves', 'document_requests', 'reviews'],
 
       setUserProfile: (data) =>
         set((state) => ({
@@ -104,6 +111,7 @@ export const useUserStore = create<UserState>()(
           schoolName: data.institutionName ?? data.schoolName ?? state.schoolName,
           institutionId: data.institutionId ?? data.schoolId ?? state.institutionId,
           institutionName: data.institutionName ?? data.schoolName ?? state.institutionName,
+          accessibleModules: data.accessibleModules ?? state.accessibleModules ?? ['leaves', 'document_requests', 'reviews'],
         })),
       switchRole: (newRole) =>
         set((state) => ({
@@ -146,6 +154,7 @@ export const useUserStore = create<UserState>()(
           designation: '',
           profileFields: [],
           customFields: {},
+          accessibleModules: ['leaves', 'document_requests', 'reviews'],
         }),
 
       setHasHydrated: (state) => set({ _hasHydrated: state }),
@@ -157,6 +166,76 @@ export const useUserStore = create<UserState>()(
           schoolId: id,
           schoolName: name,
         }),
+
+      hasModuleAccess: (moduleKey: string) => {
+        // Universal core tabs
+        const CORE_MODULES = [
+          'dashboard',
+          'homerooms',
+          'fees',
+          'staff',
+          'timetable',
+          'events',
+          'notices',
+          'schedule',
+          'mark_attendance',
+          'marks',
+          'homework',
+          'profile',
+          'courses',
+          'faculty',
+          'eligibility',
+          'attendance',
+          'home',
+          'locate',
+          'chat',
+          'reports',
+        ];
+        if (CORE_MODULES.includes(moduleKey)) return true;
+
+        const currentStore = get();
+        const modules = currentStore.accessibleModules;
+
+        // If modules list exists, check inclusion
+        if (Array.isArray(modules)) {
+          return modules.includes(moduleKey);
+        }
+
+        // Executive fallback
+        const role = currentStore.userRole;
+        if (role === 'principal' || role === 'hod' || role === 'admin' || role === 'institution admin') {
+          return true;
+        }
+        return false;
+      },
+
+      grantModuleAccess: (moduleKey: string) => {
+        set((state) => {
+          const current = state.accessibleModules || [];
+          if (!current.includes(moduleKey)) {
+            return { accessibleModules: [...current, moduleKey] };
+          }
+          return state;
+        });
+      },
+
+      revokeModuleAccess: (moduleKey: string) => {
+        set((state) => ({
+          accessibleModules: (state.accessibleModules || []).filter((m) => m !== moduleKey),
+        }));
+      },
+
+      toggleModuleAccess: (moduleKey: string) => {
+        set((state) => {
+          const current = state.accessibleModules || [];
+          const has = current.includes(moduleKey);
+          return {
+            accessibleModules: has ? current.filter((m) => m !== moduleKey) : [...current, moduleKey],
+          };
+        });
+      },
+
+      setAccessibleModules: (modules: string[]) => set({ accessibleModules: modules }),
     }),
     {
       name: 'user-storage',
@@ -167,6 +246,7 @@ export const useUserStore = create<UserState>()(
         phone: state.phone,
         userRole: state.userRole,
         roles: state.roles,
+        accessibleModules: state.accessibleModules,
         institutionId: state.institutionId,
         institutionName: state.institutionName,
         institutionCode: state.institutionCode,

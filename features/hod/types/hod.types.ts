@@ -75,6 +75,25 @@ export interface DepartmentNotice {
   attachedFile?: string;
 }
 
+export interface HODDepartmentStudent {
+  id: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  department: string;
+  usn: string;
+  semester: string;
+  section: string;
+  batchYear: string;
+  attendancePct: number;
+  cgpa: number;
+  parentName: string;
+  parentPhone: string;
+  hallTicketStatus: HallTicketStatus;
+  condonationReason?: string;
+  remarks?: string;
+}
+
 export interface HODKPIs {
   totalStudents: number;
   facultyOnDuty: number;
@@ -89,9 +108,20 @@ export interface HODKPIs {
 
 export type HODTab =
   | 'dashboard'
-  | 'courses'
+  | 'homerooms'
+  | 'students'
+  | 'staff'
   | 'faculty'
-  | 'reviews'
-  | 'eligibility'
+  | 'fees'
   | 'notices'
-  | 'attendance';
+  | 'timetable'
+  | 'events'
+  | 'leaves'
+  | 'document_requests'
+  | 'reviews'
+  | 'attendance'
+  | 'schedule'
+  | 'mark_attendance'
+  | 'marks'
+  | 'homework'
+  | 'profile';

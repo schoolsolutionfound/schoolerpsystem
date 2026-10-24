@@ -25,7 +25,7 @@ function getTenantAndDept(req: FastifyRequest): { instCode: string; department: 
 
   const role = (user.role || '').toLowerCase();
   const queryDept = (req.query as any)?.department;
-  if ((role === 'admin' || role === 'principal') && queryDept) {
+  if ((role === 'admin' || role === 'principal' || !department) && queryDept) {
     department = queryDept;
   }
 
@@ -211,3 +211,18 @@ export async function createNoticeHandler(request: FastifyRequest, reply: Fastif
     });
   }
 }
+
+export async function getStudentsHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const { instCode, department } = getTenantAndDept(request);
+    const { semester, search } = (request.query as any) || {};
+    const students = await hodService.getStudents(instCode, department, semester, search);
+    return reply.send({ success: true, data: students });
+  } catch (err: any) {
+    return reply.status(err.statusCode || 500).send({
+      success: false,
+      error: { message: err.message || 'Failed to fetch department students' },
+    });
+  }
+}
+

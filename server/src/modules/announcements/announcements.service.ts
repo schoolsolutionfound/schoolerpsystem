@@ -164,6 +164,41 @@ export class AnnouncementsService {
     return created;
   }
 
+  async updateAnnouncement(
+    institutionCode: string,
+    id: string,
+    input: Partial<Pick<CreateAnnouncementInput, 'title' | 'content' | 'targetAudience' | 'department' | 'priority'>>,
+    userId: string,
+    userRole: string
+  ): Promise<SchoolNoticeRecord | null> {
+    const database = getDb();
+    const normalizedRole = (userRole || '').toLowerCase();
+    const isPowerUser = normalizedRole === 'admin' || normalizedRole === 'principal';
+
+    const conditions = [
+      eq(schoolNotices.id, id),
+      eq(schoolNotices.institutionCode, institutionCode),
+    ];
+    if (!isPowerUser) {
+      conditions.push(eq(schoolNotices.authorId, userId));
+    }
+
+    const [updated] = await database
+      .update(schoolNotices)
+      .set({
+        ...(input.title !== undefined ? { title: input.title } : {}),
+        ...(input.content !== undefined ? { content: input.content } : {}),
+        ...(input.targetAudience !== undefined ? { targetAudience: input.targetAudience } : {}),
+        ...(input.department !== undefined ? { department: input.department } : {}),
+        ...(input.priority !== undefined ? { priority: input.priority } : {}),
+        updatedAt: new Date(),
+      })
+      .where(and(...conditions))
+      .returning();
+
+    return updated || null;
+  }
+
   async deleteAnnouncement(
     institutionCode: string,
     id: string,

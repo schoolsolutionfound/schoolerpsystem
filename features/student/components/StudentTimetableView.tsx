@@ -141,14 +141,6 @@ export const StudentTimetableView: React.FC = () => {
                             >
                               {s.subject?.name || 'Subject'}
                             </Text>
-                            {s.room ? (
-                              <Text
-                                style={[styles.slotRoom, isToday && styles.slotRoomToday]}
-                                numberOfLines={1}
-                              >
-                                {s.room}
-                              </Text>
-                            ) : null}
                           </>
                         ) : (
                           <Text style={[styles.slotEmpty, isToday && { color: '#8A6A00' }]}>—</Text>
@@ -189,7 +181,6 @@ export const StudentTimetableView: React.FC = () => {
               <View style={styles.infoCol}>
                 <Text style={styles.subject}>{s.subject?.name || 'Subject'}</Text>
                 <Text style={styles.detail}>{s.teacher?.fullName || ''}</Text>
-                {s.room ? <Text style={styles.roomChip}>Room {s.room}</Text> : null}
               </View>
               <MaterialCommunityIcons name="chevron-right" size={18} color="#9A9A9A" />
             </View>

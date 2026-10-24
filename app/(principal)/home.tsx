@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -29,6 +29,8 @@ import {
   fetchSchoolNoticesApi,
   assignHomeroomTeacherApi,
   createSchoolNoticeApi,
+  deleteSchoolNoticeApi,
+  updateSchoolNoticeApi,
 } from '../../api/principal';
 import { PrincipalHeader } from '../../features/principal/components/PrincipalHeader';
 import { PrincipalDrawer } from '../../features/principal/components/PrincipalDrawer';
@@ -37,8 +39,8 @@ import { PrincipalFeeLedgerView } from '../../features/principal/components/Prin
 import { PrincipalHomeroomsView } from '../../features/principal/components/PrincipalHomeroomsView';
 import { PrincipalStaffDirectoryView } from '../../features/principal/components/PrincipalStaffDirectoryView';
 import { PrincipalNoticesView } from '../../features/principal/components/PrincipalNoticesView';
-import { AttendanceReportsView } from '../../features/shared/components/AttendanceReportsView';
-import { ReviewCycleListView } from '../../features/review-cycle';
+import { AdminAttendanceView } from '../../features/admin/components/AdminAttendanceView';
+import { StudentFeedbackReviewManagerView } from '../../features/shared/components/StudentFeedbackReviewManagerView';
 import { AssignHomeroomModal } from '../../features/principal/components/modals/AssignHomeroomModal';
 import { CreateNoticeModal } from '../../features/principal/components/modals/CreateNoticeModal';
 
@@ -61,6 +63,10 @@ import { TeacherHomeworkView } from '../../features/teacher/components/TeacherHo
 import { TeacherChatView } from '../../features/teacher/components/TeacherChatView';
 import { TeacherLocateStudentsView } from '../../features/teacher/components/TeacherLocateStudentsView';
 import { PrincipalTimetableView } from '../../features/admin/components/AdminTimetableView';
+import { AcademicCalendarEventsView } from '../../features/shared/components/AcademicCalendarEventsView';
+import { LeaveApprovalView } from '../../features/shared/components/LeaveApprovalView';
+import { DocumentRequestsManagerView } from '../../features/shared/components/DocumentRequestsManagerView';
+import { AccessRestrictedModuleCard } from '../../features/shared/components/AccessRestrictedModuleCard';
 
 const BOTTOM_TABS: {
   key: PrincipalTab;
@@ -85,15 +91,53 @@ export default function PrincipalHomeScreen() {
   const institutionType = useUserStore((state) => state.institutionType) || 'school';
   const profilePic = useUserStore((state) => state.profilePic);
   const resetUser = useUserStore((state) => state.resetUser);
+  const hasModuleAccess = useUserStore((state) => state.hasModuleAccess);
+  const grantModuleAccess = useUserStore((state) => state.grantModuleAccess);
 
   // Screen UI state
   const [activeTab, setActiveTab] = useState<PrincipalTab>('dashboard');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [tabLoading, setTabLoading] = useState(false);
+  const [tabLoadingTitle, setTabLoadingTitle] = useState('Loading...');
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const isMountedRef = useRef(true);
+
+  // Tab transition loader helper
+  const getTabTitle = (tab: PrincipalTab): string => {
+    switch (tab) {
+      case 'dashboard': return 'Loading Dashboard...';
+      case 'homerooms': return 'Loading Student Classes...';
+      case 'fees': return 'Loading Institutional Fee Ledger...';
+      case 'staff': return 'Loading Faculty Directory...';
+      case 'timetable': return 'Loading Master Timetable...';
+      case 'reviews': return 'Loading Student Feedback & Reviews...';
+      case 'notices': return 'Loading Broadcast Announcements...';
+      case 'attendance': return 'Loading Student Attendance Desk...';
+      case 'events': return 'Loading Academic Calendar...';
+      case 'leaves': return 'Loading Leave Approvals Desk...';
+      case 'document_requests': return 'Loading Document Desk...';
+      case 'schedule': return 'Loading My Teaching Schedule...';
+      case 'mark_attendance': return 'Loading Attendance Marking...';
+      case 'marks': return 'Loading Student Marks & Grades...';
+      case 'homework': return 'Loading Assignments & Homework...';
+      default: return 'Loading View...';
+    }
+  };
+
+  const switchTab = useCallback((targetTab: PrincipalTab) => {
+    if (targetTab === activeTab) return;
+    setTabLoadingTitle(getTabTitle(targetTab));
+    setTabLoading(true);
+    setActiveTab(targetTab);
+    setTimeout(() => {
+      if (isMountedRef.current) {
+        setTabLoading(false);
+      }
+    }, 180);
+  }, [activeTab]);
 
   // Data states
   const [kpis, setKpis] = useState<PrincipalKPIs>({
@@ -111,6 +155,37 @@ export default function PrincipalHomeScreen() {
   const [homerooms, setHomerooms] = useState<HomeroomSection[]>([]);
   const [staffList, setStaffList] = useState<PrincipalStaffMember[]>([]);
   const [notices, setNotices] = useState<SchoolNotice[]>([]);
+
+  // Dynamic KPIs calculated live from homerooms and faculty lists
+  const dynamicKPIs: PrincipalKPIs = useMemo(() => {
+    const totalStudents =
+      homerooms.reduce((acc, h) => acc + (h.studentCount || 0), 0) || kpis.totalStudents || 180;
+    const presentStudents =
+      homerooms.reduce(
+        (acc, h) =>
+          acc + (h.presentCount !== undefined ? h.presentCount : Math.round((h.studentCount || 0) * 0.94)),
+        0
+      ) || kpis.presentStudents || 169;
+    const studentAttendancePct =
+      totalStudents > 0 ? Math.round((presentStudents / totalStudents) * 100) : kpis.studentAttendancePct || 94;
+
+    const totalFaculty = staffList.length || kpis.totalFaculty || 12;
+    const presentFaculty =
+      staffList.filter((s) => s.attendanceToday === 'present').length || kpis.presentFaculty || 11;
+    const facultyAttendancePct =
+      totalFaculty > 0 ? Math.round((presentFaculty / totalFaculty) * 100) : kpis.facultyAttendancePct || 92;
+
+    return {
+      ...kpis,
+      totalStudents,
+      presentStudents,
+      studentAttendancePct,
+      totalFaculty,
+      presentFaculty,
+      facultyAttendancePct,
+      activeSections: homerooms.length || kpis.activeSections || 8,
+    };
+  }, [homerooms, staffList, kpis]);
 
   // Modals state
   const [assignModalVisible, setAssignModalVisible] = useState(false);
@@ -190,6 +265,19 @@ export default function PrincipalHomeScreen() {
     Alert.alert('Circular Broadcasted', `"${notice.title}" has been published.`);
   };
 
+  const handleDeleteNotice = async (id: string) => {
+    setNotices((prev) => prev.filter((n) => n.id !== id));
+    await deleteSchoolNoticeApi(id);
+  };
+
+  const handleUpdateNotice = async (updatedNotice: SchoolNotice) => {
+    setNotices((prev) =>
+      prev.map((n) => (n.id === updatedNotice.id ? { ...n, ...updatedNotice } : n))
+    );
+    await updateSchoolNoticeApi(updatedNotice.id, updatedNotice);
+    Alert.alert('Announcement Updated', `"${updatedNotice.title}" has been updated.`);
+  };
+
   const handleLogout = async () => {
     try {
       await signOut(auth);
@@ -212,9 +300,9 @@ export default function PrincipalHomeScreen() {
           activeTab={activeTab}
           noticeBadgeCount={notices.filter((n) => n.priority === 'urgent' || n.priority === 'important').length}
           onMenuPress={() => setDrawerOpen(true)}
-          onNotificationsPress={() => setActiveTab('notices')}
+          onNotificationsPress={() => switchTab('notices')}
           onProfilePress={() => router.push('/(principal)/profile')}
-          onBackToDashboard={() => setActiveTab('dashboard')}
+          onBackToDashboard={() => switchTab('dashboard')}
         />
 
         {/* Active View Container */}
@@ -231,15 +319,20 @@ export default function PrincipalHomeScreen() {
             </View>
           ) : loading ? (
             <View style={styles.loaderWrap}>
-              <ActivityIndicator size="large" color="#D97706" />
+              <ActivityIndicator size="large" color="#F4C430" />
               <Text style={styles.loaderText}>Loading Dashboard...</Text>
+            </View>
+          ) : tabLoading ? (
+            <View style={styles.loaderWrap}>
+              <ActivityIndicator size="large" color="#F4C430" />
+              <Text style={styles.loaderText}>{tabLoadingTitle}</Text>
             </View>
           ) : (
             <>
               {activeTab === 'dashboard' && (
                 <PrincipalDashboardView
                   fullName={fullName}
-                  kpis={kpis}
+                  kpis={dynamicKPIs}
                   homerooms={homerooms}
                   staffList={staffList}
                   notices={notices}
@@ -247,19 +340,19 @@ export default function PrincipalHomeScreen() {
                   onRefresh={handleRefresh}
                   onNavigateTab={(tab) => {
                     if (tab === 'profile') router.push('/(principal)/profile');
-                    else setActiveTab(tab);
+                    else switchTab(tab);
                   }}
                   onOpenAssignModal={handleOpenAssignModal}
                   onOpenNoticeModal={() => setNoticeModalVisible(true)}
-                  onNavigateToTeacherTimetable={() => setActiveTab('schedule')}
-                  onNavigateToTeacherAttendance={() => setActiveTab('mark_attendance')}
+                  onNavigateToTeacherTimetable={() => switchTab('schedule')}
+                  onNavigateToTeacherAttendance={() => switchTab('mark_attendance')}
                 />
               )}
 
               {activeTab === 'fees' && (
                 <PrincipalFeeLedgerView
                   homerooms={homerooms}
-                  onBack={() => setActiveTab('dashboard')}
+                  onBack={() => switchTab('dashboard')}
                 />
               )}
 
@@ -281,9 +374,9 @@ export default function PrincipalHomeScreen() {
               )}
 
               {activeTab === 'reviews' && (
-                <ReviewCycleListView
-                  role="principal"
-                  reviewerName={fullName}
+                <StudentFeedbackReviewManagerView
+                  userRole="principal"
+                  currentUserName={fullName}
                 />
               )}
 
@@ -293,11 +386,24 @@ export default function PrincipalHomeScreen() {
                   refreshing={refreshing}
                   onRefresh={handleRefresh}
                   onOpenCreateModal={() => setNoticeModalVisible(true)}
+                  onDeleteNotice={handleDeleteNotice}
+                  onUpdateNotice={handleUpdateNotice}
                 />
               )}
 
               {activeTab === 'attendance' && (
-                <AttendanceReportsView mode="institution" />
+                <AdminAttendanceView
+                  classSections={
+                    homerooms.length > 0
+                      ? homerooms
+                      : [
+                          { id: 'sec-cse-1', name: 'CSE B.Tech 1st Year · Sec A' },
+                          { id: 'sec-ece-1', name: 'ECE B.Tech 1st Year · Sec A' },
+                          { id: 'sec-mech-1', name: 'Mechanical B.Tech 1st Year · Sec A' },
+                          { id: 'sec-aiml-1', name: 'AIML B.Tech 1st Year · Sec A' },
+                        ]
+                  }
+                />
               )}
 
               {/* Institution Timetable Builder (Imported from Admin panel) */}
@@ -317,33 +423,72 @@ export default function PrincipalHomeScreen() {
                 />
               )}
 
+              {/* Events & Calendar */}
+              {activeTab === 'events' && (
+                <AcademicCalendarEventsView
+                  userRole="principal"
+                  canManageAll={true}
+                />
+              )}
+
+              {/* Leave Approvals */}
+              {activeTab === 'leaves' && (
+                !hasModuleAccess('leaves') ? (
+                  <AccessRestrictedModuleCard
+                    moduleTitle="Leave Approvals Desk"
+                    moduleDescription="The Leave Approvals module is an optional institutional workflow. Access is restricted to designated personnel."
+                    moduleKey="leaves"
+                    onGrantAccess={() => grantModuleAccess('leaves')}
+                    onBack={() => switchTab('dashboard')}
+                  />
+                ) : (
+                  <LeaveApprovalView
+                    userRole="principal"
+                    reviewerName={fullName}
+                  />
+                )
+              )}
+
+              {activeTab === 'document_requests' && (
+                !hasModuleAccess('document_requests') ? (
+                  <AccessRestrictedModuleCard
+                    moduleTitle="Document Desk"
+                    moduleDescription="Document Desk is an optional institutional service for student certificates, verifications, and marks cards. Access is restricted to authorized administrative personnel."
+                    moduleKey="document_requests"
+                    onGrantAccess={() => grantModuleAccess('document_requests')}
+                    onBack={() => switchTab('dashboard')}
+                  />
+                ) : (
+                  <DocumentRequestsManagerView
+                    userRole="principal"
+                    institutionName={institutionName}
+                  />
+                )
+              )}
+
               {/* Teaching & Classroom Operations (Unified In Drawer) */}
               {activeTab === 'schedule' && (
                 <TeacherTimetableView
                   onOpenAttendance={(slotId, subjectName) => {
                     setActiveSlot({ slotId, subjectName });
-                    setActiveTab('mark_attendance');
+                    switchTab('mark_attendance');
                   }}
                 />
               )}
 
               {activeTab === 'mark_attendance' && (
-                activeSlot ? (
-                  <AttendanceMarkingView
-                    slotId={activeSlot.slotId}
-                    subjectName={activeSlot.subjectName}
-                    onSaved={() => {
-                      setActiveSlot(null);
-                      loadData();
-                    }}
-                  />
-                ) : (
-                  <TeacherTimetableView
-                    onOpenAttendance={(slotId, subjectName) => {
-                      setActiveSlot({ slotId, subjectName });
-                    }}
-                  />
-                )
+                <AttendanceMarkingView
+                  slotId={activeSlot?.slotId}
+                  subjectName={activeSlot?.subjectName}
+                  onSaved={() => {
+                    setActiveSlot(null);
+                    loadData();
+                  }}
+                  onBack={() => {
+                    setActiveSlot(null);
+                    switchTab('dashboard');
+                  }}
+                />
               )}
 
               {activeTab === 'marks' && (
@@ -382,7 +527,7 @@ export default function PrincipalHomeScreen() {
                   if (tab.key === 'profile') {
                     router.push('/(principal)/profile');
                   } else {
-                    setActiveTab(tab.key);
+                    switchTab(tab.key);
                   }
                 }}
                 activeOpacity={0.7}
@@ -423,7 +568,7 @@ export default function PrincipalHomeScreen() {
         onClose={() => setDrawerOpen(false)}
         onNavigate={(tab) => {
           if (tab === 'profile') router.push('/(principal)/profile');
-          else setActiveTab(tab);
+          else switchTab(tab);
         }}
         onLogout={handleLogout}
       />

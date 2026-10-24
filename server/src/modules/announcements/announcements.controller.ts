@@ -68,6 +68,49 @@ export async function createAnnouncementHandler(request: FastifyRequest, reply: 
   }
 }
 
+export async function updateAnnouncementHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const user = (request as any).user;
+    const instCode = user?.institutionCode;
+    if (!instCode) {
+      return reply.status(403).send({
+        success: false,
+        error: { message: 'TENANT_REQUIRED: No institution assigned to current user account.' },
+      });
+    }
+
+    const { id } = request.params as { id: string };
+    const body = (request.body as any) || {};
+    const updated = await announcementsService.updateAnnouncement(
+      instCode,
+      id,
+      {
+        title: body.title,
+        content: body.content,
+        targetAudience: body.targetAudience,
+        department: body.department,
+        priority: body.priority,
+      },
+      user.uid,
+      user.role
+    );
+
+    if (!updated) {
+      return reply.status(404).send({
+        success: false,
+        error: { message: 'Announcement not found or access denied' },
+      });
+    }
+
+    return reply.send({ success: true, data: updated });
+  } catch (err: any) {
+    return reply.status(500).send({
+      success: false,
+      error: { message: err.message || 'Failed to update announcement' },
+    });
+  }
+}
+
 export async function deleteAnnouncementHandler(request: FastifyRequest, reply: FastifyReply) {
   try {
     const user = (request as any).user;

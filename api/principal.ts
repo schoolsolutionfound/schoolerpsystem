@@ -285,6 +285,38 @@ export async function createSchoolNoticeApi(
   };
 }
 
+export async function deleteSchoolNoticeApi(id: string): Promise<boolean> {
+  try {
+    await apiClient(`/principal-notices/${id}`, { method: 'DELETE' });
+    return true;
+  } catch (err) {
+    console.warn('Failed to delete announcement:', err);
+    return false;
+  }
+}
+
+export async function updateSchoolNoticeApi(
+  id: string,
+  notice: Partial<Omit<SchoolNotice, 'id'>>
+): Promise<boolean> {
+  try {
+    await apiClient(`/principal-notices/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        title: notice.title,
+        content: notice.content,
+        priority: notice.priority,
+        targetAudience: notice.targetAudience === 'teachers' ? 'faculty' : notice.targetAudience,
+        department: notice.department || '',
+      }),
+    });
+    return true;
+  } catch (err) {
+    console.warn('Failed to update announcement:', err);
+    return false;
+  }
+}
+
 export interface StudentDetailDossier {
   id: string;
   fullName: string;

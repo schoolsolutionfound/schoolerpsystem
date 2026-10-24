@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import {
   listAnnouncementsHandler,
   createAnnouncementHandler,
+  updateAnnouncementHandler,
   deleteAnnouncementHandler,
 } from './announcements.controller.js';
 import { authenticate, requireStaff } from '../shared/middleware/auth.js';
@@ -18,6 +19,16 @@ export async function announcementsRoutes(fastify: FastifyInstance) {
       config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
     },
     createAnnouncementHandler
+  );
+
+  // Update: Author or Admin/Principal
+  fastify.put(
+    '/:id',
+    {
+      preHandler: [requireStaff],
+      config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+    },
+    updateAnnouncementHandler
   );
 
   // Deletion: Author or Admin/Principal

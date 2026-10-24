@@ -4,7 +4,7 @@ export const DEFAULT_INSTITUTION_CLASSES: HomeroomSection[] = [
   // 1. Computer Science & Engineering (10 classes)
   {
     id: 'cs-cse-1a',
-    name: 'CSE B.Tech 1st Year · Sec A',
+    name: 'CSE 1st Year · Sec A',
     grade: '1st Year',
     section: 'A',
     department: 'Computer Science',
@@ -16,7 +16,7 @@ export const DEFAULT_INSTITUTION_CLASSES: HomeroomSection[] = [
   },
   {
     id: 'cs-cse-1b',
-    name: 'CSE B.Tech 1st Year · Sec B',
+    name: 'CSE 1st Year · Sec B',
     grade: '1st Year',
     section: 'B',
     department: 'Computer Science',
@@ -28,7 +28,7 @@ export const DEFAULT_INSTITUTION_CLASSES: HomeroomSection[] = [
   },
   {
     id: 'cs-cse-2a',
-    name: 'CSE B.Tech 2nd Year · Sec A',
+    name: 'CSE 2nd Year · Sec A',
     grade: '2nd Year',
     section: 'A',
     department: 'Computer Science',
@@ -40,7 +40,7 @@ export const DEFAULT_INSTITUTION_CLASSES: HomeroomSection[] = [
   },
   {
     id: 'cs-cse-2b',
-    name: 'CSE B.Tech 2nd Year · Sec B',
+    name: 'CSE 2nd Year · Sec B',
     grade: '2nd Year',
     section: 'B',
     department: 'Computer Science',
@@ -52,7 +52,7 @@ export const DEFAULT_INSTITUTION_CLASSES: HomeroomSection[] = [
   },
   {
     id: 'cs-cse-3a',
-    name: 'CSE B.Tech 3rd Year · Sec A',
+    name: 'CSE 3rd Year · Sec A',
     grade: '3rd Year',
     section: 'A',
     department: 'Computer Science',
@@ -64,7 +64,7 @@ export const DEFAULT_INSTITUTION_CLASSES: HomeroomSection[] = [
   },
   {
     id: 'cs-cse-3b',
-    name: 'CSE B.Tech 3rd Year · Sec B',
+    name: 'CSE 3rd Year · Sec B',
     grade: '3rd Year',
     section: 'B',
     department: 'Computer Science',
@@ -76,7 +76,7 @@ export const DEFAULT_INSTITUTION_CLASSES: HomeroomSection[] = [
   },
   {
     id: 'cs-cse-4a',
-    name: 'CSE B.Tech 4th Year · Sec A',
+    name: 'CSE 4th Year · Sec A',
     grade: '4th Year',
     section: 'A',
     department: 'Computer Science',
@@ -88,7 +88,7 @@ export const DEFAULT_INSTITUTION_CLASSES: HomeroomSection[] = [
   },
   {
     id: 'cs-cse-4b',
-    name: 'CSE B.Tech 4th Year · Sec B',
+    name: 'CSE 4th Year · Sec B',
     grade: '4th Year',
     section: 'B',
     department: 'Computer Science',
@@ -100,7 +100,7 @@ export const DEFAULT_INSTITUTION_CLASSES: HomeroomSection[] = [
   },
   {
     id: 'cs-cse-m1',
-    name: 'CSE M.Tech 1st Year',
+    name: 'CSE 1st Year',
     grade: '1st Year',
     section: 'A',
     department: 'Computer Science',
@@ -112,7 +112,7 @@ export const DEFAULT_INSTITUTION_CLASSES: HomeroomSection[] = [
   },
   {
     id: 'cs-cse-m2',
-    name: 'CSE M.Tech 2nd Year',
+    name: 'CSE 2nd Year',
     grade: '2nd Year',
     section: 'A',
     department: 'Computer Science',
@@ -126,7 +126,7 @@ export const DEFAULT_INSTITUTION_CLASSES: HomeroomSection[] = [
   // 2. Mechanical Engineering (8 classes)
   {
     id: 'cs-mech-1a',
-    name: 'Mechanical B.Tech 1st Year',
+    name: 'Mechanical 1st Year',
     grade: '1st Year',
     section: 'A',
     department: 'Mechanical Eng',
@@ -138,7 +138,7 @@ export const DEFAULT_INSTITUTION_CLASSES: HomeroomSection[] = [
   },
   {
     id: 'cs-mech-2a',
-    name: 'Mechanical B.Tech 2nd Year',
+    name: 'Mechanical 2nd Year',
     grade: '2nd Year',
     section: 'A',
     department: 'Mechanical Eng',
@@ -150,7 +150,7 @@ export const DEFAULT_INSTITUTION_CLASSES: HomeroomSection[] = [
   },
   {
     id: 'cs-mech-3a',
-    name: 'Mechanical B.Tech 3rd Year',
+    name: 'Mechanical 3rd Year',
     grade: '3rd Year',
     section: 'A',
     department: 'Mechanical Eng',
@@ -162,7 +162,7 @@ export const DEFAULT_INSTITUTION_CLASSES: HomeroomSection[] = [
   },
   {
     id: 'cs-mech-4a',
-    name: 'Mechanical B.Tech 4th Year',
+    name: 'Mechanical 4th Year',
     grade: '4th Year',
     section: 'A',
     department: 'Mechanical Eng',
@@ -174,7 +174,7 @@ export const DEFAULT_INSTITUTION_CLASSES: HomeroomSection[] = [
   },
   {
     id: 'cs-mech-1b',
-    name: 'Mechanical B.Tech 1st Year · Sec B',
+    name: 'Mechanical 1st Year · Sec B',
     grade: '1st Year',
     section: 'B',
     department: 'Mechanical Eng',
@@ -186,7 +186,7 @@ export const DEFAULT_INSTITUTION_CLASSES: HomeroomSection[] = [
   },
   {
     id: 'cs-mech-2b',
-    name: 'Mechanical B.Tech 2nd Year · Sec B',
+    name: 'Mechanical 2nd Year · Sec B',
     grade: '2nd Year',
     section: 'B',
     department: 'Mechanical Eng',
@@ -198,7 +198,7 @@ export const DEFAULT_INSTITUTION_CLASSES: HomeroomSection[] = [
   },
   {
     id: 'cs-mech-m1',
-    name: 'Mechanical M.Tech Thermal Eng',
+    name: 'Mechanical Thermal Eng',
     grade: '1st Year',
     section: 'A',
     department: 'Mechanical Eng',
@@ -210,7 +210,7 @@ export const DEFAULT_INSTITUTION_CLASSES: HomeroomSection[] = [
   },
   {
     id: 'cs-mech-m2',
-    name: 'Mechanical M.Tech Machine Design',
+    name: 'Mechanical Machine Design',
     grade: '2nd Year',
     section: 'A',
     department: 'Mechanical Eng',
@@ -224,7 +224,7 @@ export const DEFAULT_INSTITUTION_CLASSES: HomeroomSection[] = [
   // 3. Electronics & Communication Engineering (8 classes)
   {
     id: 'cs-ece-1a',
-    name: 'ECE B.Tech 1st Year · Sec A',
+    name: 'ECE 1st Year · Sec A',
     grade: '1st Year',
     section: 'A',
     department: 'Electronics & Comm',
@@ -236,7 +236,7 @@ export const DEFAULT_INSTITUTION_CLASSES: HomeroomSection[] = [
   },
   {
     id: 'cs-ece-1b',
-    name: 'ECE B.Tech 1st Year · Sec B',
+    name: 'ECE 1st Year · Sec B',
     grade: '1st Year',
     section: 'B',
     department: 'Electronics & Comm',
@@ -248,7 +248,7 @@ export const DEFAULT_INSTITUTION_CLASSES: HomeroomSection[] = [
   },
   {
     id: 'cs-ece-2a',
-    name: 'ECE B.Tech 2nd Year · Sec A',
+    name: 'ECE 2nd Year · Sec A',
     grade: '2nd Year',
     section: 'A',
     department: 'Electronics & Comm',
@@ -260,7 +260,7 @@ export const DEFAULT_INSTITUTION_CLASSES: HomeroomSection[] = [
   },
   {
     id: 'cs-ece-2b',
-    name: 'ECE B.Tech 2nd Year · Sec B',
+    name: 'ECE 2nd Year · Sec B',
     grade: '2nd Year',
     section: 'B',
     department: 'Electronics & Comm',
@@ -272,7 +272,7 @@ export const DEFAULT_INSTITUTION_CLASSES: HomeroomSection[] = [
   },
   {
     id: 'cs-ece-3a',
-    name: 'ECE B.Tech 3rd Year · Sec A',
+    name: 'ECE 3rd Year · Sec A',
     grade: '3rd Year',
     section: 'A',
     department: 'Electronics & Comm',
@@ -284,7 +284,7 @@ export const DEFAULT_INSTITUTION_CLASSES: HomeroomSection[] = [
   },
   {
     id: 'cs-ece-3b',
-    name: 'ECE B.Tech 3rd Year · Sec B',
+    name: 'ECE 3rd Year · Sec B',
     grade: '3rd Year',
     section: 'B',
     department: 'Electronics & Comm',
@@ -296,7 +296,7 @@ export const DEFAULT_INSTITUTION_CLASSES: HomeroomSection[] = [
   },
   {
     id: 'cs-ece-4a',
-    name: 'ECE B.Tech 4th Year · Sec A',
+    name: 'ECE 4th Year · Sec A',
     grade: '4th Year',
     section: 'A',
     department: 'Electronics & Comm',
@@ -308,7 +308,7 @@ export const DEFAULT_INSTITUTION_CLASSES: HomeroomSection[] = [
   },
   {
     id: 'cs-ece-m1',
-    name: 'ECE M.Tech VLSI Design',
+    name: 'ECE VLSI Design',
     grade: '1st Year',
     section: 'A',
     department: 'Electronics & Comm',
@@ -322,7 +322,7 @@ export const DEFAULT_INSTITUTION_CLASSES: HomeroomSection[] = [
   // 4. AI & Machine Learning (8 classes)
   {
     id: 'cs-aiml-1a',
-    name: 'AIML B.Tech 1st Year · Sec A',
+    name: 'AIML 1st Year · Sec A',
     grade: '1st Year',
     section: 'A',
     department: 'AIML',
@@ -334,7 +334,7 @@ export const DEFAULT_INSTITUTION_CLASSES: HomeroomSection[] = [
   },
   {
     id: 'cs-aiml-1b',
-    name: 'AIML B.Tech 1st Year · Sec B',
+    name: 'AIML 1st Year · Sec B',
     grade: '1st Year',
     section: 'B',
     department: 'AIML',
@@ -346,7 +346,7 @@ export const DEFAULT_INSTITUTION_CLASSES: HomeroomSection[] = [
   },
   {
     id: 'cs-aiml-2a',
-    name: 'AIML B.Tech 2nd Year · Sec A',
+    name: 'AIML 2nd Year · Sec A',
     grade: '2nd Year',
     section: 'A',
     department: 'AIML',
@@ -358,7 +358,7 @@ export const DEFAULT_INSTITUTION_CLASSES: HomeroomSection[] = [
   },
   {
     id: 'cs-aiml-2b',
-    name: 'AIML B.Tech 2nd Year · Sec B',
+    name: 'AIML 2nd Year · Sec B',
     grade: '2nd Year',
     section: 'B',
     department: 'AIML',
@@ -370,7 +370,7 @@ export const DEFAULT_INSTITUTION_CLASSES: HomeroomSection[] = [
   },
   {
     id: 'cs-aiml-3a',
-    name: 'AIML B.Tech 3rd Year · Sec A',
+    name: 'AIML 3rd Year · Sec A',
     grade: '3rd Year',
     section: 'A',
     department: 'AIML',
@@ -382,7 +382,7 @@ export const DEFAULT_INSTITUTION_CLASSES: HomeroomSection[] = [
   },
   {
     id: 'cs-aiml-3b',
-    name: 'AIML B.Tech 3rd Year · Sec B',
+    name: 'AIML 3rd Year · Sec B',
     grade: '3rd Year',
     section: 'B',
     department: 'AIML',
@@ -394,7 +394,7 @@ export const DEFAULT_INSTITUTION_CLASSES: HomeroomSection[] = [
   },
   {
     id: 'cs-aiml-4a',
-    name: 'AIML B.Tech 4th Year',
+    name: 'AIML 4th Year',
     grade: '4th Year',
     section: 'A',
     department: 'AIML',
@@ -406,7 +406,7 @@ export const DEFAULT_INSTITUTION_CLASSES: HomeroomSection[] = [
   },
   {
     id: 'cs-aiml-m1',
-    name: 'AIML M.Tech Robotics & Vision',
+    name: 'AIML Robotics & Vision',
     grade: '1st Year',
     section: 'A',
     department: 'AIML',
