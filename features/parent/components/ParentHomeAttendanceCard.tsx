@@ -47,12 +47,12 @@ export const ParentHomeAttendanceCard: React.FC<ParentHomeAttendanceCardProps> =
               ) : (
                 <>
                   <Text style={styles.attendanceValue}>
-                    {pct !== undefined ? `${pct}%` : '89%'}
+                    {pct !== undefined ? `${pct}%` : '—'}
                   </Text>
                   <Text style={styles.attendanceSub}>
                     {overall && overall.total > 0
                       ? `${overall.present} of ${overall.total} classes`
-                      : '16 of 18 classes'}
+                      : 'No classes marked yet'}
                   </Text>
                 </>
               )}
