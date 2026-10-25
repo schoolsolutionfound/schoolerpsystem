@@ -79,8 +79,8 @@ const topHeaderStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   logoImage: {
-    height: 56,
-    width: 180,
+    height: 26,
+    width: 96,
   },
   rightContainer: {
     flexDirection: 'row',

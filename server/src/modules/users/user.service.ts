@@ -281,7 +281,9 @@ export class UserService {
       city?: string;
       pincode?: string;
       emergencyContact?: string;
-      /** Settings → Form Fields values; only fields flagged editable apply. */
+      qualification?: string;
+      experience?: string;
+      /** Settings — Form Fields values; only fields flagged editable apply. */
       customFields?: Record<string, any>;
     }
   ) {
@@ -304,7 +306,7 @@ export class UserService {
 
     const existingScope = parseScope(existing.scope);
 
-    let scopeBlob = JSON.stringify(existingScope);
+    const scopeUpdates: Record<string, any> = {};
     if (payload.customFields !== undefined) {
       const roleFields = await institutionService
         .getRoleProfileFormFields(existing.institutionCode || '', existing.role || '')
@@ -313,14 +315,21 @@ export class UserService {
       if (!result.ok) {
         throw { statusCode: 400, code: 'INVALID_CUSTOM_FIELDS', message: result.message };
       }
-      scopeBlob = JSON.stringify({
-        ...existingScope,
-        customFields: mergeCustomFields(
-          existingScope.customFields as Record<string, any> | undefined,
-          result.values
-        ),
-      });
+      scopeUpdates.customFields = mergeCustomFields(
+        existingScope.customFields as Record<string, any> | undefined,
+        result.values
+      );
     }
+    if (payload.qualification !== undefined) {
+      scopeUpdates.qualification = payload.qualification.trim();
+    }
+    if (payload.experience !== undefined) {
+      scopeUpdates.experience = payload.experience.trim();
+    }
+    const scopeBlob =
+      Object.keys(scopeUpdates).length > 0
+        ? JSON.stringify({ ...existingScope, ...scopeUpdates })
+        : JSON.stringify(existingScope);
 
     const updatedUser = await this.repo.upsertUser({
       firebaseUid: currentUser.uid,
@@ -344,6 +353,8 @@ export class UserService {
       phone: updatedUser?.phone ?? existing.phone,
       designation: updatedUser?.title ?? existing.title,
       profilePicUrl: updatedUser?.profilePicUrl ?? existing.profilePicUrl,
+      qualification: (updatedUser?.scope ? parseScope(updatedUser.scope) : existingScope).qualification ?? '',
+      experience: (updatedUser?.scope ? parseScope(updatedUser.scope) : existingScope).experience ?? '',
     };
   }
 }

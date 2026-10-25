@@ -221,6 +221,41 @@ export async function createDepartmentNoticeApi(
   };
 }
 
+export async function updateDepartmentNoticeApi(
+  noticeId: string,
+  noticeData: Partial<Omit<DepartmentNotice, 'id' | 'publishedDate'>>
+): Promise<{ success: boolean; notice: DepartmentNotice }> {
+  const res = await apiClient<any>(`/admin/hod/notices/${noticeId}`, {
+    method: 'PUT',
+    body: JSON.stringify(noticeData),
+  });
+
+  const n = res?.notice || res?.data?.notice || res?.data || res;
+  return {
+    success: true,
+    notice: {
+      id: n?.id || noticeId,
+      title: n?.title || noticeData.title,
+      content: n?.content || noticeData.content,
+      department: n?.department || noticeData.department,
+      priority: n?.priority || noticeData.priority,
+      targetAudience: n?.targetAudience || noticeData.targetAudience,
+      publishedDate: n?.createdAt
+        ? new Date(n.createdAt).toISOString().split('T')[0]
+        : new Date().toISOString().split('T')[0],
+      authorName: n?.authorName || 'Head of Department',
+      authorRole: n?.authorRole || 'hod',
+    },
+  };
+}
+
+export async function deleteDepartmentNoticeApi(noticeId: string): Promise<{ success: boolean }> {
+  const res = await apiClient<any>(`/admin/hod/notices/${noticeId}`, {
+    method: 'DELETE',
+  });
+  return { success: true };
+}
+
 export async function fetchHODStudentsApi(
   department?: string,
   semester?: string,

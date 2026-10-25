@@ -19,22 +19,14 @@ export class AuthService {
   constructor(private repo: IAuthRepository = authRepository) {}
 
   public async loginSync(currentUser: AuthenticatedUser) {
-    let user = await this.repo.findByUid(currentUser.uid);
+    const user = await this.repo.findByUid(currentUser.uid);
 
     if (!user) {
-      // Auto-provision unassigned / new normal users as prospective parents
-      // so they can log in, discover schools, and apply for admissions!
-      user = await this.repo.upsertUser({
-        firebaseUid: currentUser.uid,
-        email: currentUser.email || '',
-        fullName: currentUser.displayName || currentUser.email?.split('@')[0] || 'Parent',
-        role: 'parent',
-        institutionCode: '',
-        institutionName: 'Prospective Parent',
-        institutionType: DEFAULT_INSTITUTION_TYPE,
-        profileCompleted: true,
-        mustChangePassword: false,
-      });
+      throw {
+        statusCode: 403,
+        code: 'NO_ACCOUNT',
+        message: 'No account is provisioned for this email. Contact your institution administrator.',
+      };
     }
 
     let institutionName = user.institutionName || '';

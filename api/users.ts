@@ -56,6 +56,8 @@ export async function updateMyProfileApi(payload: {
   city?: string;
   pincode?: string;
   emergencyContact?: string;
+  qualification?: string;
+  experience?: string;
   customFields?: CustomFieldValues;
 }) {
   return apiClient('/users/me', {

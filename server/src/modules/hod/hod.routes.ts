@@ -9,6 +9,8 @@ import {
   updateHallTicketStatusHandler,
   getNoticesHandler,
   createNoticeHandler,
+  updateNoticeHandler,
+  deleteNoticeHandler,
   getStudentsHandler,
 } from './hod.controller.js';
 import { requireHODOrAdmin } from '../shared/middleware/auth.js';
@@ -33,4 +35,6 @@ export async function hodRoutes(fastify: FastifyInstance) {
 
   fastify.get('/notices', getNoticesHandler);
   fastify.post('/notices', { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, createNoticeHandler);
+  fastify.put('/notices/:id', { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, updateNoticeHandler);
+  fastify.delete('/notices/:id', { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, deleteNoticeHandler);
 }

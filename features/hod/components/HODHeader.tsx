@@ -80,8 +80,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   logoImage: {
-    height: 38,
-    width: 130,
+    height: 26,
+    width: 96,
   },
   rightCol: {
     width: 60,

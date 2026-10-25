@@ -79,8 +79,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   logoImage: {
-    height: 56,
-    width: 180,
+    height: 26,
+    width: 96,
   },
   iconBtn: {
     width: 40,

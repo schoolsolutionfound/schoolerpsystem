@@ -82,6 +82,8 @@ export async function updateMyProfileHandler(request: FastifyRequest, reply: Fas
     city?: string;
     pincode?: string;
     emergencyContact?: string;
+    qualification?: string;
+    experience?: string;
     customFields?: Record<string, any>;
   };
 

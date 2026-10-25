@@ -413,6 +413,58 @@ export class HODService {
     return created;
   }
 
+  async updateNotice(
+    institutionCode: string,
+    id: string,
+    payload: any
+  ): Promise<SchoolNoticeRecord> {
+    const database = getDb();
+    const [updated] = await database
+      .update(schoolNotices)
+      .set({
+        title: payload.title,
+        content: payload.content,
+        targetAudience: payload.targetAudience || 'all',
+        department: payload.department || '',
+        priority: payload.priority || 'normal',
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(schoolNotices.id, id),
+          eq(schoolNotices.institutionCode, institutionCode)
+        )
+      )
+      .returning();
+
+    if (!updated) {
+      const err: any = new Error('Department notice not found');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    return updated;
+  }
+
+  async deleteNotice(institutionCode: string, id: string): Promise<void> {
+    const database = getDb();
+    const deleted = await database
+      .delete(schoolNotices)
+      .where(
+        and(
+          eq(schoolNotices.id, id),
+          eq(schoolNotices.institutionCode, institutionCode)
+        )
+      )
+      .returning();
+
+    if (deleted.length === 0) {
+      const err: any = new Error('Department notice not found');
+      err.statusCode = 404;
+      throw err;
+    }
+  }
+
   async getStudents(
     institutionCode: string,
     department?: string,

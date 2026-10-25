@@ -212,6 +212,48 @@ export async function createNoticeHandler(request: FastifyRequest, reply: Fastif
   }
 }
 
+export async function updateNoticeHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const { instCode, department } = getTenantAndDept(request);
+    const { id } = request.params as { id: string };
+    const body = request.body as any;
+
+    if (!body?.title || !body?.content) {
+      return reply.status(400).send({
+        success: false,
+        error: { message: 'Title and content are required' },
+      });
+    }
+
+    const updated = await hodService.updateNotice(instCode, id, {
+      ...body,
+      department: body.department || department,
+    });
+
+    return reply.send({ success: true, data: updated, notice: updated });
+  } catch (err: any) {
+    return reply.status(err.statusCode || 500).send({
+      success: false,
+      error: { message: err.message || 'Failed to update department notice' },
+    });
+  }
+}
+
+export async function deleteNoticeHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const { instCode } = getTenantAndDept(request);
+    const { id } = request.params as { id: string };
+
+    await hodService.deleteNotice(instCode, id);
+    return reply.send({ success: true, data: { id } });
+  } catch (err: any) {
+    return reply.status(err.statusCode || 500).send({
+      success: false,
+      error: { message: err.message || 'Failed to delete department notice' },
+    });
+  }
+}
+
 export async function getStudentsHandler(request: FastifyRequest, reply: FastifyReply) {
   try {
     const { instCode, department } = getTenantAndDept(request);
