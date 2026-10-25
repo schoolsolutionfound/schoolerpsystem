@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   ScrollView,
   Animated,
-  Dimensions,
   Easing,
   Image,
   useWindowDimensions,
@@ -28,23 +27,30 @@ interface ParentDrawerProps {
   email: string;
   profilePic?: string;
   institutionName?: string;
+  rollNoOrUSN?: string;
 }
 
-const PRIMARY = [
-  { key: 'home', label: 'Home', icon: 'home-outline', tab: 'home' as const },
-  { key: 'announcements', label: 'Announcements', icon: 'bullhorn-outline', tab: 'announcements' as const },
-  { key: 'attendance', label: "Child's Attendance", icon: 'book-outline', tab: 'attendance' as const },
-  { key: 'homework', label: "Child's Homework", icon: 'book-plus-outline', tab: 'homework' as const },
-  { key: 'marks', label: "Child's Marks", icon: 'certificate-outline', tab: 'marks' as const },
-  { key: 'fees', label: "Child's Fees", icon: 'cash', tab: 'fees' as const },
-  { key: 'track', label: 'Track Child', icon: 'bus', tab: 'track' as const },
-  { key: 'schedule', label: "Child's Schedule", icon: 'calendar-outline', tab: 'schedule' as const },
+interface DrawerMenuItem {
+  key: string;
+  label: string;
+  icon: string;
+  iconFilled?: string;
+  tab?: string;
+  route?: string;
+}
+
+const PRIMARY: DrawerMenuItem[] = [
+  { key: 'home', label: 'Home', icon: 'home-outline', iconFilled: 'home', tab: 'home' },
+  { key: 'attendance', label: 'Attendance', icon: 'book-outline', iconFilled: 'book', tab: 'attendance' },
+  { key: 'homework', label: 'Homework', icon: 'book-plus-outline', iconFilled: 'book-plus', tab: 'homework' },
+  { key: 'bus', label: 'Bus Tracking', icon: 'bus', iconFilled: 'bus', tab: 'bus' },
+  { key: 'marks', label: 'Marks', icon: 'certificate-outline', iconFilled: 'certificate', tab: 'marks' },
+  { key: 'fees', label: 'Fee Summary', icon: 'cash', iconFilled: 'cash', tab: 'fees' },
+  { key: 'schedule', label: 'Schedule', icon: 'calendar-outline', iconFilled: 'calendar', tab: 'schedule' },
 ];
 
-const SECONDARY = [
-  { key: 'profile', label: 'My Profile', icon: 'account-outline', route: '/(parent)/profile' },
-  { key: 'notifications', label: 'Notifications', icon: 'bell-outline', route: '/notifications' },
-  { key: 'change-password', label: 'Change Password', icon: 'lock-reset', route: '/change-password' },
+const SECONDARY: DrawerMenuItem[] = [
+  { key: 'profile', label: 'Profile', icon: 'account-outline', route: '/(parent)/profile' },
 ];
 
 export const ParentDrawer: React.FC<ParentDrawerProps> = ({
@@ -55,6 +61,7 @@ export const ParentDrawer: React.FC<ParentDrawerProps> = ({
   email,
   profilePic,
   institutionName,
+  rollNoOrUSN,
 }) => {
   const router = useRouter();
   const resetUser = useUserStore((s) => s.resetUser);
@@ -143,76 +150,79 @@ export const ParentDrawer: React.FC<ParentDrawerProps> = ({
           ]}
         >
           <SafeAreaView style={styles.drawer} edges={['bottom']}>
-          <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
-            <View style={styles.headerTopRow}>
-              <View style={styles.brandRow}>
-                <Image source={require('../../../assets/logo-transparent.png')} style={styles.brandLogo} resizeMode="contain" />
-                <View>
-                  <Text style={styles.brandTitle}>KIVQUO</Text>
+            <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
+              <View style={styles.headerTopRow}>
+                <View style={styles.brandRow}>
+                  <Image source={require('../../../assets/logo-transparent.png')} style={styles.brandLogo} resizeMode="contain" />
+                  <View>
+                    <Text style={styles.brandTitle}>KIVQUO</Text>
+                  </View>
                 </View>
+                <TouchableOpacity style={styles.closeBtn} onPress={onClose} hitSlop={10}>
+                  <Feather name="x" size={20} color="#FFFFFF" />
+                </TouchableOpacity>
               </View>
-              <TouchableOpacity style={styles.closeBtn} onPress={onClose} hitSlop={10}>
-                <Feather name="x" size={20} color="#FFFFFF" />
-              </TouchableOpacity>
             </View>
-          </View>
 
-          <ScrollView
-            style={styles.body}
-            contentContainerStyle={styles.bodyContent}
-            showsVerticalScrollIndicator={false}
-          >
-            <Text style={styles.sectionLabel}>MAIN</Text>
-            {PRIMARY.map((item) => (
-              <TouchableOpacity
-                key={item.key}
-                style={styles.menuItem}
-                activeOpacity={0.7}
-                onPress={() => {
-                  if (item.tab) switchTabAndClose(item.tab);
-                }}
-              >
-                <View style={styles.menuIcon}>
-                  <MaterialCommunityIcons
-                    name={item.icon as any}
-                    size={18}
-                    color="#9A9A9A"
-                  />
-                </View>
-                <Text style={styles.menuText}>{item.label}</Text>
-                <Feather name="chevron-right" size={16} color="#5A5A5A" />
+            <ScrollView
+              style={styles.body}
+              contentContainerStyle={styles.bodyContent}
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={styles.sectionLabel}>MAIN</Text>
+              {PRIMARY.map((item) => (
+                <TouchableOpacity
+                  key={item.key}
+                  style={styles.menuItem}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    if (item.route) navigateAndClose(item.route);
+                    else if (item.tab) switchTabAndClose(item.tab);
+                  }}
+                >
+                  <View style={styles.menuIcon}>
+                    <MaterialCommunityIcons
+                      name={item.icon as any}
+                      size={18}
+                      color="#9A9A9A"
+                    />
+                  </View>
+                  <Text style={styles.menuText}>{item.label}</Text>
+                  <Feather name="chevron-right" size={16} color="#5A5A5A" />
+                </TouchableOpacity>
+              ))}
+
+              <Text style={[styles.sectionLabel, { marginTop: 18 }]}>ACCOUNT</Text>
+              {SECONDARY.map((item) => (
+                <TouchableOpacity
+                  key={item.key}
+                  style={styles.menuItem}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    if (item.route) navigateAndClose(item.route);
+                  }}
+                >
+                  <View style={styles.menuIcon}>
+                    <MaterialCommunityIcons
+                      name={item.icon as any}
+                      size={18}
+                      color="#9A9A9A"
+                    />
+                  </View>
+                  <Text style={styles.menuText}>{item.label}</Text>
+                  <Feather name="chevron-right" size={16} color="#5A5A5A" />
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <View style={styles.footer}>
+              <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.8}>
+                <MaterialCommunityIcons name="logout" size={18} color="#FBBF24" />
+                <Text style={styles.logoutText}>Logout</Text>
               </TouchableOpacity>
-            ))}
-
-            <Text style={[styles.sectionLabel, { marginTop: 18 }]}>ACCOUNT</Text>
-            {SECONDARY.map((item) => (
-              <TouchableOpacity
-                key={item.key}
-                style={styles.menuItem}
-                activeOpacity={0.7}
-                onPress={() => navigateAndClose(item.route)}
-              >
-                <View style={styles.menuIcon}>
-                  <MaterialCommunityIcons
-                    name={item.icon as any}
-                    size={18}
-                    color="#9A9A9A"
-                  />
-                </View>
-                <Text style={styles.menuText}>{item.label}</Text>
-                <Feather name="chevron-right" size={16} color="#5A5A5A" />
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-
-          <View style={styles.footer}>
-            <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.8}>
-              <MaterialCommunityIcons name="logout" size={18} color="#F4C430" />
-              <Text style={styles.logoutText}>Logout</Text>
-            </TouchableOpacity>
-            <Text style={styles.version}>v1.0 · School ERP</Text>
-          </View>
-        </SafeAreaView>
+              <Text style={styles.version}>v1.0 · School ERP</Text>
+            </View>
+          </SafeAreaView>
         </Animated.View>
       </View>
     </Modal>
@@ -221,7 +231,7 @@ export const ParentDrawer: React.FC<ParentDrawerProps> = ({
 
 const styles = StyleSheet.create({
   root: { flex: 1, flexDirection: 'row' },
-backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.55)' },
+  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.55)' },
   drawerWrap: {
     width: '82%',
     maxWidth: 360,
@@ -251,7 +261,7 @@ backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.55)' },
   closeBtn: {
     width: 32,
     height: 32,
-    borderRadius: 6,
+    borderRadius: 5,
     backgroundColor: '#232425',
     borderWidth: 1,
     borderColor: '#2A2B2C',
@@ -275,12 +285,12 @@ backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.55)' },
     gap: 12,
     paddingHorizontal: 10,
     paddingVertical: 11,
-    borderRadius: 8,
+    borderRadius: 5,
   },
   menuIcon: {
     width: 32,
     height: 32,
-    borderRadius: 6,
+    borderRadius: 5,
     backgroundColor: '#232425',
     borderWidth: 1,
     borderColor: '#2A2B2C',
@@ -304,10 +314,12 @@ backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.55)' },
     gap: 8,
     paddingVertical: 11,
     borderRadius: 8,
-    backgroundColor: 'rgba(244, 196, 48, 0.12)',
+    backgroundColor: 'rgba(251, 191, 36, 0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(244, 196, 48, 0.3)',
+    borderColor: 'rgba(251, 191, 36, 0.3)',
   },
-  logoutText: { fontSize: 14, fontWeight: '800', color: '#F4C430', letterSpacing: 0.3 },
+  logoutText: { fontSize: 14, fontWeight: '800', color: '#FBBF24', letterSpacing: 0.3 },
   version: { fontSize: 10, color: '#5A5A5A', textAlign: 'center', marginTop: 10, letterSpacing: 0.5 },
 });
+
+export default ParentDrawer;

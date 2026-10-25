@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, StyleSheet, Text, ScrollView, RefreshControl } from 'react-native';
+import { View, StyleSheet, Text, ScrollView, RefreshControl, TouchableOpacity, Alert } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { BorderRadius } from '../../../constants/theme';
 import { FontFamily } from '../../../constants/fonts';
 import { fetchParentHomeworkApi } from '../../../api/academics';
 
@@ -39,6 +38,23 @@ export const ParentHomeworkView: React.FC = () => {
     setRefreshing(false);
   }, [fetchData]);
 
+  const handleClearAll = () => {
+    Alert.alert(
+      'Clear All Homework',
+      'Are you sure you want to clear all homework items?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear All',
+          style: 'destructive',
+          onPress: () => {
+            setHomework([]);
+          },
+        },
+      ]
+    );
+  };
+
   const priorityColor = (p: string) => {
     switch (p) {
       case 'urgent': return '#DC3545';
@@ -53,21 +69,30 @@ export const ParentHomeworkView: React.FC = () => {
     return new Date(dueDate) < new Date(new Date().toISOString().slice(0, 10));
   };
 
-  const active = homework.filter((hw) => hw.status === 'active');
-  const completed = homework.filter((hw) => hw.status !== 'active');
-
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Child&apos;s Homework</Text>
-        <View style={styles.countBadge}>
-          <Text style={styles.countText}>{active.length} active</Text>
+        <View style={styles.headerLeft}>
+          <Text style={styles.title}>Homework</Text>
+          <View style={styles.countBadge}>
+            <Text style={styles.countText}>{homework.length}</Text>
+          </View>
         </View>
+
+        {homework.length > 0 && (
+          <TouchableOpacity
+            onPress={handleClearAll}
+            activeOpacity={0.6}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Text style={styles.clearText}>Clear</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView
         contentContainerStyle={styles.list}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1A1B1C" colors={['#1A1B1C']} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#000000" colors={['#000000']} progressBackgroundColor="#FFFFFF" />}
         showsVerticalScrollIndicator={false}
       >
         {loading ? (
@@ -78,59 +103,39 @@ export const ParentHomeworkView: React.FC = () => {
           <View style={styles.emptyWrap}>
             <MaterialCommunityIcons name="book-check-outline" size={48} color="#E8E5DC" />
             <Text style={styles.emptyTitle}>No Homework</Text>
-            <Text style={styles.emptySub}>Your child&apos;s assignments will appear here.</Text>
+            <Text style={styles.emptySub}>Your child's homework will appear here.</Text>
           </View>
         ) : (
-          <>
-            {active.length > 0 && (
-              <Text style={styles.sectionLabel}>ACTIVE</Text>
-            )}
-            {active.map((hw) => {
-              const overdue = isOverdue(hw.dueDate);
-              return (
-                <View key={hw.id} style={[styles.card, overdue && styles.cardOverdue]}>
-                  <View style={styles.cardTop}>
-                    <View style={[styles.priorityDot, { backgroundColor: priorityColor(hw.priority) }]} />
-                    <Text style={styles.cardTitle} numberOfLines={1}>{hw.title}</Text>
-                    {overdue && (
-                      <View style={styles.overdueBadge}>
-                        <Text style={styles.overdueBadgeText}>Overdue</Text>
-                      </View>
-                    )}
-                  </View>
-                  {hw.description ? (
-                    <Text style={styles.cardDesc} numberOfLines={3}>{hw.description}</Text>
-                  ) : null}
-                  <View style={styles.cardMeta}>
-                    <View style={styles.metaChip}>
-                      <MaterialCommunityIcons name="calendar-clock" size={14} color="#6B6B6B" />
-                      <Text style={[styles.metaText, overdue && { color: '#DC3545' }]}>
-                        Due: {hw.dueDate}
-                      </Text>
-                    </View>
-                    <View style={[styles.priorityBadge, { backgroundColor: priorityColor(hw.priority) + '18' }]}>
-                      <Text style={[styles.priorityBadgeText, { color: priorityColor(hw.priority) }]}>{hw.priority}</Text>
-                    </View>
-                  </View>
-                </View>
-              );
-            })}
-
-            {completed.length > 0 && (
-              <Text style={[styles.sectionLabel, { marginTop: 16 }]}>COMPLETED</Text>
-            )}
-            {completed.map((hw) => (
-              <View key={hw.id} style={[styles.card, styles.cardCompleted]}>
+          homework.map((hw) => {
+            const overdue = hw.status === 'active' && isOverdue(hw.dueDate);
+            return (
+              <View key={hw.id} style={[styles.card, overdue && styles.cardOverdue]}>
                 <View style={styles.cardTop}>
-                  <MaterialCommunityIcons name="check-circle" size={16} color="#16A34A" />
-                  <Text style={[styles.cardTitle, { color: '#9CA3AF' }]} numberOfLines={1}>{hw.title}</Text>
+                  <View style={[styles.priorityDot, { backgroundColor: priorityColor(hw.priority) }]} />
+                  <Text style={styles.cardTitle} numberOfLines={1}>{hw.title}</Text>
+                  {overdue && (
+                    <View style={styles.overdueBadge}>
+                      <Text style={styles.overdueBadgeText}>Overdue</Text>
+                    </View>
+                  )}
                 </View>
+                {hw.description ? (
+                  <Text style={styles.cardDesc} numberOfLines={3}>{hw.description}</Text>
+                ) : null}
                 <View style={styles.cardMeta}>
-                  <Text style={styles.metaText}>Completed</Text>
+                  <View style={styles.metaChip}>
+                    <MaterialCommunityIcons name="calendar-clock" size={14} color="#6B6B6B" />
+                    <Text style={[styles.metaText, overdue && { color: '#DC3545' }]}>
+                      Due: {hw.dueDate}
+                    </Text>
+                  </View>
+                  <View style={[styles.priorityBadge, { backgroundColor: priorityColor(hw.priority) + '18' }]}>
+                    <Text style={[styles.priorityBadgeText, { color: priorityColor(hw.priority) }]}>{hw.priority}</Text>
+                  </View>
                 </View>
               </View>
-            ))}
-          </>
+            );
+          })
         )}
       </ScrollView>
     </View>
@@ -142,35 +147,37 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingTop: 14,
     paddingBottom: 10,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   title: { fontSize: 18, fontFamily: FontFamily.extrabold, color: '#171717' },
   countBadge: {
     backgroundColor: 'rgba(244, 196, 48, 0.15)',
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 6,
+    borderRadius: 5,
   },
   countText: { fontSize: 12, fontFamily: FontFamily.bold, color: '#D4A418' },
-  list: { paddingHorizontal: 20, paddingBottom: 20, gap: 10 },
-  sectionLabel: {
-    fontSize: 11,
-    fontFamily: FontFamily.extrabold,
-    color: '#9CA3AF',
-    letterSpacing: 0.5,
-    marginTop: 4,
-    marginBottom: 2,
+  clearText: {
+    fontSize: 14,
+    fontFamily: FontFamily.bold,
+    color: '#000000',
   },
+  list: { paddingHorizontal: 20, paddingBottom: 20, gap: 10 },
   emptyWrap: { alignItems: 'center', paddingTop: 60, gap: 8 },
   emptyText: { fontSize: 13, fontFamily: FontFamily.regular, color: '#9CA3AF' },
   emptyTitle: { fontSize: 16, fontFamily: FontFamily.bold, color: '#6B6B6B', marginTop: 8 },
   emptySub: { fontSize: 12, fontFamily: FontFamily.regular, color: '#9CA3AF', textAlign: 'center', paddingHorizontal: 40 },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.card,
+    borderRadius: 5,
     padding: 14,
     borderWidth: 1,
     borderColor: '#E8E5DC',
@@ -180,9 +187,6 @@ const styles = StyleSheet.create({
     borderColor: '#FECACA',
     backgroundColor: '#FFFAFA',
   },
-  cardCompleted: {
-    opacity: 0.7,
-  },
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   priorityDot: { width: 8, height: 8, borderRadius: 4 },
   cardTitle: { flex: 1, fontSize: 14, fontFamily: FontFamily.bold, color: '#171717' },
@@ -190,13 +194,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEE2E2',
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 6,
+    borderRadius: 5,
   },
   overdueBadgeText: { fontSize: 10, fontFamily: FontFamily.bold, color: '#DC3545' },
   cardDesc: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B6B6B', lineHeight: 17 },
   cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   metaChip: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   metaText: { fontSize: 11, fontFamily: FontFamily.regular, color: '#6B6B6B' },
-  priorityBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
+  priorityBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 5 },
   priorityBadgeText: { fontSize: 10, fontFamily: FontFamily.bold },
 });

@@ -1,111 +1,164 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, Platform, RefreshControl, ScrollView, Modal } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Text, Platform, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useUserStore } from '../../store/useUserStore';
-import { fetchParentAttendanceApi } from '../../api/academics';
+import { fetchParentAttendanceApi, fetchParentTimetableApi } from '../../api/academics';
 import { ParentHomeHeader } from '../../features/parent/components/ParentHomeHeader';
-import { ParentHomeDashboard } from '../../features/parent/components/ParentHomeDashboard';
+import { ParentHomeAttendanceCard } from '../../features/parent/components/ParentHomeAttendanceCard';
+import { ParentHomeAnnouncements } from '../../features/parent/components/ParentHomeAnnouncements';
+import { ParentHomePeriodsList } from '../../features/parent/components/ParentHomePeriodsList';
+import { ParentTimetableView } from '../../features/parent/components/ParentTimetableView';
 import { ParentAttendanceView } from '../../features/parent/components/ParentAttendanceView';
 import { ParentMarksView } from '../../features/parent/components/ParentMarksView';
 import { ParentHomeworkView } from '../../features/parent/components/ParentHomeworkView';
-import { ParentTrackView } from '../../features/parent/components/ParentTrackView';
 import { ParentDrawer } from '../../features/parent/components/ParentDrawer';
+import { ParentBusTrackingView } from '../../features/parent/components/ParentBusTrackingView';
+import { ParentHomeFeeSummary } from '../../features/parent/components/ParentHomeFeeSummary';
+import { ShimmerProvider } from '../../features/parent/components/ShimmerSkeleton';
 import { FontFamily } from '../../constants/fonts';
 import { UserAnnouncementFeedView } from '../../features/announcements';
 
-type Tab = 'home' | 'fees' | 'track' | 'attendance' | 'marks' | 'homework' | 'announcements';
+type Tab = 'home' | 'attendance' | 'bus' | 'marks' | 'schedule' | 'homework' | 'fees' | 'announcements';
+
+function toMinutes(timeStr?: string): number | null {
+  if (!timeStr) return null;
+  const m = timeStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)?$/);
+  if (!m) return null;
+  let h = parseInt(m[1], 10);
+  const min = parseInt(m[2], 10);
+  const suffix = (m[3] || '').toUpperCase();
+  if (suffix === 'PM' && h < 12) h += 12;
+  if (suffix === 'AM' && h === 12) h = 0;
+  return h * 60 + min;
+}
+
+function findCurrentSlot(slots: any[]): any | undefined {
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  return slots.find((s) => {
+    const start = toMinutes(s?.period?.startTime);
+    const end = toMinutes(s?.period?.endTime);
+    return start !== null && end !== null && nowMin >= start && nowMin < end;
+  });
+}
 
 const TABS: { key: Tab; label: string; icon: string; iconFilled: string }[] = [
   { key: 'home', label: 'Home', icon: 'home-outline', iconFilled: 'home' },
-  { key: 'fees', label: 'Fees', icon: 'cash', iconFilled: 'cash' },
-  { key: 'track', label: 'Track', icon: 'bus', iconFilled: 'bus' },
   { key: 'attendance', label: 'Attendance', icon: 'book-outline', iconFilled: 'book' },
+  { key: 'bus', label: 'Bus', icon: 'bus', iconFilled: 'bus' },
   { key: 'marks', label: 'Marks', icon: 'certificate-outline', iconFilled: 'certificate' },
+  { key: 'schedule', label: 'Schedule', icon: 'calendar-outline', iconFilled: 'calendar' },
 ];
 
-export default function ParentHomeScreen() {
+export default function HomeScreen() {
   const router = useRouter();
   const fullName = useUserStore((state) => state.fullName) || 'Parent';
   const profilePic = useUserStore((state) => state.profilePic);
   const email = useUserStore((state) => state.email) || '';
   const institutionName = useUserStore((state) => state.institutionName) || '';
+  const childName = useUserStore((state) => state.childName) || '';
+  const linkedStudentUSN = useUserStore((state) => state.linkedStudentUSN) || '';
 
   const { tab } = useLocalSearchParams<{ tab?: string }>();
   const [activeTab, setActiveTab] = useState<Tab>((tab as Tab) || 'home');
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const [attendanceLoading, setAttendanceLoading] = useState(true);
+  const [overall, setOverall] = useState<{ present: number; total: number; percentage: number } | null>(null);
+  const [slotsLoading, setSlotsLoading] = useState(true);
+  const [todaySlots, setTodaySlots] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
-  const [overall, setOverall] = useState<{ present: number; total: number; percentage: number } | null>(null);
-  const [childName, setChildName] = useState('');
-  const [childProfile, setChildProfile] = useState<any>(null);
-  const [showChildProfile, setShowChildProfile] = useState(false);
-  const [profileLoading, setProfileLoading] = useState(false);
-  const storeChildName = useUserStore((state) => state.childName) || '';
-  const storeLinkedStudentUSN = useUserStore((state) => state.linkedStudentUSN) || '';
-  const storeRelation = useUserStore((state) => state.relation) || '';
-  const storeChildId = useUserStore((state) => state.childId) || '';
-  const storeEmail = useUserStore((state) => state.email) || '';
+  const fetchAll = useCallback(async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const utcDay = new Date(`${today}T00:00:00Z`).getUTCDay();
 
-  const fetchAttendance = useCallback(async () => {
-    try {
-      const res = await fetchParentAttendanceApi();
+    const [attendanceRes, timetableRes] = await Promise.allSettled([
+      fetchParentAttendanceApi(),
+      fetchParentTimetableApi(today),
+    ]);
+
+    if (attendanceRes.status === 'fulfilled') {
+      const res = attendanceRes.value;
       setOverall(res?.overall || null);
-      if (res) {
-        setChildProfile(res);
-        if (res.childName) {
-          setChildName(res.childName);
-          useUserStore.getState().setUserProfile({
-            childName: res.childName,
-            childId: res.childId || '',
-            linkedStudentUSN: res.childUSN || '',
-            relation: res.relation || '',
-          });
-        }
+      if (res?.childName) {
+        useUserStore.getState().setUserProfile({
+          childName: res.childName,
+          childId: res.childId || '',
+          linkedStudentUSN: res.childUSN || '',
+          relation: res.relation || '',
+        });
       }
-    } catch (err) {
-      console.warn('[ParentHome] fetchAttendance error:', err);
+      setAttendanceLoading(false);
+    } else {
+      setAttendanceLoading(false);
+    }
+
+    if (timetableRes.status === 'fulfilled') {
+      const all = timetableRes.value?.slots || [];
+      setTodaySlots(all.filter((s: any) => s.dayOfWeek === utcDay));
+      setSlotsLoading(false);
+    } else {
+      setSlotsLoading(false);
     }
   }, []);
-
-  const openChildProfile = useCallback(async () => {
-    setShowChildProfile(true);
-    setProfileLoading(true);
-    try {
-      const res = await fetchParentAttendanceApi();
-      if (res) {
-        setChildProfile(res);
-        setOverall(res.overall || null);
-        if (res.childName) {
-          setChildName(res.childName);
-          useUserStore.getState().setUserProfile({
-            childName: res.childName,
-            childId: res.childId || '',
-            linkedStudentUSN: res.childUSN || '',
-            relation: res.relation || '',
-          });
-        }
-      }
-    } catch (err) {
-      console.warn('[ParentHome] openChildProfile fetch error:', err);
-    } finally {
-      setProfileLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchAttendance();
-  }, [fetchAttendance]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
+    setAttendanceLoading(true);
+    setSlotsLoading(true);
     try {
-      await fetchAttendance();
+      await fetchAll();
     } finally {
       setRefreshing(false);
     }
-  }, [fetchAttendance]);
+  }, [fetchAll]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    fetchParentAttendanceApi()
+      .then((res) => {
+        if (mounted) {
+          setOverall(res?.overall || null);
+          if (res?.childName) {
+            useUserStore.getState().setUserProfile({
+              childName: res.childName,
+              childId: res.childId || '',
+              linkedStudentUSN: res.childUSN || '',
+              relation: res.relation || '',
+            });
+          }
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (mounted) setAttendanceLoading(false);
+      });
+
+    const today = new Date().toISOString().slice(0, 10);
+    const utcDay = new Date(`${today}T00:00:00Z`).getUTCDay();
+
+    fetchParentTimetableApi(today)
+      .then((res) => {
+        if (mounted) {
+          const all = res?.slots || [];
+          setTodaySlots(all.filter((s: any) => s.dayOfWeek === utcDay));
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (mounted) setSlotsLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const currentSlot = findCurrentSlot(todaySlots);
 
   const refreshControl = (
     <RefreshControl
@@ -121,39 +174,41 @@ export default function ParentHomeScreen() {
     switch (activeTab) {
       case 'home':
         return (
-          <ScrollView
-            contentContainerStyle={styles.scroll}
-            showsVerticalScrollIndicator={false}
-            refreshControl={refreshControl}
-          >
-            <ParentHomeDashboard
-              childName={childName || storeChildName}
-              overallAttendance={overall}
-              onTabSwitch={(tab) => setActiveTab(tab as Tab)}
-              onViewProfile={openChildProfile}
-            />
-          </ScrollView>
+          <ShimmerProvider>
+            <ScrollView
+              contentContainerStyle={styles.scroll}
+              showsVerticalScrollIndicator={false}
+              refreshControl={refreshControl}
+            >
+              <ParentHomeAttendanceCard
+                loading={attendanceLoading || slotsLoading}
+                overall={overall}
+                currentSlot={currentSlot}
+                childName={childName}
+              />
+              <ParentHomeAnnouncements onPress={() => router.push('/notifications')} />
+              <ParentHomePeriodsList
+                loading={slotsLoading}
+                slots={todaySlots}
+                onSchedulePress={() => setActiveTab('schedule')}
+              />
+            </ScrollView>
+          </ShimmerProvider>
         );
       case 'announcements':
         return <UserAnnouncementFeedView />;
+      case 'schedule':
+        return <ParentTimetableView />;
       case 'attendance':
         return <ParentAttendanceView />;
-      case 'fees':
-        return (
-          <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-            <View style={styles.placeholderCard}>
-              <MaterialCommunityIcons name="cash" size={40} color="#E8E5DC" />
-              <Text style={styles.placeholderTitle}>Fee Module</Text>
-              <Text style={styles.placeholderSub}>Fee management coming soon.</Text>
-            </View>
-          </ScrollView>
-        );
-      case 'track':
-        return <ParentTrackView />;
       case 'marks':
-        return <ParentMarksView />;
+        return <ParentMarksView onBack={() => setActiveTab('home')} />;
       case 'homework':
         return <ParentHomeworkView />;
+      case 'bus':
+        return <ParentBusTrackingView />;
+      case 'fees':
+        return <ParentHomeFeeSummary onBack={() => setActiveTab('home')} />;
       default:
         return null;
     }
@@ -162,23 +217,27 @@ export default function ParentHomeScreen() {
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safe}>
-        <ParentHomeHeader
-          fullName={fullName}
-          profilePic={profilePic}
-          onMenuPress={() => setDrawerOpen(true)}
-          onNotificationsPress={() => router.push('/notifications')}
-          onProfilePress={() => router.push('/(parent)/profile')}
-        />
+        {activeTab !== 'marks' && activeTab !== 'fees' && (
+          <ParentHomeHeader
+            fullName={fullName}
+            profilePic={profilePic}
+            onMenuPress={() => setDrawerOpen(true)}
+            onSettingsPress={() => router.push('/settings')}
+            onNotificationsPress={() => router.push('/notifications')}
+            onProfilePress={() => router.push('/(parent)/profile')}
+            showProfile={activeTab === 'home'}
+          />
+        )}
 
         <View style={styles.content}>
           {renderTabContent()}
         </View>
 
-        {/* Floating pill tab bar — center FAB for Track */}
+        {/* Bottom Tab Bar matching student design */}
         <View style={styles.tabBarBg}>
           <View style={styles.tabBar}>
             {TABS.map((tab) => {
-              const isCenter = tab.key === 'track';
+              const isCenter = tab.key === 'bus';
               const isActive = activeTab === tab.key;
 
               if (isCenter) {
@@ -189,16 +248,16 @@ export default function ParentHomeScreen() {
                     onPress={() => setActiveTab(tab.key)}
                     activeOpacity={0.85}
                   >
-                    <View style={[styles.centerBtnRing, isActive && styles.centerBtnRingActive]}>
-                      <View style={[styles.centerBtn, isActive && styles.centerBtnActive]}>
-                        <MaterialCommunityIcons
-                          name={tab.iconFilled as any}
-                          size={26}
-                          color={isActive ? '#F4C430' : '#E8E5DC'}
-                        />
-                      </View>
+                    <View style={styles.centerBtnOuter}>
+                      <MaterialCommunityIcons
+                        name="bus"
+                        size={28}
+                        color="#111827"
+                      />
                     </View>
-                    <Text style={[styles.centerLabel, isActive && styles.centerLabelActive]}>{tab.label}</Text>
+                    <Text style={[styles.centerLabel, isActive && styles.centerLabelActive]}>
+                      {tab.label}
+                    </Text>
                   </TouchableOpacity>
                 );
               }
@@ -214,10 +273,13 @@ export default function ParentHomeScreen() {
                     <MaterialCommunityIcons
                       name={isActive ? (tab.iconFilled as any) : (tab.icon as any)}
                       size={22}
-                      color={isActive ? '#1A1B1C' : '#9CA3AF'}
+                      color={isActive ? '#111827' : '#9CA3AF'}
                     />
                   </View>
-                  <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>{tab.label}</Text>
+                  <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
+                    {tab.label}
+                  </Text>
+                  {isActive && <View style={styles.activeIndicator} />}
                 </TouchableOpacity>
               );
             })}
@@ -233,198 +295,38 @@ export default function ParentHomeScreen() {
         email={email}
         profilePic={profilePic}
         institutionName={institutionName}
+        rollNoOrUSN={linkedStudentUSN}
       />
-
-      {/* Child Profile Modal */}
-      <Modal visible={showChildProfile} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowChildProfile(false)}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFEFE' }}>
-          <View style={styles.profileModalHeader}>
-            <TouchableOpacity onPress={() => setShowChildProfile(false)} style={styles.profileCloseBtn}>
-              <MaterialCommunityIcons name="close" size={22} color="#1A1B1C" />
-            </TouchableOpacity>
-            <Text style={styles.profileModalTitle}>Child Profile</Text>
-            <View style={{ width: 36 }} />
-          </View>
-          {profileLoading && !childProfile ? (
-            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-              <MaterialCommunityIcons name="account-school-outline" size={40} color="#E8E5DC" />
-              <Text style={{ fontSize: 13, fontFamily: FontFamily.medium, color: '#6B6B6B' }}>Loading child profile...</Text>
-            </View>
-          ) : (
-          <ScrollView contentContainerStyle={styles.profileScroll} showsVerticalScrollIndicator={false}>
-            {/* Hero */}
-            <View style={styles.profileHero}>
-              <View style={styles.profileAvatar}>
-                <MaterialCommunityIcons name="account" size={40} color="#1A1B1C" />
-              </View>
-              <Text style={styles.profileName}>{childProfile?.childName || storeChildName || '—'}</Text>
-              <Text style={styles.profileEmail}>{childProfile?.childEmail || storeEmail || '—'}</Text>
-              <View style={styles.profileBadgeRow}>
-                <View style={styles.profileBadge}>
-                  <Text style={styles.profileBadgeText}>Student</Text>
-                </View>
-                <View style={styles.profileBadgeDark}>
-                  <Text style={styles.profileBadgeDarkText}>{childProfile?.relation || storeRelation || '—'}</Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Stats */}
-            <View style={styles.profileStatsRow}>
-              <View style={styles.profileStatCell}>
-                <Text style={styles.profileStatVal}>{childProfile?.childUSN || storeLinkedStudentUSN || '—'}</Text>
-                <Text style={styles.profileStatLabel}>USN</Text>
-              </View>
-              <View style={styles.profileStatDivider} />
-              <View style={styles.profileStatCell}>
-                <Text style={styles.profileStatVal}>{childProfile?.childSection || '—'}</Text>
-                <Text style={styles.profileStatLabel}>Section</Text>
-              </View>
-            </View>
-
-            {/* Academic Info */}
-            <View style={styles.profileCard}>
-              <View style={styles.profileCardHeader}>
-                <MaterialCommunityIcons name="school" size={16} color="#F4C430" />
-                <Text style={styles.profileCardTitle}>Academic Info</Text>
-              </View>
-              <View style={styles.profileGridRow}>
-                <View style={styles.profileGridCell}>
-                  <Text style={styles.profileInfoLabel}>Class</Text>
-                  <Text style={styles.profileInfoVal}>{childProfile?.childDepartment || '—'}</Text>
-                </View>
-                <View style={styles.profileGridCell}>
-                  <Text style={styles.profileInfoLabel}>Year</Text>
-                  <Text style={styles.profileInfoVal}>{childProfile?.childAcademicYear || '—'}</Text>
-                </View>
-              </View>
-              <View style={styles.profileGridRow}>
-                <View style={styles.profileGridCell}>
-                  <Text style={styles.profileInfoLabel}>Section</Text>
-                  <Text style={styles.profileInfoVal}>{childProfile?.childSection || '—'}</Text>
-                </View>
-                <View style={styles.profileGridCell}>
-                  <Text style={styles.profileInfoLabel}>Class</Text>
-                  <Text style={styles.profileInfoVal}>{childProfile?.childClassSectionName || '—'}</Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Contact */}
-            <View style={styles.profileCard}>
-              <View style={styles.profileCardHeader}>
-                <MaterialCommunityIcons name="phone-outline" size={16} color="#F4C430" />
-                <Text style={styles.profileCardTitle}>Contact</Text>
-              </View>
-              <View style={styles.profileGridRow}>
-                <View style={styles.profileGridCell}>
-                  <Text style={styles.profileInfoLabel}>Phone</Text>
-                  <Text style={styles.profileInfoVal}>{childProfile?.childPhone || '—'}</Text>
-                </View>
-                <View style={styles.profileGridCell}>
-                  <Text style={styles.profileInfoLabel}>Email</Text>
-                  <Text style={styles.profileInfoVal} numberOfLines={1}>{childProfile?.childEmail || '—'}</Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Attendance Summary */}
-            <View style={styles.profileCard}>
-              <View style={styles.profileCardHeader}>
-                <MaterialCommunityIcons name="book-check" size={16} color="#F4C430" />
-                <Text style={styles.profileCardTitle}>Attendance</Text>
-              </View>
-              <View style={styles.profileGridRow}>
-                <View style={styles.profileGridCell}>
-                  <Text style={styles.profileInfoLabel}>Present</Text>
-                  <Text style={styles.profileInfoVal}>{overall?.present ?? '—'}</Text>
-                </View>
-                <View style={styles.profileGridCell}>
-                  <Text style={styles.profileInfoLabel}>Total</Text>
-                  <Text style={styles.profileInfoVal}>{overall?.total ?? '—'}</Text>
-                </View>
-              </View>
-              <View style={styles.profileGridRow}>
-                <View style={[styles.profileGridCell, { flex: 2 }]}>
-                  <Text style={styles.profileInfoLabel}>Percentage</Text>
-                  <Text style={styles.profileInfoVal}>{overall?.percentage ?? 0}%</Text>
-                </View>
-              </View>
-            </View>
-          </ScrollView>
-          )}
-        </SafeAreaView>
-      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFEFE' },
+  container: { flex: 1, backgroundColor: '#FAF8F5' },
   safe: { flex: 1 },
   content: { flex: 1 },
-  scroll: { paddingHorizontal: 20, paddingVertical: 14, gap: 16 },
-  placeholderCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    padding: 30,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E8E5DC',
-  },
-  placeholderTitle: {
-    fontSize: 16,
-    fontFamily: FontFamily.semibold,
-    color: '#1A1B1C',
-    marginTop: 12,
-    marginBottom: 4,
-  },
-  placeholderSub: {
-    fontSize: 12,
-    fontFamily: FontFamily.regular,
-    color: '#6B6B6B',
-    textAlign: 'center',
-    lineHeight: 18,
-  },
-  announcementCard: {
-    flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#E8E5DC',
-    gap: 12,
-    alignItems: 'flex-start',
-  },
-  announcementIconWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#F4C430',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  announcementContent: { flex: 1, gap: 4 },
-  announcementTitle: { fontSize: 14, fontFamily: FontFamily.bold, color: '#171717' },
-  announcementBody: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B6B6B', lineHeight: 17 },
-  announcementSub: { fontSize: 11, fontFamily: FontFamily.regular, color: '#6B6B6B', lineHeight: 15 },
+  scroll: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 20, gap: 16 },
+
+  // Tab bar
   tabBarBg: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 32,
+    borderRadius: 36,
     marginHorizontal: 16,
     marginBottom: Platform.OS === 'ios' ? 16 : 8,
     paddingTop: 8,
-    paddingBottom: Platform.OS === 'ios' ? 16 : 8,
+    paddingBottom: Platform.OS === 'ios' ? 14 : 8,
+    paddingHorizontal: 6,
+    borderWidth: 1,
+    borderColor: '#F2EFE8',
     shadowColor: '#171717',
-    shadowOffset: { width: 0, height: 6 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 16,
-    elevation: 12,
+    elevation: 8,
   },
   tabBar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    paddingHorizontal: 6,
   },
   tabItem: {
     flex: 1,
@@ -434,173 +336,63 @@ const styles = StyleSheet.create({
   },
   tabIconBg: {
     width: 44,
-    height: 34,
-    borderRadius: 17,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
   tabIconBgActive: {
-    backgroundColor: '#F4C430',
+    backgroundColor: '#FDC836',
   },
   tabLabel: {
     fontSize: 10,
     fontFamily: FontFamily.medium,
     color: '#9CA3AF',
-    marginTop: 4,
+    marginTop: 3,
   },
   tabLabelActive: {
-    color: '#1A1B1C',
+    color: '#111827',
     fontFamily: FontFamily.bold,
   },
+  activeIndicator: {
+    width: 22,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: '#FDC836',
+    marginTop: 3,
+  },
+
+  // Center floating button
   centerBtnWrap: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingBottom: 2,
-    marginTop: -28,
+    marginTop: -26,
   },
-  centerBtnRing: {
-    width: 66,
-    height: 66,
-    borderRadius: 33,
-    borderWidth: 3,
-    borderColor: '#E8E5DC',
+  centerBtnOuter: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#FDC836',
+    borderWidth: 3.5,
+    borderColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#171717',
+    shadowColor: '#D97706',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.35,
     shadowRadius: 8,
     elevation: 6,
-  },
-  centerBtnRingActive: {
-    borderColor: '#F4C430',
-    shadowColor: '#F4C430',
-    shadowOpacity: 0.35,
-  },
-  centerBtn: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#171717',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  centerBtnActive: {
-    backgroundColor: '#171717',
   },
   centerLabel: {
     fontSize: 10,
     fontFamily: FontFamily.medium,
-    color: '#9CA3AF',
-    marginTop: 5,
+    color: '#6B7280',
+    marginTop: 4,
   },
   centerLabelActive: {
-    color: '#F4C430',
+    color: '#111827',
     fontFamily: FontFamily.bold,
   },
-
-  // Child Profile Modal
-  profileModalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E8E5DC',
-    backgroundColor: '#FFFFFF',
-  },
-  profileCloseBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  profileModalTitle: {
-    fontSize: 16,
-    fontFamily: FontFamily.bold,
-    color: '#1A1B1C',
-  },
-  profileScroll: { padding: 16, paddingBottom: 40 },
-
-  profileHero: {
-    backgroundColor: '#1A1B1C',
-    borderRadius: 12,
-    padding: 20,
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  profileAvatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: '#F4C430',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  profileName: {
-    fontSize: 20,
-    fontFamily: FontFamily.extrabold,
-    color: '#FFFFFF',
-    marginBottom: 2,
-  },
-  profileEmail: {
-    fontSize: 12,
-    fontFamily: FontFamily.regular,
-    color: '#9A9A9A',
-    marginBottom: 10,
-  },
-  profileBadgeRow: { flexDirection: 'row', gap: 8 },
-  profileBadge: {
-    backgroundColor: 'rgba(244,196,48,0.12)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(244,196,48,0.3)',
-  },
-  profileBadgeText: { fontSize: 11, fontFamily: FontFamily.bold, color: '#F4C430' },
-  profileBadgeDark: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  profileBadgeDarkText: { fontSize: 11, fontFamily: FontFamily.bold, color: '#9A9A9A' },
-
-  profileStatsRow: {
-    flexDirection: 'row',
-    backgroundColor: '#232425',
-    borderRadius: 8,
-    paddingVertical: 10,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: '#2A2B2C',
-  },
-  profileStatCell: { flex: 1, alignItems: 'center', gap: 2 },
-  profileStatVal: { fontSize: 15, fontFamily: FontFamily.extrabold, color: '#FFFFFF' },
-  profileStatLabel: { fontSize: 9, fontFamily: FontFamily.bold, color: '#8A8A8A', textTransform: 'uppercase', letterSpacing: 0.5 },
-  profileStatDivider: { width: 1, backgroundColor: '#2F3031', marginVertical: 4 },
-
-  profileCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#E8E5DC',
-    gap: 12,
-  },
-  profileCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  profileCardTitle: { fontSize: 15, fontFamily: FontFamily.bold, color: '#171717' },
-  profileGridRow: { flexDirection: 'row', gap: 12 },
-  profileGridCell: { flex: 1, gap: 4 },
-  profileInfoLabel: { fontSize: 11, fontFamily: FontFamily.medium, color: '#6B6B6B', textTransform: 'uppercase', letterSpacing: 0.3 },
-  profileInfoVal: { fontSize: 14, fontFamily: FontFamily.bold, color: '#171717' },
 });
