@@ -109,6 +109,7 @@ export const COLLEGE_ROLE_OPTIONS: RoleOption[] = [
   { key: 'accountant', label: 'Accountant', icon: 'calculator' },
   { key: 'librarian', label: 'Librarian', icon: 'book-outline' },
   { key: 'driver', label: 'Driver', icon: 'bus' },
+  { key: 'placement_officer', label: 'Placement Officer', icon: 'briefcase-outline' },
   { key: 'admission_officer', label: 'Admission Officer', icon: 'card-account-details-outline' },
 ];
 
@@ -135,6 +136,7 @@ export const COLLEGE_ADMIN_ROLES = [
   'accountant',
   'librarian',
   'driver',
+  'placement_officer',
   'admission_officer',
 ] as const;
 

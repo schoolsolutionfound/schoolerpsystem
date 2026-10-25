@@ -86,6 +86,8 @@ export const TeacherDrawer: React.FC<TeacherDrawerProps> = ({
 }) => {
   const router = useRouter();
   const resetUser = useUserStore((s) => s.resetUser);
+  const placementAccess = useUserStore((s) => s.placementAccess);
+  const institutionType = useUserStore((s) => s.institutionType);
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
 
@@ -247,6 +249,26 @@ export const TeacherDrawer: React.FC<TeacherDrawerProps> = ({
                   </TouchableOpacity>
                 );
               })}
+
+              {institutionType === 'college' && (placementAccess === 'head' || placementAccess === 'member') && (
+                <TouchableOpacity
+                  style={[styles.menuItem, activeTab === 'placement' && styles.menuItemActive]}
+                  activeOpacity={0.7}
+                  onPress={() => navigateAndClose('/(placement)/home')}
+                >
+                  <View style={[styles.menuIcon, activeTab === 'placement' && styles.menuIconActive]}>
+                    <MaterialCommunityIcons
+                      name={activeTab === 'placement' ? 'briefcase' : 'briefcase-outline'}
+                      size={18}
+                      color={activeTab === 'placement' ? '#F4C430' : '#9A9A9A'}
+                    />
+                  </View>
+                  <Text style={[styles.menuText, activeTab === 'placement' && styles.menuTextActive]}>
+                    Placement Cell
+                  </Text>
+                  <Feather name="chevron-right" size={16} color="#5A5A5A" />
+                </TouchableOpacity>
+              )}
 
               <Text style={[styles.sectionLabel, { marginTop: 18 }]}>ACCOUNT</Text>
               {SECONDARY.map((item) => {

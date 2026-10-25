@@ -1,3 +1,5 @@
+import { useUserStore } from '../../../store/useUserStore';
+
 const ROLE_ROUTES: Record<string, string> = {
   dev: '/(developer)/home',
   developer: '/(developer)/home',
@@ -11,8 +13,9 @@ const ROLE_ROUTES: Record<string, string> = {
   hod: '/(hod)/home',
   librarian: '/(librarian)/home',
   driver: '/(driver)/home',
-  admission_officer: '/(admin)/home',
-  'admission officer': '/(admin)/home',
+  placement_officer: '/(placement)/home',
+  admission_officer: '/(admission)/home',
+  'admission officer': '/(admission)/home',
 };
 
 const ROLE_GROUP: Record<string, string> = {
@@ -28,12 +31,13 @@ const ROLE_GROUP: Record<string, string> = {
   hod: '/(hod)',
   librarian: '/(librarian)',
   driver: '/(driver)',
-  admission_officer: '/(admin)',
-  'admission officer': '/(admin)',
+  placement_officer: '/(placement)',
+  admission_officer: '/(admission)',
+  'admission officer': '/(admission)',
 };
 
 const SHARED_ROUTES = [
-  '/auth', '/', '/index', '/welcome', '/change-password',
+  '/auth', '/', '/index', '/welcome', '/change-password', '/home',
   '/complete-profile', '/verify-email', '/notifications', '/select-school',
   '/teacher-attendance', '/leave', '/settings',
 ];
@@ -77,6 +81,23 @@ export function isRouteAllowedForRole(pathname: string, role?: string, roles?: s
   // Routes without a group prefix are denied unless listed in
   // SHARED_ROUTES or ROLE_SCOPED_ROOT_ROUTES above.
   if (!pathGroup) return false;
+
+  if (pathGroup === '/(placement)') {
+    const placementAccess = useUserStore.getState().placementAccess;
+    if (
+      allRoles.some((r) => ['placement_officer', 'admin'].includes(r)) ||
+      placementAccess === 'head' ||
+      placementAccess === 'member'
+    ) {
+      return true;
+    }
+  }
+
+  if (pathGroup === '/(admission)') {
+    if (allRoles.some((r) => ['admission_officer', 'admin'].includes(r))) {
+      return true;
+    }
+  }
 
   // Principals and HODs are educators and teachers too — grant educator cross-access
   if (pathGroup === '/(teacher)' && allRoles.some((r) => ['principal', 'hod', 'admin', 'teacher'].includes(r))) {

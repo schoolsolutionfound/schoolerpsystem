@@ -22,7 +22,7 @@ import {
   withTransaction,
   type InMemoryUser,
 } from '../shared/db/index.js';
-import { studentClasses, users, studentDocuments, feeStructures, feePayments, expenseRecords } from '../shared/db/schema.js';
+import { studentClasses, users, studentDocuments, feeStructures, feePayments, expenseRecords, placementMembers } from '../shared/db/schema.js';
 import { and as andSql, eq as eqSql, desc as descSql, inArray as inArraySql } from 'drizzle-orm';
 import { admin, isFirebaseAdminInitialized } from '../shared/config/firebase.js';
 import { resolveProvisionPassword, validatePasswordStrength } from '../shared/utils/password.js';
@@ -1242,6 +1242,20 @@ export class AdminService {
       profileCompleted: false,
       scope: JSON.stringify(scopeObj),
     });
+
+    if (primaryRole === 'placement_officer' && db) {
+      try {
+        await db.insert(placementMembers).values({
+          id: `pm_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+          institutionCode: payload.institutionCode,
+          userId: createdUser.id,
+          accessLevel: 'head',
+          grantedBy: 'admin',
+        });
+      } catch (err: any) {
+        console.warn('[Admin createUser] placement_members auto-record warning:', err?.message);
+      }
+    }
 
     this.recordAudit(actorEmail, 'user.created', 'user', createdUser.id, `${payload.email} @ ${payload.institutionCode}`, {
       role: primaryRole,

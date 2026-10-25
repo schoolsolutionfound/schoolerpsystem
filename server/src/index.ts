@@ -47,6 +47,8 @@ import { transportRoutes } from './modules/transport/transport.routes.js';
 import { announcementsRoutes } from './modules/announcements/announcements.routes.js';
 import { counselingRoutes } from './modules/counseling/counseling.routes.js';
 import { hodRoutes } from './modules/hod/hod.routes.js';
+import { placementRoutes } from './modules/placement/placement.routes.js';
+import { admissionRoutes } from './modules/admission/admission.routes.js';
 
 const port = Number(process.env.PORT) || 5000;
 const host = process.env.HOST || '0.0.0.0';
@@ -163,6 +165,7 @@ async function main() {
     await fastify.register(cors, {
       origin: buildCorsOrigin(),
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     });
 
     // Rate limiting is a production safety control only. Local development
@@ -218,8 +221,10 @@ async function main() {
         await apiV1.register(announcementsRoutes, { prefix: '/principal-notices' });
         await apiV1.register(counselingRoutes, { prefix: '/admin/counseling' });
         await apiV1.register(hodRoutes, { prefix: '/admin/hod' });
+        await apiV1.register(placementRoutes, { prefix: '/placement' });
+        await apiV1.register(admissionRoutes, { prefix: '/admission' });
 
-        // 404 handler for /api/v1/* �?" matches the API error envelope
+        // 404 handler for /api/v1/* — matches the API error envelope
         apiV1.setNotFoundHandler(async (request, reply) => {
           return reply.status(404).send({
             success: false,

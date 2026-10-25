@@ -1,6 +1,8 @@
 import { userRepository, IUserRepository } from './user.repository.js';
 import { AuthenticatedUser } from '../shared/middleware/auth.js';
-import { dbFindStudentByUsnInInstitution } from '../shared/db/index.js';
+import { dbFindStudentByUsnInInstitution, db } from '../shared/db/index.js';
+import { placementMembers } from '../shared/db/schema.js';
+import { and, eq } from 'drizzle-orm';
 import { getParentLinks, insertParentLinks, DEFAULT_PARENT_PERMISSIONS } from './parent-links.js';
 import { institutionService } from '../institutions/institution.service.js';
 import { validateCustomFields, mergeCustomFields } from './profile-fields.validation.js';
@@ -72,6 +74,23 @@ export class UserService {
       .getRoleProfileFormFields(user.institutionCode || '', user.role || '')
       .catch(() => [] as ProfileFormField[]);
 
+    let placementAccess: 'head' | 'member' | null = null;
+    if (user.role === 'placement_officer' || user.role === 'admin') {
+      placementAccess = 'head';
+    } else if (db && user.institutionCode && user.role !== 'student' && user.role !== 'parent') {
+      try {
+        const membership = await db.query.placementMembers.findFirst({
+          where: and(
+            eq(placementMembers.institutionCode, user.institutionCode),
+            eq(placementMembers.userId, user.id)
+          ),
+        });
+        if (membership) placementAccess = membership.accessLevel as 'head' | 'member';
+      } catch (err) {
+        console.warn('[User Service] Failed to fetch placement access:', err);
+      }
+    }
+
     return {
       id: user.id,
       firebaseUid: user.firebaseUid,
@@ -102,6 +121,7 @@ export class UserService {
       designation: user.title || '',
       profileFormFields,
       customFields: (scope.customFields && typeof scope.customFields === 'object' ? scope.customFields : {}),
+      placementAccess,
       ...scope,
     };
   }

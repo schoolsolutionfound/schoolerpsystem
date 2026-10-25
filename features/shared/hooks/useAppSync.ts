@@ -69,6 +69,7 @@ export function useAppSync(userSession: User | null) {
         customFields: res.customFields && typeof res.customFields === 'object' ? res.customFields : {},
         mustChangePassword: res.mustChangePassword ?? false,
         profileCompleted: res.profileCompleted ?? false,
+        placementAccess: res.placementAccess || null,
         // Trust the backend's users.email_verified, not the (often stale) Firebase
         // claim — the backend is the source of truth post-Phase 2.
         isEmailVerified: res.isEmailVerified ?? res.emailVerified ?? true,
@@ -207,6 +208,7 @@ export function useAppSync(userSession: User | null) {
               designation: data.designation || data.title || '',
               mustChangePassword: data.mustChangePassword ?? false,
               profileCompleted: data.profileCompleted ?? false,
+              placementAccess: data.placementAccess || useUserStore.getState().placementAccess || null,
               isEmailVerified: data.isEmailVerified === true || currentUser.emailVerified,
             });
 

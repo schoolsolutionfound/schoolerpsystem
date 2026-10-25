@@ -1,11 +1,14 @@
 import { authRepository, IAuthRepository } from './auth.repository.js';
 import { admin, isFirebaseAdminInitialized } from '../shared/config/firebase.js';
 import { AuthenticatedUser } from '../shared/middleware/auth.js';
+import { setCachedAuth } from '../shared/middleware/authCache.js';
 import { institutionService } from '../institutions/institution.service.js';
-import { dbFindUserById } from '../shared/db/index.js';
+import { dbFindUserById, db } from '../shared/db/index.js';
 import { getPrimaryParentChild } from '../users/parent-links.js';
 import { validatePasswordStrength } from '../shared/utils/password.js';
 import { DEFAULT_INSTITUTION_TYPE } from '../shared/academicStructure.js';
+import { placementMembers } from '../shared/db/schema.js';
+import { eq, and } from 'drizzle-orm';
 
 function parseScope(val: any): Record<string, any> {
   if (!val) return {};
@@ -38,6 +41,33 @@ export class AuthService {
         institutionType = match.institutionType || institutionType;
       }
     } catch {}
+
+    let placementAccess: 'head' | 'member' | null = null;
+    if (user.role === 'placement_officer' || user.role === 'admin') {
+      placementAccess = 'head';
+    } else if (db && user.institutionCode && user.role !== 'student' && user.role !== 'parent') {
+      try {
+        const membership = await db.query.placementMembers.findFirst({
+          where: and(
+            eq(placementMembers.institutionCode, user.institutionCode),
+            eq(placementMembers.userId, user.id)
+          ),
+        });
+        if (membership) placementAccess = membership.accessLevel as 'head' | 'member';
+      } catch (err) {
+        console.warn('[Auth Service] Failed to fetch placement access:', err);
+      }
+    }
+
+    setCachedAuth(
+      user.firebaseUid,
+      user.role,
+      user.institutionCode || '',
+      Boolean(user.mustChangePassword),
+      user.emailVerified ?? true,
+      user.department || '',
+      placementAccess
+    );
 
     return {
       id: user.id,
@@ -79,6 +109,7 @@ export class AuthService {
         const scope = parseScope(user.scope);
         return scope.customFields && typeof scope.customFields === 'object' ? scope.customFields : {};
       })(),
+      placementAccess,
       ...parseScope(user.scope),
       ...await this.resolveParentChild(user),
     };

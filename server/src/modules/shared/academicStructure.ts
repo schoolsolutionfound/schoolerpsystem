@@ -56,6 +56,7 @@ export const COLLEGE_ROLES = [
   'accountant',
   'librarian',
   'driver',
+  'placement_officer',
   'admission_officer',
 ] as const;
 

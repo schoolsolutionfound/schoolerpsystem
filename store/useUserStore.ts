@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { secureStorage } from './secureStorage';
 import type { ProfileFormField, CustomFieldValues } from '../features/shared/formFields/types';
 
-export type UserRole = 'student' | 'teacher' | 'admin' | 'parent' | 'dev' | 'principal' | 'accountant' | 'hod' | 'librarian' | 'driver' | 'admission_officer' | 'institution admin' | 'loading';
+export type UserRole = 'student' | 'teacher' | 'admin' | 'parent' | 'dev' | 'principal' | 'accountant' | 'hod' | 'librarian' | 'driver' | 'institution admin' | 'placement_officer' | 'admission_officer' | 'loading';
 export type InstitutionType = 'school' | 'college';
 
 interface UserState {
@@ -27,6 +27,7 @@ interface UserState {
   mustChangePassword: boolean;
   profileCompleted: boolean;
   institutionType: InstitutionType;
+  placementAccess?: 'head' | 'member' | null;
   rollNoOrUSN: string;
   parentPhone: string;
   tenthPercentage: string;
@@ -84,6 +85,7 @@ export const useUserStore = create<UserState>()(
       mustChangePassword: false,
       profileCompleted: false,
       institutionType: 'college',
+      placementAccess: null,
       rollNoOrUSN: '',
       parentPhone: '',
       tenthPercentage: '',
@@ -140,6 +142,7 @@ export const useUserStore = create<UserState>()(
           mustChangePassword: false,
           profileCompleted: false,
           institutionType: 'college',
+          placementAccess: null,
           rollNoOrUSN: '',
           parentPhone: '',
           tenthPercentage: '',
@@ -259,6 +262,7 @@ export const useUserStore = create<UserState>()(
         profileExists: state.profileExists,
         mustChangePassword: state.mustChangePassword,
         profileCompleted: state.profileCompleted,
+        placementAccess: state.placementAccess,
         rollNoOrUSN: state.rollNoOrUSN,
         parentPhone: state.parentPhone,
         tenthPercentage: state.tenthPercentage,

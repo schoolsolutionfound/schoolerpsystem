@@ -11,6 +11,7 @@ export interface AuthenticatedUser {
   institutionCode?: string;
   emailVerified?: boolean;
   department?: string;
+  placementAccess?: 'head' | 'member' | null;
 }
 
 declare module 'fastify' {
@@ -114,6 +115,7 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
   let mustChangePassword = false;
   let emailVerified = true;
   let department = '';
+  let placementAccess: 'head' | 'member' | null | undefined;
 
   const cached = getCachedAuth(firebaseUid);
   if (cached) {
@@ -122,11 +124,12 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
     mustChangePassword = cached.mustChangePassword;
     emailVerified = cached.emailVerified;
     department = cached.department || '';
+    placementAccess = cached.placementAccess;
   } else {
     try {
       const dbUser = await dbFindByUid(firebaseUid);
       if (dbUser) {
-        dbUserRole = dbUser.role || tokenRole || '';
+        dbUserRole = dbUser.role || tokenRole;
         institutionCode = dbUser.institutionCode || '';
         mustChangePassword = Boolean(dbUser.mustChangePassword);
         emailVerified = dbUser.emailVerified ?? true;
@@ -135,7 +138,17 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
           try { scope = JSON.parse(scope); } catch { scope = {}; }
         }
         department = (dbUser as any).department || scope?.department || scope?.dept || '';
-        setCachedAuth(firebaseUid, dbUserRole, institutionCode, mustChangePassword, emailVerified, department);
+        placementAccess =
+          dbUser.role === 'placement_officer' || dbUser.role === 'admin' ? 'head' : undefined;
+        setCachedAuth(
+          firebaseUid,
+          dbUserRole,
+          institutionCode,
+          mustChangePassword,
+          emailVerified,
+          department,
+          placementAccess
+        );
       }
     } catch (err: any) {
       // Fail closed: a DB outage must not silently produce an empty-tenant principal.
@@ -202,6 +215,7 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
     institutionCode,
     emailVerified,
     department,
+    placementAccess,
   };
 }
 

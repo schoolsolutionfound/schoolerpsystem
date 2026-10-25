@@ -128,9 +128,33 @@ const AppLayout = function Layout() {
         '/(librarian)': 'librarian',
         '/(developer)': 'dev',
         '/(driver)': 'driver',
+        '/(placement)': 'placement_officer',
+        '/(admission)': 'admission_officer',
       };
       const requiredRole = groupToRole[routeGroup];
-      if (requiredRole && requiredRole !== currentRole) return;
+      if (requiredRole && requiredRole !== currentRole) {
+        if (routeGroup === '/(placement)') {
+          const placementAccess = useUserStore.getState().placementAccess;
+          if (
+            placementAccess === 'head' ||
+            placementAccess === 'member' ||
+            currentRole === 'admin' ||
+            currentRole === 'placement_officer'
+          ) {
+            // Authorized placement route
+          } else {
+            return;
+          }
+        } else if (routeGroup === '/(admission)') {
+          if (currentRole === 'admin' || currentRole === 'admission_officer') {
+            // Authorized admission route
+          } else {
+            return;
+          }
+        } else {
+          return;
+        }
+      }
     }
 
     router.push({ pathname: route as any, params: data });
@@ -289,6 +313,7 @@ const AppLayout = function Layout() {
       <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="index" />
+          <Stack.Screen name="home" />
           <Stack.Screen name="welcome" />
           <Stack.Screen name="auth" />
           <Stack.Screen name="verify-email" />
@@ -309,6 +334,8 @@ const AppLayout = function Layout() {
           <Stack.Screen name="(librarian)" />
           <Stack.Screen name="(developer)" />
           <Stack.Screen name="(driver)" />
+          <Stack.Screen name="(placement)" />
+          <Stack.Screen name="(admission)" />
         </Stack>
       </View>
     </QueryClientProvider>

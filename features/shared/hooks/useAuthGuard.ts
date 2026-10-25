@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { useUserStore } from '../../../store/useUserStore';
@@ -33,6 +34,13 @@ export function useAuthGuard({
       if (!isProfileSynced && userRole === 'loading') return;
 
       const state = useUserStore.getState();
+
+      // Ambiguous /home route redirect to the user's authoritative role home on native.
+      // Web handles this through app/home.tsx.
+      if (pathname === '/home' && Platform.OS !== 'web') {
+        router.replace(getHomeRouteForRole(userRole) as any);
+        return;
+      }
 
       // If user must change password, keep them on change-password
       if (state.mustChangePassword) {

@@ -60,6 +60,7 @@ export const StudentDrawer: React.FC<StudentDrawerProps> = ({
 }) => {
   const router = useRouter();
   const resetUser = useUserStore((s) => s.resetUser);
+  const institutionType = useUserStore((s) => s.institutionType);
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
 
@@ -186,6 +187,20 @@ export const StudentDrawer: React.FC<StudentDrawerProps> = ({
                 <Feather name="chevron-right" size={16} color="#5A5A5A" />
               </TouchableOpacity>
             ))}
+
+            {institutionType === 'college' && (
+              <TouchableOpacity
+                style={styles.menuItem}
+                activeOpacity={0.7}
+                onPress={() => navigateAndClose('/(student)/placement/index')}
+              >
+                <View style={styles.menuIcon}>
+                  <MaterialCommunityIcons name="briefcase-outline" size={18} color="#9A9A9A" />
+                </View>
+                <Text style={styles.menuText}>Placement Cell</Text>
+                <Feather name="chevron-right" size={16} color="#5A5A5A" />
+              </TouchableOpacity>
+            )}
 
             <Text style={[styles.sectionLabel, { marginTop: 18 }]}>ACCOUNT</Text>
             {SECONDARY.map((item) => (

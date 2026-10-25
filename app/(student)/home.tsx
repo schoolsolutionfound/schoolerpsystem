@@ -17,6 +17,7 @@ import { StudentDrawer } from '../../features/student/components/StudentDrawer';
 import { StudentBusTrackingView } from '../../features/student/components/StudentBusTrackingView';
 import { StudentHomeFeeSummary } from '../../features/student/components/StudentHomeFeeSummary';
 import { StudentLibraryView } from '../../features/student/components/StudentLibraryView';
+import { StudentHomePlacementCard } from '../../features/student/components/StudentHomePlacementCard';
 import { ShimmerProvider } from '../../features/student/components/ShimmerSkeleton';
 import { FontFamily } from '../../constants/fonts';
 import { UserAnnouncementFeedView } from '../../features/announcements';
@@ -165,6 +166,7 @@ export default function HomeScreen() {
                 overall={overall}
                 currentSlot={currentSlot}
               />
+              <StudentHomePlacementCard />
               <StudentHomeAnnouncements onPress={() => router.push('/notifications')} />
               <StudentHomePeriodsList
                 loading={slotsLoading}
