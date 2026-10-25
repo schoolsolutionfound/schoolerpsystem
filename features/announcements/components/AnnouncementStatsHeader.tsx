@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
   statCard: {
     flex: 1,
     backgroundColor: Colors.light.card,
-    borderRadius: BorderRadius.card,
+    borderRadius: 5,
     borderWidth: 1,
     borderColor: Colors.light.border,
     padding: 12,
@@ -103,7 +103,7 @@ const styles = StyleSheet.create({
   iconWrap: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: 5,
     justifyContent: 'center',
     alignItems: 'center',
   },

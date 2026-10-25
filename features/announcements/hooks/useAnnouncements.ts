@@ -66,6 +66,15 @@ export function useAnnouncementFeedInfiniteQuery(query: Omit<AnnouncementQueryPa
 }
 
 /**
+ * Flat announcement feed query (compatibility for components expecting a flat array).
+ */
+export function useAnnouncementFeedQuery(query: { limit?: number } = {}) {
+  const infinite = useAnnouncementFeedInfiniteQuery({} as Omit<AnnouncementQueryPayload, 'limit' | 'offset'>);
+  const data = (infinite.data?.pages ?? []).flatMap((page: AnnouncementPage) => page?.items ?? []);
+  return { ...infinite, data, isLoading: infinite.isLoading };
+}
+
+/**
  * Unread announcement count query.
  */
 export function useUnreadAnnouncementCountQuery() {

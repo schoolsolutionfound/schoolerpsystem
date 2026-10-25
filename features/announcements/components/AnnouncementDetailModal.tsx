@@ -1,10 +1,9 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Linking } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { AppModal } from '../../shared/components/AppModal';
-import { AppBadge } from '../../shared/components/AppBadge';
 import { Announcement } from '../types';
-import { Colors, BorderRadius } from '../../../constants/theme';
+import { Colors } from '../../../constants/theme';
 import { FontFamily } from '../../../constants/fonts';
 
 interface AnnouncementDetailModalProps {
@@ -12,6 +11,7 @@ interface AnnouncementDetailModalProps {
   onClose: () => void;
   announcement: Announcement | null;
   onMarkRead?: (id: string) => void;
+  onDelete?: (announcement: Announcement) => void;
   isUserFeed?: boolean;
 }
 
@@ -20,125 +20,134 @@ export const AnnouncementDetailModal: React.FC<AnnouncementDetailModalProps> = (
   onClose,
   announcement,
   onMarkRead,
+  onDelete,
   isUserFeed = false,
 }) => {
   const annId = announcement?.id;
   const isRead = announcement?.isRead;
-  // Fire mark-read exactly once per announcement id (N1): the `announcement`
-  // prop is a snapshot that never flips isRead, and `onMarkRead` gets a fresh
-  // identity each render — without this guard the effect would re-fire and
-  // spam POST /:id/read on every refetch while the modal is open.
-  const markedIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    if (visible && annId && isUserFeed && !isRead && onMarkRead && !markedIdsRef.current.has(annId)) {
-      markedIdsRef.current.add(annId);
+    if (visible && annId && isUserFeed && !isRead && onMarkRead) {
       onMarkRead(annId);
     }
   }, [visible, annId, isUserFeed, isRead, onMarkRead]);
 
   if (!announcement) return null;
 
-  const formattedPublish = announcement.publishAt
-    ? new Date(announcement.publishAt).toLocaleString(undefined, {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-      })
-    : new Date(announcement.createdAt).toLocaleDateString();
-
-  const formattedExpires = announcement.expiresAt
-    ? new Date(announcement.expiresAt).toLocaleString(undefined, {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-      })
-    : null;
-
-  const openLink = (url: string) => {
-    if (url) Linking.openURL(url).catch(() => {});
+  const formatDate = (dateStr: string | null | undefined): string => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
   };
 
-  const getPriorityStyle = (priority: string) => {
-    switch (priority) {
-      case 'URGENT':
-        return { bg: '#FEE2E2', text: '#DC2626' };
-      case 'HIGH':
-        return { bg: '#FFEDD5', text: '#C2410C' };
-      case 'LOW':
-        return { bg: '#E0F2FE', text: '#0284C7' };
-      case 'NORMAL':
-      default:
-        return { bg: '#FEF3C7', text: '#D97706' };
+  const startDate = formatDate(announcement.publishAt || announcement.createdAt);
+  const endDate = formatDate(announcement.expiresAt);
+
+  const timePeriodText = endDate
+    ? `${startDate} – ${endDate}`
+    : `From ${startDate}`;
+
+  const targetRoleInfo = React.useMemo(() => {
+    if (!announcement?.targets || announcement.targets.length === 0) {
+      return { label: 'All', icon: 'account-group-outline' as const, desc: 'Visible to everyone (Students & Teachers)' };
     }
-  };
+    const first = announcement.targets[0];
+    if (first.targetType === 'all') {
+      return { label: 'All', icon: 'account-group-outline' as const, desc: 'Visible to everyone (Students & Teachers)' };
+    }
+    const role = (first.targetRole || '').toLowerCase().trim();
+    if (role === 'student') {
+      return { label: 'Student', icon: 'school-outline' as const, desc: 'Visible to Student accounts only' };
+    }
+    if (role === 'teacher') {
+      return { label: 'Teacher', icon: 'account-tie-outline' as const, desc: 'Visible to Teacher accounts only' };
+    }
+    return {
+      label: first.targetRole ? first.targetRole.charAt(0).toUpperCase() + first.targetRole.slice(1) : 'All',
+      icon: 'account-group-outline' as const,
+      desc: 'Targeted role',
+    };
+  }, [announcement?.targets]);
 
-  const priorityStyle = getPriorityStyle(announcement.priority);
+  const handleDeletePress = () => {
+    Alert.alert(
+      'Delete Announcement',
+      `Are you sure you want to delete "${announcement.title}"? This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            onClose();
+            onDelete?.(announcement);
+          },
+        },
+      ]
+    );
+  };
 
   return (
-    <AppModal visible={visible} onClose={onClose} title="Announcement Details">
+    <AppModal
+      visible={visible}
+      onClose={onClose}
+      title="Announcement Details"
+      cardStyle={{ borderRadius: 5 }}
+    >
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <View style={styles.headerRow}>
-          <AppBadge label={announcement.type} type="active" />
-          <View style={[styles.priorityBadge, { backgroundColor: priorityStyle.bg }]}>
-            <Text style={[styles.priorityText, { color: priorityStyle.text }]}>
-              {announcement.priority}
-            </Text>
-          </View>
-          <AppBadge label={announcement.status} type="college" />
-        </View>
-
+        {/* Title */}
         <Text style={styles.title}>{announcement.title}</Text>
 
-        <View style={styles.metaRow}>
-          <View style={styles.metaItem}>
-            <MaterialCommunityIcons name="clock-outline" size={14} color={Colors.light.muted} />
-            <Text style={styles.metaText}>Published: {formattedPublish}</Text>
-          </View>
-          {formattedExpires && (
-            <View style={styles.metaItem}>
-              <MaterialCommunityIcons name="timer-off-outline" size={14} color={Colors.light.danger} />
-              <Text style={styles.metaText}>Expires: {formattedExpires}</Text>
+        {/* Meta Cards: Time Period & Target Role */}
+        <View style={styles.metaContainer}>
+          <View style={styles.metaCard}>
+            <MaterialCommunityIcons name="calendar-clock-outline" size={18} color="#171717" />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.metaLabel}>Time Period</Text>
+              <Text style={styles.metaValue}>{timePeriodText}</Text>
             </View>
-          )}
+          </View>
+
+          <View style={styles.metaCardRole}>
+            <MaterialCommunityIcons name={targetRoleInfo.icon} size={18} color="#D97706" />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.metaLabelRole}>Target Role</Text>
+              <Text style={styles.metaValueRole}>{targetRoleInfo.label}</Text>
+              <Text style={styles.metaSubtext}>{targetRoleInfo.desc}</Text>
+            </View>
+          </View>
         </View>
 
-        {announcement.imageUrl ? (
-          <Image source={{ uri: announcement.imageUrl }} style={styles.image} resizeMode="cover" />
-        ) : null}
-
+        {/* Content Box */}
         <View style={styles.contentBox}>
           <Text style={styles.contentText}>{announcement.content}</Text>
         </View>
 
-        {announcement.attachmentUrl ? (
+        {/* Actions */}
+        <View style={styles.actionRow}>
+          {onDelete && (
+            <TouchableOpacity
+              style={styles.deleteBtn}
+              onPress={handleDeletePress}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.deleteBtnText} numberOfLines={1}>Delete Announcement</Text>
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity
-            style={styles.attachmentCard}
-            onPress={() => openLink(announcement.attachmentUrl!)}
+            style={styles.closeBtn}
+            onPress={onClose}
             activeOpacity={0.8}
           >
-            <MaterialCommunityIcons name="file-document-outline" size={24} color={Colors.light.primary} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.attachmentTitle}>Document Attachment</Text>
-              <Text style={styles.attachmentSub}>Tap to view or download file</Text>
-            </View>
-            <MaterialCommunityIcons name="open-in-new" size={18} color={Colors.light.muted} />
+            <Text style={styles.closeBtnText}>Close</Text>
           </TouchableOpacity>
-        ) : null}
-
-        {announcement.targets && announcement.targets.length > 0 && (
-          <View style={styles.targetSection}>
-            <Text style={styles.targetHeading}>Target Audience</Text>
-            {announcement.targets.map((t, idx) => (
-              <View key={idx} style={styles.targetTag}>
-                <MaterialCommunityIcons name="account-group-outline" size={14} color={Colors.light.secondary} />
-                <Text style={styles.targetText}>
-                  Type: {t.targetType.toUpperCase()}
-                  {t.targetRole ? ` • Role: ${t.targetRole}` : ''}
-                  {t.classId ? ` • Class: ${t.classId}` : ''}
-                </Text>
-              </View>
-            ))}
-          </View>
-        )}
+        </View>
       </ScrollView>
     </AppModal>
   );
@@ -146,99 +155,117 @@ export const AnnouncementDetailModal: React.FC<AnnouncementDetailModalProps> = (
 
 const styles = StyleSheet.create({
   container: {
-    gap: 14,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    gap: 8,
-    alignItems: 'center',
-    flexWrap: 'wrap',
-  },
-  priorityBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  priorityText: {
-    fontSize: 11,
-    fontFamily: FontFamily.semibold,
+    gap: 16,
+    paddingBottom: 16,
   },
   title: {
     fontSize: 18,
     fontFamily: FontFamily.bold,
-    color: Colors.light.text,
+    color: '#171717',
     lineHeight: 24,
   },
-  metaRow: {
-    gap: 4,
+  metaContainer: {
+    gap: 10,
   },
-  metaItem: {
+  metaCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 10,
+    backgroundColor: '#FFFDF7',
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    borderRadius: 5,
+    padding: 12,
   },
-  metaText: {
-    fontSize: 12,
-    color: Colors.light.muted,
+  metaLabel: {
+    fontSize: 11,
+    fontFamily: FontFamily.medium,
+    color: '#6B7280',
+    textTransform: 'uppercase',
   },
-  image: {
-    width: '100%',
-    height: 180,
-    borderRadius: BorderRadius.card,
+  metaValue: {
+    fontSize: 14,
+    fontFamily: FontFamily.bold,
+    color: '#171717',
+    marginTop: 1,
+  },
+  metaCardRole: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: 5,
+    padding: 12,
+  },
+  metaLabelRole: {
+    fontSize: 11,
+    fontFamily: FontFamily.medium,
+    color: '#92400E',
+    textTransform: 'uppercase',
+  },
+  metaValueRole: {
+    fontSize: 14,
+    fontFamily: FontFamily.bold,
+    color: '#92400E',
+    marginTop: 1,
+  },
+  metaSubtext: {
+    fontSize: 11,
+    fontFamily: FontFamily.regular,
+    color: '#B45309',
+    marginTop: 2,
   },
   contentBox: {
-    backgroundColor: '#F9FAFB',
-    borderRadius: 8,
-    padding: 14,
+    backgroundColor: '#FAFAF9',
+    borderRadius: 5,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: '#E8E5DC',
+    padding: 14,
   },
   contentText: {
     fontSize: 14,
     fontFamily: FontFamily.regular,
-    color: Colors.light.text,
+    color: '#334155',
     lineHeight: 22,
   },
-  attachmentCard: {
+  actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#FFF4C7',
-    padding: 14,
-    borderRadius: BorderRadius.card,
-    borderWidth: 1,
-    borderColor: Colors.light.primary,
+    marginTop: 8,
   },
-  attachmentTitle: {
-    fontSize: 14,
-    fontFamily: FontFamily.bold,
-    color: Colors.light.text,
-  },
-  attachmentSub: {
-    fontSize: 12,
-    color: Colors.light.muted,
-  },
-  targetSection: {
-    gap: 6,
-    marginTop: 4,
-  },
-  targetHeading: {
-    fontSize: 13,
-    fontFamily: FontFamily.semibold,
-    color: Colors.light.text,
-  },
-  targetTag: {
-    flexDirection: 'row',
+  deleteBtn: {
+    flex: 1,
+    height: 44,
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
+    justifyContent: 'center',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 5,
+    paddingHorizontal: 8,
   },
-  targetText: {
-    fontSize: 12,
-    color: Colors.light.text,
-    fontFamily: FontFamily.medium,
+  deleteBtnText: {
+    fontSize: 13,
+    fontFamily: FontFamily.bold,
+    color: '#DC2626',
+    textAlign: 'center',
+  },
+  closeBtn: {
+    flex: 1,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F4C430',
+    borderRadius: 5,
+    paddingHorizontal: 8,
+  },
+  closeBtnText: {
+    fontSize: 13,
+    fontFamily: FontFamily.bold,
+    color: '#171717',
+    textAlign: 'center',
   },
 });

@@ -1,47 +1,46 @@
 import React from 'react';
 import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { BorderRadius } from '../../../constants/theme';
 import { FontFamily } from '../../../constants/fonts';
+import { MaterialCommunityIcons } from './common/Icons';
+import { TeacherShimmerSkeleton } from './common/TeacherShimmer';
+import { useAnnouncementFeedQuery } from '../../announcements/hooks/useAnnouncements';
 
 interface TeacherHomeAnnouncementsProps {
   onPressFeed?: () => void;
   onPressManage?: () => void;
+  title?: string;
 }
 
 export const TeacherHomeAnnouncements: React.FC<TeacherHomeAnnouncementsProps> = ({
   onPressFeed,
   onPressManage,
+  title,
 }) => {
+  const { data, isLoading } = useAnnouncementFeedQuery({ limit: 5 });
+
+  const announcementTitle =
+    title ||
+    data?.[0]?.title ||
+    'Staff Meeting & Curriculum Updates';
+
   return (
     <TouchableOpacity
       style={styles.card}
       activeOpacity={0.8}
       onPress={onPressFeed || onPressManage}
     >
-      <View style={styles.iconWrap}>
-        <MaterialCommunityIcons name="bullhorn-outline" size={22} color="#1A1B1C" />
-      </View>
-
-      <View style={styles.content}>
-        <View style={styles.topRow}>
-          <Text style={styles.title}>Announcements</Text>
-          {onPressManage ? (
-            <TouchableOpacity
-              style={styles.manageBadge}
-              onPress={onPressManage}
-              hitSlop={6}
-            >
-              <Text style={styles.manageBadgeText}>Manage</Text>
-            </TouchableOpacity>
+      <View style={styles.topRow}>
+        <View style={styles.titleWrap}>
+          <Text style={styles.heading}>Notifications</Text>
+          {isLoading && !data ? (
+            <TeacherShimmerSkeleton width={180} height={14} borderRadius={5} style={{ marginTop: 4 }} />
           ) : (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>View</Text>
-            </View>
+            <Text style={styles.receivedTitle} numberOfLines={1}>
+              {announcementTitle}
+            </Text>
           )}
         </View>
-        <Text style={styles.body}>View announcements or post updates</Text>
-        <Text style={styles.sub}>School & class updates appear here</Text>
+        <MaterialCommunityIcons name="chevron-right" size={20} color="#9CA3AF" />
       </View>
     </TouchableOpacity>
   );
@@ -49,40 +48,37 @@ export const TeacherHomeAnnouncements: React.FC<TeacherHomeAnnouncementsProps> =
 
 const styles = StyleSheet.create({
   card: {
-    flexDirection: 'row',
     backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.card,
-    padding: 16,
+    borderRadius: 5,
+    paddingHorizontal: 18,
+    paddingVertical: 13,
     borderWidth: 1,
     borderColor: '#E8E5DC',
-    gap: 12,
+    shadowColor: '#171717',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  topRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
   },
-  iconWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#F4C430',
+  titleWrap: {
+    flex: 1,
+    marginRight: 10,
     justifyContent: 'center',
-    alignItems: 'center',
   },
-  content: { flex: 1, gap: 4 },
-  topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  title: { fontSize: 14, fontFamily: FontFamily.semibold, color: '#171717' },
-  badge: {
-    backgroundColor: 'rgba(244, 196, 48, 0.15)',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6,
+  heading: {
+    fontSize: 14,
+    fontFamily: FontFamily.bold,
+    color: '#111827',
   },
-  badgeText: { fontSize: 10, fontWeight: '700', color: '#D4A418' },
-  manageBadge: {
-    backgroundColor: '#171717',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+  receivedTitle: {
+    fontSize: 12,
+    fontFamily: FontFamily.medium,
+    color: '#6B7280',
+    marginTop: 2,
   },
-  manageBadgeText: { fontSize: 10, fontWeight: '700', color: '#F4C430' },
-  body: { fontSize: 12, color: '#6B6B6B', fontWeight: '600' },
-  sub: { fontSize: 11, color: '#6B6B6B' },
 });

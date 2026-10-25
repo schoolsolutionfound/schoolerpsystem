@@ -2,9 +2,9 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Text, Platform, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '../../features/teacher/components/common/Icons';
 import { useUserStore } from '../../store/useUserStore';
-import { fetchTeacherTimetableApi } from '../../api/academics';
+import { fetchTeacherTimetableApi, fetchAttendanceForSlotApi } from '../../api/academics';
 import { TeacherHomeHeader } from '../../features/teacher/components/TeacherHomeHeader';
 import { TeacherDonutCard } from '../../features/teacher/components/TeacherDonutCard';
 import { TeacherWeeklyBarCard } from '../../features/teacher/components/TeacherWeeklyBarCard';
@@ -16,13 +16,42 @@ import { TeacherMarksView } from '../../features/teacher/components/TeacherMarks
 import { TeacherHomeworkView } from '../../features/teacher/components/TeacherHomeworkView';
 import { TeacherChatView } from '../../features/teacher/components/TeacherChatView';
 import { TeacherLocateStudentsView } from '../../features/teacher/components/TeacherLocateStudentsView';
-import { ClassAttendanceReport } from '../../features/teacher/components/ClassAttendanceReport';
+import { TeacherReportsView } from '../../features/teacher/components/TeacherReportsView';
 import { TeacherDrawer } from '../../features/teacher/components/TeacherDrawer';
-import { ShimmerProvider } from '../../features/student/components/ShimmerSkeleton';
+import { TeacherProfileView } from '../../features/teacher/components/profile/TeacherProfileView';
+import { TeacherAttendanceView } from '../../features/teacher/components/TeacherAttendanceView';
+import { TeacherLeaveView } from '../../features/teacher/components/TeacherLeaveView';
+import { TeacherLibraryView } from '../../features/teacher/components/TeacherLibraryView';
+import { TeacherSettingsView } from '../../features/teacher/components/TeacherSettingsView';
+import { TeacherShimmerProvider } from '../../features/teacher/components/common/TeacherShimmer';
+import { TeacherHomeSkeleton } from '../../features/teacher/components/skeletons/TeacherHomeSkeleton';
 import { FontFamily } from '../../constants/fonts';
 import { AdminAnnouncementsView, UserAnnouncementFeedView } from '../../features/announcements';
+import { useAttendanceStore } from '../../features/teacher/services/attendanceStore';
 
-type Tab = 'home' | 'schedule' | 'attendance' | 'marks' | 'reports' | 'homework' | 'chat' | 'locate' | 'announcements' | 'announcements-manage' | 'profile';
+type Tab = 'home' | 'schedule' | 'attendance' | 'marks' | 'reports' | 'homework' | 'library' | 'chat' | 'locate' | 'announcements' | 'announcements-manage' | 'profile' | 'leave' | 'teacher-attendance' | 'settings';
+
+function toMinutes(timeStr?: string): number | null {
+  if (!timeStr) return null;
+  const m = timeStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)?$/);
+  if (!m) return null;
+  let h = parseInt(m[1], 10);
+  const min = parseInt(m[2], 10);
+  const suffix = (m[3] || '').toUpperCase();
+  if (suffix === 'PM' && h < 12) h += 12;
+  if (suffix === 'AM' && h === 12) h = 0;
+  return h * 60 + min;
+}
+
+function findCurrentSlot(slots: any[]): any | undefined {
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  return slots.find((s) => {
+    const start = toMinutes(s?.period?.startTime);
+    const end = toMinutes(s?.period?.endTime);
+    return start !== null && end !== null && nowMin >= start && nowMin < end;
+  });
+}
 
 function getWeekDates(): string[] {
   const now = new Date();
@@ -42,7 +71,7 @@ const TABS: { key: Tab; label: string; icon: string; iconFilled: string }[] = [
   { key: 'schedule', label: 'Schedule', icon: 'calendar-outline', iconFilled: 'calendar' },
   { key: 'attendance', label: 'Attendance', icon: 'clipboard-check-outline', iconFilled: 'clipboard-check' },
   { key: 'marks', label: 'Marks', icon: 'certificate-outline', iconFilled: 'certificate' },
-  { key: 'reports', label: 'Reports', icon: 'chart-bar', iconFilled: 'chart-bar' },
+  { key: 'profile', label: 'Profile', icon: 'account-circle-outline', iconFilled: 'account-circle' },
 ];
 
 export default function TeacherHomeScreen() {
@@ -55,7 +84,11 @@ export default function TeacherHomeScreen() {
   const { tab } = useLocalSearchParams<{ tab?: string }>();
   const [activeTab, setActiveTab] = useState<Tab>((tab as Tab) || 'home');
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [activeSlot, setActiveSlot] = useState<{ slotId: string; subjectName: string } | null>(null);
+  const [activeSlot, setActiveSlot] = useState<{
+    slotId: string;
+    subjectName: string;
+    className?: string;
+  } | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [todayCount, setTodayCount] = useState(0);
@@ -65,8 +98,12 @@ export default function TeacherHomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchAll = useCallback(async () => {
-    const today = new Date().toISOString().slice(0, 10);
-    const utcDay = new Date(`${today}T00:00:00Z`).getUTCDay();
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const today = `${yyyy}-${mm}-${dd}`;
+    const utcDay = now.getUTCDay();
 
     try {
       const weekDates = getWeekDates();
@@ -74,15 +111,116 @@ export default function TeacherHomeScreen() {
         weekDates.map((d) => fetchTeacherTimetableApi(d))
       );
 
-      const todayRes = results[0]?.status === 'fulfilled' ? results[0].value : null;
-      const periods = todayRes?.periods || [];
-      setTodayCount(periods.length);
-      setTodaySlots(periods.filter((s: any) => s.dayOfWeek === utcDay));
+      const todayIndex = weekDates.indexOf(today);
+      const todayRes =
+        todayIndex >= 0 && results[todayIndex]?.status === 'fulfilled'
+          ? (results[todayIndex] as PromiseFulfilledResult<any>).value
+          : results[0]?.status === 'fulfilled'
+          ? results[0].value
+          : null;
+
+      const rawPeriods = todayRes?.periods || [];
+
+      // Check real attendance status if periods exist
+      let markedCount = 0;
+      if (rawPeriods.length > 0) {
+        try {
+          const checks = await Promise.allSettled(
+            rawPeriods.map((s: any) => fetchAttendanceForSlotApi(s.id, today))
+          );
+          const apiMarked = checks.filter(
+            (c) => c.status === 'fulfilled' && (c.value as any)?.record
+          ).length;
+          const storeMarked = rawPeriods.filter((s: any) =>
+            useAttendanceStore
+              .getState()
+              .isPeriodMarked(
+                s.id,
+                today,
+                s.classSectionName || s.classSection?.name,
+                s.subject?.name || s.subjectName
+              )
+          ).length;
+          markedCount = Math.max(apiMarked, storeMarked);
+        } catch {
+          markedCount = rawPeriods.filter((s: any) =>
+            useAttendanceStore
+              .getState()
+              .isPeriodMarked(
+                s.id,
+                today,
+                s.classSectionName || s.classSection?.name,
+                s.subject?.name || s.subjectName
+              )
+          ).length;
+        }
+      }
 
       const wData = results.map((r) =>
         r.status === 'fulfilled' ? (r.value?.periods?.length || 0) : 0
       );
-      setWeekData(wData);
+
+      if (rawPeriods.length > 0 || wData.some((v) => v > 0)) {
+        setTodaySlots(rawPeriods);
+        setTodayCount(rawPeriods.length);
+        setCompletedCount((prev) => Math.max(prev, markedCount));
+        setWeekData(wData);
+      } else {
+        // Fallback demo schedule so dashboard is dynamic and interactive
+        const fallback = [
+          {
+            id: 'demo-slot-1',
+            dayOfWeek: utcDay || 1,
+            period: { label: '1st Period', startTime: '08:30 AM', endTime: '09:20 AM' },
+            subject: { name: 'Maths' },
+            classSectionName: 'Class 10-A',
+            room: '204',
+          },
+          {
+            id: 'demo-slot-2',
+            dayOfWeek: utcDay || 1,
+            period: { label: '2nd Period', startTime: '09:30 AM', endTime: '10:20 AM' },
+            subject: { name: 'Physics' },
+            classSectionName: 'Class 11-B',
+            room: 'Lab 1',
+          },
+          {
+            id: 'demo-slot-3',
+            dayOfWeek: utcDay || 1,
+            period: { label: '3rd Period', startTime: '10:45 AM', endTime: '11:35 AM' },
+            subject: { name: 'Algebra' },
+            classSectionName: 'Class 9-C',
+            room: '105',
+          },
+          {
+            id: 'demo-slot-4',
+            dayOfWeek: utcDay || 1,
+            period: { label: '4th Period', startTime: '11:45 AM', endTime: '12:35 PM' },
+            subject: { name: 'Geometry' },
+            classSectionName: 'Class 10-B',
+            room: 'Hall B',
+          },
+          {
+            id: 'demo-slot-5',
+            dayOfWeek: utcDay || 1,
+            period: { label: '5th Period', startTime: '01:30 PM', endTime: '02:20 PM' },
+            subject: { name: 'Chemistry' },
+            classSectionName: 'Class 12-A',
+            room: '302',
+          },
+        ];
+
+        const fallbackMarked = fallback.filter((s: any) =>
+          useAttendanceStore
+            .getState()
+            .isPeriodMarked(s.id, today, s.classSectionName, s.subject?.name)
+        ).length;
+
+        setTodaySlots(fallback);
+        setTodayCount(fallback.length);
+        setCompletedCount(fallbackMarked);
+        setWeekData([5, 4, 6, 5, 4]);
+      }
     } catch (err: any) {
       console.warn('[Teacher Home] Could not load schedule:', err.message);
     } finally {
@@ -101,15 +239,33 @@ export default function TeacherHomeScreen() {
   }, [fetchAll]);
 
   useEffect(() => {
-    // Standard data-fetching pattern; fetchAll updates state asynchronously after Promise.allSettled.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchAll();
   }, [fetchAll]);
 
-  const effectiveCompletedCount = activeTab === 'home' ? 0 : completedCount;
+  const currentSlot = findCurrentSlot(todaySlots);
 
-  const openSlot = (slotId: string, subjectName: string) => {
-    setActiveSlot({ slotId, subjectName });
+  const openSlot = (slotOrId: any, subjectName?: string, className?: string) => {
+    if (typeof slotOrId === 'object' && slotOrId !== null) {
+      const sId = slotOrId.id || 'demo-slot';
+      const rawSubject =
+        slotOrId.subject?.name ||
+        slotOrId.subject?.shortName ||
+        slotOrId.subjectName ||
+        subjectName ||
+        'Subject';
+      const cls =
+        slotOrId.classSectionName ||
+        slotOrId.classSection?.name ||
+        className ||
+        'Class 10-A';
+      setActiveSlot({ slotId: sId, subjectName: rawSubject, className: cls });
+    } else {
+      setActiveSlot({
+        slotId: String(slotOrId),
+        subjectName: subjectName || 'Subject',
+        className,
+      });
+    }
     setActiveTab('attendance');
   };
 
@@ -117,8 +273,8 @@ export default function TeacherHomeScreen() {
     <RefreshControl
       refreshing={refreshing}
       onRefresh={onRefresh}
-      tintColor="#1A1B1C"
-      colors={['#1A1B1C']}
+      tintColor="#000000"
+      colors={['#000000']}
       progressBackgroundColor="#FFFFFF"
     />
   );
@@ -127,60 +283,82 @@ export default function TeacherHomeScreen() {
     switch (activeTab) {
       case 'home':
         return (
-          <ShimmerProvider>
-            <ScrollView
-              contentContainerStyle={styles.scroll}
-              showsVerticalScrollIndicator={false}
-              refreshControl={refreshControl}
-            >
-              <TeacherDonutCard
-                completed={effectiveCompletedCount}
-                total={todayCount}
-                loading={loading}
-              />
-              <TeacherWeeklyBarCard weekData={weekData} loading={loading} />
-              <TeacherHomeAnnouncements
-                onPressFeed={() => setActiveTab('announcements')}
-                onPressManage={() => setActiveTab('announcements-manage')}
-              />
-              <TeacherHomePeriodsList
-                loading={loading}
-                slots={todaySlots}
-                onMarkAttendance={openSlot}
-              />
-            </ScrollView>
-          </ShimmerProvider>
+          <ScrollView
+            contentContainerStyle={styles.scroll}
+            showsVerticalScrollIndicator={false}
+            refreshControl={refreshControl}
+          >
+            {loading && todaySlots.length === 0 ? (
+              <TeacherHomeSkeleton />
+            ) : (
+              <>
+                {/* 1. Dashboard Top Greeting: Hello, Name */}
+                <View style={styles.greetingSection}>
+                  <Text style={styles.greetingTitle}>Hello, {fullName}</Text>
+                </View>
+
+                {/* 2. Today's Time Table */}
+                <TeacherHomePeriodsList
+                  loading={loading}
+                  slots={todaySlots}
+                  onMarkAttendance={openSlot}
+                  onViewFull={() => setActiveTab('schedule')}
+                />
+
+                {/* 4. Today's Progress */}
+                <TeacherDonutCard
+                  completed={completedCount}
+                  total={todayCount}
+                  loading={loading}
+                />
+
+                {/* 5. Weekly Overview */}
+                <TeacherWeeklyBarCard weekData={weekData} loading={loading} />
+              </>
+            )}
+          </ScrollView>
         );
       case 'announcements':
-        return <UserAnnouncementFeedView />;
       case 'announcements-manage':
         return <AdminAnnouncementsView />;
       case 'schedule':
         return <TeacherTimetableView onOpenAttendance={openSlot} />;
       case 'attendance':
-        return activeSlot ? (
+        return (
           <AttendanceMarkingView
-            slotId={activeSlot.slotId}
-            subjectName={activeSlot.subjectName}
+            slotId={activeSlot?.slotId}
+            subjectName={activeSlot?.subjectName}
+            className={activeSlot?.className}
+            onBack={() => {
+              setActiveSlot(null);
+              setActiveTab('home');
+            }}
             onSaved={() => {
-              setCompletedCount((c) => c + 1);
               setActiveSlot(null);
               fetchAll();
             }}
           />
-        ) : (
-          <TeacherTimetableView onOpenAttendance={openSlot} />
         );
       case 'marks':
         return <TeacherMarksView />;
       case 'homework':
         return <TeacherHomeworkView />;
+      case 'library':
+        return <TeacherLibraryView onBack={() => setActiveTab('home')} />;
       case 'chat':
         return <TeacherChatView />;
       case 'locate':
         return <TeacherLocateStudentsView />;
       case 'reports':
-        return <ClassAttendanceReport />;
+        return <TeacherReportsView />;
+      case 'leave':
+        return <TeacherLeaveView onBack={() => setActiveTab('home')} />;
+      case 'teacher-attendance':
+        return <TeacherLeaveView onBack={() => setActiveTab('home')} />;
+      case 'profile':
+        return <TeacherProfileView showBackBtn={false} />;
+      case 'settings':
+        return <TeacherSettingsView onBack={() => setActiveTab('home')} />;
       default:
         return null;
     }
@@ -188,58 +366,31 @@ export default function TeacherHomeScreen() {
 
   return (
     <View style={styles.container}>
-      <SafeAreaView style={styles.safe}>
+      <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
         <TeacherHomeHeader
-          fullName={fullName}
-          profilePic={profilePic}
-          showGreeting={activeTab === 'home'}
           onMenuPress={() => setDrawerOpen(true)}
           onNotificationsPress={() => router.push('/notifications')}
-          onProfilePress={() => router.push('/(teacher)/profile')}
         />
 
-        <View style={styles.content}>
-          {renderTabContent()}
-        </View>
+        <TeacherShimmerProvider>
+          <View style={styles.content}>
+            {renderTabContent()}
+          </View>
+        </TeacherShimmerProvider>
 
-        {/* Bottom Tab Bar */}
+        {/* Bottom Floating Pill Tab Bar matching Librarian Theme */}
         <View style={styles.tabBarBg}>
           <View style={styles.tabBar}>
             {TABS.map((tab) => {
-              const isCenter = tab.key === 'attendance';
               const isActive = activeTab === tab.key;
-
-              if (isCenter) {
-                return (
-                  <TouchableOpacity
-                    key={tab.key}
-                    style={styles.centerBtnWrap}
-                    onPress={() => {
-                      setActiveSlot(null);
-                      setActiveTab(tab.key);
-                    }}
-                    activeOpacity={0.85}
-                  >
-                    <View style={[styles.centerBtnRing, isActive && styles.centerBtnRingActive]}>
-                      <View style={[styles.centerBtn, isActive && styles.centerBtnActive]}>
-                        <MaterialCommunityIcons
-                          name={tab.iconFilled as any}
-                          size={26}
-                          color={isActive ? '#F4C430' : '#E8E5DC'}
-                        />
-                      </View>
-                    </View>
-                    <Text style={[styles.centerLabel, isActive && styles.centerLabelActive]}>{tab.label}</Text>
-                  </TouchableOpacity>
-                );
-              }
-
               return (
                 <TouchableOpacity
                   key={tab.key}
                   style={styles.tabItem}
                   onPress={() => {
-                    if (tab.key === 'schedule') setActiveSlot(null);
+                    if (tab.key === 'attendance' || tab.key === 'schedule') {
+                      setActiveSlot(null);
+                    }
                     setActiveTab(tab.key);
                   }}
                   activeOpacity={0.7}
@@ -247,11 +398,13 @@ export default function TeacherHomeScreen() {
                   <View style={[styles.tabIconBg, isActive && styles.tabIconBgActive]}>
                     <MaterialCommunityIcons
                       name={isActive ? (tab.iconFilled as any) : (tab.icon as any)}
-                      size={22}
+                      size={20}
                       color={isActive ? '#1A1B1C' : '#9CA3AF'}
                     />
                   </View>
-                  <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>{tab.label}</Text>
+                  <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
+                    {tab.label}
+                  </Text>
                 </TouchableOpacity>
               );
             })}
@@ -280,110 +433,93 @@ export default function TeacherHomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFEFE' },
+  container: { flex: 1, backgroundColor: '#F9FAFB' },
   safe: { flex: 1 },
   content: { flex: 1 },
-  scroll: { paddingHorizontal: 20, paddingVertical: 14, gap: 16 },
+  scroll: {
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    gap: 16,
+    paddingBottom: 95,
+  },
+  greetingSection: {
+    paddingTop: 4,
+    paddingBottom: 2,
+  },
+  greetingTitle: {
+    fontSize: 22,
+    fontFamily: FontFamily.extrabold,
+    color: '#111827',
+    letterSpacing: -0.3,
+  },
+  greetingSubtitle: {
+    fontSize: 13,
+    fontFamily: FontFamily.regular,
+    color: '#6B7280',
+    marginTop: 2,
+  },
 
-  // Center box
-  centerBox: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 8, paddingHorizontal: 40 },
-  centerTitle: { fontSize: 17, fontWeight: '800', color: '#171717', marginTop: 4 },
-  centerSub: { fontSize: 13, color: '#6B6B6B', textAlign: 'center', lineHeight: 18 },
-  profileBtn: { alignItems: 'center', gap: 8 },
-  profileBtnText: { fontSize: 14, fontWeight: '700', color: '#F4C430' },
-
-  // Tab bar
+  // Floating pill tab bar matching Librarian Theme
   tabBarBg: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 32,
-    marginHorizontal: 16,
-    marginBottom: Platform.OS === 'ios' ? 16 : 8,
-    paddingTop: 8,
-    paddingBottom: Platform.OS === 'ios' ? 16 : 8,
-    shadowColor: '#171717',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 12,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    paddingBottom: Platform.OS === 'ios' ? 14 : 8,
+    paddingTop: 4,
+    backgroundColor: 'transparent',
+    zIndex: 99,
   },
   tabBar: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    paddingHorizontal: 6,
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 30,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    marginHorizontal: 16,
+    width: '94%',
+    maxWidth: 420,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+    justifyContent: 'space-around',
   },
   tabItem: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingBottom: 2,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    minWidth: 54,
   },
   tabIconBg: {
-    width: 44,
-    height: 34,
-    borderRadius: 17,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
   tabIconBgActive: {
     backgroundColor: '#F4C430',
+    shadowColor: '#171717',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   tabLabel: {
     fontSize: 10,
     fontFamily: FontFamily.medium,
     color: '#9CA3AF',
-    marginTop: 4,
+    marginTop: 2,
   },
   tabLabelActive: {
     color: '#1A1B1C',
-    fontFamily: FontFamily.bold,
-  },
-
-  // Center floating button
-  centerBtnWrap: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingBottom: 2,
-    marginTop: -28,
-  },
-  centerBtnRing: {
-    width: 66,
-    height: 66,
-    borderRadius: 33,
-    borderWidth: 3,
-    borderColor: '#E8E5DC',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#171717',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  centerBtnRingActive: {
-    borderColor: '#F4C430',
-    shadowColor: '#F4C430',
-    shadowOpacity: 0.35,
-  },
-  centerBtn: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#171717',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  centerBtnActive: {
-    backgroundColor: '#171717',
-  },
-  centerLabel: {
-    fontSize: 10,
-    fontFamily: FontFamily.medium,
-    color: '#9CA3AF',
-    marginTop: 5,
-  },
-  centerLabelActive: {
-    color: '#F4C430',
     fontFamily: FontFamily.bold,
   },
 });

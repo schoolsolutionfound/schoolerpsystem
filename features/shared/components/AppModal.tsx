@@ -8,14 +8,15 @@ interface AppModalProps {
   onClose: () => void;
   title: string;
   children: React.ReactNode;
+  cardStyle?: any;
 }
 
-export const AppModal: React.FC<AppModalProps> = ({ visible, onClose, title, children }) => {
+export const AppModal: React.FC<AppModalProps> = ({ visible, onClose, title, children, cardStyle }) => {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardWrap}>
-          <View style={styles.card}>
+          <View style={[styles.card, cardStyle]}>
             <View style={styles.header}>
               <Text style={styles.title}>{title}</Text>
               <TouchableOpacity onPress={onClose} style={styles.closeBtn}>

@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, Animated, Image } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, StyleSheet, Text, TouchableOpacity, Animated, Image, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -8,23 +8,23 @@ import { FontFamily } from '../constants/fonts';
 export default function WelcomeScreen() {
   const router = useRouter();
 
-  const fadeAnim = useMemo(() => new Animated.Value(0), []);
-  const slideAnim = useMemo(() => new Animated.Value(20), []);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(20)).current;
 
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 500,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       }),
       Animated.timing(slideAnim, {
         toValue: 0,
         duration: 500,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       }),
     ]).start();
-  }, [fadeAnim, slideAnim]);
+  }, []);
 
   return (
     <View style={styles.container}>

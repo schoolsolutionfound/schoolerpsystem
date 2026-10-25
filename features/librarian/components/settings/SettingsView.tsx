@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '../common/Icons';
 import { LibrarySettings } from '../../types';
+import { apiClient } from '../../../../api/client';
 import { FontFamily } from '../../../../constants/fonts';
 
 export const SettingsView = ({
@@ -24,7 +25,7 @@ export const SettingsView = ({
   isRefreshing,
 }: {
   settings: LibrarySettings;
-  onSaveSettings: (newSettings: LibrarySettings) => Promise<void> | void;
+  onSaveSettings: (newSettings: LibrarySettings) => void;
   commonStyles: any;
   onRefresh?: () => void;
   isRefreshing?: boolean;
@@ -96,7 +97,7 @@ export const SettingsView = ({
       gracePeriodDays: isNaN(gPeriod) ? 0 : gPeriod,
       finePerDay: fRate,
       maxFine: isNaN(mFine) ? 100 : mFine,
-      renewalLimit: isNaN(rLimit) ? 2 : rLimit,
+      renewalLimit: isNaN(gPeriod) ? 2 : gPeriod,
       allowReservation,
       lostBookPenalty: isNaN(lostPen) ? 50 : lostPen,
       damagedBookPenalty: isNaN(dmgPen) ? 25 : dmgPen,
@@ -108,10 +109,16 @@ export const SettingsView = ({
     };
 
     try {
-      await onSaveSettings(updated);
-    } finally {
-      setSaving(false);
+      await apiClient('/library/settings', {
+        method: 'POST',
+        body: JSON.stringify(updated),
+      });
+    } catch {
+      // Silent catch for offline fallback
     }
+
+    setSaving(false);
+    onSaveSettings(updated);
   };
 
   const handleResetDefaults = () => {

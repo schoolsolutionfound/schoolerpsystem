@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
   typeCard: {
     flex: 1,
     backgroundColor: Colors.light.card,
-    borderRadius: BorderRadius.card,
+    borderRadius: 5,
     borderWidth: 1,
     borderColor: Colors.light.border,
     padding: 10,
@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
   roleChip: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 8,
+    borderRadius: 5,
     backgroundColor: '#F3F4F6',
     borderWidth: 1,
     borderColor: '#E5E7EB',

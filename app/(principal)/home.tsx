@@ -191,7 +191,7 @@ export default function PrincipalHomeScreen() {
   const [assignModalVisible, setAssignModalVisible] = useState(false);
   const [selectedSection, setSelectedSection] = useState<HomeroomSection | null>(null);
   const [noticeModalVisible, setNoticeModalVisible] = useState(false);
-  const [activeSlot, setActiveSlot] = useState<{ slotId: string; subjectName: string } | null>(null);
+  const [activeSlot, setActiveSlot] = useState<{ slotId?: string; subjectName?: string } | null>(null);
 
   // Load all principal data
   const loadData = useCallback(async () => {

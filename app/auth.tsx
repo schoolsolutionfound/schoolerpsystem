@@ -1,9 +1,9 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { View, StyleSheet, Text, KeyboardAvoidingView, Platform, ScrollView, Alert, Animated, Image } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, StyleSheet, Text, KeyboardAvoidingView, Platform, ScrollView, Alert, Animated, Image, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { auth } from '../firebaseConfig';
-import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { LoginForm } from '../features/auth/components/LoginForm';
 import { FontFamily } from '../constants/fonts';
 
@@ -12,71 +12,45 @@ export default function AuthScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const fadeAnim = useMemo(() => new Animated.Value(0), []);
-  const slideAnim = useMemo(() => new Animated.Value(24), []);
-  const logoScale = useMemo(() => new Animated.Value(0.8), []);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(24)).current;
+  const logoScale = useRef(new Animated.Value(0.8)).current;
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: 0, duration: 600, useNativeDriver: true }),
-      Animated.spring(logoScale, { toValue: 1, tension: 50, friction: 7, useNativeDriver: true }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 600, useNativeDriver: Platform.OS !== 'web' }),
+      Animated.spring(logoScale, { toValue: 1, tension: 50, friction: 7, useNativeDriver: Platform.OS !== 'web' }),
     ]).start();
-  }, [fadeAnim, slideAnim, logoScale]);
+  }, []);
 
   const handleAuth = async () => {
-    if (!email || !password) {
-      Alert.alert('Missing Fields', 'Please fill in all required fields.');
+    setErrorMessage(null);
+    if (!email.trim() || !password) {
+      const msg = 'Please fill in all required fields.';
+      setErrorMessage(msg);
+      Alert.alert('Missing Fields', msg);
       return;
     }
 
     setLoading(true);
     try {
-      // Use env config only — never hardcode API keys in source.
-      const envApiKey = process.env.EXPO_PUBLIC_FIREBASE_API_KEY;
-      if (envApiKey) {
-        if (auth?.config) auth.config.apiKey = envApiKey;
-        if (auth?.app?.options) auth.app.options.apiKey = envApiKey;
-      }
-      await signInWithEmailAndPassword(auth, email, password);
+      await signInWithEmailAndPassword(auth, email.trim(), password);
     } catch (e: any) {
-      // Generic message only — never reveal whether the email exists (user enumeration).
-      const msg = e.code === 'auth/network-request-failed'
-        ? 'Network error. Check your connection and try again.'
-        : 'Incorrect email or password. Please try again.';
-      Alert.alert('Sign-in failed', msg);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleForgotPassword = async () => {
-    if (!email.trim()) {
-      Alert.alert('Email required', 'Enter your email address above, then tap "Forgot password?".');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      await sendPasswordResetEmail(auth, email.trim());
-      // Generic message on purpose — never confirm whether the email exists.
-      Alert.alert(
-        'Check your inbox',
-        'If an account exists for this email, a password reset link has been sent. Check your spam folder too.'
-      );
-    } catch (e: any) {
-      if (e.code === 'auth/network-request-failed') {
-        Alert.alert('Network error', 'Check your connection and try again.');
-      } else if (e.code === 'auth/too-many-requests') {
-        Alert.alert('Too many attempts', 'Please wait a few minutes and try again.');
-      } else {
-        // auth/user-not-found and everything else → same generic response.
-        Alert.alert(
-          'Check your inbox',
-          'If an account exists for this email, a password reset link has been sent. Check your spam folder too.'
-        );
-      }
+      const code = e?.code || '';
+      const msg = code === 'auth/user-not-found'
+        ? 'No account found with this email.'
+        : code === 'auth/wrong-password' || code === 'auth/invalid-credential' || code === 'auth/invalid-login-credentials'
+          ? 'Incorrect email or password. Please verify your credentials.'
+          : code === 'auth/invalid-email'
+            ? 'Please enter a valid email address.'
+            : code === 'auth/too-many-requests'
+              ? 'Too many failed login attempts. Please wait a moment and try again.'
+              : e?.message || 'Authentication failed. Please try again.';
+      setErrorMessage(msg);
+      Alert.alert('Sign In Failed', msg);
     } finally {
       setLoading(false);
     }
@@ -126,7 +100,7 @@ export default function AuthScreen() {
                   setShowPassword={setShowPassword}
                   onSubmit={handleAuth}
                   loading={loading}
-                  onForgotPassword={handleForgotPassword}
+                  errorMessage={errorMessage}
                 />
               </View>
 

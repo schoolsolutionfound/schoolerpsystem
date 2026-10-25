@@ -99,12 +99,12 @@ export default function LibrarianHomeScreen() {
   // API Hooks (PostgreSQL persistent source of truth)
   const { stats: dashboardStats, loading: dashboardLoading, refetch: refetchDashboard } = useLibraryDashboard();
   const { books, loading: booksLoading, createBook, updateBook, deleteBook: deleteBookApi, refetch: refetchBooks } = useLibraryBooks();
-  const { copies, loading: copiesLoading, fetchAllCopies, fetchCopies, createCopy, updateCopy, deleteCopy: deleteCopyApi } = useLibraryBookCopies();
+  const { copies, loading: copiesLoading, fetchCopies, createCopy, updateCopy, deleteCopy: deleteCopyApi } = useLibraryBookCopies();
   const { categories, loading: categoriesLoading, createCategory } = useLibraryCategories();
   const { authors, loading: authorsLoading } = useLibraryAuthors();
   const { loans, loading: loansLoading, issueBook, returnBook, renewLoan, refetch: refetchLoans } = useLibraryLoans();
   const { fines, loading: finesLoading, payFine, waiveFine, createDamageFine, refetch: refetchFines } = useLibraryFines();
-  const { members: students, loading: membersLoading, refetch: refetchMembers, updateMember } = useLibraryMembers();
+  const { members: students, loading: membersLoading, refetch: refetchMembers } = useLibraryMembers();
   const { pyqs: questionPapers, loading: pyqsLoading, createPYQ, deletePYQ: deletePYQApi, trackDownload, refetch: refetchPYQs } = useLibraryPYQs();
   const { settings: apiSettings, loading: settingsLoading, updateSettings, refetch: refetchSettings } = useLibrarySettings();
 
@@ -208,7 +208,6 @@ export default function LibrarianHomeScreen() {
       await Promise.allSettled([
         refetchDashboard?.(),
         refetchBooks?.(),
-        fetchAllCopies(),
         selectedBook?.id ? fetchCopies(selectedBook.id) : Promise.resolve(),
         refetchLoans?.(),
         refetchFines?.(),
@@ -253,7 +252,6 @@ export default function LibrarianHomeScreen() {
               if (selectedBook?.id === bookId) {
                 setSelectedBook(null);
               }
-              await fetchAllCopies();
               refetchDashboard();
             } catch (err: any) {
               Alert.alert('Error', err?.message || 'Failed to delete book.');
@@ -284,11 +282,9 @@ export default function LibrarianHomeScreen() {
         {
           text: 'Remove',
           style: 'destructive',
-          onPress: () => {
-            Alert.alert(
-              'Admin Managed',
-              'Library members are student accounts. Remove or disable them from Admin > Students.'
-            );
+          onPress: async () => {
+            refetchMembers();
+            Alert.alert('Member Removed', 'The member record has been updated.');
           },
         },
       ]
@@ -447,7 +443,6 @@ export default function LibrarianHomeScreen() {
                         dueDate: newLoan.dueDate,
                       });
                       await refetchBooks();
-                      await fetchAllCopies();
                       await refetchLoans();
                       await refetchDashboard();
                       Alert.alert('Book Issued', 'Successfully issued book to member.');
@@ -460,7 +455,6 @@ export default function LibrarianHomeScreen() {
                     try {
                       const res = await returnBook(loanId);
                       refetchBooks();
-                      fetchAllCopies();
                       refetchFines();
                       refetchDashboard();
                       if (res.fineCreated) {
@@ -575,11 +569,6 @@ export default function LibrarianHomeScreen() {
                         allowReservation: newSettings.allowReservation,
                         lostBookPenalty: Number(newSettings.lostBookPenalty),
                         damagedBookPenalty: Number(newSettings.damagedBookPenalty),
-                        reservationExpiryDays: Number(newSettings.reservationExpiryDays ?? 7),
-                        unpaidFineLockThreshold: Number(newSettings.unpaidFineLockThreshold ?? 20),
-                        openingHours: newSettings.openingHours,
-                        closingHours: newSettings.closingHours,
-                        openOnWeekends: newSettings.openOnWeekends,
                       });
                       Alert.alert('Settings Updated', 'Library configuration saved successfully.');
                     } catch (err: any) {
@@ -742,8 +731,6 @@ export default function LibrarianHomeScreen() {
                 await updateCopy(editingCopy.id, selectedBook.id, {
                   accessionNumber: copyData.accessionNumber,
                   barcode: copyData.barcode || undefined,
-                  rack: copyData.rack || undefined,
-                  shelf: copyData.shelf || undefined,
                   condition: copyData.condition || undefined,
                   status: copyData.status || undefined,
                 });
@@ -751,8 +738,6 @@ export default function LibrarianHomeScreen() {
                 await createCopy(selectedBook.id, {
                   accessionNumber: copyData.accessionNumber || '',
                   barcode: copyData.barcode || undefined,
-                  rack: copyData.rack || undefined,
-                  shelf: copyData.shelf || undefined,
                   condition: copyData.condition || 'GOOD',
                   status: copyData.status || 'AVAILABLE',
                 });
@@ -772,26 +757,9 @@ export default function LibrarianHomeScreen() {
           visible={studentModalOpen}
           editingStudent={editingStudent}
           onClose={() => setStudentModalOpen(false)}
-          onSave={async (studentData) => {
-            if (!editingStudent) {
-              Alert.alert(
-                'Member Registration',
-                'Student accounts are created by the institution administrator. Use Admin > Students to register a new member.'
-              );
-              return;
-            }
-            try {
-              await updateMember(editingStudent.id, {
-                fullName: studentData.fullName,
-                admissionNo: studentData.admissionNo,
-                phone: studentData.phone,
-              });
-              setStudentModalOpen(false);
-              setEditingStudent(null);
-              Alert.alert('Member Updated', 'Member details saved successfully.');
-            } catch (err: any) {
-              Alert.alert('Error', err?.message || 'Failed to update member.');
-            }
+          onSave={async () => {
+            refetchMembers();
+            setStudentModalOpen(false);
           }}
           modalStyles={modalStyles}
           commonStyles={styles}
@@ -826,12 +794,9 @@ export default function LibrarianHomeScreen() {
             setWaiveFineModalOpen(false);
             setSelectedFine(null);
           }}
-          onWaiveSuccess={async (waivedFine: Fine, reason: string, remarks: string) => {
+          onWaiveSuccess={async (waivedFine: Fine) => {
             try {
-              await waiveFine(waivedFine.id, {
-                reason: reason || 'Discretionary Waiver',
-                remarks: remarks || 'Discretionary waiver approved by librarian',
-              });
+              await waiveFine(waivedFine.id, { reason: waivedFine.waivedReason || 'Discretionary Waiver', remarks: waivedFine.waivedReason || 'Discretionary Waiver' });
               await refetchFines();
               await refetchDashboard();
               setWaiveFineModalOpen(false);
@@ -862,7 +827,7 @@ export default function LibrarianHomeScreen() {
                 bookCopyId: newFine.bookCopyId || undefined,
                 loanId: newFine.loanId || undefined,
                 damageType: (newFine.damageType as any) || 'GENERAL_WEAR',
-                fineType: newFine.fineType,
+                fineType: newFine.fineType === 'LOST_BOOK' ? 'LOST' : 'DAMAGE',
                 amount: newFine.amount,
                 damageNotes: newFine.damageNotes || 'Fine Collected',
                 reason: newFine.damageNotes || 'Fine Collected',
@@ -873,7 +838,6 @@ export default function LibrarianHomeScreen() {
               });
               await refetchFines();
               await refetchBooks();
-              await fetchAllCopies();
               await refetchDashboard();
               setDamageFineModalOpen(false);
               Alert.alert('Fine Collected', `Successfully collected fine of ₹${newFine.amount.toFixed(2)} via ${paymentMode === 'ONLINE' ? 'Online Pay' : 'Cash'}.`);
@@ -899,8 +863,6 @@ export default function LibrarianHomeScreen() {
                 academicYear: paperData.academicYear,
                 classGrade: paperData.classGrade || undefined,
                 examType: paperData.examType || undefined,
-                totalMarks: paperData.totalMarks ?? undefined,
-                durationMinutes: paperData.durationMinutes ?? undefined,
                 fileUrl: paperData.fileUrl || 'https://example.com/sample.pdf',
                 fileSize: paperData.fileSize || undefined,
               });

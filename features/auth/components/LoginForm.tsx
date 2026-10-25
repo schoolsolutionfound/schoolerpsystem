@@ -12,7 +12,7 @@ interface LoginFormProps {
   setShowPassword: (val: boolean) => void;
   onSubmit: () => void;
   loading: boolean;
-  onForgotPassword: () => void;
+  errorMessage?: string | null;
 }
 
 export const LoginForm: React.FC<LoginFormProps> = ({
@@ -24,10 +24,16 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   setShowPassword,
   onSubmit,
   loading,
-  onForgotPassword,
+  errorMessage,
 }) => {
   return (
     <View style={styles.form}>
+      {errorMessage ? (
+        <View style={styles.errorBanner}>
+          <MaterialCommunityIcons name="alert-circle-outline" size={18} color="#EF4444" style={{ marginRight: 8 }} />
+          <Text style={styles.errorBannerText}>{errorMessage}</Text>
+        </View>
+      ) : null}
       {/* Email */}
       <View style={styles.inputGroup}>
         <Text style={styles.inputLabel}>Email</Text>
@@ -70,7 +76,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
       </View>
 
       {/* Forgot password link */}
-      <TouchableOpacity style={styles.forgotBtn} onPress={onForgotPassword} disabled={loading}>
+      <TouchableOpacity style={styles.forgotBtn}>
         <Text style={styles.forgotText}>Forgot password?</Text>
       </TouchableOpacity>
 
@@ -87,62 +93,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({
           <Text style={styles.submitText}>Sign in</Text>
         )}
       </TouchableOpacity>
-
-      {/* Quick Demo Test Accounts (dev-only: excluded in production builds) */}
-      {__DEV__ && (
-        <View style={styles.demoSection}>
-          <Text style={styles.demoTitle}>QUICK DEMO ACCOUNTS (DEV ONLY)</Text>
-          <View style={styles.demoGrid}>
-            <TouchableOpacity
-              style={[styles.demoChip, email === 'principal.oakridge@school.com' && styles.demoChipActive]}
-              onPress={() => {
-                setEmail('principal.oakridge@school.com');
-                setPassword('Principal@123');
-              }}
-              activeOpacity={0.7}
-            >
-              <MaterialCommunityIcons name="shield-crown" size={16} color="#D97706" />
-              <Text style={styles.demoChipText}>Principal</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.demoChip, email === 'hod.cs@school.com' && styles.demoChipActive]}
-              onPress={() => {
-                setEmail('hod.cs@school.com');
-                setPassword('Hod@123');
-              }}
-              activeOpacity={0.7}
-            >
-              <MaterialCommunityIcons name="domain" size={16} color="#EA580C" />
-              <Text style={styles.demoChipText}>HOD</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.demoChip, email === 'admi.okridge@school.com' && styles.demoChipActive]}
-              onPress={() => {
-                setEmail('admi.okridge@school.com');
-                setPassword('Admin@123');
-              }}
-              activeOpacity={0.7}
-            >
-              <MaterialCommunityIcons name="shield-account" size={16} color="#2563EB" />
-              <Text style={styles.demoChipText}>Admin</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.demoChip, email === 'normal.parent@gmail.com' && styles.demoChipActive]}
-              onPress={() => {
-                setEmail('normal.parent@gmail.com');
-                setPassword('Parent@123');
-              }}
-              activeOpacity={0.7}
-            >
-              <MaterialCommunityIcons name="account-child" size={16} color="#059669" />
-              <Text style={styles.demoChipText}>Parent</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
     </View>
   );
 };
@@ -187,6 +137,23 @@ const styles = StyleSheet.create({
     marginTop: -2,
     marginBottom: 4,
   },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    borderRadius: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 4,
+  },
+  errorBannerText: {
+    color: '#B91C1C',
+    fontSize: 13,
+    fontFamily: FontFamily.medium,
+    flex: 1,
+  },
   forgotText: {
     fontSize: 13,
     fontFamily: FontFamily.medium,
@@ -195,7 +162,7 @@ const styles = StyleSheet.create({
 
   submitBtn: {
     backgroundColor: '#F4C430',
-    borderRadius: 12,
+    borderRadius: 5,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 4,
@@ -211,47 +178,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: FontFamily.bold,
     letterSpacing: 0.3,
-  },
-  demoSection: {
-    marginTop: 20,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#E8E5DC',
-    gap: 8,
-  },
-  demoTitle: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#9CA3AF',
-    letterSpacing: 0.8,
-    fontFamily: FontFamily.bold,
-    textAlign: 'center',
-  },
-  demoGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    justifyContent: 'center',
-  },
-  demoChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    gap: 6,
-  },
-  demoChipActive: {
-    backgroundColor: '#FFFBEB',
-    borderColor: '#F59E0B',
-  },
-  demoChipText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#374151',
-    fontFamily: FontFamily.bold,
   },
 });

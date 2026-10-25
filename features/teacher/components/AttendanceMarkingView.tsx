@@ -5,2884 +5,1970 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
+  TextInput,
   ActivityIndicator,
   Alert,
-  TextInput,
-  useWindowDimensions,
-  Modal,
-  Pressable,
+  KeyboardAvoidingView,
+  Platform,
+  RefreshControl,
 } from 'react-native';
-import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
-import { BorderRadius } from '../../../constants/theme';
+import { Feather } from './common/Icons';
+import { InlineSearchDropdown } from './common/InlineSearchDropdown';
 import { FontFamily } from '../../../constants/fonts';
-import { fetchRosterApi, fetchAttendanceForSlotApi, markAttendanceApi } from '../../../api/academics';
-import { ClassTransferStore } from '../../shared/services/classTransferStore';
-import { ClassTransfer } from '../../shared/types/classTransfer.types';
-import { AttendanceStore } from '../../shared/services/attendanceStore';
+import {
+  fetchClassSectionsApi,
+  fetchRosterApi,
+  fetchAttendanceForSlotApi,
+  markAttendanceApi,
+  fetchTeacherTimetableApi,
+} from '../../../api/academics';
+import { TeacherAttendanceSkeleton } from './skeletons';
 
-export type AttendanceStatus = 'present' | 'absent';
+import { useAttendanceStore } from '../services/attendanceStore';
+
+export interface TeacherClassCard {
+  id: string;
+  className: string;
+  sectionName: string;
+  subjectName?: string;
+  studentCount?: number;
+}
 
 export interface FacultyClassItem {
   id: string;
   slotId: string;
   classSectionName: string;
-  subjectCode: string;
   subjectName: string;
-  department: string;
-  studentCount: number;
-  periodTime: string;
-  scheduledDays: number[]; // 0 = Sun, 1 = Mon, 2 = Tue, 3 = Wed, 4 = Thu, 5 = Fri, 6 = Sat
+  scheduledDays: number[];
   scheduledDaysText: string;
-  isTemporary?: boolean;
-  transferredFrom?: string;
-  transferReason?: string;
-  transferDate?: string;
-  transferredOutTo?: string;
-  transferredOutDate?: string;
+  periodTime: string;
+  studentCount: number;
 }
 
-export interface AttendanceMarkingViewProps {
+export const FACULTY_ASSIGNED_CLASSES: FacultyClassItem[] = [
+  { id: 'cls-cse-3a', slotId: 'slot-cse-3a', classSectionName: 'CSE 3rd Year · Sec A', subjectName: 'Data Structures & Algorithms', scheduledDays: [1, 2, 3, 4, 5], scheduledDaysText: 'Mon - Fri', periodTime: '09:00 AM - 09:50 AM', studentCount: 42 },
+  { id: 'cls-cse-2b', slotId: 'slot-cse-2b', classSectionName: 'CSE 2nd Year · Sec B', subjectName: 'Database Management Systems', scheduledDays: [1, 2, 3, 4, 5], scheduledDaysText: 'Mon - Fri', periodTime: '10:00 AM - 10:50 AM', studentCount: 38 },
+  { id: 'cls-ece-1a', slotId: 'slot-ece-1a', classSectionName: 'ECE 1st Year · Sec A', subjectName: 'Digital Electronics & Circuits', scheduledDays: [1, 2, 3, 4, 5], scheduledDaysText: 'Mon - Fri', periodTime: '11:15 AM - 12:05 PM', studentCount: 40 },
+  { id: 'cls-aiml-2a', slotId: 'slot-aiml-2a', classSectionName: 'AIML 2nd Year · Sec A', subjectName: 'Machine Learning Fundamentals', scheduledDays: [1, 2, 3, 4, 5], scheduledDaysText: 'Mon - Fri', periodTime: '01:00 PM - 01:50 PM', studentCount: 36 },
+  { id: 'cls-cse-4a', slotId: 'slot-cse-4a', classSectionName: 'CSE 4th Year · Sec A', subjectName: 'Cloud Computing & Distributed Systems', scheduledDays: [1, 2, 3, 4, 5], scheduledDaysText: 'Mon - Fri', periodTime: '02:00 PM - 02:50 PM', studentCount: 44 },
+];
+
+const DEFAULT_TEACHER_CLASSES: TeacherClassCard[] = [
+  { id: 'tc-1', className: 'Class 8', sectionName: 'A', subjectName: 'Mathematics', studentCount: 32 },
+  { id: 'tc-2', className: 'Class 9', sectionName: 'B', subjectName: 'Algebra', studentCount: 30 },
+  { id: 'tc-3', className: 'Class 9', sectionName: 'C', subjectName: 'Algebra', studentCount: 28 },
+  { id: 'tc-4', className: 'Class 10', sectionName: 'A', subjectName: 'Mathematics', studentCount: 34 },
+  { id: 'tc-5', className: 'Class 10', sectionName: 'B', subjectName: 'Geometry', studentCount: 31 },
+  { id: 'tc-6', className: 'Class 11', sectionName: 'B', subjectName: 'Physics', studentCount: 29 },
+  { id: 'tc-7', className: 'Class 12', sectionName: 'A', subjectName: 'Chemistry', studentCount: 27 },
+];
+
+type Status = 'present' | 'absent';
+
+export function normalizeClassAndSection(rawClassStr?: string): { className: string; sectionName: string } {
+  if (!rawClassStr) return { className: 'VIII', sectionName: 'A' };
+
+  const clean = rawClassStr.replace(/^class\s*/i, '').trim();
+  const m = clean.match(/^([IVXLCDM]+|\d+)\s*[-_/\s]?\s*([A-Za-z0-9]+)?/i);
+  if (!m) return { className: 'VIII', sectionName: 'A' };
+
+  let cls = m[1].toUpperCase();
+  const sec = (m[2] || 'A').toUpperCase();
+
+  const numToRoman: Record<string, string> = {
+    '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V',
+    '6': 'VI', '7': 'VII', '8': 'VIII', '9': 'IX', '10': 'X',
+    '11': 'XI', '12': 'XII',
+  };
+  if (numToRoman[cls]) {
+    cls = numToRoman[cls];
+  }
+
+  return { className: cls, sectionName: sec };
+}
+
+interface AttendanceMarkingViewProps {
   slotId?: string;
   subjectName?: string;
-  onSaved?: () => void;
+  className?: string;
+  sectionName?: string;
+  date?: string;
   onBack?: () => void;
+  onSaved?: (info?: { slotId?: string; className?: string; subjectName?: string; date?: string }) => void;
 }
 
-// Assigned institutional classes taught by faculty
-export const FACULTY_ASSIGNED_CLASSES: FacultyClassItem[] = [
-  {
-    id: 'cls-cse-3a',
-    slotId: 'slot-cse-3a',
-    classSectionName: 'CSE 3rd Year · Sec A',
-    subjectCode: 'CS301',
-    subjectName: 'Data Structures & Algorithms',
-    department: 'Computer Science',
-    studentCount: 42,
-    periodTime: '09:00 AM - 09:50 AM',
-    scheduledDays: [1, 2, 3, 4, 5], // Mon - Fri
-    scheduledDaysText: 'Mon - Fri',
-  },
-  {
-    id: 'cls-cse-2b',
-    slotId: 'slot-cse-2b',
-    classSectionName: 'CSE 2nd Year · Sec B',
-    subjectCode: 'CS204',
-    subjectName: 'Database Management Systems',
-    department: 'Computer Science',
-    studentCount: 38,
-    periodTime: '10:00 AM - 10:50 AM',
-    scheduledDays: [1, 2, 3, 4, 5], // Mon - Fri
-    scheduledDaysText: 'Mon - Fri',
-  },
-  {
-    id: 'cls-ece-1a',
-    slotId: 'slot-ece-1a',
-    classSectionName: 'ECE 1st Year · Sec A',
-    subjectCode: 'EC102',
-    subjectName: 'Digital Electronics & Circuits',
-    department: 'Electronics & Comm',
-    studentCount: 40,
-    periodTime: '11:15 AM - 12:05 PM',
-    scheduledDays: [1, 2, 3, 4, 5], // Mon - Fri
-    scheduledDaysText: 'Mon - Fri',
-  },
-  {
-    id: 'cls-aiml-2a',
-    slotId: 'slot-aiml-2a',
-    classSectionName: 'AIML 2nd Year · Sec A',
-    subjectCode: 'AI201',
-    subjectName: 'Machine Learning Fundamentals',
-    department: 'AIML',
-    studentCount: 36,
-    periodTime: '01:00 PM - 01:50 PM',
-    scheduledDays: [1, 2, 3, 4, 5], // Mon - Fri
-    scheduledDaysText: 'Mon - Fri',
-  },
-  {
-    id: 'cls-cse-4a',
-    slotId: 'slot-cse-4a',
-    classSectionName: 'CSE 4th Year · Sec A',
-    subjectCode: 'CS402',
-    subjectName: 'Cloud Computing & Distributed Systems',
-    department: 'Computer Science',
-    studentCount: 44,
-    periodTime: '02:00 PM - 02:50 PM',
-    scheduledDays: [1, 2, 3, 4, 5], // Mon - Fri
-    scheduledDaysText: 'Mon - Fri',
-  },
+const DEFAULT_CLASSES = ['VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+const DEFAULT_SECTIONS = ['A', 'B', 'C', 'D'];
+
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-// Persistent offline / in-memory store for marked attendance
-const SAVED_ATTENDANCE_CACHE: Record<
-  string,
-  {
-    date: string;
-    classId: string;
-    entries: Record<string, AttendanceStatus>;
-    presentCount: number;
-    absentCount: number;
-    totalCount: number;
-    submittedAt: string;
+const MONTH_SHORT = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+
+const WEEK_DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+
+// Mockup roster for Class VIII-A (28 students, 24 Present, 4 Absent)
+const ROSTER_VIII_A = [
+  { id: 's-8a-1', usn: 'USN2026001', admissionNo: 'USN2026001', fullName: 'Aarav Sharma' },
+  { id: 's-8a-2', usn: 'USN2026002', admissionNo: 'USN2026002', fullName: 'Aditya Nair' },
+  { id: 's-8a-3', usn: 'USN2026003', admissionNo: 'USN2026003', fullName: 'Ananya Ramesh' },
+  { id: 's-8a-4', usn: 'USN2026004', admissionNo: 'USN2026004', fullName: 'Devika S' },
+  { id: 's-8a-5', usn: 'USN2026005', admissionNo: 'USN2026005', fullName: 'Ibrahim Khan' },
+  { id: 's-8a-6', usn: 'USN2026006', admissionNo: 'USN2026006', fullName: 'Kavya B' },
+  { id: 's-8a-7', usn: 'USN2026007', admissionNo: 'USN2026007', fullName: 'Mohammed Ali' },
+  { id: 's-8a-8', usn: 'USN2026008', admissionNo: 'USN2026008', fullName: 'Sneha Prakash' },
+  { id: 's-8a-9', usn: 'USN2026009', admissionNo: 'USN2026009', fullName: 'Rohan Varma' },
+  { id: 's-8a-10', usn: 'USN2026010', admissionNo: 'USN2026010', fullName: 'Priya Menon' },
+  { id: 's-8a-11', usn: 'USN2026011', admissionNo: 'USN2026011', fullName: 'Arjun Das' },
+  { id: 's-8a-12', usn: 'USN2026012', admissionNo: 'USN2026012', fullName: 'Tanvi Shah' },
+  { id: 's-8a-13', usn: 'USN2026013', admissionNo: 'USN2026013', fullName: 'Varun Nair' },
+  { id: 's-8a-14', usn: 'USN2026014', admissionNo: 'USN2026014', fullName: 'Meera Nair' },
+  { id: 's-8a-15', usn: 'USN2026015', admissionNo: 'USN2026015', fullName: 'Siddharth Rao' },
+  { id: 's-8a-16', usn: 'USN2026016', admissionNo: 'USN2026016', fullName: 'Anika Patel' },
+  { id: 's-8a-17', usn: 'USN2026017', admissionNo: 'USN2026017', fullName: 'Rahul Krishna' },
+  { id: 's-8a-18', usn: 'USN2026018', admissionNo: 'USN2026018', fullName: 'Pooja Hegde' },
+  { id: 's-8a-19', usn: 'USN2026019', admissionNo: 'USN2026019', fullName: 'Nikhil Kamath' },
+  { id: 's-8a-20', usn: 'USN2026020', admissionNo: 'USN2026020', fullName: 'Sanjana Reddy' },
+  { id: 's-8a-21', usn: 'USN2026021', admissionNo: 'USN2026021', fullName: 'Farhan Akhtar' },
+  { id: 's-8a-22', usn: 'USN2026022', admissionNo: 'USN2026022', fullName: 'Riya Sen' },
+  { id: 's-8a-23', usn: 'USN2026023', admissionNo: 'USN2026023', fullName: 'Yash Malhotra' },
+  { id: 's-8a-24', usn: 'USN2026024', admissionNo: 'USN2026024', fullName: 'Ishaan Sharma' },
+  { id: 's-8a-25', usn: 'USN2026025', admissionNo: 'USN2026025', fullName: 'Diya Kapoor' },
+  { id: 's-8a-26', usn: 'USN2026026', admissionNo: 'USN2026026', fullName: 'Neil Fernandez' },
+  { id: 's-8a-27', usn: 'USN2026027', admissionNo: 'USN2026027', fullName: 'Alisha Joseph' },
+  { id: 's-8a-28', usn: 'USN2026028', admissionNo: 'USN2026028', fullName: 'Pranav Nair' },
+];
+
+const STUDENT_NAMES_POOL = [
+  'Aarav Sharma', 'Aditya Nair', 'Ananya Ramesh', 'Devika S', 'Ibrahim Khan',
+  'Kavya B', 'Mohammed Ali', 'Sneha Prakash', 'Rohan Varma', 'Priya Menon',
+  'Arjun Das', 'Tanvi Shah', 'Varun Nair', 'Meera Nair', 'Siddharth Rao',
+  'Anika Patel', 'Rahul Krishna', 'Pooja Hegde', 'Nikhil Kamath', 'Sanjana Reddy',
+  'Farhan Akhtar', 'Riya Sen', 'Yash Malhotra', 'Ishaan Sharma', 'Diya Kapoor',
+  'Neil Fernandez', 'Alisha Joseph', 'Pranav Nair', 'Bhavna Kulkarni', 'Chetan Bhagat',
+  'Deepa Mehta', 'Eshaan Roy', 'Gauri Shinde', 'Harsh Vardhan', 'Ishita Paul',
+];
+
+// Helper to convert Roman to number for smart search
+function romanToNum(roman: string): number | null {
+  const map: Record<string, number> = {
+    I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6,
+    VII: 7, VIII: 8, IX: 9, X: 10, XI: 11, XII: 12,
+  };
+  return map[roman.toUpperCase()] || null;
+}
+
+// Helper to calculate student attendance percentage
+function getStudentAttendancePercent(id: string, name: string): number {
+  let hash = 0;
+  const str = id + name;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash * 31 + str.charCodeAt(i)) % 1000;
   }
-> = {};
+  return 75 + (hash % 24);
+}
 
-function generateFallbackRoster(subjectName?: string, classSectionName?: string, count: number = 32) {
-  const firstNames = [
-    'Aarav', 'Ananya', 'Arjun', 'Bhavya', 'Deepika', 'Divya', 'Gaurav', 'Ishita',
-    'Kabir', 'Karan', 'Kavya', 'Manish', 'Meera', 'Neha', 'Nikhil', 'Pooja',
-    'Priya', 'Rahul', 'Riya', 'Rohan', 'Sameer', 'Shreya', 'Siddharth', 'Sneha',
-    'Tanmay', 'Varun', 'Vikram', 'Aditi', 'Pranav', 'Rhea', 'Kunal', 'Tarun',
-    'Yash', 'Anushka', 'Harsh', 'Sanjana', 'Akash', 'Shruti', 'Aryan', 'Sakshi',
-    'Rishabh', 'Tara', 'Ayush', 'Swati'
-  ];
-  const lastNames = [
-    'Sharma', 'Verma', 'Gupta', 'Patil', 'Iyer', 'Deshmukh', 'Singh', 'Reddy',
-    'Mehta', 'Nair', 'Kulkarni', 'Joshi', 'Chopra', 'Malhotra', 'Bose', 'Chatterjee',
-    'Sen', 'Pillai', 'Rao', 'Shetty', 'Bhat', 'Kamath', 'Hegde', 'Gowda'
-  ];
-
-  const combined = `${subjectName || ''} ${classSectionName || ''}`.toUpperCase();
-  const deptCode = combined.includes('ECE') || combined.includes('ELECTRONIC') || combined.includes('CIRCUIT')
-    ? 'EC'
-    : combined.includes('AIML') || combined.includes('MACHINE') || combined.includes('AI')
-    ? 'AI'
-    : combined.includes('MECH')
-    ? 'ME'
-    : 'CS';
-
-  const list = Array.from({ length: count }, (_, i) => {
-    const fn = firstNames[i % firstNames.length];
-    const ln = lastNames[(i * 3 + 2) % lastNames.length];
-    const num = (i + 1).toString().padStart(3, '0');
-    const totalClasses = 10;
-    const attendedClasses = Math.max(6, Math.min(10, 7 + ((i * 3) % 4)));
-    const percentage = Math.round((attendedClasses / totalClasses) * 100);
+// Generate dynamic roster for any class and section
+function getDynamicRoster(className: string, sectionName: string): any[] {
+  if (className === 'VIII' && sectionName === 'A') {
+    return ROSTER_VIII_A;
+  }
+  const count = 22 + ((className.charCodeAt(0) + sectionName.charCodeAt(0)) % 8);
+  const cleanCls = className.replace(/[^A-Za-z0-9]/g, '');
+  return Array.from({ length: count }, (_, i) => {
+    const nameIdx = (i + className.length + sectionName.charCodeAt(0)) % STUDENT_NAMES_POOL.length;
+    const usnVal = `USN${cleanCls}${sectionName}${String(i + 1).padStart(3, '0')}`;
     return {
-      id: `student-roster-${deptCode}-${i + 1}`,
-      fullName: `${fn} ${ln}`,
-      rollNoOrUSN: `1VM26${deptCode}${num}`,
-      attendanceStats: `${attendedClasses}/${totalClasses} • ${percentage}%`,
+      id: `s-${cleanCls.toLowerCase()}${sectionName.toLowerCase()}-${i + 1}`,
+      usn: usnVal,
+      admissionNo: usnVal,
+      fullName: STUDENT_NAMES_POOL[nameIdx],
     };
   });
-
-  // Strict ascending order according to USN
-  return list.sort((a, b) => a.rollNoOrUSN.localeCompare(b.rollNoOrUSN));
 }
-
-function formatDateDisplay(dateStr: string): string {
-  try {
-    const d = new Date(`${dateStr}T00:00:00Z`);
-    return d.toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  } catch {
-    return dateStr;
-  }
-}
-
-const CALENDAR_MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December'
-];
-
-const CALENDAR_DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
 export const AttendanceMarkingView: React.FC<AttendanceMarkingViewProps> = ({
-  slotId: initialSlotId,
-  subjectName: initialSubjectName,
-  onSaved,
+  slotId = 'demo-1',
+  subjectName,
+  className,
+  sectionName,
+  date,
   onBack,
+  onSaved,
 }) => {
-  const { width } = useWindowDimensions();
-  const isCompact = width < 420;
-  const responsiveScheduleFontSize = Math.max(11, Math.min(13, Math.round(width * 0.032)));
+  const initialClassInfo = useMemo(() => normalizeClassAndSection(className), [className]);
 
-  // Selected date (defaults to today)
-  const todayStr = useMemo(() => {
-    const d = new Date();
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  }, []);
-  const [selectedDate, setSelectedDate] = useState<string>(todayStr);
-
-  // Interactive Calendar Picker State
-  const [calendarModalVisible, setCalendarModalVisible] = useState(false);
-  const [viewingMonth, setViewingMonth] = useState<Date>(() => {
-    const cur = new Date();
-    return new Date(cur.getFullYear(), cur.getMonth(), 1);
-  });
-
-  const handleOpenCalendar = () => {
-    try {
-      const cur = new Date(`${selectedDate}T00:00:00Z`);
-      setViewingMonth(new Date(cur.getUTCFullYear(), cur.getUTCMonth(), 1));
-    } catch {
-      const now = new Date();
-      setViewingMonth(new Date(now.getFullYear(), now.getMonth(), 1));
-    }
-    setCalendarModalVisible(true);
-  };
-
-  const changeViewingMonth = (delta: number) => {
-    setViewingMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1));
-  };
-
-  // Calendar days calculation
-  const calendarGrid = useMemo(() => {
-    const year = viewingMonth.getFullYear();
-    const month = viewingMonth.getMonth();
-    const firstDay = new Date(year, month, 1).getDay(); // 0 = Sun
-    const totalDays = new Date(year, month + 1, 0).getDate();
-
-    const cells: Array<{
-      day: number | null;
-      dateStr: string | null;
-      isToday: boolean;
-      isSelected: boolean;
-      isFuture: boolean;
-    }> = [];
-
-    for (let i = 0; i < firstDay; i++) {
-      cells.push({ day: null, dateStr: null, isToday: false, isSelected: false, isFuture: false });
-    }
-
-    for (let d = 1; d <= totalDays; d++) {
-      const mm = String(month + 1).padStart(2, '0');
-      const dd = String(d).padStart(2, '0');
-      const dateStr = `${year}-${mm}-${dd}`;
-      cells.push({
-        day: d,
-        dateStr,
-        isToday: dateStr === todayStr,
-        isSelected: dateStr === selectedDate,
-        isFuture: dateStr > todayStr,
-      });
-    }
-
-    return cells;
-  }, [viewingMonth, selectedDate, todayStr]);
-
-  const handleSelectCalendarDate = (dateStr: string) => {
-    if (dateStr > todayStr) {
-      Alert.alert('Future Date Restricted', 'Attendance cannot be recorded for tomorrow or future dates.');
-      return;
-    }
-    if (dateStr === selectedDate) {
-      setCalendarModalVisible(false);
-      return;
-    }
-    if (hasUnsavedChanges) {
-      setOnDiscardCallback(() => () => {
-        setSelectedDate(dateStr);
-        setCalendarModalVisible(false);
-      });
-      setShowUnsavedModal(true);
-      return;
-    }
-    setSelectedDate(dateStr);
-    setCalendarModalVisible(false);
-  };
-
-  // Shared Class Transfers subscription
-  const [transfers, setTransfers] = useState<ClassTransfer[]>(() => ClassTransferStore.getAllTransfers());
-  const [, setAttendanceStoreVer] = useState(0);
-
-  useEffect(() => {
-    const unsubTransfer = ClassTransferStore.subscribe(() => {
-      setTransfers(ClassTransferStore.getAllTransfers());
-    });
-    const unsubAttendance = AttendanceStore.subscribe(() => {
-      setAttendanceStoreVer((v) => v + 1);
-    });
-    return () => {
-      unsubTransfer();
-      unsubAttendance();
-    };
-  }, []);
-
-  // Compute all available classes including temporary/substituted classes
-  const allClasses = useMemo<FacultyClassItem[]>(() => {
-    const regular = FACULTY_ASSIGNED_CLASSES.map((cls) => {
-      const transferOut = transfers.find(
-        (t) =>
-          t.classSectionName.toLowerCase().trim() === cls.classSectionName.toLowerCase().trim() &&
-          t.subjectName.toLowerCase().trim() === cls.subjectName.toLowerCase().trim() &&
-          t.originalTeacherName === 'Teacher' &&
-          t.substituteTeacherName !== 'Teacher'
-      );
+  // Step 1 Selection State: which class card is selected.
+  // Initially null when opening from Attendance tab, so first it shows the rectangular container list of classes taken by this teacher!
+  // If className was passed (e.g. from Dashboard "Mark"), initialize directly to that class card.
+  const [selectedClassCard, setSelectedClassCard] = useState<TeacherClassCard | null>(() => {
+    if (className) {
+      const parsed = normalizeClassAndSection(className);
       return {
-        ...cls,
-        transferredOutTo: transferOut ? transferOut.substituteTeacherName : undefined,
-        transferredOutDate: transferOut?.date,
-      };
-    });
-
-    // Substituted classes transferred to this faculty (or available temporary sessions)
-    const temporary = transfers
-      .filter((t) => t.isTemporary)
-      .map((t) => ({
-        id: `temp-${t.id}`,
-        slotId: `slot-temp-${t.id}`,
-        classSectionName: t.classSectionName,
-        subjectCode: 'SUB',
-        subjectName: t.subjectName,
-        department: 'Academic Coverage',
-        studentCount: 35,
-        periodTime: t.periodTime || '10:00 AM - 10:50 AM',
-        scheduledDays: [0, 1, 2, 3, 4, 5, 6],
-        scheduledDaysText: `Coverage on ${formatDateDisplay(t.date)}`,
-        isTemporary: true,
-        transferredFrom: t.originalTeacherName,
-        transferReason: t.reason,
-        transferDate: t.date,
-      }));
-
-    return [...regular, ...temporary];
-  }, [transfers]);
-
-  // Active class session for marking
-  const [selectedClass, setSelectedClass] = useState<FacultyClassItem | null>(() => {
-    if (initialSlotId) {
-      const match = FACULTY_ASSIGNED_CLASSES.find((c) => c.slotId === initialSlotId || c.id === initialSlotId);
-      if (match) return match;
-      const allT = ClassTransferStore.getAllTransfers();
-      const tempMatch = allT.find(
-        (t) => `slot-temp-${t.id}` === initialSlotId || `temp-${t.id}` === initialSlotId || t.id === initialSlotId
-      );
-      if (tempMatch) {
-        return {
-          id: `temp-${tempMatch.id}`,
-          slotId: `slot-temp-${tempMatch.id}`,
-          classSectionName: tempMatch.classSectionName,
-          subjectCode: 'SUB',
-          subjectName: tempMatch.subjectName,
-          department: 'Academic Coverage',
-          studentCount: 35,
-          periodTime: tempMatch.periodTime || '10:00 AM - 10:50 AM',
-          scheduledDays: [0, 1, 2, 3, 4, 5, 6],
-          scheduledDaysText: `Coverage on ${formatDateDisplay(tempMatch.date)}`,
-          isTemporary: true,
-          transferredFrom: tempMatch.originalTeacherName,
-          transferReason: tempMatch.reason,
-          transferDate: tempMatch.date,
-        };
-      }
-      return {
-        id: initialSlotId,
-        slotId: initialSlotId,
-        classSectionName: 'Class Section',
-        subjectCode: 'GEN',
-        subjectName: initialSubjectName || 'Course Lecture',
-        department: 'Academics',
-        studentCount: 30,
-        periodTime: 'Current Period',
-        scheduledDays: [0, 1, 2, 3, 4, 5, 6],
-        scheduledDaysText: 'Daily',
+        id: slotId || `prop-${className}-${sectionName || parsed.sectionName}`,
+        className: className.toLowerCase().startsWith('class') ? className : `Class ${className}`,
+        sectionName: sectionName || parsed.sectionName,
+        subjectName: subjectName || 'Mathematics',
       };
     }
     return null;
   });
 
-  // Sync selectedClass if initialSlotId changes dynamically from My Schedule
-  useEffect(() => {
-    if (initialSlotId) {
-      const match = FACULTY_ASSIGNED_CLASSES.find((c) => c.slotId === initialSlotId || c.id === initialSlotId);
-      if (match) {
-        setSelectedClass(match);
-        return;
-      }
-      const allT = ClassTransferStore.getAllTransfers();
-      const tempMatch = allT.find(
-        (t) => `slot-temp-${t.id}` === initialSlotId || `temp-${t.id}` === initialSlotId || t.id === initialSlotId
-      );
-      if (tempMatch) {
-        setSelectedClass({
-          id: `temp-${tempMatch.id}`,
-          slotId: `slot-temp-${tempMatch.id}`,
-          classSectionName: tempMatch.classSectionName,
-          subjectCode: 'SUB',
-          subjectName: tempMatch.subjectName,
-          department: 'Academic Coverage',
-          studentCount: 35,
-          periodTime: tempMatch.periodTime || '10:00 AM - 10:50 AM',
-          scheduledDays: [0, 1, 2, 3, 4, 5, 6],
-          scheduledDaysText: `Coverage on ${formatDateDisplay(tempMatch.date)}`,
-          isTemporary: true,
-          transferredFrom: tempMatch.originalTeacherName,
-          transferReason: tempMatch.reason,
-          transferDate: tempMatch.date,
-        });
-        return;
-      }
-      setSelectedClass({
-        id: initialSlotId,
-        slotId: initialSlotId,
-        classSectionName: 'Class Section',
-        subjectCode: 'GEN',
-        subjectName: initialSubjectName || 'Course Lecture',
-        department: 'Academics',
-        studentCount: 30,
-        periodTime: 'Current Period',
-        scheduledDays: [0, 1, 2, 3, 4, 5, 6],
-        scheduledDaysText: 'Daily',
-      });
-    }
-  }, [initialSlotId, initialSubjectName]);
+  // Teacher Assigned Classes & Search
+  const [teacherClasses, setTeacherClasses] = useState<TeacherClassCard[]>(DEFAULT_TEACHER_CLASSES);
+  const [classSearchQuery, setClassSearchQuery] = useState('');
+  const [selectedSubject, setSelectedSubject] = useState(subjectName || 'Mathematics');
 
-  // Marking Screen State
-  const [roster, setRoster] = useState<any[]>([]);
-  const [marks, setMarks] = useState<Record<string, AttendanceStatus>>({});
+  // Track marked periods from Zustand store for reactive updates in VIEW 1
+  const markedPeriods = useAttendanceStore((state) => state.markedPeriods);
+
+  const [selectedDate, setSelectedDate] = useState(() => {
+    if (date) return date;
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  });
+
+  const [selectedClass, setSelectedClass] = useState(initialClassInfo.className);
+  const [selectedSection, setSelectedSection] = useState(sectionName || initialClassInfo.sectionName);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'present' | 'absent'>('all');
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [isAlreadyMarked, setIsAlreadyMarked] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [transferredOutInfo, setTransferredOutInfo] = useState<string | null>(null);
+
+  // Dynamic available classes & sections
+  const [availableClasses, setAvailableClasses] = useState<string[]>(DEFAULT_CLASSES);
+  const [availableSections, setAvailableSections] = useState<string[]>(DEFAULT_SECTIONS);
+
+  // Active inline dropdown selector: 'class' | 'section' | 'date' | null
+  const [openDropdown, setOpenDropdown] = useState<'class' | 'section' | 'date' | null>(null);
+
+  // Calendar month navigator view
+  const [calendarViewDate, setCalendarViewDate] = useState(() => new Date());
+
+  // Editing state: Attendance is fixed once marked. Can only change when Edit is active.
+  const [isAllEditable, setIsAllEditable] = useState(false);
+  const [editingStudentIds, setEditingStudentIds] = useState<Set<string>>(new Set());
+
+  // Dynamic attendance store keyed by: `${class}_${section}_${date}`
+  const [attendanceRecords, setAttendanceRecords] = useState<Record<string, Record<string, Status>>>(() => {
+    const initialMarks: Record<string, Status> = {};
+    ROSTER_VIII_A.forEach((s) => {
+      if (['s-8a-3', 's-8a-7', 's-8a-14', 's-8a-21'].includes(s.id)) {
+        initialMarks[s.id] = 'absent';
+      } else {
+        initialMarks[s.id] = 'present';
+      }
+    });
+    const todayKey = `VIII_A_${new Date().toISOString().slice(0, 10)}`;
+    return { [todayKey]: initialMarks };
+  });
+
+  // Current active roster
+  const [roster, setRoster] = useState<any[]>(ROSTER_VIII_A);
+
+  const [locked, setLocked] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Unsaved Changes Modal State
-  const [showUnsavedModal, setShowUnsavedModal] = useState(false);
-  const [onDiscardCallback, setOnDiscardCallback] = useState<(() => void) | null>(null);
+  // Storage key for current selection
+  const currentKey = `${selectedClass}_${selectedSection}_${selectedDate}`;
 
-  // Safe Navigation Back Handler
-  const navigateBack = useCallback(() => {
-    setHasUnsavedChanges(false);
-    setShowUnsavedModal(false);
-    setOnDiscardCallback(null);
-    if (initialSlotId) {
-      if (onBack) {
-        onBack();
-      } else if (onSaved) {
-        onSaved();
+  // Formatted date label e.g. "19 Oct 2026"
+  const formattedDate = useMemo(() => {
+    if (!selectedDate) return '';
+    const parts = selectedDate.split('-');
+    if (parts.length === 3) {
+      const y = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10) - 1;
+      const d = parseInt(parts[2], 10);
+      return `${d} ${MONTH_SHORT[m] || ''} ${y}`;
+    }
+    return selectedDate;
+  }, [selectedDate]);
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Load teacher's dynamic classes from timetable API
+  const loadTimetableClasses = useCallback(async () => {
+    try {
+      const ttRes: any = await fetchTeacherTimetableApi();
+      if (ttRes?.periods && Array.isArray(ttRes.periods) && ttRes.periods.length > 0) {
+        const cardMap = new Map<string, TeacherClassCard>();
+        ttRes.periods.forEach((p: any, idx: number) => {
+          const rawName = p.classSectionName || p.classSection?.name || '';
+          const sub = p.subject?.name || p.subjectName || '';
+          if (rawName) {
+            const parts = rawName.split('-');
+            const cName = parts[0]?.trim() || rawName;
+            const sName = parts[1]?.trim() || 'A';
+            const fullCls = cName.toLowerCase().startsWith('class') ? cName : `Class ${cName}`;
+            const key = `${fullCls}_${sName}_${sub}`;
+            if (!cardMap.has(key)) {
+              cardMap.set(key, {
+                id: p.id || `tc-dyn-${idx}`,
+                className: fullCls,
+                sectionName: sName,
+                subjectName: sub || 'Mathematics',
+                studentCount: 30 + ((idx * 3) % 6),
+              });
+            }
+          }
+        });
+        if (cardMap.size > 0) {
+          setTeacherClasses(Array.from(cardMap.values()));
+        }
       }
-    } else if (selectedClass) {
-      setSelectedClass(null);
-      onSaved?.();
-    } else if (onBack) {
-      onBack();
+    } catch {
+      // Keep defaults
     }
-  }, [initialSlotId, selectedClass, onBack, onSaved]);
-
-  // Date Navigation Helpers
-  const shiftDate = (days: number) => {
-    if (days > 0 && selectedDate >= todayStr) {
-      Alert.alert('Future Date Restricted', 'Attendance cannot be recorded for tomorrow or future dates.');
-      return;
-    }
-    if (hasUnsavedChanges) {
-      setOnDiscardCallback(() => () => performDateShift(days));
-      setShowUnsavedModal(true);
-      return;
-    }
-    performDateShift(days);
-  };
-
-  const performDateShift = (days: number) => {
-    const cur = new Date(`${selectedDate}T00:00:00Z`);
-    cur.setUTCDate(cur.getUTCDate() + days);
-    const nextDate = cur.toISOString().slice(0, 10);
-    if (nextDate > todayStr) {
-      Alert.alert('Future Date Restricted', 'Attendance cannot be recorded for tomorrow or future dates.');
-      return;
-    }
-    setSelectedDate(nextDate);
-  };
-
-  const jumpToToday = () => {
-    if (selectedDate === todayStr) return;
-    if (hasUnsavedChanges) {
-      setOnDiscardCallback(() => () => setSelectedDate(todayStr));
-      setShowUnsavedModal(true);
-      return;
-    }
-    setSelectedDate(todayStr);
-  };
-
-  // Check if a class has session scheduled on selectedDate
-  const checkClassScheduledOnDate = useCallback((cls: FacultyClassItem, dateStr: string) => {
-    const d = new Date(`${dateStr}T00:00:00Z`);
-    const dayOfWeek = d.getUTCDay(); // 0 = Sun, 1 = Mon ...
-    return cls.scheduledDays.includes(dayOfWeek);
   }, []);
 
-  // Load roster and previously saved attendance when a class is selected
-  const loadClassAttendance = useCallback(
-    async (cls: FacultyClassItem, dateStr: string) => {
-      setLoading(true);
-      setSearchQuery('');
-      setStatusFilter('all');
-      setHasUnsavedChanges(false);
+  useEffect(() => {
+    loadTimetableClasses();
+  }, [loadTimetableClasses]);
 
-      const cacheKey = `${cls.id}_${dateStr}`;
-      const cached = SAVED_ATTENDANCE_CACHE[cacheKey];
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadTimetableClasses();
+    setRefreshing(false);
+  }, [loadTimetableClasses]);
 
-      try {
-        const [rosterRes, existingRes] = await Promise.all([
-          fetchRosterApi(cls.slotId).catch(() => null),
-          fetchAttendanceForSlotApi(cls.slotId, dateStr).catch(() => null),
-        ]);
+  // Filter classes taken by this teacher by search query
+  const filteredTeacherClasses = useMemo(() => {
+    if (!classSearchQuery.trim()) return teacherClasses;
+    const q = classSearchQuery.toLowerCase().trim();
+    return teacherClasses.filter(
+      (c) =>
+        c.className.toLowerCase().includes(q) ||
+        c.sectionName.toLowerCase().includes(q) ||
+        (c.subjectName && c.subjectName.toLowerCase().includes(q))
+    );
+  }, [teacherClasses, classSearchQuery]);
 
-        let students = rosterRes?.students || [];
-        if (!students || students.length === 0) {
-          students = generateFallbackRoster(cls.subjectName, cls.classSectionName, cls.studentCount);
-        } else {
-          students = students.map((s: any, idx: number) => {
-            if (!s.attendanceStats) {
-              const totalClasses = 10;
-              const attendedClasses = Math.max(6, Math.min(10, 7 + ((idx * 3) % 4)));
-              const percentage = Math.round((attendedClasses / totalClasses) * 100);
-              return {
-                ...s,
-                attendanceStats: `${attendedClasses}/${totalClasses} • ${percentage}%`,
-              };
-            }
-            return s;
-          });
-        }
-
-        // Strictly sort students in ascending order according to USN / Roll number
-        students.sort((a: any, b: any) => (a.rollNoOrUSN || '').localeCompare(b.rollNoOrUSN || ''));
-        setRoster(students);
-
-        const initialMarks: Record<string, AttendanceStatus> = {};
-        let foundExisting = false;
-
-        // Check AttendanceStore record
-        const storeRec = AttendanceStore.getAttendanceRecord({
-          classId: cls.id,
-          slotId: cls.slotId,
-          classSectionName: cls.classSectionName,
-          subjectName: cls.subjectName,
-          date: dateStr,
-        });
-
-        // Check backend existing entries
-        if (existingRes?.entries && existingRes.entries.length > 0) {
-          foundExisting = true;
-          for (const e of existingRes.entries) {
-            initialMarks[e.studentId] = e.attendanceStatus === 'absent' ? 'absent' : 'present';
-          }
-        } else if (cached?.entries && Object.keys(cached.entries).length > 0) {
-          // Check local cache
-          foundExisting = true;
-          for (const s of students) {
-            initialMarks[s.id] = cached.entries[s.id] || 'present';
-          }
-        } else if (storeRec) {
-          // Check shared AttendanceStore
-          foundExisting = true;
-          if (storeRec.entries && Object.keys(storeRec.entries).length > 0) {
-            for (const s of students) {
-              initialMarks[s.id] = storeRec.entries[s.id] || 'present';
-            }
-          } else {
-            for (const s of students) {
-              initialMarks[s.id] = 'present';
-            }
-          }
-        }
-
-        const transfer = ClassTransferStore.getTransferForClassDate(cls.classSectionName, cls.subjectName, dateStr);
-        const isTransferredOut = !!transfer && transfer.originalTeacherName === 'Teacher' && transfer.substituteTeacherName !== 'Teacher';
-
-        if (isTransferredOut) {
-          setTransferredOutInfo(transfer.substituteTeacherName);
-        } else {
-          setTransferredOutInfo(null);
-        }
-
-        setIsAlreadyMarked(foundExisting);
-        setIsEditMode(!foundExisting);
-        setIsEditing(foundExisting);
-
-        // Fill remaining students as present by default draft
-        for (const s of students) {
-          if (!initialMarks[s.id]) {
-            initialMarks[s.id] = 'present';
-          }
-        }
-
-        setMarks(initialMarks);
-      } catch (err: any) {
-        console.warn('[AttendanceMarkingView] load error:', err?.message);
-        const fallback = generateFallbackRoster(cls.subjectName, cls.classSectionName, cls.studentCount);
-        fallback.sort((a, b) => a.rollNoOrUSN.localeCompare(b.rollNoOrUSN));
-        setRoster(fallback);
-        const initialMarks: Record<string, AttendanceStatus> = {};
-        for (const s of fallback) initialMarks[s.id] = 'present';
-        setMarks(initialMarks);
-        setIsAlreadyMarked(false);
-        setIsEditMode(true);
-        setIsEditing(false);
-        setTransferredOutInfo(null);
-      } finally {
-        setLoading(false);
-      }
+  // Check if attendance is already marked today for this class card
+  const isCardMarked = useCallback(
+    (item: TeacherClassCard) => {
+      const today = selectedDate || new Date().toISOString().slice(0, 10);
+      const norm = normalizeClassAndSection(item.className);
+      const fullClsStr = `${item.className}-${item.sectionName}`;
+      const normClsStr = `Class ${norm.className}-${item.sectionName}`;
+      return (
+        useAttendanceStore.getState().isPeriodMarked(item.id, today, fullClsStr, item.subjectName) ||
+        useAttendanceStore.getState().isPeriodMarked(item.id, today, normClsStr, item.subjectName) ||
+        useAttendanceStore.getState().isPeriodMarked(item.id, today, `${norm.className}-${item.sectionName}`, item.subjectName)
+      );
     },
-    []
+    [selectedDate, markedPeriods]
   );
 
-  // Trigger loading when selectedClass or selectedDate changes
-  useEffect(() => {
-    if (selectedClass) {
-      loadClassAttendance(selectedClass, selectedDate);
+  // Handle card selection from rectangular class list
+  const handleSelectClass = (card: TeacherClassCard) => {
+    const norm = normalizeClassAndSection(card.className);
+    setSelectedClass(norm.className);
+    setSelectedSection(card.sectionName || norm.sectionName);
+    if (card.subjectName) {
+      setSelectedSubject(card.subjectName);
     }
-  }, [selectedClass, selectedDate, loadClassAttendance]);
-
-  // Click on a class card from the list
-  const handleSelectClass = (cls: FacultyClassItem) => {
-    setSelectedClass(cls);
+    setSelectedClassCard(card);
   };
 
-  // Safe Back Button Handler with unsaved changes verification
-  const handleBackPress = () => {
-    if (hasUnsavedChanges) {
-      setOnDiscardCallback(null);
-      setShowUnsavedModal(true);
+  // Back action from VIEW 2 (returns to VIEW 1 or caller if onBack passed)
+  const handleBackFromDetail = () => {
+    if (onBack) {
+      onBack();
     } else {
-      navigateBack();
+      setSelectedClassCard(null);
     }
   };
 
-  // Attendance Toggle (Row click or status button)
-  const toggleStudentStatus = (studentId: string) => {
-    if (selectedDate > todayStr) {
-      Alert.alert('Future Date Restricted', 'Attendance cannot be recorded for tomorrow or future dates.');
+  // Synchronize subjectName prop changes
+  useEffect(() => {
+    if (subjectName) {
+      setSelectedSubject(subjectName);
+    }
+  }, [subjectName]);
+
+  // Load backend classes and sections dynamically
+  useEffect(() => {
+    fetchClassSectionsApi()
+      .then((res: any) => {
+        if (Array.isArray(res) && res.length > 0) {
+          const classSet = new Set<string>(DEFAULT_CLASSES);
+          const sectionSet = new Set<string>(DEFAULT_SECTIONS);
+          res.forEach((cs: any) => {
+            const name = (cs.name || '').trim();
+            const parts = name.split('-');
+            if (parts[0]) {
+              const c = parts[0].replace(/class/i, '').trim();
+              if (c) classSet.add(c);
+            }
+            if (parts[1]) {
+              const s = parts[1].trim();
+              if (s) sectionSet.add(s);
+            }
+            if (cs.section) sectionSet.add(cs.section.trim());
+          });
+          setAvailableClasses(Array.from(classSet));
+          setAvailableSections(Array.from(sectionSet));
+        }
+      })
+      .catch(() => {
+        // Keep defaults on failure
+      });
+  }, []);
+
+  // Synchronize class and section whenever className prop changes
+  useEffect(() => {
+    if (className) {
+      const parsed = normalizeClassAndSection(className);
+      setSelectedClass(parsed.className);
+      if (sectionName) {
+        setSelectedSection(sectionName);
+      } else if (parsed.sectionName) {
+        setSelectedSection(parsed.sectionName);
+      }
+      setSelectedClassCard({
+        id: slotId || `prop-${className}-${sectionName || parsed.sectionName}`,
+        className: className.toLowerCase().startsWith('class') ? className : `Class ${className}`,
+        sectionName: sectionName || parsed.sectionName,
+        subjectName: subjectName || 'Mathematics',
+      });
+      setAvailableClasses((prev) => {
+        if (!prev.includes(parsed.className)) {
+          return [...prev, parsed.className];
+        }
+        return prev;
+      });
+    }
+  }, [className, sectionName, subjectName, slotId]);
+
+  // Update dynamic roster and marks whenever class, section, or date changes
+  useEffect(() => {
+    setIsAllEditable(false);
+    setEditingStudentIds(new Set());
+
+    // Generate or fetch roster for class and section
+    const currentRoster = getDynamicRoster(selectedClass, selectedSection);
+    setRoster(currentRoster);
+
+    // If marks do not exist for this combination, generate initial marks
+    setAttendanceRecords((prev) => {
+      if (prev[currentKey]) {
+        return prev;
+      }
+      const initial: Record<string, Status> = {};
+      currentRoster.forEach((s, idx) => {
+        // Set realistic 10-15% absent
+        if (idx % 7 === 2) {
+          initial[s.id] = 'absent';
+        } else {
+          initial[s.id] = 'present';
+        }
+      });
+      return { ...prev, [currentKey]: initial };
+    });
+  }, [selectedClass, selectedSection, selectedDate, currentKey]);
+
+  // Restore saved attendance from useAttendanceStore if available
+  useEffect(() => {
+    const activeSlotId = slotId || selectedClassCard?.id;
+    const activeClassName = selectedClassCard?.className
+      ? `${selectedClassCard.className}-${selectedSection}`
+      : className;
+    const activeSub = selectedSubject || subjectName || selectedClassCard?.subjectName;
+
+    const savedRecord = useAttendanceStore
+      .getState()
+      .getAttendanceRecord(activeSlotId || '', selectedDate, activeClassName, activeSub);
+    if (savedRecord && savedRecord.marks) {
+      setAttendanceRecords((prev) => ({
+        ...prev,
+        [currentKey]: { ...(prev[currentKey] || {}), ...savedRecord.marks },
+      }));
+    }
+  }, [slotId, selectedDate, className, subjectName, currentKey, selectedClassCard, selectedSubject, selectedSection]);
+
+  // Fetch real slot attendance if a live slot is connected
+  const loadSlotData = useCallback(async () => {
+    if (!slotId || slotId.startsWith('demo-')) {
       return;
     }
-    if (isAlreadyMarked && !isEditMode) {
+    setLoading(true);
+    try {
+      const [rosterRes, existingRes] = await Promise.all([
+        fetchRosterApi(slotId).catch(() => null),
+        fetchAttendanceForSlotApi(slotId, selectedDate).catch(() => null),
+      ]);
+
+      if (rosterRes?.students?.length) {
+        const students = rosterRes.students.map((s: any, idx: number) => {
+          const usnVal = s.rollNoOrUSN || s.studentUsn || s.rollNo || `USN2026${String(idx + 1).padStart(3, '0')}`;
+          return {
+            id: s.id,
+            usn: usnVal,
+            admissionNo: usnVal,
+            fullName: s.fullName || s.name || `Student ${idx + 1}`,
+          };
+        });
+        setRoster(students);
+      }
+
+      if (rosterRes?.classSection?.name) {
+        const parts = rosterRes.classSection.name.split('-');
+        if (parts[0]) setSelectedClass(parts[0].replace(/class/i, '').trim() || parts[0]);
+        if (parts[1]) setSelectedSection(parts[1].trim());
+      }
+
+      if (existingRes?.record) {
+        setLocked(existingRes.record.status === 'locked');
+        const initial: Record<string, Status> = {};
+        for (const e of existingRes.entries || []) {
+          initial[e.studentId] = e.attendanceStatus === 'absent' ? 'absent' : 'present';
+        }
+        setAttendanceRecords((prev) => ({
+          ...prev,
+          [currentKey]: { ...(prev[currentKey] || {}), ...initial },
+        }));
+      }
+    } catch {
+      // Keep dynamic local data
+    } finally {
+      setLoading(false);
+    }
+  }, [slotId, selectedDate, currentKey]);
+
+  useEffect(() => {
+    loadSlotData();
+  }, [loadSlotData]);
+
+  // Current marks for selected class-section-date
+  const marks = useMemo(() => {
+    return attendanceRecords[currentKey] || {};
+  }, [attendanceRecords, currentKey]);
+
+  // Check if a specific student is currently editable
+  const isRowEditable = (studentId: string) => {
+    if (locked) return false;
+    return isAllEditable || editingStudentIds.has(studentId);
+  };
+
+  // Toggle single student edit mode
+  const toggleStudentEdit = (studentId: string) => {
+    if (locked) return;
+    if (isAllEditable) return;
+    setEditingStudentIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(studentId)) {
+        next.delete(studentId);
+      } else {
+        next.add(studentId);
+      }
+      return next;
+    });
+  };
+
+  // Global edit toggle
+  const toggleGlobalEdit = () => {
+    if (locked) return;
+    if (isAllEditable) {
+      setIsAllEditable(false);
+      setEditingStudentIds(new Set());
+    } else {
+      setIsAllEditable(true);
+      setEditingStudentIds(new Set());
+    }
+  };
+
+  // Status toggle (only permitted when row is editable)
+  const toggleStudentStatus = (studentId: string, status: Status) => {
+    if (locked) return;
+    if (!isRowEditable(studentId)) {
       Alert.alert(
-        'Session Marked',
-        'This class attendance is already recorded. Tap "Edit Attendance" to make changes.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Edit Attendance', onPress: () => setIsEditMode(true) },
-        ]
+        'Attendance Locked',
+        'Click the edit pencil icon next to this student or "Edit" in the table header to modify attendance.'
       );
       return;
     }
-    const current = marks[studentId] || 'present';
-    const nextStatus: AttendanceStatus = current === 'present' ? 'absent' : 'present';
-    setMarks((prev) => ({
+    setAttendanceRecords((prev) => ({
       ...prev,
-      [studentId]: nextStatus,
+      [currentKey]: {
+        ...(prev[currentKey] || {}),
+        [studentId]: status,
+      },
     }));
-    setHasUnsavedChanges(true);
   };
 
-  const setStudentStatus = (studentId: string, status: AttendanceStatus) => {
-    if (selectedDate > todayStr) {
-      Alert.alert('Future Date Restricted', 'Attendance cannot be recorded for tomorrow or future dates.');
+  // Mark all present (only when editing is active)
+  const markAllPresent = () => {
+    if (locked) return;
+    if (!isAllEditable) {
+      Alert.alert(
+        'Attendance Locked',
+        'Click the "Edit" button in the table header to enable editing before making bulk changes.'
+      );
       return;
     }
-    if (isAlreadyMarked && !isEditMode) {
-      setIsEditMode(true);
-      return;
-    }
-    if (marks[studentId] === status) {
-      // Tapping the currently active status also toggles for intuitive one-handed editing
-      const nextStatus: AttendanceStatus = status === 'present' ? 'absent' : 'present';
-      setMarks((prev) => ({
-        ...prev,
-        [studentId]: nextStatus,
-      }));
-      setHasUnsavedChanges(true);
-      return;
-    }
-    setMarks((prev) => ({
+    const all: Record<string, Status> = {};
+    roster.forEach((s) => {
+      all[s.id] = 'present';
+    });
+    setAttendanceRecords((prev) => ({
       ...prev,
-      [studentId]: status,
+      [currentKey]: all,
     }));
-    setHasUnsavedChanges(true);
   };
 
-  // Calculate live counts
-  const { totalStudents, presentCount, absentCount } = useMemo(() => {
+  // Mark all absent (only when editing is active)
+  const markAllAbsent = () => {
+    if (locked) return;
+    if (!isAllEditable) {
+      Alert.alert(
+        'Attendance Locked',
+        'Click the "Edit" button in the table header to enable editing before making bulk changes.'
+      );
+      return;
+    }
+    const all: Record<string, Status> = {};
+    roster.forEach((s) => {
+      all[s.id] = 'absent';
+    });
+    setAttendanceRecords((prev) => ({
+      ...prev,
+      [currentKey]: all,
+    }));
+  };
+
+  // Filter students by name or USN
+  const filteredRoster = useMemo(() => {
+    if (!searchQuery.trim()) return roster;
+    const q = searchQuery.toLowerCase().trim();
+    return roster.filter(
+      (s) =>
+        (s.fullName || '').toLowerCase().includes(q) ||
+        (s.usn || '').toLowerCase().includes(q) ||
+        (s.admissionNo || '').toLowerCase().includes(q)
+    );
+  }, [roster, searchQuery]);
+
+  // Dynamic Counts (Total, Present, Absent)
+  const counts = useMemo(() => {
     let p = 0;
     let a = 0;
-    for (const s of roster) {
-      if (marks[s.id] === 'absent') {
-        a++;
-      } else {
-        p++;
-      }
-    }
-    return {
-      totalStudents: roster.length,
-      presentCount: p,
-      absentCount: a,
-    };
+    roster.forEach((s) => {
+      if (marks[s.id] === 'absent') a++;
+      else p++;
+    });
+    return { total: roster.length, present: p, absent: a };
   }, [roster, marks]);
 
-  // Search and status-filtered roster (USN or Name & Present/Absent)
-  const filteredRoster = useMemo(() => {
-    return roster.filter((s) => {
-      const currentStatus = marks[s.id] || 'present';
-      if (statusFilter === 'present' && currentStatus !== 'present') return false;
-      if (statusFilter === 'absent' && currentStatus !== 'absent') return false;
-
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const matchUSN = (s.rollNoOrUSN || '').toLowerCase().includes(q);
-        const matchName = (s.fullName || '').toLowerCase().includes(q);
-        if (!matchUSN && !matchName) return false;
-      }
-      return true;
-    });
-  }, [roster, marks, statusFilter, searchQuery]);
-
-  // Submit / Save Handler
-  const handleSubmitAttendance = async () => {
-    if (!selectedClass || roster.length === 0) return;
-    if (selectedDate > todayStr) {
-      Alert.alert('Future Date Restricted', 'Attendance cannot be recorded for tomorrow or future dates.');
-      return;
-    }
+  // Save Attendance
+  const handleSave = async () => {
+    if (roster.length === 0) return;
     setSaving(true);
+    const activeSlotId = slotId || selectedClassCard?.id || `slot-${selectedClass}-${selectedSection}`;
+    const activeClassName = selectedClassCard?.className
+      ? `${selectedClassCard.className}-${selectedSection}`
+      : (className || `Class ${selectedClass}-${selectedSection}`);
+    const activeSubject = selectedSubject || subjectName || selectedClassCard?.subjectName || 'General';
+
     try {
+      // Save locally to useAttendanceStore
+      useAttendanceStore.getState().markPeriodAttendance({
+        slotId: activeSlotId,
+        date: selectedDate,
+        className: activeClassName,
+        normalizedClass: selectedClass,
+        normalizedSection: selectedSection,
+        subjectName: activeSubject,
+        presentCount: counts.present,
+        absentCount: counts.absent,
+        totalStudents: roster.length,
+        marks: { ...marks },
+      });
+
+      if (!slotId || slotId.startsWith('demo-') || slotId.startsWith('tc-') || slotId.startsWith('prop-')) {
+        setIsAllEditable(false);
+        setEditingStudentIds(new Set());
+        Alert.alert(
+          'Attendance Saved',
+          `Attendance for Class ${selectedClass}-${selectedSection} on ${formattedDate} (${counts.present} Present, ${counts.absent} Absent) has been saved.`
+        );
+        onSaved?.({
+          slotId: activeSlotId,
+          className: activeClassName,
+          subjectName: activeSubject,
+          date: selectedDate,
+        });
+        return;
+      }
       const entries = roster.map((s) => ({
         studentId: s.id,
         attendanceStatus: marks[s.id] || 'present',
       }));
-
-      // Call API
-      try {
-        await markAttendanceApi({
-          timetableSlotId: selectedClass.slotId,
-          date: selectedDate,
-          entries,
-        });
-      } catch (apiErr: any) {
-        console.warn('[AttendanceMarkingView] remote sync notice:', apiErr?.message);
-      }
-
-      // Save to local cache
-      const cacheKey = `${selectedClass.id}_${selectedDate}`;
-      const submittedTimeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      SAVED_ATTENDANCE_CACHE[cacheKey] = {
+      await markAttendanceApi({ timetableSlotId: slotId, date: selectedDate, entries });
+      setIsAllEditable(false);
+      setEditingStudentIds(new Set());
+      Alert.alert(
+        'Attendance Saved',
+        `Attendance for Class ${selectedClass}-${selectedSection} on ${formattedDate} has been saved.`
+      );
+      onSaved?.({
+        slotId: activeSlotId,
+        className: activeClassName,
+        subjectName: activeSubject,
         date: selectedDate,
-        classId: selectedClass.id,
-        entries: { ...marks },
-        presentCount,
-        absentCount,
-        totalCount: totalStudents,
-        submittedAt: submittedTimeStr,
-      };
-
-      // Save to shared attendance store
-      AttendanceStore.saveAttendance({
-        date: selectedDate,
-        classId: selectedClass.id,
-        slotId: selectedClass.slotId,
-        classSectionName: selectedClass.classSectionName,
-        subjectName: selectedClass.subjectName,
-        entries: { ...marks },
-        presentCount,
-        absentCount,
-        totalCount: totalStudents,
-        submittedAt: submittedTimeStr,
       });
-
-      setHasUnsavedChanges(false);
-      setIsAlreadyMarked(true);
-      setIsEditMode(false);
-      setIsEditing(true);
-      setShowUnsavedModal(false);
-      setOnDiscardCallback(null);
-
-      // Automatically go back immediately upon submitting attendance
-      navigateBack();
     } catch (err: any) {
-      Alert.alert('Error', err?.message || 'Failed to record attendance');
+      Alert.alert('Error', err?.message || 'Failed to save attendance');
     } finally {
       setSaving(false);
     }
   };
 
-  // =========================================================================
-  // VIEW MODE 1: FACULTY CLASSES LIST (When no class is currently opened)
-  // =========================================================================
-  if (!selectedClass) {
-    return (
-      <View style={styles.container}>
-        {/* Top Header */}
-        <View style={styles.viewHeader}>
-          <Text style={styles.viewTitle}>Mark Attendance</Text>
-          <View style={styles.classesCountPill}>
-            <Text style={styles.classesCountPillText}>
-              {allClasses.length} Classes
-            </Text>
-          </View>
-        </View>
 
-        {/* Classes List */}
+
+  // Calendar Days Computation
+  const calendarDays = useMemo(() => {
+    const year = calendarViewDate.getFullYear();
+    const month = calendarViewDate.getMonth();
+
+    const firstDay = new Date(year, month, 1).getDay(); // 0 = Sun
+    const totalDays = new Date(year, month + 1, 0).getDate();
+    const prevMonthTotalDays = new Date(year, month, 0).getDate();
+
+    const cells: { day: number; currentMonth: boolean; dateStr: string }[] = [];
+
+    // Preceding days from previous month
+    for (let i = firstDay - 1; i >= 0; i--) {
+      const d = prevMonthTotalDays - i;
+      const prevM = month === 0 ? 11 : month - 1;
+      const prevY = month === 0 ? year - 1 : year;
+      const mm = String(prevM + 1).padStart(2, '0');
+      const dd = String(d).padStart(2, '0');
+      cells.push({ day: d, currentMonth: false, dateStr: `${prevY}-${mm}-${dd}` });
+    }
+
+    // Days in current month
+    for (let d = 1; d <= totalDays; d++) {
+      const mm = String(month + 1).padStart(2, '0');
+      const dd = String(d).padStart(2, '0');
+      cells.push({ day: d, currentMonth: true, dateStr: `${year}-${mm}-${dd}` });
+    }
+
+    // Trailing days
+    const remaining = 7 - (cells.length % 7);
+    if (remaining < 7) {
+      for (let d = 1; d <= remaining; d++) {
+        const nextM = month === 11 ? 0 : month + 1;
+        const nextY = month === 11 ? year + 1 : year;
+        const mm = String(nextM + 1).padStart(2, '0');
+        const dd = String(d).padStart(2, '0');
+        cells.push({ day: d, currentMonth: false, dateStr: `${nextY}-${mm}-${dd}` });
+      }
+    }
+
+    return cells;
+  }, [calendarViewDate]);
+
+  const shiftCalendarMonth = (delta: number) => {
+    setCalendarViewDate((prev) => {
+      const d = new Date(prev);
+      d.setMonth(prev.getMonth() + delta);
+      return d;
+    });
+  };
+
+  // =========================================================================
+  // VIEW 1: FIRST SHOW THE CLASSES TAKEN BY THIS TEACHER IN RECTANGULAR BOXES
+  // =========================================================================
+  if (!selectedClassCard) {
+    return (
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <ScrollView
           contentContainerStyle={styles.classesScrollContent}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          automaticallyAdjustKeyboardInsets={true}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#000000"
+              colors={['#000000']}
+              progressBackgroundColor="#FFFFFF"
+            />
+          }
         >
-          {allClasses.map((cls) => {
-            const isScheduledToday = checkClassScheduledOnDate(cls, todayStr);
-            const isMarked = AttendanceStore.isAttendanceMarked({
-              classId: cls.id,
-              slotId: cls.slotId,
-              classSectionName: cls.classSectionName,
-              subjectName: cls.subjectName,
-              date: todayStr,
-            });
+          {/* Header */}
+          <View style={styles.classesHeader}>
+            <Text style={styles.classesHeaderTitle}>Attendance</Text>
+          </View>
 
-            const isTomorrow = (() => {
-              const tomorrow = new Date();
-              tomorrow.setDate(tomorrow.getDate() + 1);
-              return cls.scheduledDays.includes(tomorrow.getDay());
-            })();
-
-            return (
-              <TouchableOpacity
-                key={cls.id}
-                style={[
-                  styles.classCard,
-                  cls.isTemporary && styles.temporaryClassCard,
-                  !isScheduledToday && !isMarked && styles.classCardNotToday,
-                ]}
-                onPress={() => handleSelectClass(cls)}
-                activeOpacity={isScheduledToday || isMarked ? 0.8 : 0.65}
-              >
-                {/* Top Section: Pill Badge */}
-                <View style={styles.cardBadgesRow}>
-                  <View style={styles.sectionBadgePill}>
-                    <Text style={styles.sectionBadgeText}>{cls.classSectionName}</Text>
-                  </View>
-
-                  {!isScheduledToday && !isMarked && (
-                    <View style={styles.notTodayBadgeWrap}>
-                      <Text style={styles.notTodayBadgeText}>
-                        {isTomorrow ? 'Scheduled Tomorrow' : `Next: ${cls.scheduledDaysText}`}
-                      </Text>
-                    </View>
-                  )}
-
-                  {cls.isTemporary ? (
-                    <View style={styles.temporaryPill}>
-                      <MaterialCommunityIcons name="clock-outline" size={12} color="#92400E" />
-                      <Text style={styles.temporaryPillText}>TEMPORARY CLASS</Text>
-                    </View>
-                  ) : cls.transferredOutTo ? (
-                    <View style={styles.transferredOutBadgeWrap}>
-                      <MaterialCommunityIcons name="swap-horizontal" size={13} color="#92400E" />
-                      <Text style={styles.transferredOutBadgeText}>
-                        Transferred: {cls.transferredOutTo}
-                      </Text>
-                    </View>
-                  ) : null}
-                </View>
-
-                {/* Subject Title */}
-                <Text style={styles.cardSubjectTitle}>{cls.subjectName}</Text>
-
-                {/* Substituted Coverage Note if temporary */}
-                {cls.isTemporary && cls.transferredFrom ? (
-                  <Text style={styles.temporarySubFromText}>
-                    Substituted from {cls.transferredFrom}
-                    {cls.transferReason ? ` • ${cls.transferReason}` : ''}
-                  </Text>
-                ) : null}
-
-                {/* Student Count Text (Clean without icon) */}
-                <Text style={styles.cardStudentCountText}>{cls.studentCount} Students</Text>
-
-                {/* Subtle Divider Line */}
-                <View style={styles.cardDivider} />
-
-                {/* Bottom Row: Clock + Schedule on Left, Button on Right */}
-                <View style={styles.cardBottomRow}>
-                  <View style={styles.scheduleInfoWrap}>
-                    <Feather name="clock" size={14} color="#D97706" />
-                    <Text
-                      style={[
-                        styles.scheduleText,
-                        { fontSize: responsiveScheduleFontSize },
-                      ]}
-                      numberOfLines={1}
-                      ellipsizeMode="tail"
-                      adjustsFontSizeToFit
-                      minimumFontScale={0.8}
-                    >
-                      {cls.periodTime || '10:00 AM - 10:50 AM'}
-                    </Text>
-                  </View>
-
-                  <View
-                    style={[
-                      styles.markCtaBtn,
-                      cls.isTemporary && styles.markCtaBtnTemporary,
-                      isMarked && styles.markCtaBtnMarked,
-                      !isScheduledToday && !isMarked && styles.markCtaBtnNotScheduled,
-                    ]}
-                  >
-                    {isMarked ? (
-                      <>
-                        <Feather name="check" size={13} color="#111827" />
-                        <Text style={[styles.markCtaBtnText, styles.markCtaBtnMarkedText]}>
-                          Marked · Edit
-                        </Text>
-                        <Feather name="chevron-right" size={13} color="#6B7280" />
-                      </>
-                    ) : !isScheduledToday ? (
-                      <Text style={[styles.markCtaBtnText, styles.markCtaBtnNotScheduledText]}>
-                        {isTomorrow ? 'Scheduled Tomorrow' : 'Not Scheduled'}
-                      </Text>
-                    ) : (
-                      <>
-                        <Text style={styles.markCtaBtnText}>
-                          {cls.isTemporary ? 'Mark Coverage' : 'Mark Attendance'}
-                        </Text>
-                        <Feather name="chevron-right" size={14} color="#111827" />
-                      </>
-                    )}
-                  </View>
-                </View>
+          {/* Search Box */}
+          <View style={styles.classSearchBox}>
+            <Feather name="search" size={16} color="#9CA3AF" />
+            <TextInput
+              style={styles.classSearchInput}
+              placeholder="Search class, section or subject..."
+              placeholderTextColor="#9CA3AF"
+              value={classSearchQuery}
+              onChangeText={setClassSearchQuery}
+              returnKeyType="search"
+            />
+            {classSearchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setClassSearchQuery('')} hitSlop={8}>
+                <Feather name="x" size={15} color="#9CA3AF" />
               </TouchableOpacity>
-            );
-          })}
+            )}
+          </View>
+
+          {/* Assigned Classes Section */}
+          <View style={styles.sectionTitleRow}>
+            <Text style={styles.sectionTitleText}>CLASSES TAKEN BY YOU</Text>
+            <View style={styles.classCountPill}>
+              <Text style={styles.classCountText}>
+                {filteredTeacherClasses.length} {filteredTeacherClasses.length === 1 ? 'Class' : 'Classes'}
+              </Text>
+            </View>
+          </View>
+
+          {/* Rectangular Containers List */}
+          <View style={styles.classListWrap}>
+            {filteredTeacherClasses.length === 0 ? (
+              <View style={styles.emptyClassesCard}>
+                <Text style={styles.emptyClassesText}>No matching classes found</Text>
+              </View>
+            ) : (
+              filteredTeacherClasses.map((item) => {
+                const marked = isCardMarked(item);
+                return (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={styles.rectangularClassCard}
+                    activeOpacity={0.8}
+                    onPress={() => handleSelectClass(item)}
+                  >
+                    <View style={styles.classCardLeft}>
+                      <View style={styles.classCardTextWrap}>
+                        <View style={styles.classNameSectionRow}>
+                          <Text style={styles.cardClassName}>{item.className}</Text>
+                          <Text style={styles.cardSectionText}>Section {item.sectionName}</Text>
+                        </View>
+                        {/* Subject Display */}
+                        <View style={styles.cardSubjectRow}>
+                          <Text style={styles.cardSubjectText}>{item.subjectName || 'General'}</Text>
+                        </View>
+                      </View>
+                    </View>
+
+                    <View style={styles.classCardRight}>
+                      {marked ? (
+                        <View style={styles.markedBadge}>
+                          <Feather name="check" size={12} color="#047857" />
+                          <Text style={styles.markedBadgeText}>Marked</Text>
+                        </View>
+                      ) : (
+                        <View style={styles.takeAttendanceBtn}>
+                          <Text style={styles.takeAttendanceBtnText}>Mark Attendance</Text>
+                        </View>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })
+            )}
+          </View>
         </ScrollView>
-      </View>
+      </KeyboardAvoidingView>
     );
   }
 
   // =========================================================================
-  // VIEW MODE 2: ATTENDANCE MARKING & EDITING SCREEN
+  // VIEW 2: CURRENT ATTENDANCE PAGE (OPENS AFTER CLICKING A CLASS CARD)
   // =========================================================================
-  const isToday = selectedDate === todayStr;
+  const displayClassTitle =
+    selectedClassCard?.className ||
+    (selectedClass.toLowerCase().startsWith('class') ? selectedClass : `Class ${selectedClass}`);
 
   return (
-    <View style={styles.container}>
-      {/* SCROLLABLE CONTENT WITH STICKY STATS HEADER */}
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       <ScrollView
-        style={styles.markingScrollView}
-        contentContainerStyle={styles.markingScrollContent}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        stickyHeaderIndices={[2]}
+        keyboardDismissMode="on-drag"
+        automaticallyAdjustKeyboardInsets={true}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#000000"
+            colors={['#000000']}
+            progressBackgroundColor="#FFFFFF"
+          />
+        }
       >
-        {/* Child 0: TOP HEADER (Moves up while scrolling!) */}
-        <View style={styles.markingTopHeader}>
+        {/* Top Navigation Bar: Back button, Class & Section, Subject badge, Change Class */}
+        <View style={styles.topNavRow}>
           <TouchableOpacity
-            style={styles.smallBackBtn}
-            onPress={handleBackPress}
+            style={styles.topNavBackBtn}
             activeOpacity={0.7}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            onPress={handleBackFromDetail}
           >
-            <Feather name="arrow-left" size={18} color="#111827" />
+            <Feather name="arrow-left" size={18} color="#171717" />
           </TouchableOpacity>
-
-          <View style={styles.headerHeadlineWrap}>
-            <Text style={styles.markingClassTitle} numberOfLines={1}>
-              {selectedClass.classSectionName}
+          <View style={styles.topNavTextWrap}>
+            <Text style={styles.topNavTitle}>
+              {displayClassTitle} · Section {selectedSection}
             </Text>
-            <Text style={styles.markingSubjectTitle} numberOfLines={1}>
-              {selectedClass.subjectName}
-            </Text>
+            {/* Subject Display in Top Nav */}
+            <View style={styles.topNavSubjectBadge}>
+              <Text style={styles.topNavSubjectText}>{selectedSubject}</Text>
+            </View>
           </View>
+          <TouchableOpacity
+            style={styles.changeClassBtn}
+            activeOpacity={0.8}
+            onPress={() => setSelectedClassCard(null)}
+          >
+            <Text style={styles.changeClassBtnText}>Change Class</Text>
+          </TouchableOpacity>
+        </View>
 
-          <View style={styles.headerRightWrap}>
-            {hasUnsavedChanges ? (
-              <View style={styles.unsavedBadge}>
-                <Text style={styles.unsavedBadgeText}>Unsaved</Text>
+        {/* Date Selector Row */}
+        <View style={styles.dateSelectorRow}>
+          <View style={styles.dateSelectorCol}>
+            <Text style={styles.dateSelectorLabel}>Date</Text>
+            <TouchableOpacity
+              style={[
+                styles.dateSelectorBox,
+                openDropdown === 'date' && styles.selectorBoxActive,
+              ]}
+              activeOpacity={0.75}
+              onPress={() => {
+                if (selectedDate) {
+                  const parts = selectedDate.split('-').map(Number);
+                  setCalendarViewDate(new Date(parts[0], parts[1] - 1, parts[2]));
+                }
+                setOpenDropdown(openDropdown === 'date' ? null : 'date');
+              }}
+            >
+              <View style={styles.dateBoxLeft}>
+                <Feather name="calendar" size={14} color="#0284C7" />
+                <Text style={styles.dateBoxText}>{formattedDate}</Text>
               </View>
-            ) : isAlreadyMarked && !isEditMode ? (
-              <TouchableOpacity
-                style={styles.headerEditBtn}
-                onPress={() => setIsEditMode(true)}
-                activeOpacity={0.7}
-              >
-                <Feather name="edit-2" size={12} color="#111827" style={{ marginRight: 4 }} />
-                <Text style={styles.headerEditBtnText}>Edit</Text>
-              </TouchableOpacity>
-            ) : (
-              <View
-                style={[
-                  styles.modePill,
-                  isEditMode && isAlreadyMarked ? styles.modePillEditing : styles.modePillNew,
-                ]}
-              >
-                <Feather
-                  name={isAlreadyMarked ? 'edit-2' : 'plus-circle'}
-                  size={12}
-                  color={isAlreadyMarked ? '#111827' : '#92400E'}
-                  style={{ marginRight: 4 }}
-                />
-                <Text
-                  style={[
-                    styles.modePillText,
-                    isAlreadyMarked ? styles.modePillTextEditing : styles.modePillTextNew,
-                  ]}
+              <Feather
+                name={openDropdown === 'date' ? 'chevron-up' : 'chevron-down'}
+                size={14}
+                color={openDropdown === 'date' ? '#0284C7' : '#4B5563'}
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Inline Calendar Card for Date */}
+        {openDropdown === 'date' && (
+          <View style={styles.inlineCardWrapper}>
+            <View style={styles.inlineCalendarCard}>
+              <View style={styles.calendarHeaderRow}>
+                <Text style={styles.calendarHeaderTitle}>Select Date</Text>
+                <TouchableOpacity onPress={() => setOpenDropdown(null)} hitSlop={8}>
+                  <Feather name="chevron-up" size={17} color="#64748B" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Month Navigation */}
+              <View style={styles.calendarNavRow}>
+                <TouchableOpacity
+                  style={styles.calNavBtn}
+                  onPress={() => shiftCalendarMonth(-1)}
+                  hitSlop={8}
                 >
-                  {isAlreadyMarked ? 'Editing' : 'New Session'}
+                  <Feather name="chevron-left" size={17} color="#1F2937" />
+                </TouchableOpacity>
+                <Text style={styles.calMonthTitle}>
+                  {MONTH_NAMES[calendarViewDate.getMonth()]} {calendarViewDate.getFullYear()}
                 </Text>
+                <TouchableOpacity
+                  style={styles.calNavBtn}
+                  onPress={() => shiftCalendarMonth(1)}
+                  hitSlop={8}
+                >
+                  <Feather name="chevron-right" size={17} color="#1F2937" />
+                </TouchableOpacity>
               </View>
-            )}
+
+              {/* Day of Week Labels */}
+              <View style={styles.calWeekRow}>
+                {WEEK_DAYS.map((wd) => (
+                  <Text key={wd} style={styles.calWeekText}>
+                    {wd}
+                  </Text>
+                ))}
+              </View>
+
+              {/* Days Grid */}
+              <View style={styles.calGrid}>
+                {calendarDays.map((cell, idx) => {
+                  const isSelected = selectedDate === cell.dateStr;
+                  return (
+                    <TouchableOpacity
+                      key={`${cell.dateStr}-${idx}`}
+                      style={[
+                        styles.calCell,
+                        isSelected && styles.calCellSelected,
+                      ]}
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        setSelectedDate(cell.dateStr);
+                        setOpenDropdown(null);
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.calCellText,
+                          !cell.currentMonth && styles.calCellTextDim,
+                          isSelected && styles.calCellTextSelected,
+                        ]}
+                      >
+                        {cell.day}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Quick Today & Close Footer */}
+              <View style={styles.calFooter}>
+                <TouchableOpacity
+                  style={styles.calTodayBtn}
+                  onPress={() => {
+                    const d = new Date();
+                    const yyyy = d.getFullYear();
+                    const mm = String(d.getMonth() + 1).padStart(2, '0');
+                    const dd = String(d.getDate()).padStart(2, '0');
+                    setSelectedDate(`${yyyy}-${mm}-${dd}`);
+                    setOpenDropdown(null);
+                  }}
+                >
+                  <Text style={styles.calTodayText}>Today</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.calCloseBtn}
+                  onPress={() => setOpenDropdown(null)}
+                >
+                  <Text style={styles.calCloseText}>Close</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
-        </View>
-        {/* Child 1: DATE SELECTOR BAR (Scrolls up with the page!) */}
-        <View style={styles.dateSelectorBar}>
-          <TouchableOpacity
-            style={styles.dateArrowBtn}
-            onPress={() => shiftDate(-1)}
-            activeOpacity={0.7}
-          >
-            <Feather name="chevron-left" size={18} color="#111827" />
-          </TouchableOpacity>
+        )}
 
-          <View style={styles.dateCenterWrap}>
-            <TouchableOpacity
-              style={styles.dateBadgeRow}
-              onPress={handleOpenCalendar}
-              activeOpacity={0.7}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <MaterialCommunityIcons name="calendar-month-outline" size={17} color="#D97706" />
-              <Text style={styles.dateDisplayLabel}>{formatDateDisplay(selectedDate)}</Text>
-              {isToday ? (
-                <View style={styles.todayPill}>
-                  <Text style={styles.todayPillText}>TODAY</Text>
-                </View>
-              ) : null}
-            </TouchableOpacity>
-            {!isToday && (
-              <TouchableOpacity style={styles.jumpTodayBtn} onPress={jumpToToday} activeOpacity={0.7}>
-                <Text style={styles.jumpTodayText}>Go to Today</Text>
-              </TouchableOpacity>
-            )}
+        {/* 3. Summary Stat Cards (Dynamically computed: Total Students, Present, Absent) */}
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>Total Students</Text>
+            <Text style={styles.statNumber}>{counts.total}</Text>
           </View>
-
-          <TouchableOpacity
-            style={[styles.dateArrowBtn, selectedDate >= todayStr && styles.dateArrowBtnDisabled]}
-            onPress={() => shiftDate(1)}
-            disabled={selectedDate >= todayStr}
-            activeOpacity={0.7}
-          >
-            <Feather name="chevron-right" size={18} color={selectedDate >= todayStr ? '#D1D5DB' : '#111827'} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Child 2: STICKY STATS SUMMARY (STOPS AFTER REACHING THE TOP!) */}
-        <View style={styles.stickyHeaderSection}>
-          {/* CLICKABLE SUMMARY STATS (Total Students | Present | Absent) */}
-          <View style={styles.statsSummaryContainer}>
-            <TouchableOpacity
-              style={[styles.statBox, statusFilter === 'all' && styles.statBoxActiveAll]}
-              onPress={() => setStatusFilter('all')}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.statNumber}>{totalStudents}</Text>
-              <Text style={styles.statLabel}>Total Students</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.statBox, statusFilter === 'present' && styles.statBoxActivePresent]}
-              onPress={() => setStatusFilter((cur) => (cur === 'present' ? 'all' : 'present'))}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.statNumber, { color: '#16A34A' }]}>{presentCount}</Text>
-              <Text style={styles.statLabel}>Present</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.statBox, statusFilter === 'absent' && styles.statBoxActiveAbsent]}
-              onPress={() => setStatusFilter((cur) => (cur === 'absent' ? 'all' : 'absent'))}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.statNumber, { color: '#DC2626' }]}>{absentCount}</Text>
-              <Text style={styles.statLabel}>Absent</Text>
-            </TouchableOpacity>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>Present</Text>
+            <Text style={styles.statNumber}>{counts.present}</Text>
           </View>
-        </View>
-
-        {/* Child 3: SEARCH BAR (Live filtering by USN or Name - Scrolls up to open screen space!) */}
-        <View style={styles.searchBarContainer}>
-          <View style={styles.searchBox}>
-            <Feather name="search" size={16} color="#9CA3AF" style={{ marginRight: 8 }} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search by USN or Student Name..."
-              placeholderTextColor="#9CA3AF"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Feather name="x" size={16} color="#111827" />
-              </TouchableOpacity>
-            )}
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>Absent</Text>
+            <Text style={styles.statNumber}>{counts.absent}</Text>
           </View>
         </View>
 
-        {/* Child 4: ROSTER INFO ROW (Scrolls up) */}
-        <View style={styles.rosterCountRow}>
-          <Text style={styles.rosterCountText}>
-            Showing {filteredRoster.length} of {totalStudents} Students
-            {statusFilter === 'present' ? ' (Present Only)' : statusFilter === 'absent' ? ' (Absent Only)' : ''}
-          </Text>
-          {statusFilter !== 'all' && (
-            <TouchableOpacity
-              onPress={() => setStatusFilter('all')}
-              style={styles.clearFilterBtn}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.clearFilterText}>Show All</Text>
+        {/* 4. Student Search Bar */}
+        <View style={styles.searchBar}>
+          <Feather name="search" size={16} color="#9CA3AF" />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search student name or USN..."
+            placeholderTextColor="#9CA3AF"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={8}>
+              <Feather name="x" size={15} color="#9CA3AF" />
             </TouchableOpacity>
           )}
         </View>
-        {/* If this is a Temporary Substituted Class */}
-        {selectedClass.isTemporary && (
-          <View style={styles.temporaryClassTopBanner}>
-            <MaterialCommunityIcons name="swap-horizontal" size={16} color="#92400E" />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.temporaryClassBannerTitle}>
-                Temporary Substituted Class Session
-              </Text>
-              <Text style={styles.temporaryClassBannerSub}>
-                Coverage assigned from {selectedClass.transferredFrom} • Attendance responsibility delegated to you
-                {selectedClass.transferReason ? ` • Note: ${selectedClass.transferReason}` : ''}
-              </Text>
-            </View>
-          </View>
-        )}
 
-        {/* If this class was transferred out to another substitute teacher on selectedDate */}
-        {transferredOutInfo && (
-          <View style={styles.transferredOutBanner}>
-            <MaterialCommunityIcons name="account-arrow-right" size={16} color="#1E40AF" />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.transferredOutBannerTitle}>
-                Class Transferred to Substitute Faculty
-              </Text>
-              <Text style={styles.transferredOutBannerSub}>
-                This class session was transferred to {transferredOutInfo} on {formatDateDisplay(selectedDate)}. Attendance responsibility was assigned to the substitute teacher.
-              </Text>
-            </View>
-          </View>
-        )}
-
-
-        {/* Future Date Warning Banner */}
-        {selectedDate > todayStr && (
-          <View style={styles.futureDateBanner}>
-            <MaterialCommunityIcons name="alert-circle-outline" size={16} color="#B45309" />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.futureDateBannerTitle}>
-                Future Date Session (Tomorrow / Upcoming)
-              </Text>
-              <Text style={styles.futureDateBannerSub}>
-                Attendance cannot be recorded before a class session takes place. Please record attendance on the scheduled date.
-              </Text>
-            </View>
-          </View>
-        )}
-
-        {/* STUDENT ROSTER (Structured Brand-Colored Roster) */}
+        {/* 5. Student Attendance Table */}
         {loading ? (
-          <View style={styles.centerBox}>
-            <ActivityIndicator size="large" color="#111827" />
-            <Text style={styles.loadingText}>Loading class roster...</Text>
-          </View>
-        ) : filteredRoster.length === 0 ? (
-          <View style={styles.emptySearchBox}>
-            <Feather name="users" size={32} color="#9CA3AF" />
-            <Text style={styles.emptySearchTitle}>
-              {statusFilter !== 'all'
-                ? `No students marked as ${statusFilter}`
-                : `No students match "${searchQuery}"`}
-            </Text>
-            <Text style={styles.emptySearchSub}>
-              {statusFilter !== 'all'
-                ? 'Click "Show All" or tap the summary box above to view all students.'
-                : 'Try searching with a different USN or name.'}
-            </Text>
-          </View>
+          <TeacherAttendanceSkeleton />
         ) : (
-          <View style={styles.rosterListWrap}>
-            {filteredRoster.map((student) => {
-              const currentStatus = marks[student.id] || 'present';
-              const isPresent = currentStatus === 'present';
-              const isAbsent = currentStatus === 'absent';
+          <View style={styles.tableCard}>
+            {/* Table Header */}
+            <View style={styles.tableHeaderRow}>
+              <Text style={[styles.thText, styles.colIndex]} numberOfLines={1}>#</Text>
+              <Text style={[styles.thText, styles.colUsn]} numberOfLines={1}>USN</Text>
+              <Text style={[styles.thText, styles.colName]} numberOfLines={1}>Student Name</Text>
+              <Text style={[styles.thText, styles.colPercent]} numberOfLines={1}>%</Text>
+              <Text style={[styles.thText, styles.colAttendance]} numberOfLines={1}>Attendance</Text>
+              <TouchableOpacity
+                style={styles.colEditHeader}
+                activeOpacity={0.6}
+                hitSlop={8}
+                onPress={toggleGlobalEdit}
+              >
+                <Feather
+                  name={isAllEditable ? 'check' : 'edit-2'}
+                  size={13}
+                  color={isAllEditable ? '#15803D' : '#64748B'}
+                />
+              </TouchableOpacity>
+            </View>
+
+            {/* Table Rows */}
+            {filteredRoster.map((student, i) => {
+              const status = marks[student.id] || 'present';
+              const isPresent = status === 'present';
+              const isAbsent = status === 'absent';
+              const editable = isRowEditable(student.id);
+              const pct = getStudentAttendancePercent(student.id, student.fullName);
 
               return (
-                <TouchableOpacity
-                  key={student.id}
-                  style={styles.studentCard}
-                  onPress={() => toggleStudentStatus(student.id)}
-                  activeOpacity={0.8}
-                >
-                  {/* Left: Student Name, USN, and Brand Stat Pill */}
-                  <View style={styles.studentInfoLeft}>
-                    <Text style={styles.studentFullName}>{student.fullName}</Text>
-                    <Text style={styles.studentUSN}>{student.rollNoOrUSN}</Text>
-                    <View style={styles.studentStatsBadge}>
-                      <Text style={styles.studentStatsText}>
-                        {student.attendanceStats || '7/10 · 70%'}
-                      </Text>
-                    </View>
+                <View key={student.id} style={styles.tableRow}>
+                  <Text style={[styles.tdText, styles.colIndex]}>{i + 1}</Text>
+                  <Text style={[styles.tdUsn, styles.colUsn]} numberOfLines={1}>
+                    {student.usn || student.admissionNo}
+                  </Text>
+                  <Text style={[styles.tdName, styles.colName]} numberOfLines={1}>
+                    {student.fullName}
+                  </Text>
+                  <View style={styles.colPercent}>
+                    <Text
+                      style={[
+                        styles.tdPercent,
+                        {
+                          color: pct < 75 ? '#DC2626' : '#171717',
+                        },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {pct}%
+                    </Text>
                   </View>
 
-                  {/* Right: Single Badge in View Mode, or Present | Absent segmented form in Edit Mode */}
-                  {isAlreadyMarked && !isEditMode ? (
-                    <View
+                  {/* Attendance Toggle Buttons */}
+                  <View style={styles.colAttendance}>
+                    <TouchableOpacity
                       style={[
-                        styles.singleStatusBtn,
-                        isPresent ? styles.presentStatusBtn : styles.absentStatusBtn,
+                        styles.statusBtn,
+                        isPresent ? styles.presentActive : styles.btnInactive,
+                        !editable && styles.statusBtnFixed,
                       ]}
+                      onPress={() => toggleStudentStatus(student.id, 'present')}
+                      activeOpacity={editable ? 0.8 : 1}
                     >
                       <Feather
-                        name={isPresent ? 'check' : 'x'}
-                        size={11}
-                        color={isPresent ? '#111827' : '#FFFFFF'}
+                        name="check"
+                        size={15}
+                        color={isPresent ? '#15803D' : '#9CA3AF'}
                       />
-                      <Text
-                        style={[
-                          styles.singleStatusText,
-                          isPresent ? styles.presentStatusText : styles.absentStatusText,
-                        ]}
-                      >
-                        {isPresent ? 'Present' : 'Absent'}
-                      </Text>
-                    </View>
-                  ) : (
-                    <View style={styles.segmentedToggleWrap}>
-                      <TouchableOpacity
-                        style={[
-                          styles.segmentBtn,
-                          styles.segmentBtnLeft,
-                          isPresent ? styles.segmentPresentActive : styles.segmentInactive,
-                        ]}
-                        onPress={() => setStudentStatus(student.id, 'present')}
-                        disabled={selectedDate > todayStr}
-                        activeOpacity={0.8}
-                      >
-                        <Feather
-                          name="check"
-                          size={11}
-                          color={isPresent ? '#111827' : '#9CA3AF'}
-                        />
-                        <Text
-                          style={[
-                            styles.segmentBtnText,
-                            isPresent ? styles.segmentPresentTextActive : styles.segmentTextInactive,
-                          ]}
-                        >
-                          Present
-                        </Text>
-                      </TouchableOpacity>
+                    </TouchableOpacity>
 
-                      <View style={styles.segmentDivider} />
+                    <TouchableOpacity
+                      style={[
+                        styles.statusBtn,
+                        isAbsent ? styles.absentActive : styles.btnInactive,
+                        !editable && styles.statusBtnFixed,
+                      ]}
+                      onPress={() => toggleStudentStatus(student.id, 'absent')}
+                      activeOpacity={editable ? 0.8 : 1}
+                    >
+                      <Feather
+                        name="x"
+                        size={15}
+                        color={isAbsent ? '#DC2626' : '#9CA3AF'}
+                      />
+                    </TouchableOpacity>
+                  </View>
 
-                      <TouchableOpacity
-                        style={[
-                          styles.segmentBtn,
-                          styles.segmentBtnRight,
-                          isAbsent ? styles.segmentAbsentActive : styles.segmentInactive,
-                        ]}
-                        onPress={() => setStudentStatus(student.id, 'absent')}
-                        disabled={selectedDate > todayStr}
-                        activeOpacity={0.8}
-                      >
-                        <Feather
-                          name="x"
-                          size={11}
-                          color={isAbsent ? '#FFFFFF' : '#9CA3AF'}
-                        />
-                        <Text
-                          style={[
-                            styles.segmentBtnText,
-                            isAbsent ? styles.segmentAbsentTextActive : styles.segmentTextInactive,
-                          ]}
-                        >
-                          Absent
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                </TouchableOpacity>
+                  {/* Specific Student Edit Icon (without bg box) */}
+                  <TouchableOpacity
+                    style={styles.colEdit}
+                    activeOpacity={0.6}
+                    hitSlop={8}
+                    onPress={() => toggleStudentEdit(student.id)}
+                  >
+                    <Feather
+                      name={editable ? 'check' : 'edit-2'}
+                      size={13}
+                      color={editable ? '#15803D' : '#64748B'}
+                    />
+                  </TouchableOpacity>
+                </View>
               );
             })}
           </View>
         )}
-      </ScrollView>
 
-      {/* DOCKED SUBMIT / EDIT BAR */}
-      <View style={styles.submitBarDock}>
-        {isAlreadyMarked && !isEditMode ? (
+        {/* 6. Bulk Action Controls (Mark All Present & Mark All Absent) */}
+        <View style={styles.bulkRow}>
           <TouchableOpacity
             style={[
-              styles.editAttendanceBtn,
-              (loading || roster.length === 0 || selectedDate > todayStr) && styles.submitButtonDisabled,
+              styles.markAllPresentBtn,
+              !isAllEditable && styles.bulkBtnLocked,
             ]}
-            onPress={() => setIsEditMode(true)}
-            disabled={loading || roster.length === 0 || selectedDate > todayStr}
-            activeOpacity={0.85}
+            onPress={markAllPresent}
+            disabled={locked}
+            activeOpacity={isAllEditable ? 0.82 : 0.9}
           >
-            <Feather name="edit-2" size={16} color="#111827" style={{ marginRight: 8 }} />
-            <Text style={styles.editAttendanceBtnText}>Edit Attendance</Text>
-          </TouchableOpacity>
-        ) : isAlreadyMarked && isEditMode ? (
-          <View style={styles.editDockRow}>
-            <TouchableOpacity
-              style={styles.cancelEditBtn}
-              onPress={() => {
-                if (hasUnsavedChanges) {
-                  Alert.alert(
-                    'Discard Edits',
-                    'Are you sure you want to discard your changes to this attendance session?',
-                    [
-                      { text: 'Keep Editing', style: 'cancel' },
-                      {
-                        text: 'Discard',
-                        style: 'destructive',
-                        onPress: () => {
-                          if (selectedClass) loadClassAttendance(selectedClass, selectedDate);
-                          setIsEditMode(false);
-                        },
-                      },
-                    ]
-                  );
-                } else {
-                  setIsEditMode(false);
-                }
-              }}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.cancelEditBtnText}>Cancel</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.saveChangesBtn,
-                (saving || roster.length === 0) && styles.submitButtonDisabled,
-              ]}
-              onPress={handleSubmitAttendance}
-              disabled={saving || loading || roster.length === 0}
-              activeOpacity={0.85}
-            >
-              {saving ? (
-                <ActivityIndicator size="small" color="#111827" />
-              ) : (
-                <>
-                  <Feather name="check" size={17} color="#111827" style={{ marginRight: 6 }} />
-                  <Text style={styles.saveChangesBtnText}>Save Changes</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <TouchableOpacity
-            style={[
-              styles.submitButton,
-              (saving || roster.length === 0 || selectedDate > todayStr) && styles.submitButtonDisabled,
-            ]}
-            onPress={handleSubmitAttendance}
-            disabled={saving || loading || roster.length === 0 || selectedDate > todayStr}
-            activeOpacity={0.85}
-          >
-            {saving ? (
-              <ActivityIndicator size="small" color="#F4C430" />
-            ) : selectedDate > todayStr ? (
-              <Text style={[styles.submitButtonText, styles.submitButtonTextDisabled]}>
-                Cannot Mark Future Date
-              </Text>
-            ) : (
-              <>
-                <Feather
-                  name="check-circle"
-                  size={18}
-                  color="#F4C430"
-                  style={{ marginRight: 8 }}
-                />
-                <Text style={styles.submitButtonText}>Submit Attendance</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* CALENDAR DATE PICKER MODAL */}
-      <Modal
-        visible={calendarModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setCalendarModalVisible(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setCalendarModalVisible(false)} />
-          <View style={styles.calendarModalCard}>
-            {/* Header */}
-            <View style={styles.calendarModalHeader}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <View style={styles.calendarModalIconWrap}>
-                  <MaterialCommunityIcons name="calendar-month" size={18} color="#D97706" />
-                </View>
-                <Text style={styles.calendarModalTitle}>Select Attendance Date</Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => setCalendarModalVisible(false)}
-                style={styles.modalCloseBtn}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Feather name="x" size={18} color="#111827" />
-              </TouchableOpacity>
-            </View>
-
-            {/* Month Switcher Row */}
-            <View style={styles.calendarMonthRow}>
-              <TouchableOpacity
-                style={styles.calendarNavBtn}
-                onPress={() => changeViewingMonth(-1)}
-                activeOpacity={0.7}
-              >
-                <Feather name="chevron-left" size={18} color="#111827" />
-              </TouchableOpacity>
-
-              <Text style={styles.calendarMonthText}>
-                {CALENDAR_MONTH_NAMES[viewingMonth.getMonth()]} {viewingMonth.getFullYear()}
-              </Text>
-
-              <TouchableOpacity
-                style={[
-                  styles.calendarNavBtn,
-                  viewingMonth.getFullYear() >= new Date().getFullYear() &&
-                    viewingMonth.getMonth() >= new Date().getMonth() &&
-                    styles.calendarNavBtnDisabled,
-                ]}
-                onPress={() => changeViewingMonth(1)}
-                disabled={
-                  viewingMonth.getFullYear() >= new Date().getFullYear() &&
-                  viewingMonth.getMonth() >= new Date().getMonth()
-                }
-                activeOpacity={0.7}
-              >
-                <Feather
-                  name="chevron-right"
-                  size={18}
-                  color={
-                    viewingMonth.getFullYear() >= new Date().getFullYear() &&
-                    viewingMonth.getMonth() >= new Date().getMonth()
-                      ? '#D1D5DB'
-                      : '#111827'
-                  }
-                />
-              </TouchableOpacity>
-            </View>
-
-            {/* Day Labels Row: Su, Mo, Tu, We, Th, Fr, Sa */}
-            <View style={styles.calendarWeekRow}>
-              {CALENDAR_DAY_LABELS.map((dayLabel, idx) => (
-                <Text
-                  key={dayLabel}
-                  style={[
-                    styles.calendarWeekText,
-                    (idx === 0 || idx === 6) && styles.calendarWeekendText,
-                  ]}
-                >
-                  {dayLabel}
-                </Text>
-              ))}
-            </View>
-
-            {/* Days Grid */}
-            <View style={styles.calendarGrid}>
-              {calendarGrid.map((cell, idx) => {
-                if (!cell.day || !cell.dateStr) {
-                  return <View key={`empty-${idx}`} style={styles.calendarEmptyCell} />;
-                }
-
-                return (
-                  <TouchableOpacity
-                    key={`day-${cell.dateStr}`}
-                    style={[
-                      styles.calendarDayCell,
-                      cell.isToday && styles.calendarDayToday,
-                      cell.isSelected && styles.calendarDaySelected,
-                      cell.isFuture && styles.calendarDayDisabled,
-                    ]}
-                    onPress={() => handleSelectCalendarDate(cell.dateStr!)}
-                    disabled={cell.isFuture}
-                    activeOpacity={0.7}
-                  >
-                    <Text
-                      style={[
-                        styles.calendarDayText,
-                        cell.isToday && styles.calendarDayTextToday,
-                        cell.isSelected && styles.calendarDayTextSelected,
-                        cell.isFuture && styles.calendarDayTextDisabled,
-                      ]}
-                    >
-                      {cell.day}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            {/* Footer with Today Jump & Done */}
-            <View style={styles.calendarModalFooter}>
-              <TouchableOpacity
-                style={styles.calendarTodayActionBtn}
-                onPress={() => handleSelectCalendarDate(todayStr)}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.calendarTodayActionText}>Select Today</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.calendarCloseBtn}
-                onPress={() => setCalendarModalVisible(false)}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.calendarCloseBtnText}>Close</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* UNSAVED CHANGES MODAL (Light Yellow Background, Yellow & Black Buttons) */}
-      <Modal
-        visible={showUnsavedModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => {
-          setShowUnsavedModal(false);
-          setOnDiscardCallback(null);
-        }}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.unsavedModalCard}>
-            <View style={styles.modalIconWrap}>
-              <Feather name="alert-triangle" size={24} color="#111827" />
-            </View>
-
-            <Text style={styles.modalTitle}>Unsaved Changes</Text>
-            <Text style={styles.modalMessage}>
-              You have unsaved attendance marks. Are you sure you want to go back without saving?
+            <Text style={[styles.markAllPresentText, !isAllEditable && styles.bulkBtnLockedText]}>
+              Mark All Present
             </Text>
+          </TouchableOpacity>
 
-            <View style={styles.modalActionsColumn}>
-              {/* Yellow Button: Save and Exit */}
-              <TouchableOpacity
-                style={styles.saveAndExitBtn}
-                onPress={handleSubmitAttendance}
-                disabled={saving}
-                activeOpacity={0.85}
-              >
-                {saving ? (
-                  <ActivityIndicator size="small" color="#111827" />
-                ) : (
-                  <Text style={styles.saveAndExitBtnText}>Save and Exit</Text>
-                )}
-              </TouchableOpacity>
-
-              {/* Black Button: Don't Save */}
-              <TouchableOpacity
-                style={styles.dontSaveBtn}
-                onPress={() => {
-                  setShowUnsavedModal(false);
-                  setHasUnsavedChanges(false);
-                  if (onDiscardCallback) {
-                    onDiscardCallback();
-                    setOnDiscardCallback(null);
-                  } else {
-                    navigateBack();
-                  }
-                }}
-                disabled={saving}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.dontSaveBtnText}>Don't Save</Text>
-              </TouchableOpacity>
-
-              {/* Cancel / Keep Editing */}
-              <TouchableOpacity
-                style={styles.cancelModalBtn}
-                onPress={() => {
-                  setShowUnsavedModal(false);
-                  setOnDiscardCallback(null);
-                }}
-                disabled={saving}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.cancelModalBtnText}>Keep Editing</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+          <TouchableOpacity
+            style={[
+              styles.markAllAbsentBtn,
+              !isAllEditable && styles.bulkBtnLocked,
+            ]}
+            onPress={markAllAbsent}
+            disabled={locked}
+            activeOpacity={isAllEditable ? 0.82 : 0.9}
+          >
+            <Text style={[styles.markAllAbsentText, !isAllEditable && styles.bulkBtnLockedText]}>
+              Mark All Absent
+            </Text>
+          </TouchableOpacity>
         </View>
-      </Modal>
-    </View>
+
+        {/* 7. Save Attendance Button */}
+        <TouchableOpacity
+          style={styles.saveBtn}
+          onPress={handleSave}
+          disabled={saving || locked}
+          activeOpacity={0.85}
+        >
+          {saving ? (
+            <ActivityIndicator size="small" color="#111827" />
+          ) : (
+            <Text style={styles.saveBtnText}>Save Attendance</Text>
+          )}
+        </TouchableOpacity>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB', // Clean neutral background
+    backgroundColor: '#FAFAFA',
   },
-
-  // MODE 1: CLASSES OVERVIEW STYLES
-  viewHeader: {
+  // VIEW 1: Classes Taken By You styles
+  classesScrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 100,
+  },
+  classesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+    gap: 10,
+  },
+  classesHeaderTitle: {
+    fontSize: 20,
+    fontFamily: FontFamily.extrabold,
+    color: '#111827',
+  },
+  classesBackBtn: {
+    padding: 4,
+    marginRight: 2,
+  },
+  classSearchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    height: 42,
+    gap: 8,
+    marginBottom: 16,
+  },
+  classSearchInput: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: FontFamily.regular,
+    color: '#171717',
+    paddingVertical: 0,
+  },
+  sectionTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  sectionTitleText: {
+    fontSize: 11.5,
+    fontFamily: FontFamily.bold,
+    color: '#6B7280',
+    letterSpacing: 0.5,
+  },
+  classCountPill: {
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+  },
+  classCountText: {
+    fontSize: 12,
+    fontFamily: FontFamily.bold,
+    color: '#171717',
+  },
+  classListWrap: {
+    gap: 10,
+  },
+  rectangularClassCard: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    borderRadius: 8,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    shadowColor: '#171717',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  classCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  classCardTextWrap: {
+    flex: 1,
+    gap: 2,
+  },
+  classNameSectionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  cardClassName: {
+    fontSize: 15,
+    fontFamily: FontFamily.bold,
+    color: '#171717',
+  },
+  cardSectionText: {
+    fontSize: 13,
+    fontFamily: FontFamily.bold,
+    color: '#4B5563',
+  },
+  cardSubjectRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  cardSubjectText: {
+    fontSize: 12,
+    fontFamily: FontFamily.bold,
+    color: '#171717',
+  },
+  classCardRight: {
+    marginLeft: 10,
+  },
+  takeAttendanceBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    backgroundColor: '#F4C430',
+    width: 126,
+    height: 32,
+    borderRadius: 5,
+  },
+  takeAttendanceBtnText: {
+    fontSize: 11.5,
+    fontFamily: FontFamily.bold,
+    color: '#171717',
+  },
+  markedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    backgroundColor: '#DCFCE7',
+    borderWidth: 1,
+    borderColor: '#86EFAC',
+    width: 126,
+    height: 32,
+    borderRadius: 5,
+  },
+  markedBadgeText: {
+    fontSize: 11.5,
+    fontFamily: FontFamily.bold,
+    color: '#047857',
+  },
+  emptyClassesCard: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    borderRadius: 8,
+    paddingVertical: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyClassesText: {
+    fontSize: 13,
+    color: '#9CA3AF',
+    fontFamily: FontFamily.medium,
+  },
+
+  // VIEW 2: Top Nav & Date styles
+  topNavRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 12,
+    gap: 10,
+  },
+  topNavBackBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 6,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topNavTextWrap: {
+    flex: 1,
+  },
+  topNavTitle: {
+    fontSize: 14,
+    fontFamily: FontFamily.bold,
+    color: '#171717',
+  },
+  topNavSubjectBadge: {
+    alignSelf: 'flex-start',
+    marginTop: 2,
+  },
+  topNavSubjectText: {
+    fontSize: 12,
+    fontFamily: FontFamily.bold,
+    color: '#6B7280',
+  },
+  changeClassBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  changeClassBtnText: {
+    fontSize: 12,
+    fontFamily: FontFamily.bold,
+    color: '#171717',
+  },
+  dateSelectorRow: {
+    flexDirection: 'row',
+    marginBottom: 12,
+  },
+  dateSelectorCol: {
+    flex: 1,
+    gap: 4,
+  },
+  dateSelectorLabel: {
+    fontSize: 11,
+    fontFamily: FontFamily.bold,
+    color: '#374151',
+  },
+  dateSelectorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    borderRadius: 5,
+    paddingHorizontal: 10,
+    height: 38,
+  },
+  dateBoxLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  dateBoxText: {
+    fontSize: 12.5,
+    fontFamily: FontFamily.bold,
+    color: '#111827',
+  },
+
+  // Clean Header following schedule page style: no icon, no subtitle
+  header: {
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 14,
-    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: '#E8E5DC',
   },
-  viewTitle: {
-    fontFamily: FontFamily.bold,
-    fontSize: 20,
-    color: '#111827',
-  },
-  classesCountPill: {
-    backgroundColor: '#FEF9C3',
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  classesCountPillText: {
-    fontFamily: FontFamily.bold,
-    fontSize: 12,
-    color: '#92400E',
-  },
-
-  // Date Selector
-  dateSelectorBar: {
+  headerLeftRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  dateArrowBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: '#F3F4F6',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dateCenterWrap: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  dateBadgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  dateDisplayLabel: {
-    fontFamily: FontFamily.bold,
-    fontSize: 14.5,
-    color: '#111827',
-  },
-  todayPill: {
-    backgroundColor: '#FEF9C3',
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-    paddingHorizontal: 8,
-    paddingVertical: 2.5,
-    borderRadius: 6,
-  },
-  todayPillText: {
-    fontFamily: FontFamily.bold,
-    fontSize: 10.5,
-    color: '#92400E',
-  },
-  jumpTodayBtn: {
-    backgroundColor: '#F4C430',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  jumpTodayText: {
-    fontFamily: FontFamily.bold,
-    fontSize: 11,
-    color: '#111827',
-  },
-
-  classesScrollContent: {
-    padding: 16,
-    gap: 14,
-    paddingBottom: 32,
-  },
-  classCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    shadowColor: '#000000',
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  classCardUnscheduled: {
-    backgroundColor: '#F9FAFB',
-    opacity: 0.8,
-  },
-  cardBadgesRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 6,
-    flexWrap: 'wrap',
-  },
-  sectionBadgePill: {
-    paddingHorizontal: 0,
-    paddingVertical: 0,
-    alignSelf: 'flex-start',
-  },
-  sectionBadgeText: {
-    fontFamily: FontFamily.bold,
-    fontWeight: '700',
-    fontSize: 13,
-    color: '#111827',
-    letterSpacing: -0.1,
-  },
-  cardSubjectTitle: {
-    fontFamily: FontFamily.bold,
-    fontSize: 17,
-    color: '#0F172A',
-    marginBottom: 4,
-    letterSpacing: -0.2,
-  },
-  cardStudentCountText: {
-    fontFamily: FontFamily.medium,
-    fontSize: 13,
-    color: '#64748B',
-    marginBottom: 0,
-  },
-  cardDivider: {
-    height: 1,
-    backgroundColor: '#F1F5F9',
-    marginVertical: 14,
-  },
-  cardBottomRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-    minHeight: 36,
-  },
-  scheduleInfoWrap: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    minWidth: 0,
-  },
-  scheduleText: {
-    fontFamily: FontFamily.medium,
-    fontSize: 12,
-    color: '#64748B',
-    lineHeight: 16,
-    flexShrink: 1,
-  },
-  markCtaBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    backgroundColor: '#F4C430',
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 8,
-    minHeight: 34,
-    flexShrink: 0,
-    shadowColor: '#000000',
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
-  },
-  markCtaBtnText: {
-    fontFamily: FontFamily.bold,
-    fontSize: 12,
-    color: '#111827',
-  },
-  notTodayBadgeWrap: {
-    backgroundColor: '#F3F4F6',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    paddingHorizontal: 8,
-    paddingVertical: 2.5,
-    borderRadius: 6,
-  },
-  notTodayBadgeText: {
-    fontFamily: FontFamily.bold,
-    fontSize: 10.5,
-    color: '#6B7280',
-  },
-  classCardNotToday: {
-    opacity: 0.88,
-  },
-  markCtaBtnNotScheduled: {
-    backgroundColor: '#F3F4F6',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    elevation: 0,
-    shadowOpacity: 0,
-  },
-  markCtaBtnNotScheduledText: {
-    color: '#9CA3AF',
-    fontFamily: FontFamily.medium,
-    fontSize: 11,
-  },
-  dateArrowBtnDisabled: {
-    backgroundColor: '#F9FAFB',
-    borderColor: '#F3F4F6',
-    opacity: 0.45,
-  },
-  futureDateBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FEF9C3',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    marginHorizontal: 16,
-    marginTop: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#FDE68A',
     gap: 10,
   },
-  futureDateBannerTitle: {
-    fontFamily: FontFamily.bold,
-    fontSize: 12.5,
-    color: '#92400E',
+  backBtn: {
+    padding: 4,
+    marginRight: 2,
   },
-  futureDateBannerSub: {
-    fontFamily: FontFamily.regular,
-    fontSize: 11,
-    color: '#A16207',
-    marginTop: 2,
-    lineHeight: 15,
-  },
-  markedBadgePill: {
-    backgroundColor: '#DCFCE7',
-    borderWidth: 1,
-    borderColor: '#86EFAC',
-    paddingHorizontal: 7,
-    paddingVertical: 2.5,
-    borderRadius: 6,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    alignSelf: 'flex-start',
-  },
-  markedBadgeText: {
-    fontFamily: FontFamily.bold,
-    fontSize: 10.5,
-    color: '#15803D',
-  },
-  markCtaBtnMarked: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    elevation: 0,
-    shadowOpacity: 0,
-  },
-  markCtaBtnMarkedText: {
+  headerTitle: {
+    fontSize: 20,
+    fontFamily: FontFamily.extrabold,
     color: '#111827',
+  },
+  headerSubtitle: {
+    fontSize: 12.5,
+    fontFamily: FontFamily.bold,
+    color: '#D97706',
+    marginTop: 2,
   },
 
-  // MODE 2: MARKING SCREEN STYLES
-  markingTopHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  scrollContent: {
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    gap: 12,
+    paddingTop: 14,
+    paddingBottom: 110,
   },
-  smallBackBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 8,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerHeadlineWrap: {
-    flex: 1,
-  },
-  markingClassTitle: {
-    fontFamily: FontFamily.bold,
-    fontSize: 16,
-    color: '#111827',
-  },
-  markingSubjectTitle: {
-    fontFamily: FontFamily.medium,
-    fontSize: 12.5,
-    color: '#6B7280',
-    marginTop: 1,
-  },
-  headerRightWrap: {
-    alignItems: 'flex-end',
-  },
-  lockedHeaderSection: {
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    paddingBottom: 4,
-  },
-  stickyHeaderSection: {
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    paddingBottom: 4,
-    zIndex: 10,
-    elevation: 2,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-  },
-  unsavedBadge: {
-    backgroundColor: '#FEF9C3',
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  unsavedBadgeText: {
-    fontFamily: FontFamily.bold,
-    fontSize: 11,
-    color: '#92400E',
-  },
-  modePill: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-    borderWidth: 1,
+
+  // Selectors row (Class, Section, Date)
+  selectorRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
   },
-  modePillNew: {
-    backgroundColor: '#FEF9C3',
-    borderColor: '#FDE68A',
+  selectorCol: {
+    flex: 1,
+    gap: 4,
   },
-  modePillEditing: {
-    backgroundColor: '#F3F4F6',
-    borderColor: '#E5E7EB',
-  },
-  modePillMarked: {
-    backgroundColor: '#DCFCE7',
-    borderColor: '#86EFAC',
-  },
-  modePillText: {
-    fontFamily: FontFamily.bold,
+  selectorLabel: {
     fontSize: 11,
-  },
-  modePillTextNew: {
-    color: '#92400E',
-  },
-  modePillTextEditing: {
+    fontFamily: FontFamily.bold,
     color: '#374151',
   },
-  modePillTextMarked: {
-    color: '#15803D',
-  },
-
-  unscheduledNoticeBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFBEB',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    gap: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#FEF3C7',
-  },
-  unscheduledNoticeText: {
-    flex: 1,
-    fontFamily: FontFamily.medium,
-    fontSize: 12,
-    color: '#92400E',
-    lineHeight: 16,
-  },
-
-  // SUMMARY STATS (Structured Brand Cards)
-  statsSummaryContainer: {
+  selectorBox: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#FFFFFF',
-    marginHorizontal: 16,
-    marginTop: 8,
-    borderRadius: 12,
-    padding: 6,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    gap: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
+    borderColor: '#E8E5DC',
+    borderRadius: 5,
+    paddingHorizontal: 10,
+    height: 38,
   },
-  statBox: {
-    alignItems: 'center',
-    flex: 1,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1.5,
-    borderColor: 'transparent',
+  selectorBoxActive: {
+    borderColor: '#0284C7',
+    backgroundColor: '#F0F9FF',
   },
-  statBoxActiveAll: {
-    borderColor: '#111827',
-    backgroundColor: '#FFFFFF',
-  },
-  statBoxActivePresent: {
-    borderColor: '#16A34A',
-    backgroundColor: '#F0FDF4',
-  },
-  statBoxActiveAbsent: {
-    borderColor: '#DC2626',
-    backgroundColor: '#FEF2F2',
-  },
-  statNumber: {
+  selectorVal: {
+    fontSize: 12.5,
     fontFamily: FontFamily.bold,
-    fontSize: 18,
     color: '#111827',
   },
+  selectorValActive: {
+    color: '#0284C7',
+  },
+
+  // Stats cards (Total Students, Present, Absent) - reduced compact size
+  statsRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 10,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    borderRadius: 5,
+    paddingVertical: 7,
+    paddingHorizontal: 8,
+    shadowColor: '#171717',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.02,
+    shadowRadius: 1,
+    elevation: 1,
+  },
   statLabel: {
-    fontFamily: FontFamily.bold,
-    fontSize: 11,
+    fontSize: 10,
+    fontFamily: FontFamily.medium,
     color: '#6B7280',
+  },
+  statNumber: {
+    fontSize: 16,
+    fontFamily: FontFamily.extrabold,
+    color: '#111827',
     marginTop: 2,
   },
 
-  // SEARCH BAR
-  searchBarContainer: {
-    paddingHorizontal: 16,
-    marginTop: 8,
-  },
-  searchBox: {
+  // Search input
+  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 10,
+    borderColor: '#E8E5DC',
+    borderRadius: 5,
     paddingHorizontal: 12,
     height: 40,
+    gap: 8,
+    marginBottom: 12,
   },
   searchInput: {
     flex: 1,
+    fontSize: 12.5,
     fontFamily: FontFamily.regular,
-    fontSize: 13,
     color: '#111827',
     paddingVertical: 0,
   },
 
-  // Roster Count & Filter info
-  rosterCountRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    marginTop: 8,
-    marginBottom: 6,
-  },
-  rosterCountText: {
-    fontFamily: FontFamily.medium,
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  clearFilterBtn: {
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-    borderRadius: 6,
-    backgroundColor: '#F3F4F6',
-  },
-  clearFilterText: {
-    fontFamily: FontFamily.medium,
-    fontSize: 11,
-    color: '#111827',
-  },
-
-  // ROSTER & UNIFIED SCROLL VIEW
-  markingScrollView: {
-    flex: 1,
-  },
-  markingScrollContent: {
-    paddingBottom: 96, // Generous padding so last student card is completely visible above the dock
-  },
-  rosterListWrap: {
-    paddingHorizontal: 16,
-    paddingTop: 4,
-    gap: 8,
-  },
-  rosterScrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 4,
-    paddingBottom: 110,
-    gap: 8,
-  },
-  studentCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    shadowColor: '#000',
-    shadowOpacity: 0.02,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
-  },
-  studentInfoLeft: {
-    flex: 1,
-    marginRight: 12,
-  },
-  studentFullName: {
-    fontFamily: FontFamily.bold,
-    fontSize: 14,
-    color: '#111827',
-  },
-  studentUSN: {
-    fontFamily: FontFamily.medium,
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 2,
-  },
-  studentStatsBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#FEF9C3',
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-    marginTop: 4,
-  },
-  studentStatsText: {
-    fontFamily: FontFamily.bold,
-    fontSize: 11,
-    color: '#92400E',
-  },
-
-  // 2-BUTTON SYSTEM
-  // SINGLE STATUS TOGGLE BUTTON (Shows either Present or Absent with smaller font)
-  singleStatusBtn: {
-    flexDirection: 'row',
+  loadingBox: {
+    paddingVertical: 50,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 7,
-    gap: 4,
-    minWidth: 78,
-  },
-  presentStatusBtn: {
-    backgroundColor: '#F4C430',
-    borderWidth: 1,
-    borderColor: '#D97706',
-  },
-  absentStatusBtn: {
-    backgroundColor: '#111827',
-    borderWidth: 1,
-    borderColor: '#000000',
-  },
-  singleStatusText: {
-    fontFamily: FontFamily.bold,
-    fontSize: 11,
-    letterSpacing: 0.2,
-  },
-  presentStatusText: {
-    color: '#111827',
-  },
-  absentStatusText: {
-    color: '#FFFFFF',
   },
 
-  // SEGMENTED TOGGLE (Present | Absent in Edit Mode)
-  segmentedToggleWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 7,
+  // Table card
+  tableCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 5,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#F9FAFB',
+    borderColor: '#E8E5DC',
     overflow: 'hidden',
+    shadowColor: '#171717',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+    marginBottom: 14,
   },
-  segmentBtn: {
+  tableHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: '#FEF9C3',
+    paddingVertical: 10,
     paddingHorizontal: 8,
-    paddingVertical: 5.5,
-    gap: 3.5,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E8E5DC',
   },
-  segmentBtnLeft: {
-    borderTopLeftRadius: 6,
-    borderBottomLeftRadius: 6,
-  },
-  segmentBtnRight: {
-    borderTopRightRadius: 6,
-    borderBottomRightRadius: 6,
-  },
-  segmentDivider: {
-    width: 1,
-    height: 18,
-    backgroundColor: '#E5E7EB',
-  },
-  segmentInactive: {
-    backgroundColor: '#F9FAFB',
-  },
-  segmentPresentActive: {
-    backgroundColor: '#F4C430',
-  },
-  segmentAbsentActive: {
-    backgroundColor: '#111827',
-  },
-  segmentBtnText: {
-    fontFamily: FontFamily.bold,
+  thText: {
     fontSize: 11,
-    letterSpacing: 0.2,
-  },
-  segmentPresentTextActive: {
+    fontFamily: FontFamily.bold,
     color: '#111827',
   },
-  segmentAbsentTextActive: {
-    color: '#FFFFFF',
-  },
-  segmentTextInactive: {
-    color: '#9CA3AF',
+  colEditHeader: {
+    width: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    paddingVertical: 0,
+    paddingHorizontal: 0,
   },
 
-  twoButtonGroup: {
+  tableRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-  },
-  toggleBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 54,
-    height: 38,
-    borderRadius: 8,
-    gap: 4,
-  },
-  toggleBtnInactive: {
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  presentBtnActive: {
-    backgroundColor: '#F4C430',
-    borderWidth: 1.5,
-    borderColor: '#D97706',
-  },
-  presentBtnTextActive: {
-    fontFamily: FontFamily.bold,
-    fontSize: 13,
-    color: '#111827',
-  },
-  absentBtnActive: {
-    backgroundColor: '#111827',
-    borderWidth: 1.5,
-    borderColor: '#000000',
-  },
-  absentBtnTextActive: {
-    fontFamily: FontFamily.bold,
-    fontSize: 13,
-    color: '#FFFFFF',
-  },
-  toggleBtnText: {
-    fontFamily: FontFamily.bold,
-    fontSize: 13,
-  },
-  toggleBtnTextInactive: {
-    color: '#9CA3AF',
-  },
-
-  // DOCKED SUBMIT BAR
-  submitBarDock: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: -2 },
-    elevation: 6,
-  },
-  submitButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#111827',
-    paddingVertical: 14,
-    borderRadius: 10,
-  },
-  submitButtonDisabled: {
-    backgroundColor: '#E5E7EB',
-  },
-  submitButtonText: {
-    fontFamily: FontFamily.bold,
-    fontSize: 14.5,
-    color: '#F4C430',
-  },
-  submitButtonTextDisabled: {
-    color: '#9CA3AF',
-  },
-  submitButtonEditing: {
-    backgroundColor: '#F4C430',
-    borderWidth: 1.5,
-    borderColor: '#D97706',
-  },
-  submitButtonTextEditing: {
-    color: '#111827',
-  },
-  editAttendanceBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F4C430',
-    paddingVertical: 14,
-    borderRadius: 10,
-    shadowColor: '#000000',
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  editAttendanceBtnText: {
-    fontFamily: FontFamily.bold,
-    fontSize: 14.5,
-    color: '#111827',
-  },
-  editDockRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  cancelEditBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 10,
-    backgroundColor: '#F3F4F6',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelEditBtnText: {
-    fontFamily: FontFamily.bold,
-    fontSize: 14,
-    color: '#374151',
-  },
-  saveChangesBtn: {
-    flex: 2,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F4C430',
-    paddingVertical: 14,
-    borderRadius: 10,
-    shadowColor: '#000000',
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  saveChangesBtnText: {
-    fontFamily: FontFamily.bold,
-    fontSize: 14.5,
-    color: '#111827',
-  },
-  headerEditBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F4C430',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
-  },
-  headerEditBtnText: {
-    fontFamily: FontFamily.bold,
-    fontSize: 11.5,
-    color: '#111827',
-  },
-
-  centerBox: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 32,
-  },
-  loadingText: {
-    fontFamily: FontFamily.medium,
-    fontSize: 13,
-    color: '#6B7280',
-    marginTop: 10,
-  },
-  emptySearchBox: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 36,
-    backgroundColor: '#FFFFFF',
-    margin: 16,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  emptySearchTitle: {
-    fontFamily: FontFamily.bold,
-    fontSize: 14,
-    color: '#374151',
-    marginTop: 8,
-  },
-  emptySearchSub: {
-    fontFamily: FontFamily.regular,
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 2,
-    textAlign: 'center',
-  },
-
-  // UNSAVED CHANGES POPUP (Light Yellow Background, Yellow & Black Buttons)
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  unsavedModalCard: {
-    backgroundColor: '#FEF9C3', // Light yellow shade
-    borderRadius: 18,
-    borderWidth: 1.5,
-    borderColor: '#FDE68A',
-    padding: 24,
-    width: '100%',
-    maxWidth: 380,
-    alignItems: 'center',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  modalIconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#FDE68A',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  modalTitle: {
-    fontFamily: FontFamily.bold,
-    fontSize: 18,
-    color: '#111827',
-    textAlign: 'center',
-    marginBottom: 6,
-  },
-  modalMessage: {
-    fontFamily: FontFamily.medium,
-    fontSize: 13.5,
-    color: '#374151',
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 20,
-  },
-  modalActionsColumn: {
-    width: '100%',
-    gap: 10,
-  },
-  saveAndExitBtn: {
-    width: '100%',
-    backgroundColor: '#F4C430', // Brand Yellow Button
-    paddingVertical: 13,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  saveAndExitBtnText: {
-    fontFamily: FontFamily.bold,
-    fontSize: 14.5,
-    color: '#111827', // Black text on yellow button
-    letterSpacing: -0.2,
-  },
-  dontSaveBtn: {
-    width: '100%',
-    backgroundColor: '#111827', // Black Button
-    paddingVertical: 13,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dontSaveBtnText: {
-    fontFamily: FontFamily.bold,
-    fontSize: 14.5,
-    color: '#FFFFFF', // White text on black button
-    letterSpacing: -0.2,
-  },
-  cancelModalBtn: {
-    marginTop: 6,
-    paddingVertical: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelModalBtnText: {
-    fontFamily: FontFamily.medium,
-    fontSize: 13,
-    color: '#4B5563',
-  },
-
-  // TEMPORARY CLASS & SUBSTITUTION STYLES
-  temporaryClassCard: {
-    backgroundColor: '#FFFDF7',
-    borderWidth: 1.5,
-    borderColor: '#F4C430',
-  },
-  temporaryBadgeWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 5,
-    flexWrap: 'wrap',
-  },
-  temporaryPill: {
-    backgroundColor: '#FEF9C3',
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  temporaryPillText: {
-    fontFamily: FontFamily.bold,
-    fontSize: 10,
-    color: '#92400E',
-    letterSpacing: 0.4,
-  },
-  temporarySubFromText: {
-    fontFamily: FontFamily.bold,
-    fontSize: 11,
-    color: '#78350F',
-  },
-  temporaryReasonText: {
-    fontFamily: FontFamily.medium,
-    fontSize: 11,
-    color: '#92400E',
-    marginBottom: 4,
-  },
-  markCtaBtnTemporary: {
-    backgroundColor: '#FDE68A',
-  },
-  transferredOutBadgeWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#FEF9C3',
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-    paddingHorizontal: 7,
-    paddingVertical: 2.5,
-    borderRadius: 4,
-    marginBottom: 5,
-    alignSelf: 'flex-start',
-  },
-  transferredOutBadgeText: {
-    fontFamily: FontFamily.bold,
-    fontSize: 10.5,
-    color: '#92400E',
-  },
-  temporaryClassTopBanner: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    backgroundColor: '#FEF9C3',
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-    borderRadius: BorderRadius.card,
-    padding: 12,
-    marginHorizontal: 16,
-    marginTop: 10,
-  },
-  temporaryClassBannerTitle: {
-    fontFamily: FontFamily.bold,
-    fontSize: 13,
-    color: '#92400E',
-  },
-  temporaryClassBannerSub: {
-    fontFamily: FontFamily.regular,
-    fontSize: 11.5,
-    color: '#78350F',
-    marginTop: 2,
-    lineHeight: 16,
-  },
-  transferredOutBanner: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    backgroundColor: '#EFF6FF',
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
-    borderRadius: BorderRadius.card,
-    padding: 12,
-    marginHorizontal: 16,
-    marginTop: 10,
-  },
-  transferredOutBannerTitle: {
-    fontFamily: FontFamily.bold,
-    fontSize: 13,
-    color: '#1E40AF',
-  },
-  transferredOutBannerSub: {
-    fontFamily: FontFamily.regular,
-    fontSize: 11.5,
-    color: '#1E3A8A',
-    marginTop: 2,
-    lineHeight: 16,
-  },
-  autoPresentBanner: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    backgroundColor: '#DCFCE7',
-    borderWidth: 1,
-    borderColor: '#86EFAC',
-    borderRadius: BorderRadius.card,
-    padding: 12,
-    marginHorizontal: 16,
-    marginTop: 10,
-  },
-  autoPresentBannerTitle: {
-    fontFamily: FontFamily.bold,
-    fontSize: 13,
-    color: '#15803D',
-  },
-  autoPresentBannerSub: {
-    fontFamily: FontFamily.regular,
-    fontSize: 11.5,
-    color: '#166534',
-    marginTop: 2,
-    lineHeight: 16,
-  },
-  dotSeparator: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    marginHorizontal: 4,
-  },
-
-  // CALENDAR DATE PICKER MODAL STYLES
-  calendarModalCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 20,
-    width: '100%',
-    maxWidth: 360,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.16,
-    shadowRadius: 20,
-    elevation: 10,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  calendarModalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingBottom: 14,
+    paddingVertical: 9,
+    paddingHorizontal: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
   },
-  calendarModalIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: '#FEF3C7',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  calendarModalTitle: {
+  tdText: {
+    fontSize: 12,
     fontFamily: FontFamily.bold,
-    fontSize: 15.5,
     color: '#111827',
   },
-  modalCloseBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  calendarMonthRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 14,
-    marginBottom: 10,
-    paddingHorizontal: 4,
-  },
-  calendarNavBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  calendarNavBtnDisabled: {
-    backgroundColor: '#F9FAFB',
-    opacity: 0.5,
-  },
-  calendarMonthText: {
-    fontFamily: FontFamily.bold,
-    fontSize: 15,
+  tdUsn: {
+    fontSize: 11,
+    fontFamily: FontFamily.medium,
     color: '#111827',
   },
-  calendarWeekRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-    paddingHorizontal: 2,
+  tdName: {
+    fontSize: 11.5,
+    fontFamily: FontFamily.bold,
+    color: '#111827',
   },
-  calendarWeekText: {
-    width: '14.28%',
+
+  // Columns sizing
+  colIndex: {
+    width: 18,
     textAlign: 'center',
+  },
+  colUsn: {
+    width: 68,
+    paddingLeft: 2,
+  },
+  colName: {
+    flex: 1,
+    paddingHorizontal: 3,
+  },
+  colPercent: {
+    width: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    textAlign: 'center',
+  },
+  tdPercent: {
+    fontSize: 11,
+    fontFamily: FontFamily.bold,
+    textAlign: 'center',
+  },
+  colAttendance: {
+    width: 82,
+    flexDirection: 'row',
+    gap: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  colEdit: {
+    width: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+  },
+
+  // Attendance Toggle Buttons (Icon-based)
+  statusBtn: {
+    width: 32,
+    height: 28,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusBtnFixed: {
+    opacity: 0.95,
+  },
+  presentActive: {
+    backgroundColor: '#DCFCE7',
+    borderWidth: 1,
+    borderColor: '#86EFAC',
+  },
+  absentActive: {
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  btnInactive: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+
+  // Bulk actions row
+  bulkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 14,
+  },
+  markAllPresentBtn: {
+    flex: 1,
+    height: 38,
+    backgroundColor: '#F4C430',
+    borderRadius: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  markAllPresentText: {
+    color: '#111827',
     fontFamily: FontFamily.bold,
     fontSize: 12,
-    color: '#6B7280',
   },
-  calendarWeekendText: {
-    color: '#EF4444',
+  markAllAbsentBtn: {
+    flex: 1,
+    height: 38,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  calendarGrid: {
+  markAllAbsentText: {
+    color: '#DC2626',
+    fontFamily: FontFamily.bold,
+    fontSize: 12,
+  },
+  bulkBtnLocked: {
+    opacity: 0.55,
+  },
+  bulkBtnLockedText: {},
+
+  // Save button
+  saveBtn: {
+    height: 46,
+    backgroundColor: '#F4C430',
+    borderRadius: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#171717',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  saveBtnText: {
+    color: '#111827',
+    fontFamily: FontFamily.bold,
+    fontSize: 14,
+  },
+
+  // Inline dropdown card & calendar wrapper
+  inlineCardWrapper: {
+    marginBottom: 12,
+  },
+  inlineCalendarCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 14,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  calendarHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+    paddingBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  calendarHeaderTitle: {
+    fontSize: 13,
+    fontFamily: FontFamily.bold,
+    color: '#0F172A',
+  },
+  calendarNavRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  calNavBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 5,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  calMonthTitle: {
+    fontSize: 13.5,
+    fontFamily: FontFamily.bold,
+    color: '#0F172A',
+  },
+  calWeekRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    paddingBottom: 6,
+  },
+  calWeekText: {
+    width: 38,
+    textAlign: 'center',
+    fontSize: 11,
+    fontFamily: FontFamily.bold,
+    color: '#94A3B8',
+  },
+  calGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    rowGap: 4,
+    justifyContent: 'space-between',
+    rowGap: 6,
   },
-  calendarEmptyCell: {
-    width: '14.28%',
-    aspectRatio: 1,
-  },
-  calendarDayCell: {
-    width: '14.28%',
-    aspectRatio: 1,
+  calCell: {
+    width: 38,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 8,
+    borderRadius: 5,
   },
-  calendarDayToday: {
-    backgroundColor: '#FEF9C3',
-    borderWidth: 1,
-    borderColor: '#FDE68A',
+  calCellSelected: {
+    backgroundColor: '#0284C7',
   },
-  calendarDaySelected: {
-    backgroundColor: '#111827',
-  },
-  calendarDayDisabled: {
-    opacity: 0.28,
-  },
-  calendarDayText: {
+  calCellText: {
+    fontSize: 12.5,
     fontFamily: FontFamily.medium,
-    fontSize: 13,
-    color: '#1F2937',
+    color: '#0F172A',
   },
-  calendarDayTextToday: {
-    color: '#92400E',
+  calCellTextDim: {
+    color: '#CBD5E1',
+  },
+  calCellTextSelected: {
     fontFamily: FontFamily.bold,
+    color: '#FFFFFF',
   },
-  calendarDayTextSelected: {
-    color: '#F4C430',
-    fontFamily: FontFamily.bold,
-  },
-  calendarDayTextDisabled: {
-    color: '#9CA3AF',
-  },
-  calendarModalFooter: {
+  calFooter: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginTop: 16,
-    paddingTop: 12,
+    justifyContent: 'flex-end',
+    gap: 8,
+    marginTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: '#F1F5F9',
+    paddingTop: 10,
   },
-  calendarTodayActionBtn: {
-    flex: 1,
-    backgroundColor: '#F4C430',
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+  calTodayBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 5,
+    backgroundColor: '#F0F9FF',
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
   },
-  calendarTodayActionText: {
+  calTodayText: {
+    fontSize: 12,
     fontFamily: FontFamily.bold,
-    fontSize: 13,
-    color: '#111827',
+    color: '#0284C7',
   },
-  calendarCloseBtn: {
-    flex: 1,
-    backgroundColor: '#F3F4F6',
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+  calCloseBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 5,
   },
-  calendarCloseBtnText: {
-    fontFamily: FontFamily.bold,
-    fontSize: 13,
-    color: '#4B5563',
+  calCloseText: {
+    fontSize: 12,
+    fontFamily: FontFamily.medium,
+    color: '#64748B',
   },
 });
-
-

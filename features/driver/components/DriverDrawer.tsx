@@ -24,7 +24,7 @@ interface DriverDrawerProps {
   institutionName: string;
   activeTab?: DriverTab;
   onNavigate?: (tab: DriverTab) => void;
-  onChangePassword: () => void;
+  onChangePassword?: () => void;
   onLogout: () => void;
 }
 
@@ -154,7 +154,7 @@ export const DriverDrawer: React.FC<DriverDrawerProps> = ({
                   activeOpacity={0.7}
                   onPress={() => {
                     closeDrawer();
-                    if (item.key === 'change-password') onChangePassword();
+                    if (item.key === 'change-password')                     onChangePassword?.();
                   }}
                 >
                   <View style={styles.menuIcon}>

@@ -4,8 +4,11 @@ import { Feather } from '@expo/vector-icons';
 import { BellIcon } from '../../notifications/components/BellIcon';
 
 interface DriverHomeHeaderProps {
+  fullName?: string;
+  profilePic?: string;
   onMenuPress: () => void;
   onNotificationsPress: () => void;
+  onProfilePress?: () => void;
 }
 
 export const DriverHomeHeader: React.FC<DriverHomeHeaderProps> = ({

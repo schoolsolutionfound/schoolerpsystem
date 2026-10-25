@@ -210,7 +210,7 @@ export default function HODHomeScreen() {
   const [assignModalVisible, setAssignModalVisible] = useState(false);
   const [selectedSection, setSelectedSection] = useState<HomeroomSection | null>(null);
   const [noticeModalVisible, setNoticeModalVisible] = useState(false);
-  const [activeSlot, setActiveSlot] = useState<{ slotId: string; subjectName: string } | null>(null);
+  const [activeSlot, setActiveSlot] = useState<{ slotId?: string; subjectName?: string } | null>(null);
 
   // Homerooms restricted to HOD's department
   const deptHomerooms: HomeroomSection[] = useMemo(() => {

@@ -5,11 +5,6 @@ import { BorderRadius } from '../../../constants/theme';
 import { FontFamily } from '../../../constants/fonts';
 
 interface ChangePasswordFormProps {
-  currentPassword: string;
-  setCurrentPassword: (val: string) => void;
-  requireCurrentPassword: boolean;
-  showCurrentPw: boolean;
-  setShowCurrentPw: (val: boolean) => void;
   newPassword: string;
   setNewPassword: (val: string) => void;
   confirmPassword: string;
@@ -20,21 +15,18 @@ interface ChangePasswordFormProps {
   setShowPassword2: (val: boolean) => void;
   hasMinLength: boolean;
   hasUppercase: boolean;
+  hasLowercase?: boolean;
   hasNumber: boolean;
-  hasSpecial: boolean;
+  hasSpecial?: boolean;
   passedChecksCount: number;
   strengthLabel: string;
   strengthColor: string;
   loading: boolean;
   onSubmit: () => void;
+  submitButtonText?: string;
 }
 
 export const ChangePasswordForm: React.FC<ChangePasswordFormProps> = ({
-  currentPassword,
-  setCurrentPassword,
-  requireCurrentPassword,
-  showCurrentPw,
-  setShowCurrentPw,
   newPassword,
   setNewPassword,
   confirmPassword,
@@ -45,36 +37,18 @@ export const ChangePasswordForm: React.FC<ChangePasswordFormProps> = ({
   setShowPassword2,
   hasMinLength,
   hasUppercase,
+  hasLowercase = false,
   hasNumber,
-  hasSpecial,
+  hasSpecial = false,
   passedChecksCount,
   strengthLabel,
   strengthColor,
   loading,
   onSubmit,
+  submitButtonText,
 }) => {
   return (
     <View style={styles.formCard}>
-      {/* Current Password (voluntary change only) */}
-      {requireCurrentPassword && (
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Current Password</Text>
-          <View style={styles.passwordRow}>
-            <TextInput
-              style={styles.passwordInput}
-              placeholder="Enter current password (optional)"
-              placeholderTextColor="#6B6B6B"
-              secureTextEntry={!showCurrentPw}
-              value={currentPassword}
-              onChangeText={setCurrentPassword}
-            />
-            <TouchableOpacity onPress={() => setShowCurrentPw(!showCurrentPw)} style={styles.eyeBtn}>
-              <MaterialCommunityIcons name={showCurrentPw ? 'eye-off-outline' : 'eye-outline'} size={20} color="#6B6B6B" />
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-
       {/* New Password */}
       <View style={styles.inputGroup}>
         <Text style={styles.inputLabel}>New Password</Text>
@@ -112,29 +86,21 @@ export const ChangePasswordForm: React.FC<ChangePasswordFormProps> = ({
       </View>
 
       {/* Password Strength Meter */}
-      <View style={styles.strengthCard}>
-        <View style={styles.strengthRow}>
-          <Text style={styles.strengthTitle}>Password Strength</Text>
-          <View style={[styles.strengthBadge, { backgroundColor: strengthColor }]}>
-            <Text style={[styles.strengthBadgeText, strengthColor === '#F4C430' && { color: '#1A1B1C' }]}>{strengthLabel}</Text>
-          </View>
-        </View>
-        <View style={styles.meterTrack}>
-          {[1, 2, 3, 4].map((i) => (
-            <View
-              key={i}
-              style={[
-                styles.meterSegment,
-                passedChecksCount >= i && { backgroundColor: strengthColor },
-              ]}
-            />
-          ))}
-        </View>
+      <View style={styles.strengthRow}>
+        <Text style={styles.strengthTitle}>Password Strength</Text>
+        <Text style={[styles.strengthText, { color: strengthColor }]}>{strengthLabel}</Text>
+      </View>
+      <View style={styles.meterTrack}>
+        <View style={[styles.meterSegment, passedChecksCount >= 1 && { backgroundColor: strengthColor }]} />
+        <View style={[styles.meterSegment, passedChecksCount >= 2 && { backgroundColor: strengthColor }]} />
+        <View style={[styles.meterSegment, passedChecksCount >= 3 && { backgroundColor: strengthColor }]} />
+        <View style={[styles.meterSegment, passedChecksCount >= 4 && { backgroundColor: strengthColor }]} />
       </View>
 
       {/* Requirements Checklist */}
       <View style={styles.checklistCard}>
         <View style={styles.checklistHeader}>
+          <MaterialCommunityIcons name="shield-outline" size={16} color="#F4C430" />
           <Text style={styles.checklistTitle}>Password must contain:</Text>
         </View>
 
@@ -142,7 +108,7 @@ export const ChangePasswordForm: React.FC<ChangePasswordFormProps> = ({
           <MaterialCommunityIcons
             name={hasMinLength ? 'check-circle' : 'circle-outline'}
             size={16}
-            color={hasMinLength ? '#1A1B1C' : '#6B6B6B'}
+            color={hasMinLength ? '#F4C430' : '#6B6B6B'}
           />
           <Text style={[styles.checkItemText, hasMinLength && styles.checkItemActive]}>At least 8 characters</Text>
         </View>
@@ -151,38 +117,38 @@ export const ChangePasswordForm: React.FC<ChangePasswordFormProps> = ({
           <MaterialCommunityIcons
             name={hasUppercase ? 'check-circle' : 'circle-outline'}
             size={16}
-            color={hasUppercase ? '#1A1B1C' : '#6B6B6B'}
+            color={hasUppercase ? '#F4C430' : '#6B6B6B'}
           />
-          <Text style={[styles.checkItemText, hasUppercase && styles.checkItemActive]}>One uppercase letter</Text>
+          <Text style={[styles.checkItemText, hasUppercase && styles.checkItemActive]}>One uppercase letter (A-Z)</Text>
+        </View>
+
+        <View style={styles.checkItem}>
+          <MaterialCommunityIcons
+            name={hasLowercase ? 'check-circle' : 'circle-outline'}
+            size={16}
+            color={hasLowercase ? '#F4C430' : '#6B6B6B'}
+          />
+          <Text style={[styles.checkItemText, hasLowercase && styles.checkItemActive]}>One lowercase letter (a-z)</Text>
         </View>
 
         <View style={styles.checkItem}>
           <MaterialCommunityIcons
             name={hasNumber ? 'check-circle' : 'circle-outline'}
             size={16}
-            color={hasNumber ? '#1A1B1C' : '#6B6B6B'}
+            color={hasNumber ? '#F4C430' : '#6B6B6B'}
           />
-          <Text style={[styles.checkItemText, hasNumber && styles.checkItemActive]}>One number</Text>
-        </View>
-
-        <View style={styles.checkItem}>
-          <MaterialCommunityIcons
-            name={hasSpecial ? 'check-circle' : 'circle-outline'}
-            size={16}
-            color={hasSpecial ? '#1A1B1C' : '#6B6B6B'}
-          />
-          <Text style={[styles.checkItemText, hasSpecial && styles.checkItemActive]}>One special character</Text>
+          <Text style={[styles.checkItemText, hasNumber && styles.checkItemActive]}>One number (0-9)</Text>
         </View>
       </View>
 
       {/* Primary Submit Button */}
-      <TouchableOpacity style={styles.button} onPress={onSubmit} disabled={loading}>
+      <TouchableOpacity style={styles.button} onPress={onSubmit} disabled={loading} activeOpacity={0.85}>
         {loading ? (
-          <ActivityIndicator color="#1A1B1C" size="small" />
+          <ActivityIndicator color="#FFFFFF" size="small" />
         ) : (
           <>
-            <Text style={styles.buttonText}>Continue</Text>
-            <MaterialCommunityIcons name="arrow-right" size={20} color="#1A1B1C" style={{ marginLeft: 6 }} />
+            <Text style={styles.buttonText}>{submitButtonText || 'Continue'}</Text>
+            <MaterialCommunityIcons name="arrow-right" size={20} color="#FFFFFF" style={{ marginLeft: 6 }} />
           </>
         )}
       </TouchableOpacity>
@@ -206,20 +172,11 @@ const styles = StyleSheet.create({
   },
   passwordInput: { flex: 1, fontSize: 14, color: '#171717' },
   eyeBtn: { padding: 4 },
-  strengthCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 5,
-    padding: 12,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: '#E8E5DC',
-  },
-  strengthRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  strengthTitle: { fontSize: 12, fontWeight: '700', fontFamily: FontFamily.bold, color: '#1A1B1C' },
-  strengthBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4 },
-  strengthBadgeText: { fontSize: 11, fontWeight: '800', fontFamily: FontFamily.bold, color: '#FFFFFF' },
-  meterTrack: { flexDirection: 'row', gap: 6 },
-  meterSegment: { flex: 1, height: 5, borderRadius: 3, backgroundColor: '#E8E5DC' },
+  strengthRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
+  strengthTitle: { fontSize: 12, color: '#6B6B6B' },
+  strengthText: { fontSize: 12, fontWeight: '700', fontFamily: FontFamily.bold },
+  meterTrack: { flexDirection: 'row', gap: 6, marginVertical: 4 },
+  meterSegment: { flex: 1, height: 4, borderRadius: 2, backgroundColor: '#E8E5DC' },
   checklistCard: {
     backgroundColor: '#FFFDF7',
     borderRadius: BorderRadius.card,
@@ -242,5 +199,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 10,
   },
-  buttonText: { color: '#1A1B1C', fontSize: 15, fontWeight: '800', fontFamily: FontFamily.bold },
+  buttonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700', fontFamily: FontFamily.bold },
 });

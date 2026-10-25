@@ -35,6 +35,7 @@ const ROLE_GROUP: Record<string, string> = {
 const SHARED_ROUTES = [
   '/auth', '/', '/index', '/welcome', '/change-password',
   '/complete-profile', '/verify-email', '/notifications', '/select-school',
+  '/teacher-attendance', '/leave', '/settings',
 ];
 
 // Root-level routes that live outside any (group) directory but belong to

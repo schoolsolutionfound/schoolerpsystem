@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "main": "expo-router/entry",
   "scripts": {
-    "start": "expo start",
+    "start": "expo start --host lan",
+    "start:lan": "expo start --host lan",
+    "start:tunnel": "expo start --tunnel",
+    "start:localhost": "expo start --host localhost",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
@@ -67,6 +70,7 @@
     "react-native-web": "~0.21.0",
     "react-native-webview": "13.16.1",
     "react-native-worklets": "0.10.1",
+    "xlsx": "^0.18.5",
     "zod": "^4.4.3",
     "zustand": "^5.0.12"
   },

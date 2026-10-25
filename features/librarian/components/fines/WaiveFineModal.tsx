@@ -27,7 +27,7 @@ export const WaiveFineModal = ({
   fine: Fine | null;
   students: StudentProfile[];
   onClose: () => void;
-  onWaiveSuccess: (waivedFine: Fine, reason: string, remarks: string) => void;
+  onWaiveSuccess: (waivedFine: Fine) => void;
   modalStyles: any;
   commonStyles: any;
   fineStyles: any;
@@ -64,7 +64,7 @@ export const WaiveFineModal = ({
     };
 
     setSubmitting(false);
-    onWaiveSuccess(waivedFine, reason, remarks.trim());
+    onWaiveSuccess(waivedFine);
     Alert.alert('Fine Waived', `Fine #${fine.id} of ₹${fine.amount.toFixed(2)} has been waived under ${reason}.`);
   };
 

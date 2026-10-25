@@ -1,32 +1,30 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, Animated, StatusBar, Image } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet, Animated, Dimensions, StatusBar, Image, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { onAuthStateChanged } from 'firebase/auth';
+import LottieView from 'lottie-react-native';
 import { auth } from '../firebaseConfig';
 import { useUserStore } from '../store/useUserStore';
 import { getHomeRouteForRole } from '../features/shared/utils/routeGuards';
 import { FontFamily } from '../constants/fonts';
 
+const { width } = Dimensions.get('window');
+
 export default function AppSplashScreen() {
   const router = useRouter();
+  const startTimeRef = useRef(Date.now());
 
-  const startTimeRef = useRef(0);
-  useEffect(() => {
-    startTimeRef.current = Date.now();
-  }, []);
-
-  const progressAnim = useMemo(() => new Animated.Value(0), []);
-  const logoScale = useMemo(() => new Animated.Value(0.6), []);
-  const logoOpacity = useMemo(() => new Animated.Value(0), []);
-  const textOpacity = useMemo(() => new Animated.Value(0), []);
-  const glowAnim = useMemo(() => new Animated.Value(0.3), []);
+  const progressAnim = useRef(new Animated.Value(0)).current;
+  const logoScale = useRef(new Animated.Value(0.6)).current;
+  const logoOpacity = useRef(new Animated.Value(0)).current;
+  const textOpacity = useRef(new Animated.Value(0)).current;
+  const glowAnim = useRef(new Animated.Value(0.3)).current;
 
   const _hasHydrated = useUserStore((state) => state._hasHydrated);
   const isProfileSynced = useUserStore((state) => state.isProfileSynced);
   const userRole = useUserStore((state) => state.userRole);
   const isEmailVerified = useUserStore((state) => state.isEmailVerified);
-  const mustChangePassword = useUserStore((state) => state.mustChangePassword);
-  const profileCompleted = useUserStore((state) => state.profileCompleted);
 
   const [authStateResolved, setAuthStateResolved] = useState(false);
 
@@ -46,12 +44,12 @@ export default function AppSplashScreen() {
             toValue: 1,
             tension: 50,
             friction: 7,
-            useNativeDriver: true,
+            useNativeDriver: Platform.OS !== 'web',
           }),
           Animated.timing(logoOpacity, {
             toValue: 1,
             duration: 600,
-            useNativeDriver: true,
+            useNativeDriver: Platform.OS !== 'web',
           }),
         ]),
       ]),
@@ -60,7 +58,7 @@ export default function AppSplashScreen() {
         Animated.timing(textOpacity, {
           toValue: 1,
           duration: 500,
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== 'web',
         }),
       ]),
     ]).start();
@@ -71,12 +69,12 @@ export default function AppSplashScreen() {
         Animated.timing(glowAnim, {
           toValue: 0.6,
           duration: 1200,
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== 'web',
         }),
         Animated.timing(glowAnim, {
           toValue: 0.3,
           duration: 1200,
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== 'web',
         }),
       ])
     ).start();
@@ -86,7 +84,7 @@ export default function AppSplashScreen() {
     });
 
     return () => unsubscribeAuth();
-  }, [_hasHydrated, progressAnim, logoScale, logoOpacity, textOpacity, glowAnim]);
+  }, [_hasHydrated]);
 
   useEffect(() => {
     const user = auth.currentUser;
@@ -96,16 +94,10 @@ export default function AppSplashScreen() {
     let finalRoute: any = '/auth';
 
     if (user) {
-      if (userRole === 'loading') {
-        return;
-      }
-      // First-login order: password reset → complete profile → verify email.
-      if (mustChangePassword) {
-        finalRoute = '/change-password';
-      } else if (!profileCompleted) {
-        finalRoute = '/complete-profile';
-      } else if (!isEmailVerified) {
+      if (userRole === 'student' && !isEmailVerified) {
         finalRoute = '/verify-email';
+      } else if (userRole === 'loading') {
+        return;
       } else {
         finalRoute = getHomeRouteForRole(userRole);
       }
@@ -124,11 +116,21 @@ export default function AppSplashScreen() {
     }, remaining);
 
     return () => { clearTimeout(timer); clearTimeout(failsafe); };
-  }, [authStateResolved, isProfileSynced, _hasHydrated, userRole, isEmailVerified, mustChangePassword, profileCompleted, router]);
+  }, [authStateResolved, isProfileSynced, _hasHydrated, userRole, isEmailVerified, router]);
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
+
+      {/* Lottie animation */}
+      <View style={styles.lottieContainer}>
+        <LottieView
+          source={{ uri: 'https://assets9.lottiefiles.com/packages/lf20_u4yrau.json' }}
+          autoPlay
+          loop
+          style={styles.lottie}
+        />
+      </View>
 
       {/* Center content */}
       <View style={styles.content}>
@@ -185,6 +187,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFDF7',
+  },
+  lottieContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: Dimensions.get('window').height * 0.45,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lottie: {
+    width: width * 0.75,
+    height: width * 0.75,
   },
   content: {
     flex: 1,
