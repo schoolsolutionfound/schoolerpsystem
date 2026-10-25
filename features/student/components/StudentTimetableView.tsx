@@ -1,334 +1,854 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import {
+  View,
+  StyleSheet,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  RefreshControl,
+  Modal,
+  Pressable,
+} from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { BorderRadius } from '../../../constants/theme';
 import { fetchMyTimetableApi } from '../../../api/academics';
 import { TimetableSkeleton } from './skeletons';
 import { ShimmerProvider } from './ShimmerSkeleton';
+import { FontFamily } from '../../../constants/fonts';
+import { useUserStore } from '../../../store/useUserStore';
 
-const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+interface PeriodItem {
+  id: string;
+  label: string;
+  timeRange: string;
+  startTime: string;
+  endTime: string;
+}
+
+interface DefaultSlot {
+  periodId: string;
+  dayOfWeek: number; // 1 to 5
+  subjectName: string;
+}
+
+const DEFAULT_PERIODS: PeriodItem[] = [
+  { id: 'p1', label: 'Period 1', timeRange: '09:00 AM – 10:00 AM', startTime: '09:00', endTime: '10:00' },
+  { id: 'p2', label: 'Period 2', timeRange: '10:00 AM – 11:00 AM', startTime: '10:00', endTime: '11:00' },
+  { id: 'p3', label: 'Period 3', timeRange: '11:00 AM – 12:00 PM', startTime: '11:00', endTime: '12:00' },
+  { id: 'p4', label: 'Period 4', timeRange: '12:00 PM – 01:00 PM', startTime: '12:00', endTime: '13:00' },
+  { id: 'p5', label: 'Period 5', timeRange: '02:00 PM – 03:00 PM', startTime: '14:00', endTime: '15:00' },
+  { id: 'p6', label: 'Period 6', timeRange: '03:00 PM – 04:00 PM', startTime: '15:00', endTime: '16:00' },
+];
+
+const DEFAULT_SUBJECTS_MAP: Record<string, string> = {
+  p1: 'English',
+  p2: 'Science',
+  p3: 'Social Studies',
+  p4: 'Mathematics',
+  p5: 'Computer',
+  p6: 'English',
+};
+
+function getWeekDays(baseDate: Date) {
+  const current = new Date(baseDate);
+  const day = current.getDay();
+  // distance to Monday: if day is 0 (Sunday), diff is -6; else 1 - day
+  const diffToMon = day === 0 ? -6 : 1 - day;
+  const monday = new Date(current);
+  monday.setDate(current.getDate() + diffToMon);
+
+  const days = [];
+  const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+  for (let i = 0; i < 5; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    days.push({
+      dateObj: d,
+      dayNumber: d.getDate(),
+      dayName: dayNames[i],
+      monthName: d.toLocaleDateString('en-US', { month: 'short' }),
+      dateString: d.toISOString().slice(0, 10),
+      dayOfWeek: i + 1, // 1 for Mon ... 5 for Fri
+    });
+  }
+  return days;
+}
+
+function formatFullDate(d: Date): string {
+  const weekday = d.toLocaleDateString('en-US', { weekday: 'long' });
+  const dayNum = d.getDate();
+  const month = d.toLocaleDateString('en-US', { month: 'short' });
+  const year = d.getFullYear();
+  return `${weekday}, ${dayNum} ${month} ${year}`;
+}
 
 export const StudentTimetableView: React.FC = () => {
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  // Dynamically default to current system date
+  const [baseDate, setBaseDate] = useState<Date>(() => new Date());
+
+  // Dynamically select today's weekday index (Mon=0..Fri=4, default to 0 on weekends)
+  const [selectedDayIndex, setSelectedDayIndex] = useState<number>(() => {
+    const day = new Date().getDay(); // 0 is Sun, 1 is Mon, 2 is Tue, 3 is Wed, 4 is Thu, 5 is Fri, 6 is Sat
+    if (day >= 1 && day <= 5) return day - 1;
+    return 0; // Default to Mon
+  });
+  const [view, setView] = useState<'day' | 'week'>('day');
+  const [weekModalOpen, setWeekModalOpen] = useState(false);
+  const [selectedWeekLabel, setSelectedWeekLabel] = useState('This Week');
+
+  // API State
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'day' | 'week'>('day');
+  const [refreshing, setRefreshing] = useState(false);
+
+  const weekDays = useMemo(() => getWeekDays(baseDate), [baseDate]);
+  const activeDay = weekDays[selectedDayIndex] || weekDays[0];
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetchMyTimetableApi(date);
+      const res = await fetchMyTimetableApi(activeDay?.dateString);
       setData(res);
     } catch (err: any) {
-      console.warn('[StudentTimetable]', err.message);
+      console.warn('[StudentTimetableView] error:', err?.message);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  }, [date]);
+  }, [activeDay?.dateString]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  const [refreshing, setRefreshing] = useState(false);
-  const onRefresh = useCallback(async () => {
+  const onRefresh = useCallback(() => {
     setRefreshing(true);
-    try {
-      await load();
-    } finally {
-      setRefreshing(false);
-    }
+    load();
   }, [load]);
 
-  const shiftDay = (delta: number) => {
-    const d = new Date(`${date}T00:00:00Z`);
-    d.setUTCDate(d.getUTCDate() + delta);
-    setDate(d.toISOString().slice(0, 10));
+  const shiftWeek = (weeksDelta: number) => {
+    setBaseDate((prev) => {
+      const next = new Date(prev);
+      next.setDate(next.getDate() + weeksDelta * 7);
+      return next;
+    });
   };
 
-  const dayLabel = new Date(`${date}T00:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-  const slots = data?.slots || [];
-  const todaySlots = slots.filter((s: any) => s.dayOfWeek === new Date(`${date}T00:00:00Z`).getUTCDay());
+  const userDept = useUserStore((s) => s.department);
+  const className = data?.classSection?.name || userDept || 'Class 6 A';
 
-  const weekDays: number[] = [...new Set<number>(slots.map((s: any) => Number(s.dayOfWeek)))].sort((a, b) => a - b);
-  const weekPeriods = [...new Map(slots.map((s: any) => [s.period?.id, s.period])).values()].sort(
-    (a: any, b: any) => (a?.startTime || '').localeCompare(b?.startTime || '')
-  );
-  const slotFor = (d: number, p: any) => slots.find((s: any) => s.dayOfWeek === d && s.period?.id === p?.id);
+  // Extract slots from API if available, else use default schedule
+  const slotsFromApi = data?.slots || [];
+
+  // Dynamically extract periods from API if available, else fallback to defaults
+  const periods: PeriodItem[] = useMemo(() => {
+    if (slotsFromApi.length > 0) {
+      const periodMap = new Map<string, PeriodItem>();
+      slotsFromApi.forEach((s: any) => {
+        const pId = s.period?.id || s.periodId;
+        if (pId && !periodMap.has(pId)) {
+          const startTime = s.period?.startTime || '09:00';
+          const endTime = s.period?.endTime || '10:00';
+          const label = s.period?.label || `Period ${periodMap.size + 1}`;
+          periodMap.set(pId, {
+            id: pId,
+            label,
+            timeRange: `${startTime} – ${endTime}`,
+            startTime,
+            endTime,
+          });
+        }
+      });
+      if (periodMap.size > 0) {
+        return Array.from(periodMap.values()).sort((a, b) => a.startTime.localeCompare(b.startTime));
+      }
+    }
+    return DEFAULT_PERIODS;
+  }, [slotsFromApi]);
+
+  const getSubjectForSlot = (dayOfWeek: number, periodId: string) => {
+    if (slotsFromApi.length > 0) {
+      const found = slotsFromApi.find(
+        (s: any) =>
+          s.dayOfWeek === dayOfWeek &&
+          (s.period?.id === periodId || s.period?.label?.toLowerCase().includes(periodId))
+      );
+      if (found) {
+        return found.subject?.name || 'Subject';
+      }
+    }
+    return DEFAULT_SUBJECTS_MAP[periodId] || 'Subject';
+  };
+
+  if (loading && !refreshing) {
+    return (
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <ShimmerProvider>
+          <TimetableSkeleton />
+        </ShimmerProvider>
+      </ScrollView>
+    );
+  }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.heroBlock}>
-        <View style={styles.heroDateRow}>
-          <TouchableOpacity onPress={() => shiftDay(-1)} style={styles.heroDateBtn}>
-            <MaterialCommunityIcons name="chevron-left" size={20} color="#F4C430" />
-          </TouchableOpacity>
-          <View style={{ alignItems: 'center' }}>
-            <Text style={styles.heroDateTitle}>{dayLabel}</Text>
-            <Text style={styles.heroDateSub}>{data?.classSection?.name || 'My Schedule'}</Text>
+    <View style={styles.screen}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#111827"
+            colors={['#111827']}
+            progressBackgroundColor="#FFFFFF"
+          />
+        }
+      >
+        {/* ─── Page Title & Week Selector Row ─────────────────────────── */}
+        <View style={styles.titleSection}>
+          <View style={styles.titleLeft}>
+            <Text style={styles.pageTitle}>Class Timetable</Text>
+            <Text style={styles.pageSubtitle}>{className}</Text>
           </View>
-          <TouchableOpacity onPress={() => shiftDay(1)} style={styles.heroDateBtn}>
-            <MaterialCommunityIcons name="chevron-right" size={20} color="#F4C430" />
-          </TouchableOpacity>
-        </View>
-        <View style={styles.viewRow}>
-          <TouchableOpacity style={[styles.viewChip, view === 'day' && styles.viewChipActive]} onPress={() => setView('day')}>
-            <MaterialCommunityIcons name="calendar-today" size={14} color={view === 'day' ? '#F4C430' : '#8A8A8A'} />
-            <Text style={[styles.viewChipText, view === 'day' && styles.viewChipTextActive]}>Day</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.viewChip, view === 'week' && styles.viewChipActive]} onPress={() => setView('week')}>
-            <MaterialCommunityIcons name="calendar-week" size={14} color={view === 'week' ? '#F4C430' : '#8A8A8A'} />
-            <Text style={[styles.viewChipText, view === 'week' && styles.viewChipTextActive]}>Week</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
 
-      {loading ? (
-        <ShimmerProvider><TimetableSkeleton /></ShimmerProvider>
-      ) : !data?.effective ? (
-        <View style={styles.emptyCard}>
-          <MaterialCommunityIcons name="timetable" size={40} color="#6B6B6B" />
-          <Text style={styles.emptyTitle}>No timetable published</Text>
-          <Text style={styles.emptySub}>Your class teacher has not built the timetable yet.</Text>
+          {/* This Week Dropdown Pill */}
+          <TouchableOpacity
+            style={styles.weekPill}
+            onPress={() => setWeekModalOpen(true)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.weekPillText}>{selectedWeekLabel}</Text>
+            <MaterialCommunityIcons name="chevron-down" size={18} color="#111827" />
+          </TouchableOpacity>
         </View>
-      ) : view === 'week' ? (
-        weekDays.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <MaterialCommunityIcons name="calendar-blank" size={40} color="#6B6B6B" />
-            <Text style={styles.emptyTitle}>No classes scheduled</Text>
+
+        {/* ─── Week Days Strip Carousel ─────────────────────────────────── */}
+        <View style={styles.weekStripCard}>
+          {/* Previous Week Arrow */}
+          <TouchableOpacity
+            style={styles.arrowCircleBtn}
+            onPress={() => shiftWeek(-1)}
+            activeOpacity={0.7}
+          >
+            <MaterialCommunityIcons name="chevron-left" size={20} color="#111827" />
+          </TouchableOpacity>
+
+          {/* 5 Day Pills (Mon - Fri) */}
+          <View style={styles.daysRow}>
+            {weekDays.map((d, index) => {
+              const isSelected = selectedDayIndex === index;
+              return (
+                <TouchableOpacity
+                  key={d.dateString}
+                  style={[styles.dayItem, isSelected && styles.dayItemActive]}
+                  onPress={() => setSelectedDayIndex(index)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.dayItemName, isSelected && styles.dayItemNameActive]}>
+                    {d.dayName}
+                  </Text>
+                  <Text style={[styles.dayItemNumber, isSelected && styles.dayItemNumberActive]}>
+                    {d.dayNumber}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
-        ) : (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.weekWrap}>
-            <View>
-              <View style={styles.gridHeaderRow}>
-                <View style={[styles.cell, styles.cornerHeaderCell]}>
-                  <Text style={styles.cornerHeaderText}>Period</Text>
+
+          {/* Next Week Arrow */}
+          <TouchableOpacity
+            style={styles.arrowCircleBtn}
+            onPress={() => shiftWeek(1)}
+            activeOpacity={0.7}
+          >
+            <MaterialCommunityIcons name="chevron-right" size={20} color="#111827" />
+          </TouchableOpacity>
+        </View>
+
+        {/* ─── View Switcher Segmented Control (Day View / Week View) ───── */}
+        <View style={styles.viewToggleRow}>
+          <TouchableOpacity
+            style={[styles.viewToggleBtn, view === 'day' && styles.viewToggleBtnActive]}
+            onPress={() => setView('day')}
+            activeOpacity={0.8}
+          >
+            <Text
+              style={[
+                styles.viewToggleBtnText,
+                view === 'day' && styles.viewToggleBtnTextActive,
+              ]}
+            >
+              Day View
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.viewToggleBtn, view === 'week' && styles.viewToggleBtnActive]}
+            onPress={() => setView('week')}
+            activeOpacity={0.8}
+          >
+            <Text
+              style={[
+                styles.viewToggleBtnText,
+                view === 'week' && styles.viewToggleBtnTextActive,
+              ]}
+            >
+              Week View
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* ─── Mode 1: Day View ────────────────────────────────────────── */}
+        {view === 'day' ? (
+          <View style={styles.dayViewContainer}>
+            {/* Day Title & Class */}
+            <View style={styles.dayHeader}>
+              <Text style={styles.dayTitleText}>{formatFullDate(activeDay.dateObj)}</Text>
+              <Text style={styles.daySubtitleText}>{className}</Text>
+            </View>
+
+            {/* Timetable Table Card */}
+            <View style={styles.dayTableCard}>
+              {/* Header Row */}
+              <View style={styles.dayTableHeader}>
+                <View style={[styles.dayTableCol, { flex: 1.1 }]}>
+                  <Text style={styles.dayTableColHeader}>Period</Text>
                 </View>
-                {weekDays.map((d) => {
-                  const isToday = d === new Date().getUTCDay();
+                <View style={styles.dayTableColDivider} />
+                <View style={[styles.dayTableCol, { flex: 1.7 }]}>
+                  <Text style={styles.dayTableColHeader}>Time</Text>
+                </View>
+                <View style={styles.dayTableColDivider} />
+                <View style={[styles.dayTableCol, { flex: 1.4 }]}>
+                  <Text style={styles.dayTableColHeader}>Subject</Text>
+                </View>
+              </View>
+
+              {/* Data Rows */}
+              <View style={styles.dayTableBody}>
+                {periods.map((period, idx) => {
+                  const subjectName = getSubjectForSlot(activeDay.dayOfWeek, period.id);
+
                   return (
-                    <View key={d} style={[styles.cell, isToday ? styles.dayHeaderCellToday : styles.dayHeaderCell]}>
-                      <Text style={[styles.dayHeaderText, isToday && { color: '#1A1B1C' }]}>{DAY_LABELS[d]}</Text>
-                      {isToday ? <Text style={styles.todayPill}>Today</Text> : null}
+                    <View
+                      key={period.id}
+                      style={[
+                        styles.dayTableRow,
+                        idx % 2 === 1 && styles.dayTableRowAlt,
+                        idx === periods.length - 1 && styles.dayTableRowLast,
+                      ]}
+                    >
+                      <View style={[styles.dayTableCol, { flex: 1.1 }]}>
+                        <Text style={styles.periodText}>{period.label}</Text>
+                      </View>
+                      <View style={styles.dayTableColDivider} />
+                      <View style={[styles.dayTableCol, { flex: 1.7 }]}>
+                        <Text style={styles.timeText}>{period.timeRange}</Text>
+                      </View>
+                      <View style={styles.dayTableColDivider} />
+                      <View style={[styles.dayTableCol, { flex: 1.4 }]}>
+                        <Text style={styles.subjectText}>{subjectName}</Text>
+                      </View>
                     </View>
                   );
                 })}
               </View>
-              {weekPeriods.map((p: any) => (
-                <View key={p.id} style={styles.gridRow}>
-                  <View style={[styles.cell, styles.periodCell]}>
-                    <Text style={styles.periodLabel}>{p.label}</Text>
-                    <Text style={styles.periodTime}>{p.startTime}</Text>
+            </View>
+          </View>
+        ) : (
+          /* ─── Mode 2: Week View ──────────────────────────────────────── */
+          <View style={styles.weekViewContainer}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.weekGridScroll}
+            >
+              <View style={styles.weekTableCard}>
+                {/* Column Headers */}
+                <View style={styles.weekTableHeader}>
+                  <View style={[styles.weekHeaderCell, styles.cornerCell]}>
+                    <Text style={styles.weekHeaderCellText}>Period</Text>
                   </View>
-                  {weekDays.map((d) => {
-                    const s = slotFor(d, p);
-                    const isToday = d === new Date().getUTCDay();
-                    return (
-                      <View
-                        key={`${d}-${p.id}`}
-                        style={[
-                          styles.cell,
-                          styles.slotCell,
-                          s && styles.slotCellFilled,
-                          isToday && styles.slotCellToday,
-                        ]}
-                      >
-                        {s ? (
-                          <>
-                            <Text
-                              style={[styles.slotSubject, isToday && styles.slotSubjectToday]}
-                              numberOfLines={1}
-                            >
-                              {s.subject?.name || 'Subject'}
-                            </Text>
-                          </>
-                        ) : (
-                          <Text style={[styles.slotEmpty, isToday && { color: '#8A6A00' }]}>—</Text>
-                        )}
-                      </View>
-                    );
-                  })}
+                  {weekDays.map((d) => (
+                    <View key={d.dateString} style={styles.weekHeaderCell}>
+                      <Text style={styles.weekHeaderCellText}>{d.dayName}</Text>
+                      <Text style={styles.weekHeaderDateText}>{d.dayNumber} {d.monthName}</Text>
+                    </View>
+                  ))}
                 </View>
-              ))}
-            </View>
-          </ScrollView>
-        )
-      ) : todaySlots.length === 0 ? (
-        <View style={styles.emptyCard}>
-          <MaterialCommunityIcons name="calendar-blank" size={40} color="#6B6B6B" />
-          <Text style={styles.emptyTitle}>No classes today</Text>
-        </View>
-      ) : (
-        <ScrollView
-          contentContainerStyle={styles.list}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor="#1A1B1C"
-              colors={['#1A1B1C']}
-              progressBackgroundColor="#FFFFFF"
-            />
-          }
-        >
-          {todaySlots.map((s: any, i: number) => (
-            <View key={s.id || i} style={styles.slotCard}>
-              <View style={styles.timePill}>
-                <Text style={styles.timeStart}>{s.period?.startTime}</Text>
-                <Text style={styles.timeEnd}>{s.period?.endTime}</Text>
+
+                {/* Rows for each period */}
+                {periods.map((period) => (
+                  <View key={period.id} style={styles.weekTableRow}>
+                    {/* Period label column */}
+                    <View style={[styles.weekSlotCell, styles.periodLabelCell]}>
+                      <Text style={styles.weekPeriodLabel}>{period.label}</Text>
+                      <Text style={styles.weekPeriodTime}>{period.startTime}</Text>
+                    </View>
+
+                    {/* Monday to Friday slots */}
+                    {weekDays.map((d) => {
+                      const subject = getSubjectForSlot(d.dayOfWeek, period.id);
+                      return (
+                        <View key={d.dateString} style={styles.weekSlotCell}>
+                          <Text style={styles.weekSlotSubjectText} numberOfLines={2}>
+                            {subject}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                ))}
               </View>
-              <View style={styles.infoCol}>
-                <Text style={styles.subject}>{s.subject?.name || 'Subject'}</Text>
-                <Text style={styles.detail}>{s.teacher?.fullName || ''}</Text>
-              </View>
-              <MaterialCommunityIcons name="chevron-right" size={18} color="#9A9A9A" />
+            </ScrollView>
+          </View>
+        )}
+      </ScrollView>
+
+      {/* ─── Week Selection Modal ─────────────────────────────────────── */}
+      <Modal visible={weekModalOpen} transparent animationType="fade">
+        <Pressable style={styles.modalOverlay} onPress={() => setWeekModalOpen(false)}>
+          <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Week</Text>
+              <TouchableOpacity onPress={() => setWeekModalOpen(false)}>
+                <MaterialCommunityIcons name="close" size={22} color="#6B7280" />
+              </TouchableOpacity>
             </View>
-          ))}
-        </ScrollView>
-      )}
+            {['This Week', 'Next Week', 'Previous Week'].map((item) => {
+              const isSelected = selectedWeekLabel === item;
+              return (
+                <TouchableOpacity
+                  key={item}
+                  style={[styles.modalItem, isSelected && styles.modalItemActive]}
+                  onPress={() => {
+                    setSelectedWeekLabel(item);
+                    if (item === 'This Week') {
+                      setBaseDate(new Date());
+                    } else if (item === 'Next Week') {
+                      shiftWeek(1);
+                    } else if (item === 'Previous Week') {
+                      shiftWeek(-1);
+                    }
+                    setWeekModalOpen(false);
+                  }}
+                >
+                  <Text style={[styles.modalItemText, isSelected && styles.modalItemTextActive]}>
+                    {item}
+                  </Text>
+                  {isSelected && (
+                    <MaterialCommunityIcons name="check" size={20} color="#111827" />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 12, gap: 12, backgroundColor: '#FFFEFE' },
-  heroBlock: {
-    backgroundColor: '#1A1B1C',
-    borderRadius: 10,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#2A2B2C',
-    gap: 10,
+  screen: {
+    flex: 1,
+    backgroundColor: '#FAF8F5',
   },
-  heroDateRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  heroDateBtn: { width: 32, height: 32, borderRadius: 6, backgroundColor: '#232425', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#2A2B2C' },
-  heroDateTitle: { fontSize: 15, fontWeight: '800', color: '#FFFFFF' },
-  heroDateSub: { fontSize: 10, color: '#8A8A8A', marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: '700' },
-  list: { padding: 0, gap: 8, paddingBottom: 40 },
+  scroll: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 40,
+    gap: 14,
+  },
 
-  // Day list slot card
-  slotCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E8E5DC',
-    padding: 12,
+  /* ─── Title Section ──────────────────────────────────────────────── */
+  titleSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-  },
-  timePill: {
-    width: 64,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: '#1A1B1C',
-    borderWidth: 1,
-    borderColor: '#2A2B2C',
-    alignItems: 'center',
-  },
-  timeStart: { fontSize: 12, fontWeight: '800', color: '#F4C430', letterSpacing: 0.2 },
-  timeEnd: { fontSize: 9, color: '#8A8A8A', marginTop: 2, fontWeight: '700' },
-  infoCol: { flex: 1, gap: 3 },
-  subject: { fontSize: 14, fontWeight: '800', color: '#1A1B1C' },
-  detail: { fontSize: 12, color: '#6B6B6B' },
-  roomChip: {
-    alignSelf: 'flex-start',
+    justifyContent: 'space-between',
     marginTop: 4,
-    backgroundColor: 'rgba(244, 196, 48, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(244, 196, 48, 0.4)',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-    color: '#8A6A00',
-    fontSize: 11,
-    fontWeight: '700',
   },
-
-  emptyCard: { backgroundColor: '#FFFFFF', borderRadius: 10, padding: 30, alignItems: 'center', borderWidth: 1, borderColor: '#E8E5DC', margin: 0, marginTop: 20 },
-  emptyTitle: { fontSize: 15, fontWeight: '800', color: '#1A1B1C', marginTop: 8 },
-  emptySub: { fontSize: 12, color: '#6B6B6B', textAlign: 'center', marginTop: 4 },
-
-  // Day / Week toggle
-  viewRow: { flexDirection: 'row', gap: 8, justifyContent: 'center' },
-  viewChip: {
+  titleLeft: {
+    gap: 2,
+  },
+  pageTitle: {
+    fontSize: 22,
+    fontFamily: FontFamily.bold,
+    color: '#111827',
+  },
+  pageSubtitle: {
+    fontSize: 13,
+    fontFamily: FontFamily.medium,
+    color: '#6B7280',
+  },
+  weekPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#232425',
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    gap: 4,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#2A2B2C',
+    borderColor: '#EFE7D8',
+    borderRadius: 5,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  viewChipActive: { backgroundColor: '#1A1B1C', borderColor: '#F4C430' },
-  viewChipText: { fontSize: 11, fontWeight: '800', color: '#8A8A8A', textTransform: 'uppercase', letterSpacing: 0.5 },
-  viewChipTextActive: { color: '#F4C430' },
+  weekPillText: {
+    fontSize: 13,
+    fontFamily: FontFamily.medium,
+    color: '#111827',
+  },
 
-  // Week grid
-  weekWrap: { padding: 0, paddingBottom: 40 },
-  gridHeaderRow: { flexDirection: 'row' },
-  gridRow: { flexDirection: 'row' },
-  cell: {
-    width: 92,
-    minHeight: 56,
+  /* ─── Week Days Strip Carousel ───────────────────────────────────── */
+  weekStripCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFDF6',
+    borderWidth: 1,
+    borderColor: '#EFE7D8',
+    borderRadius: 5,
+    padding: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  arrowCircleBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#EFE7D8',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 0.5,
-    borderColor: '#EFE9D6',
-    backgroundColor: '#F7F5EE',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  cornerHeaderCell: {
-    backgroundColor: '#1A1B1C',
-    borderColor: '#2A2B2C',
-    width: 84,
+  daysRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-evenly',
+    flex: 1,
+    paddingHorizontal: 4,
   },
-  cornerHeaderText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#F4C430',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
+  dayItem: {
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 5,
+    gap: 4,
+    minWidth: 46,
   },
-  dayHeaderCell: {
-    backgroundColor: '#1A1B1C',
-    borderColor: '#2A2B2C',
+  dayItemActive: {
+    backgroundColor: '#FDC836',
+    shadowColor: '#D97706',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  dayHeaderCellToday: {
-    backgroundColor: '#F4C430',
-    borderColor: '#F4C430',
+  dayItemName: {
+    fontSize: 11,
+    fontFamily: FontFamily.medium,
+    color: '#000000',
   },
-  dayHeaderText: { fontSize: 12, fontWeight: '800', color: '#FFFFFF' },
-  todayPill: {
-    marginTop: 3,
-    fontSize: 8,
-    fontWeight: '800',
-    color: '#1A1B1C',
+  dayItemNameActive: {
+    fontFamily: FontFamily.bold,
+    color: '#000000',
+  },
+  dayItemNumber: {
+    fontSize: 15,
+    fontFamily: FontFamily.bold,
+    color: '#000000',
+  },
+  dayItemNumberActive: {
+    fontFamily: FontFamily.bold,
+    color: '#000000',
+  },
+
+  /* ─── Segmented View Switcher ────────────────────────────────────── */
+  viewToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    marginVertical: 2,
+  },
+  viewToggleBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 5,
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 3,
+    borderWidth: 1,
+    borderColor: '#EFE7D8',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  viewToggleBtnActive: {
+    backgroundColor: '#FDC836',
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+  },
+  viewToggleBtnText: {
+    fontSize: 13,
+    fontFamily: FontFamily.semibold,
+    color: '#111827',
+  },
+  viewToggleBtnTextActive: {
+    fontFamily: FontFamily.bold,
+    color: '#111827',
+  },
+
+  /* ─── Day View Styles ────────────────────────────────────────────── */
+  dayViewContainer: {
+    gap: 10,
+  },
+  dayHeader: {
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  dayTitleText: {
+    fontSize: 18,
+    fontFamily: FontFamily.bold,
+    color: '#111827',
+  },
+  daySubtitleText: {
+    fontSize: 13,
+    fontFamily: FontFamily.medium,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  dayTableCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#EFE7D8',
     overflow: 'hidden',
-    letterSpacing: 0.6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  periodCell: {
-    backgroundColor: '#1A1B1C',
-    width: 84,
-    alignItems: 'flex-start',
-    paddingLeft: 10,
-    paddingVertical: 6,
-    borderColor: '#2A2B2C',
+  dayTableHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF8E7',
+    borderBottomWidth: 1,
+    borderBottomColor: '#EFE7D8',
   },
-  periodLabel: { fontSize: 11, fontWeight: '800', color: '#F4C430' },
-  periodTime: { fontSize: 10, color: '#8A8A8A', marginTop: 2, fontWeight: '700' },
-  slotCell: { gap: 2, paddingHorizontal: 6, paddingVertical: 4 },
-  slotCellFilled: { backgroundColor: '#FFF4C7' },
-  slotCellToday: { backgroundColor: '#F4C430' },
-  slotSubject: { fontSize: 11, fontWeight: '800', color: '#8A6A00', textAlign: 'center' },
-  slotSubjectToday: { color: '#1A1B1C' },
-  slotRoom: { fontSize: 9, color: '#6B6B6B', textAlign: 'center' },
-  slotRoomToday: { color: '#1A1B1C' },
-  slotEmpty: { fontSize: 13, color: '#C9C4B5' },
+  dayTableColHeader: {
+    fontSize: 13,
+    fontFamily: FontFamily.bold,
+    color: '#000000',
+    textAlign: 'center',
+  },
+  dayTableBody: {
+    backgroundColor: '#FFFFFF',
+  },
+  dayTableRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3EFE8',
+    backgroundColor: '#FFFFFF',
+  },
+  dayTableRowAlt: {
+    backgroundColor: '#FCFBF9',
+  },
+  dayTableRowLast: {
+    borderBottomWidth: 0,
+  },
+  dayTableCol: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 6,
+  },
+  dayTableColDivider: {
+    width: 1,
+    alignSelf: 'stretch',
+    backgroundColor: '#EFE7D8',
+  },
+  periodText: {
+    fontSize: 13,
+    fontFamily: FontFamily.bold,
+    color: '#000000',
+    textAlign: 'center',
+  },
+  timeText: {
+    fontSize: 12,
+    fontFamily: FontFamily.medium,
+    color: '#000000',
+    textAlign: 'center',
+  },
+  subjectText: {
+    fontSize: 13,
+    fontFamily: FontFamily.bold,
+    color: '#000000',
+    textAlign: 'center',
+  },
+
+  /* ─── Week View Styles ───────────────────────────────────────────── */
+  weekViewContainer: {
+    marginTop: 4,
+  },
+  weekGridScroll: {
+    paddingBottom: 8,
+  },
+  weekTableCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#EFE7D8',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  weekTableHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#FFF8E7',
+    borderBottomWidth: 1,
+    borderBottomColor: '#EFE7D8',
+  },
+  weekHeaderCell: {
+    width: 80,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRightWidth: 1,
+    borderRightColor: '#EFE7D8',
+  },
+  cornerCell: {
+    width: 76,
+  },
+  weekHeaderCellText: {
+    fontSize: 12,
+    fontFamily: FontFamily.bold,
+    color: '#000000',
+    textAlign: 'center',
+  },
+  weekHeaderDateText: {
+    fontSize: 10,
+    fontFamily: FontFamily.medium,
+    color: '#000000',
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  weekTableRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3EFE8',
+  },
+  weekSlotCell: {
+    width: 80,
+    minHeight: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 6,
+    borderRightWidth: 1,
+    borderRightColor: '#F3EFE8',
+    backgroundColor: '#FFFFFF',
+  },
+  periodLabelCell: {
+    width: 76,
+    backgroundColor: '#FFFDF9',
+    borderRightColor: '#EFE7D8',
+  },
+  weekPeriodLabel: {
+    fontSize: 11,
+    fontFamily: FontFamily.bold,
+    color: '#000000',
+    textAlign: 'center',
+  },
+  weekPeriodTime: {
+    fontSize: 10,
+    fontFamily: FontFamily.medium,
+    color: '#000000',
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  weekSlotSubjectText: {
+    fontSize: 11,
+    fontFamily: FontFamily.bold,
+    color: '#000000',
+    textAlign: 'center',
+    lineHeight: 14,
+  },
+
+  /* ─── Modal Styles ───────────────────────────────────────────────── */
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 5,
+    padding: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontFamily: FontFamily.bold,
+    color: '#111827',
+  },
+  modalItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 5,
+  },
+  modalItemActive: {
+    backgroundColor: '#FEF3C7',
+  },
+  modalItemText: {
+    fontSize: 14,
+    fontFamily: FontFamily.medium,
+    color: '#1F2937',
+  },
+  modalItemTextActive: {
+    fontFamily: FontFamily.bold,
+    color: '#111827',
+  },
 });

@@ -49,7 +49,7 @@ export const InlineSearchDropdown: React.FC<InlineSearchDropdownProps> = ({
   menuOnly = false,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<React.ElementRef<typeof TextInput>>(null);
 
   // Normalize options to DropdownItem
   const normalizedOptions: DropdownItem[] = useMemo(() => {

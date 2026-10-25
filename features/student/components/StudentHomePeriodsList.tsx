@@ -1,111 +1,120 @@
 import React from 'react';
-import { View, StyleSheet, Text } from 'react-native';
+import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { BorderRadius } from '../../../constants/theme';
+import { FontFamily } from '../../../constants/fonts';
 import { ShimmerSkeleton } from './ShimmerSkeleton';
 
 interface StudentHomePeriodsListProps {
   loading?: boolean;
   slots?: any[];
+  onSchedulePress?: () => void;
+  onPeriodPress?: (slot: any) => void;
 }
 
-function toMinutes(timeStr?: string): number | null {
-  if (!timeStr) return null;
-  const m = timeStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)?$/);
-  if (!m) return null;
-  let h = parseInt(m[1], 10);
-  const min = parseInt(m[2], 10);
-  const suffix = (m[3] || '').toUpperCase();
-  if (suffix === 'PM' && h < 12) h += 12;
-  if (suffix === 'AM' && h === 12) h = 0;
-  return h * 60 + min;
-}
-
-function isNowWithin(start?: string, end?: string): boolean {
-  const now = new Date();
-  const nowMin = now.getHours() * 60 + now.getMinutes();
-  const s = toMinutes(start);
-  const e = toMinutes(end);
-  if (s === null || e === null) return false;
-  return nowMin >= s && nowMin < e;
+function formatRoom(room?: string, teacher?: string): string {
+  if (room) {
+    const clean = room.trim();
+    if (clean.toLowerCase().startsWith('room')) {
+      return clean.replace(/^(room\s*)+/i, 'Room ');
+    }
+    return `Room ${clean}`;
+  }
+  return teacher ? teacher : 'Room 100';
 }
 
 function periodLabel(slot: any, index: number): string {
-  const label = slot?.period?.label;
-  if (label) return label;
-  const ordinals = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th'];
-  return ordinals[index] || `${index + 1}th`;
+  if (slot?.period?.label) return slot.period.label;
+  return `Period ${index + 1}`;
 }
 
-export const StudentHomePeriodsList: React.FC<StudentHomePeriodsListProps> = ({ loading, slots = [] }) => {
+export const StudentHomePeriodsList: React.FC<StudentHomePeriodsListProps> = ({
+  loading,
+  slots = [],
+  onSchedulePress,
+  onPeriodPress,
+}) => {
   return (
     <View style={styles.periodsSection}>
-      <View style={styles.sectionHeaderRow}>
-        <MaterialCommunityIcons name="calendar-month-outline" size={20} color="#1A1B1C" />
-        <Text style={styles.sectionHeaderTitle}>Today&apos;s Periods</Text>
-      </View>
+      <TouchableOpacity
+        style={styles.sectionHeaderRow}
+        onPress={onSchedulePress}
+        activeOpacity={0.7}
+      >
+        <View style={styles.sectionHeaderLeft}>
+          
+          <Text style={styles.sectionHeaderTitle}>Today&apos;s Periods</Text>
+        </View>
+        <MaterialCommunityIcons name="chevron-right" size={22} color="#111827" />
+      </TouchableOpacity>
 
       {loading ? (
-        <View style={styles.periodsListCard}>
-          {[0, 1, 2].map((i) => (
-            <View key={i} style={styles.periodRow}>
-              <ShimmerSkeleton width={52} height={30} borderRadius={6} />
-              <ShimmerSkeleton width={70} height={28} borderRadius={6} />
-              <View style={{ flex: 1, gap: 6 }}>
-                <ShimmerSkeleton width="80%" height={12} borderRadius={4} />
-                <ShimmerSkeleton width="50%" height={10} borderRadius={4} />
+        <View style={styles.skeletonList}>
+          {[0, 1, 2, 3].map((i) => (
+            <View key={i} style={styles.periodCard}>
+              <View style={styles.periodCol}>
+                <ShimmerSkeleton width={56} height={16} borderRadius={4} />
               </View>
-              <ShimmerSkeleton width={28} height={18} borderRadius={4} />
+              <View style={styles.timeWrap}>
+                <ShimmerSkeleton width={44} height={14} borderRadius={4} />
+                <ShimmerSkeleton width={36} height={12} borderRadius={4} />
+              </View>
+              <View style={[styles.subjectWrap, { gap: 6 }]}>
+                <ShimmerSkeleton width="75%" height={14} borderRadius={4} />
+                <ShimmerSkeleton width="50%" height={12} borderRadius={4} />
+              </View>
+              <ShimmerSkeleton width={16} height={16} borderRadius={8} />
             </View>
           ))}
         </View>
       ) : slots.length === 0 ? (
-        <View style={styles.periodsListCard}>
-          <View style={styles.emptyCard}>
-            <MaterialCommunityIcons name="calendar-blank-outline" size={36} color="#6B6B6B" />
-            <Text style={styles.emptyTitle}>No classes today</Text>
-            <Text style={styles.emptySub}>Your timetable shows up here once your class schedule is published.</Text>
+        <TouchableOpacity
+          style={styles.emptyCard}
+          activeOpacity={0.8}
+          onPress={onSchedulePress}
+        >
+          <View style={styles.emptyIconCircle}>
+            <MaterialCommunityIcons name="calendar-blank-outline" size={30} color="#211e1cff" />
           </View>
-        </View>
+          <Text style={styles.emptyTitle}>No classes scheduled for today</Text>
+          <Text style={styles.emptySub}>Tap here to view your complete weekly timetable &amp; schedule.</Text>
+        </TouchableOpacity>
       ) : (
-        <View style={styles.periodsListCard}>
+        <View style={styles.periodsList}>
           {slots.map((slot, i) => {
-            const active = isNowWithin(slot?.period?.startTime, slot?.period?.endTime);
+            const startTime = slot?.period?.startTime || '09:00';
+            const endTime = slot?.period?.endTime || '10:00';
+            const subjectName = slot?.subject?.name || 'Class';
+            const roomText = formatRoom(slot?.room, slot?.teacher?.fullName);
+
             return (
-              <View key={slot.id || i}>
-                {i > 0 && <View style={styles.divider} />}
-                <View style={[styles.periodRow, active && styles.activePeriodRow]}>
-                  <View style={[styles.periodBadge, active && styles.activePeriodBadge]}>
-                    <Text style={[styles.periodBadgeNum, active && { color: '#FFFFFF' }]}>
-                      {periodLabel(slot, i)}
-                    </Text>
-                  </View>
-                  <View style={styles.timeWrap}>
-                    <Text style={[styles.timeText, active && { color: '#F4C430' }]}>
-                      {slot?.period?.startTime || ''}
-                    </Text>
-                    <Text style={styles.timeSubText}>{slot?.period?.endTime || ''}</Text>
-                  </View>
-                  <View style={styles.iconSubjectWrap}>
-                    <View style={styles.subjectIconCircle}>
-                      <MaterialCommunityIcons name="book-open-page-variant-outline" size={18} color="#1A1B1C" />
-                    </View>
-                    <View>
-                      <Text style={styles.subjectName}>{slot?.subject?.name || 'Subject'}</Text>
-                      <Text style={styles.roomName}>
-                        {slot?.teacher?.fullName || ''}
-                      </Text>
-                    </View>
-                  </View>
-                  {active ? (
-                    <View style={styles.nowChip}>
-                      <Text style={styles.nowChipText}>Now</Text>
-                    </View>
-                  ) : (
-                    <View style={{ width: 28 }} />
-                  )}
+              <TouchableOpacity
+                key={slot.id || i}
+                style={styles.periodCard}
+                activeOpacity={0.7}
+                onPress={() => (onPeriodPress ? onPeriodPress(slot) : onSchedulePress?.())}
+              >
+                <View style={styles.periodCol}>
+                  <Text style={styles.periodBadgeText} numberOfLines={1}>
+                    {periodLabel(slot, i)}
+                  </Text>
                 </View>
-              </View>
+
+                <View style={styles.timeWrap}>
+                  <Text style={styles.timeStart}>{startTime}</Text>
+                  <Text style={styles.timeEnd}>{endTime}</Text>
+                </View>
+
+                <View style={styles.subjectWrap}>
+                  <Text style={styles.subjectName} numberOfLines={1}>
+                    {subjectName}
+                  </Text>
+                  <Text style={styles.roomText} numberOfLines={1}>
+                    {roomText}
+                  </Text>
+                </View>
+
+                <MaterialCommunityIcons name="chevron-right" size={20} color="#9CA3AF" />
+              </TouchableOpacity>
             );
           })}
         </View>
@@ -115,59 +124,119 @@ export const StudentHomePeriodsList: React.FC<StudentHomePeriodsListProps> = ({ 
 };
 
 const styles = StyleSheet.create({
-  periodsSection: { gap: 10 },
-  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  sectionHeaderTitle: { fontSize: 15, fontWeight: '800', color: '#171717' },
-  periodsListCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.card,
-    borderWidth: 1,
-    borderColor: '#E8E5DC',
-    overflow: 'hidden',
-  },
-  periodRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+  periodsSection: {
     gap: 12,
   },
-  activePeriodRow: { backgroundColor: '#FFF4C7' },
-  periodBadge: {
-    width: 52,
-    height: 30,
-    borderRadius: 6,
-    backgroundColor: '#1A1B1C',
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+  },
+  sectionHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sectionHeaderTitle: {
+    fontSize: 18,
+    fontFamily: FontFamily.bold,
+    color: '#111827',
+  },
+  skeletonList: {
+    gap: 10,
+  },
+  periodsList: {
+    gap: 10,
+  },
+  periodCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 5,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 16,
+    borderWidth: 1,
+    borderColor: '#F3EFE8',
+    shadowColor: '#171717',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  periodCol: {
+    width: 62,
     justifyContent: 'center',
+  },
+  periodBadgeText: {
+    fontSize: 12,
+    fontFamily: FontFamily.semibold,
+    color: '#111827',
+  },
+  timeWrap: {
+    width: 54,
+    justifyContent: 'center',
+  },
+  timeStart: {
+    fontSize: 13,
+    fontFamily: FontFamily.bold,
+    color: '#111827',
+  },
+  timeEnd: {
+    fontSize: 11,
+    fontFamily: FontFamily.regular,
+    color: '#6B7280',
+    marginTop: 1,
+  },
+  subjectWrap: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  subjectName: {
+    fontSize: 14,
+    fontFamily: FontFamily.bold,
+    color: '#111827',
+  },
+  roomText: {
+    fontSize: 12,
+    fontFamily: FontFamily.regular,
+    color: '#6B7280',
+    marginTop: 1,
+  },
+  emptyCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 5,
+    padding: 24,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#2A2B2C',
+    borderColor: '#F3EFE8',
+    gap: 8,
+    shadowColor: '#171717',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
   },
-  activePeriodBadge: { backgroundColor: '#F4C430', borderColor: '#F4C430' },
-  periodBadgeNum: { fontSize: 9, fontWeight: '800', color: '#F4C430' },
-  timeWrap: { width: 70 },
-  timeText: { fontSize: 12, fontWeight: '700', color: '#171717' },
-  timeSubText: { fontSize: 10, color: '#6B6B6B' },
-  iconSubjectWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  subjectIconCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#F4C430',
+  emptyIconCircle: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#FEF3C7',
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 4,
   },
-  subjectName: { fontSize: 13, fontWeight: '700', color: '#171717' },
-  roomName: { fontSize: 11, color: '#6B6B6B' },
-  nowChip: {
-    backgroundColor: '#F4C430',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: BorderRadius.chip,
+  emptyTitle: {
+    fontSize: 15,
+    fontFamily: FontFamily.bold,
+    color: '#111827',
   },
-  nowChipText: { fontSize: 10, fontWeight: '700', color: '#FFFFFF' },
-  divider: { height: 1, backgroundColor: '#FFFEFE' },
-  emptyCard: { padding: 24, alignItems: 'center', gap: 6 },
-  emptyTitle: { fontSize: 14, fontWeight: '700', color: '#171717' },
-  emptySub: { fontSize: 12, color: '#6B6B6B', textAlign: 'center', lineHeight: 16 },
+  emptySub: {
+    fontSize: 12,
+    fontFamily: FontFamily.regular,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 18,
+  },
 });

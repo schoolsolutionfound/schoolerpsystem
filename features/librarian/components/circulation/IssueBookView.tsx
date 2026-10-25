@@ -82,11 +82,11 @@ export const IssueBookView: React.FC<IssueBookViewProps> = ({
   );
 
   // Input & Scroll Refs for Keyboard UX
-  const scrollViewRef = useRef<ScrollView>(null);
+  const scrollViewRef = useRef<React.ElementRef<typeof ScrollView>>(null);
   const ledgerYRef = useRef<number>(0);
-  const bookInputRef = useRef<TextInput>(null);
-  const studentInputRef = useRef<TextInput>(null);
-  const returnStudentInputRef = useRef<TextInput>(null);
+  const bookInputRef = useRef<React.ElementRef<typeof TextInput>>(null);
+  const studentInputRef = useRef<React.ElementRef<typeof TextInput>>(null);
+  const returnStudentInputRef = useRef<React.ElementRef<typeof TextInput>>(null);
 
   const [isBookFocused, setIsBookFocused] = useState(false);
   const [isStudentFocused, setIsStudentFocused] = useState(false);

@@ -43,7 +43,7 @@ export const LibrarianDashboardView: React.FC<LibrarianDashboardViewProps> = ({
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
   const [activeCircTab, setActiveCircTab] = useState<'DELAYED' | 'ISSUED'>('DELAYED');
-  const scrollViewRef = useRef<ScrollView>(null);
+  const scrollViewRef = useRef<React.ElementRef<typeof ScrollView>>(null);
   const circContainerYRef = useRef<number>(0);
 
   const handleTabPress = (tab: 'DELAYED' | 'ISSUED') => {

@@ -150,22 +150,14 @@ export default function ChangePasswordScreen() {
               </View>
             )}
 
-            <View style={styles.header}>
-              <View style={[styles.iconCircle, !isFirstLogin && { backgroundColor: '#FEF3C7' }]}>
-                <MaterialCommunityIcons
-                  name={isFirstLogin ? 'lock-outline' : 'lock-reset'}
-                  size={32}
-                  color={isFirstLogin ? '#F4C430' : '#D97706'}
-                />
+            <View>
+              <View>
+               
               </View>
               <Text style={styles.title}>
                 {isFirstLogin ? 'Secure Your Account' : 'Change Password'}
               </Text>
-              <Text style={styles.subtitle}>
-                {isFirstLogin
-                  ? 'This is your first login. For security reasons, please create a new password to secure your account.'
-                  : 'Enter your new password below to update your security credentials.'}
-              </Text>
+          
             </View>
 
             <ChangePasswordForm

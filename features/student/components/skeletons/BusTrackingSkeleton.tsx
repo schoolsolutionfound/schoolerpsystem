@@ -41,10 +41,10 @@ export const BusTrackingSkeleton: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, backgroundColor: '#FAF8F5' },
   mapArea: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#FFFFFF',
     minHeight: 300,
     justifyContent: 'center',
     alignItems: 'center',
@@ -52,13 +52,13 @@ const styles = StyleSheet.create({
   },
   infoCard: {
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    padding: 16,
+    borderTopLeftRadius: 5,
+    borderTopRightRadius: 5,
+    padding: 18,
     borderWidth: 1,
     borderColor: '#E8E5DC',
     borderBottomWidth: 0,
-    gap: 12,
+    gap: 14,
   },
   infoHeader: {
     flexDirection: 'row',
@@ -69,11 +69,11 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     alignItems: 'stretch',
-    backgroundColor: '#1A1B1C',
-    borderRadius: 10,
-    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 5,
+    paddingVertical: 14,
     borderWidth: 1,
-    borderColor: '#2A2B2C',
+    borderColor: '#E8E5DC',
   },
   statCell: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4 },
   busInfoRow: {

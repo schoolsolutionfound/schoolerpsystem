@@ -212,7 +212,7 @@ export const LibraryStudentsView = ({
                 </TouchableOpacity>
               </View>
             </View>
-          ) : null
+          ) : undefined
         }
       />
     </View>
