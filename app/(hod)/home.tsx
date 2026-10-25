@@ -20,12 +20,21 @@ import {
   HODKPIs,
   HODFacultyMember,
   DepartmentCourse,
+  DepartmentNotice,
 } from '../../features/hod/types/hod.types';
 import {
   fetchHODKPIsApi,
   fetchHODFacultyApi,
   fetchDepartmentCoursesApi,
+  fetchDepartmentNoticesApi,
+  createDepartmentNoticeApi,
+  updateDepartmentNoticeApi,
+  deleteDepartmentNoticeApi,
 } from '../../api/hod';
+import {
+  fetchPrincipalHomeroomsApi,
+  assignHomeroomTeacherApi,
+} from '../../api/principal';
 import { HODHeader } from '../../features/hod/components/HODHeader';
 import { HODDrawer } from '../../features/hod/components/HODDrawer';
 import { HODDashboardView } from '../../features/hod/components/HODDashboardView';
@@ -51,7 +60,6 @@ import {
   StaffDesignation,
   SchoolNotice,
 } from '../../features/principal/types/principal.types';
-import { DEFAULT_INSTITUTION_CLASSES } from '../../features/principal/constants/defaultClasses';
 
 const BOTTOM_TABS: {
   key: HODTab;
@@ -66,63 +74,39 @@ const BOTTOM_TABS: {
   { key: 'profile', label: 'Account', icon: 'account-outline', iconActive: 'account' },
 ];
 
-const VMHS_DEFAULT_COURSES: DepartmentCourse[] = [
-  { id: 'crs-cs501', code: 'CS501', name: 'Operating Systems & System Programming', department: 'Computer Science & Engineering', semester: 'Semester 5', type: 'theory', credits: 4, instructorName: 'Dr. Linus Torvalds', enrolledStudentsCount: 64, syllabusProgressPct: 80, totalPlannedHours: 52, completedHours: 42 },
-  { id: 'crs-cs502', code: 'CS502', name: 'Database Management Systems & SQL', department: 'Computer Science & Engineering', semester: 'Semester 5', type: 'theory', credits: 4, instructorName: 'Prof. Dennis Ritchie', enrolledStudentsCount: 64, syllabusProgressPct: 76, totalPlannedHours: 50, completedHours: 38 },
-  { id: 'crs-cs505l', code: 'CS505L', name: 'Advanced Algorithms & Problem Solving Lab', department: 'Computer Science & Engineering', semester: 'Semester 5', type: 'practical_lab', credits: 2, instructorName: 'Dr. Donald Knuth', enrolledStudentsCount: 64, syllabusProgressPct: 83, totalPlannedHours: 36, completedHours: 30, labBatchesCount: 3 },
-  { id: 'crs-cs506l', code: 'CS506L', name: 'Database Systems & Query Optimization Lab', department: 'Computer Science & Engineering', semester: 'Semester 5', type: 'practical_lab', credits: 2, instructorName: 'Prof. Ada Lovelace', enrolledStudentsCount: 64, syllabusProgressPct: 88, totalPlannedHours: 36, completedHours: 32, labBatchesCount: 3 },
-  { id: 'crs-cs701', code: 'CS701', name: 'Cloud Computing & Distributed Architecture', department: 'Computer Science & Engineering', semester: 'Semester 7', type: 'theory', credits: 3, instructorName: 'Dr. Tim Berners-Lee', enrolledStudentsCount: 58, syllabusProgressPct: 86, totalPlannedHours: 45, completedHours: 39 },
-  { id: 'crs-cs704e', code: 'CS704E', name: 'Applied Machine Learning & Neural Networks', department: 'Computer Science & Engineering', semester: 'Semester 7', type: 'elective', credits: 3, instructorName: 'Dr. Bjarne Stroustrup', enrolledStudentsCount: 42, syllabusProgressPct: 70, totalPlannedHours: 40, completedHours: 28 },
-  { id: 'crs-cs301', code: 'CS301', name: 'Data Structures & Algorithms', department: 'Computer Science & Engineering', semester: 'Semester 3', type: 'theory', credits: 4, instructorName: 'Prof. James Gosling', enrolledStudentsCount: 68, syllabusProgressPct: 88, totalPlannedHours: 52, completedHours: 46 },
-  { id: 'crs-cs302', code: 'CS302', name: 'Object Oriented Programming with Java & C++', department: 'Computer Science & Engineering', semester: 'Semester 3', type: 'theory', credits: 4, instructorName: 'Dr. Guido van Rossum', enrolledStudentsCount: 68, syllabusProgressPct: 84, totalPlannedHours: 50, completedHours: 42 },
-  { id: 'crs-cs305l', code: 'CS305L', name: 'Data Structures Lab (C & C++)', department: 'Computer Science & Engineering', semester: 'Semester 3', type: 'practical_lab', credits: 2, instructorName: 'Prof. Ken Thompson', enrolledStudentsCount: 68, syllabusProgressPct: 90, totalPlannedHours: 36, completedHours: 32, labBatchesCount: 3 },
-  { id: 'crs-cs101', code: 'CS101', name: 'Introduction to Computational Thinking & C', department: 'Computer Science & Engineering', semester: 'Semester 1', type: 'theory', credits: 3, instructorName: 'Dr. Vint Cerf', enrolledStudentsCount: 72, syllabusProgressPct: 92, totalPlannedHours: 45, completedHours: 41 },
-];
+function toSchoolNotice(notice: DepartmentNotice): SchoolNotice {
+  const rawAudience = String(notice.targetAudience || 'all');
+  const targetAudience: SchoolNotice['targetAudience'] =
+    rawAudience === 'faculty' || rawAudience === 'teachers'
+      ? 'teachers'
+      : rawAudience === 'lab_assistants' || rawAudience === 'staff'
+      ? 'staff'
+      : rawAudience === 'parents'
+      ? 'parents'
+      : rawAudience === 'students'
+      ? 'students'
+      : 'all';
 
-const VMHS_DEFAULT_FACULTY: HODFacultyMember[] = [
-  { id: 'fac-1', name: 'Dr. Linus Torvalds', employeeId: 'EMP-CSE-001', email: 'hod.cse@vmhs.com', phone: '+91 98450 00001', rank: 'professor', department: 'Computer Science & Engineering', specialization: 'Operating Systems & Linux Kernel', maxCreditsPerWeek: 18, assignedCredits: 8, assignedCourses: ['CS501'], status: 'present', cabinNumber: 'CSB-301' },
-  { id: 'fac-2', name: 'Prof. Dennis Ritchie', employeeId: 'EMP-CSE-002', email: 'dennis.ritchie.vmhs001002@faculty.school.com', phone: '+91 98450 00002', rank: 'professor', department: 'Computer Science & Engineering', specialization: 'C Programming & Systems', maxCreditsPerWeek: 18, assignedCredits: 12, assignedCourses: ['CS502'], status: 'in_lecture', cabinNumber: 'CSB-302' },
-  { id: 'fac-3', name: 'Dr. Donald Knuth', employeeId: 'EMP-CSE-003', email: 'donald.knuth.vmhs001002@faculty.school.com', phone: '+91 98450 00003', rank: 'professor', department: 'Computer Science & Engineering', specialization: 'Algorithm Analysis & TeX', maxCreditsPerWeek: 18, assignedCredits: 10, assignedCourses: ['CS505L'], status: 'in_lab', cabinNumber: 'CSB-303' },
-  { id: 'fac-4', name: 'Prof. Ada Lovelace', employeeId: 'EMP-CSE-004', email: 'ada.lovelace.vmhs001002@faculty.school.com', phone: '+91 98450 00004', rank: 'associate_professor', department: 'Computer Science & Engineering', specialization: 'Computational Logic & Databases', maxCreditsPerWeek: 18, assignedCredits: 14, assignedCourses: ['CS506L'], status: 'present', cabinNumber: 'CSB-304' },
-  { id: 'fac-5', name: 'Dr. Tim Berners-Lee', employeeId: 'EMP-CSE-005', email: 'tim.berners.lee.vmhs001002@faculty.school.com', phone: '+91 98450 00005', rank: 'associate_professor', department: 'Computer Science & Engineering', specialization: 'Distributed Systems & WWW', maxCreditsPerWeek: 18, assignedCredits: 12, assignedCourses: ['CS701'], status: 'present', cabinNumber: 'CSB-305' },
-  { id: 'fac-6', name: 'Dr. Bjarne Stroustrup', employeeId: 'EMP-CSE-006', email: 'bjarne.stroustrup.vmhs001002@faculty.school.com', phone: '+91 98450 00006', rank: 'associate_professor', department: 'Computer Science & Engineering', specialization: 'C++ & Object Oriented Design', maxCreditsPerWeek: 18, assignedCredits: 10, assignedCourses: ['CS704E'], status: 'present', cabinNumber: 'CSB-306' },
-];
+  return {
+    id: notice.id,
+    title: notice.title,
+    content: notice.content,
+    priority: notice.priority,
+    targetAudience,
+    department: notice.department,
+    publishedDate: notice.publishedDate,
+    author: notice.authorName,
+    acknowledgedCount: 0,
+  };
+}
 
-const DEFAULT_DEPT_NOTICES: SchoolNotice[] = [
-  {
-    id: 'not-01',
-    title: 'Department Faculty Meeting — Curriculum Review',
-    content: 'All faculty members are requested to attend the odd semester curriculum and syllabus coverage review meeting in CSB-301.',
-    priority: 'urgent',
-    targetAudience: 'staff',
-    department: 'Computer Science & Engineering',
-    publishedDate: '2026-10-20',
-    author: 'Dr. Linus Torvalds',
-    acknowledgedCount: 10,
-  },
-  {
-    id: 'not-02',
-    title: 'Mid-Term Lab Practical Schedule & Rubrics',
-    content: 'Laboratory practical examinations and project code evaluations will commence next week. Lab instructors must ensure student terminal configurations.',
-    priority: 'important',
-    targetAudience: 'all',
-    department: 'Computer Science & Engineering',
-    publishedDate: '2026-10-18',
-    author: 'Dr. Linus Torvalds',
-    acknowledgedCount: 54,
-  },
-  {
-    id: 'not-03',
-    title: 'Final Year Capstone Project Review Phase 1',
-    content: '7th Semester students are required to submit their system architecture design document and Git repository links to their assigned guides.',
-    priority: 'normal',
-    targetAudience: 'students',
-    department: 'Computer Science & Engineering',
-    publishedDate: '2026-10-15',
-    author: 'Prof. Dennis Ritchie',
-    acknowledgedCount: 52,
-  },
-];
+function toDepartmentAudience(
+  audience: SchoolNotice['targetAudience']
+): DepartmentNotice['targetAudience'] {
+  if (audience === 'teachers' || audience === 'staff') return 'faculty';
+  if (audience === 'parents') return 'all';
+  return audience;
+}
 
 export default function HODHomeScreen() {
   const router = useRouter();
@@ -130,15 +114,18 @@ export default function HODHomeScreen() {
 
   // User store
   const rawFullName = useUserStore((state) => state.fullName);
-  const fullName = rawFullName && rawFullName !== 'Head of Department' ? rawFullName : 'Dr. Linus Torvalds';
+  const fullName = rawFullName?.trim() && rawFullName !== 'Head of Department'
+    ? rawFullName.trim()
+    : 'Head of Department';
   const rawDepartment = useUserStore((state) => state.department);
   const department = rawDepartment?.trim() && rawDepartment !== 'Department not set'
     ? rawDepartment.trim()
-    : 'Computer Science & Engineering';
+    : '';
+  const departmentLabel = department || 'Department';
   const rawInstName = useUserStore((state) => state.institutionName);
   const institutionName = rawInstName?.trim() && rawInstName !== 'Institution not set'
     ? rawInstName.trim()
-    : 'VM Memorial Higher Secondary & Degree College';
+    : 'Institution';
   const profilePic = useUserStore((state) => state.profilePic);
   const resetUser = useUserStore((state) => state.resetUser);
   const hasModuleAccess = useUserStore((state) => state.hasModuleAccess);
@@ -190,21 +177,22 @@ export default function HODHomeScreen() {
     }, 180);
   }, [activeTab]);
 
-  // Departmental Data with VMHS defaults so screen is never blank
+  // Departmental data loaded from backend
   const [kpis, setKpis] = useState<HODKPIs>({
-    totalStudents: 180,
-    facultyOnDuty: 11,
-    totalFaculty: 12,
-    activeCourses: 10,
-    practicalLabsCount: 4,
-    averageSyllabusProgress: 82,
-    detentionAlertsCount: 2,
-    unassignedCoursesCount: 1,
-    todayLabSessions: 3,
+    totalStudents: 0,
+    facultyOnDuty: 0,
+    totalFaculty: 0,
+    activeCourses: 0,
+    practicalLabsCount: 0,
+    averageSyllabusProgress: 0,
+    detentionAlertsCount: 0,
+    unassignedCoursesCount: 0,
+    todayLabSessions: 0,
   });
-  const [faculty, setFaculty] = useState<HODFacultyMember[]>(VMHS_DEFAULT_FACULTY);
-  const [courses, setCourses] = useState<DepartmentCourse[]>(VMHS_DEFAULT_COURSES);
-  const [notices, setNotices] = useState<SchoolNotice[]>(DEFAULT_DEPT_NOTICES);
+  const [faculty, setFaculty] = useState<HODFacultyMember[]>([]);
+  const [courses, setCourses] = useState<DepartmentCourse[]>([]);
+  const [notices, setNotices] = useState<SchoolNotice[]>([]);
+  const [homerooms, setHomerooms] = useState<HomeroomSection[]>([]);
 
   // Modals state (matching Principal)
   const [assignModalVisible, setAssignModalVisible] = useState(false);
@@ -215,7 +203,8 @@ export default function HODHomeScreen() {
   // Homerooms restricted to HOD's department
   const deptHomerooms: HomeroomSection[] = useMemo(() => {
     const depKey = department.toLowerCase();
-    const matched = DEFAULT_INSTITUTION_CLASSES.filter((sec) => {
+    if (!depKey) return homerooms;
+    return homerooms.filter((sec) => {
       const secDept = (sec.department || '').toLowerCase();
       const secName = (sec.name || '').toLowerCase();
       if (depKey.includes('computer') || depKey.includes('cse')) {
@@ -235,126 +224,7 @@ export default function HODHomeScreen() {
       }
       return secDept.includes(depKey);
     });
-
-    if (matched.length > 0) {
-      return matched.map((sec, idx) => ({
-        ...sec,
-        department,
-        homeroomTeacherName: faculty[idx % faculty.length]?.name || sec.homeroomTeacherName,
-      }));
-    }
-
-    const depCode = department.includes('Computer')
-      ? 'CSE'
-      : department.includes('Electronic')
-      ? 'ECE'
-      : department.includes('Mech')
-      ? 'MECH'
-      : department.includes('Civil')
-      ? 'CIVIL'
-      : department.includes('AI')
-      ? 'AIML'
-      : 'CSE';
-
-    return [
-      {
-        id: `sec-${depCode.toLowerCase()}-1a`,
-        name: `${depCode} 1st Year · Sec A`,
-        grade: '1st Year',
-        section: 'A',
-        department,
-        roomNumber: 'Room 101',
-        homeroomTeacherName: faculty[0]?.name || 'Dr. Linus Torvalds',
-        studentCount: 42,
-        presentCount: 40,
-        attendanceRate: 95.2,
-      },
-      {
-        id: `sec-${depCode.toLowerCase()}-1b`,
-        name: `${depCode} 1st Year · Sec B`,
-        grade: '1st Year',
-        section: 'B',
-        department,
-        roomNumber: 'Room 102',
-        homeroomTeacherName: faculty[1]?.name || 'Prof. Dennis Ritchie',
-        studentCount: 40,
-        presentCount: 38,
-        attendanceRate: 95.0,
-      },
-      {
-        id: `sec-${depCode.toLowerCase()}-2a`,
-        name: `${depCode} 2nd Year · Sec A`,
-        grade: '2nd Year',
-        section: 'A',
-        department,
-        roomNumber: 'Room 201',
-        homeroomTeacherName: faculty[2]?.name || 'Dr. Donald Knuth',
-        studentCount: 44,
-        presentCount: 41,
-        attendanceRate: 93.1,
-      },
-      {
-        id: `sec-${depCode.toLowerCase()}-2b`,
-        name: `${depCode} 2nd Year · Sec B`,
-        grade: '2nd Year',
-        section: 'B',
-        department,
-        roomNumber: 'Room 202',
-        homeroomTeacherName: faculty[3]?.name || 'Prof. Ada Lovelace',
-        studentCount: 40,
-        presentCount: 37,
-        attendanceRate: 92.5,
-      },
-      {
-        id: `sec-${depCode.toLowerCase()}-3a`,
-        name: `${depCode} 3rd Year · Sec A`,
-        grade: '3rd Year',
-        section: 'A',
-        department,
-        roomNumber: 'Room 301',
-        homeroomTeacherName: faculty[4]?.name || 'Dr. Tim Berners-Lee',
-        studentCount: 42,
-        presentCount: 39,
-        attendanceRate: 92.8,
-      },
-      {
-        id: `sec-${depCode.toLowerCase()}-3b`,
-        name: `${depCode} 3rd Year · Sec B`,
-        grade: '3rd Year',
-        section: 'B',
-        department,
-        roomNumber: 'Room 302',
-        homeroomTeacherName: faculty[5]?.name || 'Dr. Bjarne Stroustrup',
-        studentCount: 40,
-        presentCount: 38,
-        attendanceRate: 95.0,
-      },
-      {
-        id: `sec-${depCode.toLowerCase()}-4a`,
-        name: `${depCode} 4th Year · Sec A`,
-        grade: '4th Year',
-        section: 'A',
-        department,
-        roomNumber: 'Room 401',
-        homeroomTeacherName: faculty[0]?.name || 'Dr. Linus Torvalds',
-        studentCount: 45,
-        presentCount: 42,
-        attendanceRate: 93.3,
-      },
-      {
-        id: `sec-${depCode.toLowerCase()}-4b`,
-        name: `${depCode} 4th Year · Sec B`,
-        grade: '4th Year',
-        section: 'B',
-        department,
-        roomNumber: 'Room 402',
-        homeroomTeacherName: faculty[1]?.name || 'Prof. Dennis Ritchie',
-        studentCount: 43,
-        presentCount: 40,
-        attendanceRate: 93.0,
-      },
-    ];
-  }, [department, faculty]);
+  }, [department, homerooms]);
 
   // Faculty formatted for PrincipalStaffDirectoryView
   const deptStaffList: PrincipalStaffMember[] = useMemo(() => {
@@ -380,11 +250,14 @@ export default function HODHomeScreen() {
         phone: f.phone,
         department: f.department || department,
         designation: desig,
-        assignedClass: deptHomerooms[idx % deptHomerooms.length]?.name,
+        assignedClass: deptHomerooms.find((sec) => sec.homeroomTeacherName === f.name)?.name,
         assignedSubjects: f.assignedCourses,
-        attendanceToday: f.status === 'present' || f.status === 'in_lecture' || f.status === 'in_lab' ? 'present' : 'on_leave',
-        experienceYears: 10 + (idx * 2),
-        qualification: 'Ph.D in Computer Science & Engineering',
+        attendanceToday:
+          f.status === 'absent'
+            ? 'absent'
+            : f.status === 'on_leave'
+            ? 'on_leave'
+            : 'present',
       };
     });
   }, [faculty, department, deptHomerooms]);
@@ -392,23 +265,23 @@ export default function HODHomeScreen() {
   // Dynamic KPIs calculated live from departmental classes and faculty
   const dynamicKPIs: HODKPIs = useMemo(() => {
     const totalStudents =
-      deptHomerooms.reduce((acc, h) => acc + (h.studentCount || 0), 0) || kpis.totalStudents || 180;
-    const totalFaculty = faculty.length || kpis.totalFaculty || 12;
+      deptHomerooms.reduce((acc, h) => acc + (h.studentCount || 0), 0) || kpis.totalStudents;
+    const totalFaculty = faculty.length || kpis.totalFaculty;
     const facultyOnDuty =
       faculty.filter(
         (f) => f.status === 'present' || f.status === 'in_lecture' || f.status === 'in_lab'
-      ).length || kpis.facultyOnDuty || 11;
-    const activeCourses = courses.length || kpis.activeCourses || 10;
+      ).length || kpis.facultyOnDuty;
+    const activeCourses = courses.length || kpis.activeCourses;
     const practicalLabsCount =
       courses.filter(
         (c) => c.type === 'practical_lab' || (c.name || '').toLowerCase().includes('lab')
-      ).length || kpis.practicalLabsCount || 4;
+      ).length || kpis.practicalLabsCount;
     const averageSyllabusProgress =
       courses.length > 0
         ? Math.round(
             courses.reduce((acc, c) => acc + (c.syllabusProgressPct || 0), 0) / courses.length
           )
-        : kpis.averageSyllabusProgress || 82;
+        : kpis.averageSyllabusProgress;
 
     return {
       ...kpis,
@@ -424,22 +297,30 @@ export default function HODHomeScreen() {
   // Load HOD Data
   const loadData = useCallback(async () => {
     try {
-      const targetDept = department || 'Computer Science & Engineering';
+      const targetDept = department || undefined;
       const results = await Promise.allSettled([
         fetchHODKPIsApi(targetDept),
         fetchHODFacultyApi(targetDept),
         fetchDepartmentCoursesApi(targetDept),
+        fetchDepartmentNoticesApi(targetDept),
+        fetchPrincipalHomeroomsApi(),
       ]);
 
       if (!isMountedRef.current) return;
-      if (results[0].status === 'fulfilled' && results[0].value && results[0].value.totalStudents > 0) {
+      if (results[0].status === 'fulfilled' && results[0].value) {
         setKpis(results[0].value);
       }
-      if (results[1].status === 'fulfilled' && Array.isArray(results[1].value) && results[1].value.length > 0) {
+      if (results[1].status === 'fulfilled' && Array.isArray(results[1].value)) {
         setFaculty(results[1].value);
       }
-      if (results[2].status === 'fulfilled' && Array.isArray(results[2].value) && results[2].value.length > 0) {
+      if (results[2].status === 'fulfilled' && Array.isArray(results[2].value)) {
         setCourses(results[2].value);
+      }
+      if (results[3].status === 'fulfilled' && Array.isArray(results[3].value)) {
+        setNotices(results[3].value.map(toSchoolNotice));
+      }
+      if (results[4].status === 'fulfilled' && Array.isArray(results[4].value)) {
+        setHomerooms(results[4].value);
       }
     } catch (err: any) {
       if (!isMountedRef.current) return;
@@ -493,32 +374,65 @@ export default function HODHomeScreen() {
   };
 
   const handleConfirmAssign = async (sectionId: string, teacherId: string, teacherName: string) => {
-    Alert.alert('Homeroom Assigned', `${teacherName || 'Teacher'} assigned to ${selectedSection?.name || 'this class'}.`);
+    try {
+      await assignHomeroomTeacherApi(sectionId, teacherId, teacherName);
+      await loadData();
+      if (teacherId) {
+        Alert.alert('Homeroom Assigned', `${teacherName} is now the assigned Class Teacher.`);
+      } else {
+        Alert.alert('Homeroom Unassigned', `Class teacher assignment cleared for ${selectedSection?.name || 'this class'}.`);
+      }
+    } catch (err: any) {
+      Alert.alert('Assignment Failed', err?.message || 'Failed to update homeroom assignment.');
+    }
   };
 
   // Notice handlers
   const handlePublishNotice = async (
     notice: Omit<SchoolNotice, 'id' | 'publishedDate' | 'acknowledgedCount'>
   ) => {
-    const created: SchoolNotice = {
-      ...notice,
-      id: `not-${Date.now()}`,
-      publishedDate: new Date().toISOString().slice(0, 10),
-      acknowledgedCount: 0,
-    };
-    setNotices((prev) => [created, ...prev]);
-    Alert.alert('Announcement Broadcasted', `"${notice.title}" has been published.`);
+    try {
+      const result = await createDepartmentNoticeApi({
+        title: notice.title,
+        content: notice.content,
+        department: notice.department || department,
+        priority: notice.priority,
+        targetAudience: toDepartmentAudience(notice.targetAudience),
+        authorName: fullName,
+        authorRole: 'hod',
+      });
+      setNotices((prev) => [toSchoolNotice(result.notice), ...prev]);
+      Alert.alert('Announcement Broadcasted', `"${notice.title}" has been published.`);
+    } catch (err: any) {
+      Alert.alert('Publish Failed', err?.message || 'Failed to publish announcement.');
+    }
   };
 
   const handleDeleteNotice = async (id: string) => {
-    setNotices((prev) => prev.filter((n) => n.id !== id));
+    try {
+      await deleteDepartmentNoticeApi(id);
+      setNotices((prev) => prev.filter((n) => n.id !== id));
+    } catch (err: any) {
+      Alert.alert('Delete Failed', err?.message || 'Failed to delete announcement.');
+    }
   };
 
   const handleUpdateNotice = async (updatedNotice: SchoolNotice) => {
-    setNotices((prev) =>
-      prev.map((n) => (n.id === updatedNotice.id ? { ...n, ...updatedNotice } : n))
-    );
-    Alert.alert('Announcement Updated', `"${updatedNotice.title}" has been updated.`);
+    try {
+      const result = await updateDepartmentNoticeApi(updatedNotice.id, {
+        title: updatedNotice.title,
+        content: updatedNotice.content,
+        department: updatedNotice.department || department,
+        priority: updatedNotice.priority,
+        targetAudience: toDepartmentAudience(updatedNotice.targetAudience),
+      });
+      setNotices((prev) =>
+        prev.map((n) => (n.id === updatedNotice.id ? toSchoolNotice(result.notice) : n))
+      );
+      Alert.alert('Announcement Updated', `"${updatedNotice.title}" has been updated.`);
+    } catch (err: any) {
+      Alert.alert('Update Failed', err?.message || 'Failed to update announcement.');
+    }
   };
 
   if (loading) {
@@ -540,7 +454,7 @@ export default function HODHomeScreen() {
         {/* Header */}
         <HODHeader
           fullName={fullName}
-          department={department}
+          department={departmentLabel}
           institutionName={institutionName}
           profilePic={profilePic}
           activeTab={activeTab}
@@ -574,7 +488,7 @@ export default function HODHomeScreen() {
                 {activeTab === 'dashboard' && (
                   <HODDashboardView
                     fullName={fullName}
-                    department={department}
+                    department={departmentLabel}
                     kpis={dynamicKPIs}
                     homerooms={deptHomerooms}
                     staffList={deptStaffList}
@@ -605,7 +519,7 @@ export default function HODHomeScreen() {
                 {(activeTab === 'staff' || activeTab === 'faculty') && (
                   <PrincipalStaffDirectoryView
                     staffList={deptStaffList}
-                    restrictDepartment={department}
+                    restrictDepartment={department || undefined}
                     refreshing={refreshing}
                     onRefresh={handleRefresh}
                   />
@@ -614,7 +528,7 @@ export default function HODHomeScreen() {
                 {activeTab === 'reviews' && (
                   <StudentFeedbackReviewManagerView
                     userRole="hod"
-                    userDepartment={department}
+                    userDepartment={department || undefined}
                     currentUserName={fullName}
                   />
                 )}
@@ -645,7 +559,7 @@ export default function HODHomeScreen() {
                 {activeTab === 'events' && (
                   <AcademicCalendarEventsView
                     userRole="hod"
-                    userDepartment={department}
+                    userDepartment={department || undefined}
                     canManageAll={false}
                     canManageDeptOnly={true}
                   />
@@ -663,7 +577,7 @@ export default function HODHomeScreen() {
                   ) : (
                     <LeaveApprovalView
                       userRole="hod"
-                      userDepartment={department}
+                      userDepartment={department || undefined}
                       reviewerName={fullName}
                     />
                   )
@@ -681,7 +595,7 @@ export default function HODHomeScreen() {
                   ) : (
                     <DocumentRequestsManagerView
                       userRole="hod"
-                      userDepartment={department}
+                      userDepartment={department || undefined}
                       institutionName={institutionName}
                     />
                   )

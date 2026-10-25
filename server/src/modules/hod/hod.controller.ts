@@ -198,9 +198,10 @@ export async function createNoticeHandler(request: FastifyRequest, reply: Fastif
       });
     }
 
+    const role = (user?.role || '').toLowerCase();
     const created = await hodService.createNotice(instCode, user, {
       ...body,
-      department: body.department || department,
+      department: role === 'hod' ? department : body.department || department,
     });
 
     return reply.status(201).send({ success: true, data: created, notice: created });
@@ -217,6 +218,8 @@ export async function updateNoticeHandler(request: FastifyRequest, reply: Fastif
     const { instCode, department } = getTenantAndDept(request);
     const { id } = request.params as { id: string };
     const body = request.body as any;
+    const user = (request as any).user;
+    const role = (user?.role || '').toLowerCase();
 
     if (!body?.title || !body?.content) {
       return reply.status(400).send({
@@ -225,10 +228,15 @@ export async function updateNoticeHandler(request: FastifyRequest, reply: Fastif
       });
     }
 
-    const updated = await hodService.updateNotice(instCode, id, {
-      ...body,
-      department: body.department || department,
-    });
+    const updated = await hodService.updateNotice(
+      instCode,
+      id,
+      {
+        ...body,
+        department: role === 'hod' ? department : body.department || department,
+      },
+      role === 'hod' ? department : undefined
+    );
 
     return reply.send({ success: true, data: updated, notice: updated });
   } catch (err: any) {
@@ -241,10 +249,12 @@ export async function updateNoticeHandler(request: FastifyRequest, reply: Fastif
 
 export async function deleteNoticeHandler(request: FastifyRequest, reply: FastifyReply) {
   try {
-    const { instCode } = getTenantAndDept(request);
+    const { instCode, department } = getTenantAndDept(request);
     const { id } = request.params as { id: string };
+    const user = (request as any).user;
+    const role = (user?.role || '').toLowerCase();
 
-    await hodService.deleteNotice(instCode, id);
+    await hodService.deleteNotice(instCode, id, role === 'hod' ? department : undefined);
     return reply.send({ success: true, data: { id } });
   } catch (err: any) {
     return reply.status(err.statusCode || 500).send({

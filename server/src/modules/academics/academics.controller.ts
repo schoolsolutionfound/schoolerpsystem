@@ -1,5 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { academicsService } from './academics.service.js';
+import { academicsRepository } from './academics.repository.js';
 import {
   CreateClassSectionSchema,
   UpdateClassSectionSchema,
@@ -48,6 +49,23 @@ function getUserId(req: FastifyRequest): string {
 function getRole(req: FastifyRequest): string {
   const user = (req as any).user;
   return user?.role || '';
+}
+
+function getUserDepartment(req: FastifyRequest): string {
+  const user = (req as any).user;
+  let department = user?.department || '';
+  if (!department && user?.scope && typeof user.scope === 'object') {
+    department = user.scope.department || user.scope.dept || '';
+  }
+  if (!department && typeof user?.scope === 'string') {
+    try {
+      const scope = JSON.parse(user.scope);
+      department = scope.department || scope.dept || '';
+    } catch {
+      department = '';
+    }
+  }
+  return String(department || '').trim();
 }
 
 function parseZod(err: any) {
@@ -142,6 +160,21 @@ export async function createClassSectionHandler(request: FastifyRequest, reply: 
 
 export async function updateClassSectionHandler(request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
   try {
+    if (getRole(request).toLowerCase() === 'hod') {
+      const department = getUserDepartment(request);
+      const section = await academicsRepository.getClassSectionById(request.params.id);
+      if (
+        !section ||
+        !department ||
+        !(section.department || '').toLowerCase().includes(department.toLowerCase())
+      ) {
+        return reply.status(403).send({
+          success: false,
+          error: { message: 'Access denied: class section is outside your department', code: 'FORBIDDEN' },
+        });
+      }
+    }
+
     const body = UpdateClassSectionSchema.parse(request.body);
     const data = await academicsService.updateClassSection(getInstCode(request), request.params.id, body);
     return reply.send({ success: true, data });

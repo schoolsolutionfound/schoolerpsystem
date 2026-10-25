@@ -17,9 +17,7 @@ import {
   SchoolNotice,
   PrincipalStaffMember,
 } from '../types/principal.types';
-import { MOCK_STUDENT_FEES, generateAllInstitutionalStudentFees } from '../constants/feeLedgerData';
-import { INITIAL_EVENTS } from '../../shared/components/AcademicCalendarEventsView';
-import { FACULTY_ASSIGNED_CLASSES } from '../../teacher/components/AttendanceMarkingView';
+import { generateAllInstitutionalStudentFees } from '../constants/feeLedgerData';
 
 interface PrincipalDashboardViewProps {
   fullName?: string;
@@ -74,147 +72,7 @@ const formatUpcomingEventDate = (startDate: string, endDate?: string): string =>
 
 
 
-const FALLBACK_DEPARTMENT_CLASSES: HomeroomSection[] = [
-  {
-    id: 'dyn-cse-1',
-    name: 'CSE 1st Year · Sec A',
-    grade: '1st Year',
-    section: 'A',
-    homeroomTeacherName: 'Dr. Emily Watson',
-    studentCount: 42,
-    presentCount: 40,
-    attendanceRate: 95.2,
-  },
-  {
-    id: 'dyn-cse-2',
-    name: 'CSE 2nd Year · Sec B',
-    grade: '2nd Year',
-    section: 'B',
-    homeroomTeacherName: 'Prof. David Vance',
-    studentCount: 40,
-    presentCount: 37,
-    attendanceRate: 92.5,
-  },
-  {
-    id: 'dyn-ece-1',
-    name: 'ECE 1st Year · Sec A',
-    grade: '1st Year',
-    section: 'A',
-    homeroomTeacherName: 'Dr. Sarah Connor',
-    studentCount: 38,
-    presentCount: 35,
-    attendanceRate: 92.1,
-  },
-  {
-    id: 'dyn-ece-2',
-    name: 'ECE 3rd Year · Sec A',
-    grade: '3rd Year',
-    section: 'A',
-    homeroomTeacherName: 'Prof. Alan Turing',
-    studentCount: 36,
-    presentCount: 33,
-    attendanceRate: 91.7,
-  },
-  {
-    id: 'dyn-mech-1',
-    name: 'Mechanical Eng 2nd Year · Sec A',
-    grade: '2nd Year',
-    section: 'A',
-    roomNumber: 'Workshop B',
-    homeroomTeacherName: 'Dr. Henry Ford',
-    studentCount: 35,
-    presentCount: 31,
-    attendanceRate: 88.6,
-  },
-  {
-    id: 'dyn-civil-1',
-    name: 'Civil Eng 3rd Year · Sec A',
-    grade: '3rd Year',
-    section: 'A',
-    roomNumber: 'Survey Hall',
-    homeroomTeacherName: 'Prof. Marcus Bell',
-    studentCount: 34,
-    presentCount: 29,
-    attendanceRate: 85.3,
-  },
-  {
-    id: 'dyn-math-1',
-    name: 'Applied Sciences · Maths Honors',
-    grade: '1st Year',
-    section: 'A',
-    roomNumber: 'Auditorium 2',
-    homeroomTeacherName: 'Dr. S. Ramanujan',
-    studentCount: 45,
-    presentCount: 43,
-    attendanceRate: 95.6,
-  },
-];
 
-const FALLBACK_STAFF_MEMBERS: PrincipalStaffMember[] = [
-  {
-    id: 'st-01',
-    fullName: 'Dr. Emily Watson',
-    email: 'e.watson@institution.edu',
-    phone: '+91 98451 23456',
-    department: 'Computer Science',
-    designation: 'hod',
-    assignedClass: 'CSE 1st Year · Sec A',
-    attendanceToday: 'present',
-    experienceYears: 14,
-  },
-  {
-    id: 'st-02',
-    fullName: 'Prof. David Vance',
-    email: 'd.vance@institution.edu',
-    phone: '+91 98452 34567',
-    department: 'Electronics & Comm',
-    designation: 'subject_teacher',
-    assignedClass: 'ECE 2nd Year · Sec A',
-    attendanceToday: 'present',
-    experienceYears: 10,
-  },
-  {
-    id: 'st-03',
-    fullName: 'Dr. Henry Ford',
-    email: 'h.ford@institution.edu',
-    phone: '+91 98453 45678',
-    department: 'Mechanical Eng',
-    designation: 'homeroom_teacher',
-    assignedClass: 'Mechanical 2nd Year',
-    attendanceToday: 'present',
-    experienceYears: 12,
-  },
-  {
-    id: 'st-04',
-    fullName: 'Dr. Marie Curie',
-    email: 'm.curie@institution.edu',
-    phone: '+91 98454 56789',
-    department: 'Applied Sciences',
-    designation: 'subject_teacher',
-    assignedClass: 'Applied Physics Honors',
-    attendanceToday: 'on_leave',
-    experienceYears: 7,
-  },
-];
-
-// Department-wise Fee Analytics (Paid vs Unpaid)
-const DEPT_FEE_ANALYTICS_TERM = [
-  { label: 'CSE', fullName: 'Computer Science', paid: 385000, unpaid: 42000 },
-  { label: 'ECE', fullName: 'Electronics & Comm', paid: 290000, unpaid: 38000 },
-  { label: 'MECH', fullName: 'Mechanical Eng', paid: 215000, unpaid: 55000 },
-  { label: 'CIVIL', fullName: 'Civil Eng', paid: 180000, unpaid: 48000 },
-  { label: 'AIML', fullName: 'AI & Data Science', paid: 340000, unpaid: 28000 },
-  { label: 'APS', fullName: 'Applied Sciences', paid: 155000, unpaid: 35000 },
-];
-
-const DEPT_FEE_ANALYTICS_ANNUAL = [
-  { label: 'CSE', fullName: 'Computer Science', paid: 1420000, unpaid: 180000 },
-  { label: 'ECE', fullName: 'Electronics & Comm', paid: 1150000, unpaid: 145000 },
-  { label: 'MECH', fullName: 'Mechanical Eng', paid: 860000, unpaid: 195000 },
-  { label: 'CIVIL', fullName: 'Civil Eng', paid: 720000, unpaid: 160000 },
-  { label: 'AIML', fullName: 'AI & Data Science', paid: 1280000, unpaid: 110000 },
-  { label: 'APS', fullName: 'Applied Sciences', paid: 620000, unpaid: 125000 },
-];
 
 export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
   fullName = 'Muhammad Samran',
@@ -247,9 +105,8 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
     (maxContentWidth - (horizontalPadding * 2) - cardGap) / 2
   );
 
-  // Dynamic fallback ensures zero blank space and consistent attendance summary
-  const rawHomerooms = homerooms && homerooms.length > 0 ? homerooms : FALLBACK_DEPARTMENT_CLASSES;
-  const activeStaffList = staffList && staffList.length > 0 ? staffList : FALLBACK_STAFF_MEMBERS;
+  const rawHomerooms = homerooms || [];
+  const activeStaffList = staffList || [];
 
   // Dynamic stats calculated live from actual class records
   const dynamicTotalEnrolled = useMemo(() => {
@@ -258,7 +115,7 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
   }, [rawHomerooms, kpis.totalStudents]);
 
   const dynamicTotalPresent = useMemo(() => {
-    const sum = rawHomerooms.reduce((acc, h) => acc + (h.presentCount !== undefined ? h.presentCount : Math.round((h.studentCount || 0) * 0.92)), 0);
+    const sum = rawHomerooms.reduce((acc, h) => acc + (h.presentCount !== undefined ? h.presentCount : 0), 0);
     return sum > 0 ? sum : (kpis.presentStudents || 0);
   }, [rawHomerooms, kpis.presentStudents]);
 
@@ -302,14 +159,9 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
       });
 
       const term = Object.values(deptMap);
-      const annual = term.map((t) => ({
-        ...t,
-        paid: Math.round(t.paid * 2.8),
-        unpaid: Math.round(t.unpaid * 1.5),
-      }));
-      return { term, annual };
+      return { term, annual: term };
     } catch {
-      return { term: DEPT_FEE_ANALYTICS_TERM, annual: DEPT_FEE_ANALYTICS_ANNUAL };
+      return { term: [], annual: [] };
     }
   }, [rawHomerooms]);
 
@@ -318,22 +170,8 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
   const chartData = chartPeriod === 'term' ? dynamicDeptFeeAnalytics.term : dynamicDeptFeeAnalytics.annual;
 
   // Highlights: Upcoming Events & Today's Classes
-  const todayDateObj = useMemo(() => new Date(), []);
-  const todayStr = useMemo(() => todayDateObj.toISOString().slice(0, 10), [todayDateObj]);
-  const currentDayOfWeek = useMemo(() => todayDateObj.getDay(), [todayDateObj]); // 0 = Sun, 1 = Mon ...
-
-  const todayClasses = useMemo(() => {
-    return FACULTY_ASSIGNED_CLASSES.filter((c) => c.scheduledDays.includes(currentDayOfWeek));
-  }, [currentDayOfWeek]);
-
-  const upcomingEvents = useMemo(() => {
-    return (INITIAL_EVENTS || [])
-      .filter((evt) => {
-        const end = evt.endDate || evt.startDate;
-        return end >= todayStr;
-      })
-      .sort((a, b) => (a.startDate || '').localeCompare(b.startDate || ''));
-  }, [todayStr]);
+  const todayClasses: { subjectName: string; periodTime: string; studentCount: number }[] = [];
+  const upcomingEvents: { title: string; startDate: string; endDate?: string }[] = [];
 
   const nextUpcomingEvent = upcomingEvents[0] || null;
   const hasUpcomingEvent = !!nextUpcomingEvent;

@@ -7,7 +7,6 @@ import {
   SchoolNotice,
   StaffDesignation,
 } from '../features/principal/types/principal.types';
-import { DEFAULT_INSTITUTION_CLASSES } from '../features/principal/constants/defaultClasses';
 
 export interface DashboardStatsApiResponse {
   success?: boolean;
@@ -124,7 +123,7 @@ export async function fetchPrincipalHomeroomsApi(): Promise<HomeroomSection[]> {
     const sections = Array.isArray(res) ? res : res?.data || [];
 
     if (!sections || sections.length === 0) {
-      return DEFAULT_INSTITUTION_CLASSES;
+      return [];
     }
 
     return sections.map((sec, idx) => {
@@ -150,8 +149,8 @@ export async function fetchPrincipalHomeroomsApi(): Promise<HomeroomSection[]> {
       };
     });
   } catch (err) {
-    console.warn('[fetchPrincipalHomeroomsApi] error, using fallback institution classes:', err);
-    return DEFAULT_INSTITUTION_CLASSES;
+    console.warn('[fetchPrincipalHomeroomsApi] error:', err);
+    return [];
   }
 }
 

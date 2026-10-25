@@ -90,6 +90,20 @@ const fastify = Fastify({
  * always allowed — CORS is a browser-enforced mechanism and does not apply to
  * them.
  */
+function isLocalExpoWebOrigin(origin: string): boolean {
+  if (isProduction) return false;
+  try {
+    const url = new URL(origin);
+    if (!['8081', '8082', '8083'].includes(url.port)) return false;
+    if (url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '[::1]') {
+      return true;
+    }
+    return /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[0-1])\.)/.test(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
 function buildCorsOrigin(): OriginFunction {
   const allowedOrigins = (process.env.CORS_ORIGINS || '')
     .split(',')
@@ -98,7 +112,7 @@ function buildCorsOrigin(): OriginFunction {
 
   if (allowedOrigins.length > 0) {
     return (origin, done) => {
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (!origin || allowedOrigins.includes(origin) || isLocalExpoWebOrigin(origin)) {
         done(null, true);
         return;
       }
@@ -113,7 +127,7 @@ function buildCorsOrigin(): OriginFunction {
   }
 
   // Development fallback: localhost / 127.0.0.1 on the usual dev-server ports.
-  const devPorts = new Set(['', '3000', '5173', '5174', '8080', '8000', '19006']);
+  const devPorts = new Set(['', '3000', '5173', '5174', '8080', '8081', '8082', '8083', '8000', '19006']);
   return (origin, done) => {
     if (!origin) {
       done(null, true);

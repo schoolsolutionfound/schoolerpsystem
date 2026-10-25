@@ -15,33 +15,23 @@ import {
   HODTab,
   DepartmentCourse,
   ExamEligibilityRecord,
-  DepartmentNotice,
 } from '../types/hod.types';
 import {
   HomeroomSection,
   PrincipalStaffMember,
 } from '../../principal/types/principal.types';
-import { INITIAL_EVENTS } from '../../shared/components/AcademicCalendarEventsView';
-import { FACULTY_ASSIGNED_CLASSES } from '../../teacher/components/AttendanceMarkingView';
 
 // Department Academic Performance / Syllabus Stats
 const DEPT_ACADEMIC_STATS_TERM = [
-  { label: 'SEM 1', fullName: '1st Semester', completed: 88, inProgress: 12 },
-  { label: 'SEM 3', fullName: '3rd Semester', completed: 84, inProgress: 16 },
-  { label: 'SEM 5', fullName: '5th Semester', completed: 80, inProgress: 20 },
-  { label: 'SEM 7', fullName: '7th Semester', completed: 86, inProgress: 14 },
-  { label: 'LABS', fullName: 'Practical Labs', completed: 90, inProgress: 10 },
-  { label: 'ELECT', fullName: 'Elective Tracks', completed: 74, inProgress: 26 },
+  { label: 'SEM 1', fullName: '1st Semester', completed: 0, inProgress: 0 },
+  { label: 'SEM 3', fullName: '3rd Semester', completed: 0, inProgress: 0 },
+  { label: 'SEM 5', fullName: '5th Semester', completed: 0, inProgress: 0 },
+  { label: 'SEM 7', fullName: '7th Semester', completed: 0, inProgress: 0 },
+  { label: 'LABS', fullName: 'Practical Labs', completed: 0, inProgress: 0 },
+  { label: 'ELECT', fullName: 'Elective Tracks', completed: 0, inProgress: 0 },
 ];
 
-const DEPT_ACADEMIC_STATS_ANNUAL = [
-  { label: 'SEM 1', fullName: '1st Semester', completed: 92, inProgress: 8 },
-  { label: 'SEM 3', fullName: '3rd Semester', completed: 86, inProgress: 14 },
-  { label: 'SEM 5', fullName: '5th Semester', completed: 82, inProgress: 18 },
-  { label: 'SEM 7', fullName: '7th Semester', completed: 89, inProgress: 11 },
-  { label: 'LABS', fullName: 'Practical Labs', completed: 94, inProgress: 6 },
-  { label: 'ELECT', fullName: 'Elective Tracks', completed: 80, inProgress: 20 },
-];
+const DEPT_ACADEMIC_STATS_ANNUAL = DEPT_ACADEMIC_STATS_TERM;
 
 interface HODDashboardViewProps {
   fullName?: string;
@@ -119,30 +109,30 @@ export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
     if (homerooms && homerooms.length > 0) {
       return homerooms.reduce((acc, h) => acc + (h.studentCount || 0), 0);
     }
-    return Number(kpis.totalStudents) || 180;
+    return Number(kpis.totalStudents) || 0;
   }, [homerooms, kpis.totalStudents]);
 
   const totalPresent = useMemo(() => {
     if (homerooms && homerooms.length > 0) {
       return homerooms.reduce(
         (acc, h) =>
-          acc + (h.presentCount !== undefined ? h.presentCount : Math.round((h.studentCount || 0) * 0.94)),
+          acc + (h.presentCount !== undefined ? h.presentCount : 0),
         0
       );
     }
-    return Math.round(totalEnrolled * 0.94);
-  }, [homerooms, totalEnrolled]);
+    return 0;
+  }, [homerooms]);
 
   const totalAbsent = Math.max(0, totalEnrolled - totalPresent);
-  const attendancePct = totalEnrolled > 0 ? Math.round((totalPresent / totalEnrolled) * 100) : 94;
+  const attendancePct = totalEnrolled > 0 ? Math.round((totalPresent / totalEnrolled) * 100) : 0;
 
   // Dynamic Academic Syllabus Progress per semester calculated from actual department courses
   const dynamicDeptAcademicStats = useMemo(() => {
     if (!courses || courses.length === 0) {
       return { term: DEPT_ACADEMIC_STATS_TERM, annual: DEPT_ACADEMIC_STATS_ANNUAL };
     }
-    const calcAvg = (crList: DepartmentCourse[], defaultVal: number) => {
-      if (crList.length === 0) return defaultVal;
+    const calcAvg = (crList: DepartmentCourse[]) => {
+      if (crList.length === 0) return 0;
       const total = crList.reduce((acc, c) => acc + (c.syllabusProgressPct || 0), 0);
       return Math.round(total / crList.length);
     };
@@ -157,20 +147,15 @@ export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
     const electCourses = courses.filter((c) => c.type === 'elective' || (c.code || '').includes('E'));
 
     const term = [
-      { label: 'SEM 1', fullName: '1st Semester', completed: calcAvg(sem1Courses, 88), inProgress: 100 - calcAvg(sem1Courses, 88) },
-      { label: 'SEM 3', fullName: '3rd Semester', completed: calcAvg(sem3Courses, 84), inProgress: 100 - calcAvg(sem3Courses, 84) },
-      { label: 'SEM 5', fullName: '5th Semester', completed: calcAvg(sem5Courses, 80), inProgress: 100 - calcAvg(sem5Courses, 80) },
-      { label: 'SEM 7', fullName: '7th Semester', completed: calcAvg(sem7Courses, 86), inProgress: 100 - calcAvg(sem7Courses, 86) },
-      { label: 'LABS', fullName: 'Practical Labs', completed: calcAvg(labCourses, 90), inProgress: 100 - calcAvg(labCourses, 90) },
-      { label: 'ELECT', fullName: 'Elective Tracks', completed: calcAvg(electCourses, 74), inProgress: 100 - calcAvg(electCourses, 74) },
+      { label: 'SEM 1', fullName: '1st Semester', completed: calcAvg(sem1Courses), inProgress: 100 - calcAvg(sem1Courses) },
+      { label: 'SEM 3', fullName: '3rd Semester', completed: calcAvg(sem3Courses), inProgress: 100 - calcAvg(sem3Courses) },
+      { label: 'SEM 5', fullName: '5th Semester', completed: calcAvg(sem5Courses), inProgress: 100 - calcAvg(sem5Courses) },
+      { label: 'SEM 7', fullName: '7th Semester', completed: calcAvg(sem7Courses), inProgress: 100 - calcAvg(sem7Courses) },
+      { label: 'LABS', fullName: 'Practical Labs', completed: calcAvg(labCourses), inProgress: 100 - calcAvg(labCourses) },
+      { label: 'ELECT', fullName: 'Elective Tracks', completed: calcAvg(electCourses), inProgress: 100 - calcAvg(electCourses) },
     ];
 
-    const annual = term.map((t) => {
-      const annualDone = Math.min(98, t.completed + 4);
-      return { ...t, completed: annualDone, inProgress: 100 - annualDone };
-    });
-
-    return { term, annual };
+    return { term, annual: term };
   }, [courses]);
 
   // Department Academic Analytics State (Term vs Annual)
@@ -178,22 +163,8 @@ export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
   const chartData = chartPeriod === 'term' ? dynamicDeptAcademicStats.term : dynamicDeptAcademicStats.annual;
 
   // Highlights: Upcoming Events & Today's Classes
-  const todayDateObj = useMemo(() => new Date(), []);
-  const todayStr = useMemo(() => todayDateObj.toISOString().slice(0, 10), [todayDateObj]);
-  const currentDayOfWeek = useMemo(() => todayDateObj.getDay(), [todayDateObj]);
-
-  const todayClasses = useMemo(() => {
-    return FACULTY_ASSIGNED_CLASSES.filter((c) => c.scheduledDays.includes(currentDayOfWeek));
-  }, [currentDayOfWeek]);
-
-  const upcomingEvents = useMemo(() => {
-    return (INITIAL_EVENTS || [])
-      .filter((evt) => {
-        const end = evt.endDate || evt.startDate;
-        return end >= todayStr;
-      })
-      .sort((a, b) => (a.startDate || '').localeCompare(b.startDate || ''));
-  }, [todayStr]);
+  const todayClasses: { subjectName: string; periodTime: string; studentCount: number }[] = [];
+  const upcomingEvents: { title: string; startDate: string; endDate?: string }[] = [];
 
   const nextUpcomingEvent = upcomingEvents[0] || null;
   const hasUpcomingEvent = !!nextUpcomingEvent;

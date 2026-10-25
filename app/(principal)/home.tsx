@@ -159,21 +159,20 @@ export default function PrincipalHomeScreen() {
   // Dynamic KPIs calculated live from homerooms and faculty lists
   const dynamicKPIs: PrincipalKPIs = useMemo(() => {
     const totalStudents =
-      homerooms.reduce((acc, h) => acc + (h.studentCount || 0), 0) || kpis.totalStudents || 180;
+      homerooms.reduce((acc, h) => acc + (h.studentCount || 0), 0) || kpis.totalStudents;
     const presentStudents =
       homerooms.reduce(
-        (acc, h) =>
-          acc + (h.presentCount !== undefined ? h.presentCount : Math.round((h.studentCount || 0) * 0.94)),
+        (acc, h) => acc + (h.presentCount !== undefined ? h.presentCount : 0),
         0
-      ) || kpis.presentStudents || 169;
+      ) || kpis.presentStudents;
     const studentAttendancePct =
-      totalStudents > 0 ? Math.round((presentStudents / totalStudents) * 100) : kpis.studentAttendancePct || 94;
+      totalStudents > 0 ? Math.round((presentStudents / totalStudents) * 100) : kpis.studentAttendancePct;
 
-    const totalFaculty = staffList.length || kpis.totalFaculty || 12;
+    const totalFaculty = staffList.length || kpis.totalFaculty;
     const presentFaculty =
-      staffList.filter((s) => s.attendanceToday === 'present').length || kpis.presentFaculty || 11;
+      staffList.filter((s) => s.attendanceToday === 'present').length || kpis.presentFaculty;
     const facultyAttendancePct =
-      totalFaculty > 0 ? Math.round((presentFaculty / totalFaculty) * 100) : kpis.facultyAttendancePct || 92;
+      totalFaculty > 0 ? Math.round((presentFaculty / totalFaculty) * 100) : kpis.facultyAttendancePct;
 
     return {
       ...kpis,
@@ -183,7 +182,7 @@ export default function PrincipalHomeScreen() {
       totalFaculty,
       presentFaculty,
       facultyAttendancePct,
-      activeSections: homerooms.length || kpis.activeSections || 8,
+      activeSections: homerooms.length || kpis.activeSections,
     };
   }, [homerooms, staffList, kpis]);
 
@@ -393,33 +392,14 @@ export default function PrincipalHomeScreen() {
 
               {activeTab === 'attendance' && (
                 <AdminAttendanceView
-                  classSections={
-                    homerooms.length > 0
-                      ? homerooms
-                      : [
-                          { id: 'sec-cse-1', name: 'CSE B.Tech 1st Year · Sec A' },
-                          { id: 'sec-ece-1', name: 'ECE B.Tech 1st Year · Sec A' },
-                          { id: 'sec-mech-1', name: 'Mechanical B.Tech 1st Year · Sec A' },
-                          { id: 'sec-aiml-1', name: 'AIML B.Tech 1st Year · Sec A' },
-                        ]
-                  }
+                  classSections={homerooms}
                 />
               )}
 
               {/* Institution Timetable Builder (Imported from Admin panel) */}
               {activeTab === 'timetable' && (
                 <PrincipalTimetableView
-                  classSections={
-                    homerooms.length > 0
-                      ? homerooms
-                      : [
-                          { id: 'sec-cse-1', name: 'CSE B.Tech 1st Year · Sec A' },
-                          { id: 'sec-ece-1', name: 'ECE B.Tech 1st Year · Sec A' },
-                          { id: 'sec-mech-1', name: 'Mechanical B.Tech 1st Year · Sec A' },
-                          { id: 'sec-aiml-1', name: 'AIML B.Tech 1st Year · Sec A' },
-                          { id: 'sec-civil-1', name: 'Civil B.Tech 1st Year · Sec A' },
-                        ]
-                  }
+                  classSections={homerooms}
                 />
               )}
 

@@ -416,25 +416,28 @@ export class HODService {
   async updateNotice(
     institutionCode: string,
     id: string,
-    payload: any
+    payload: any,
+    departmentScope?: string
   ): Promise<SchoolNoticeRecord> {
     const database = getDb();
+    const conditions = [
+      eq(schoolNotices.id, id),
+      eq(schoolNotices.institutionCode, institutionCode),
+    ];
+    if (departmentScope) {
+      conditions.push(eq(schoolNotices.department, departmentScope));
+    }
     const [updated] = await database
       .update(schoolNotices)
       .set({
         title: payload.title,
         content: payload.content,
         targetAudience: payload.targetAudience || 'all',
-        department: payload.department || '',
+        department: departmentScope || payload.department || '',
         priority: payload.priority || 'normal',
         updatedAt: new Date(),
       })
-      .where(
-        and(
-          eq(schoolNotices.id, id),
-          eq(schoolNotices.institutionCode, institutionCode)
-        )
-      )
+      .where(and(...conditions))
       .returning();
 
     if (!updated) {
@@ -446,16 +449,18 @@ export class HODService {
     return updated;
   }
 
-  async deleteNotice(institutionCode: string, id: string): Promise<void> {
+  async deleteNotice(institutionCode: string, id: string, departmentScope?: string): Promise<void> {
     const database = getDb();
+    const conditions = [
+      eq(schoolNotices.id, id),
+      eq(schoolNotices.institutionCode, institutionCode),
+    ];
+    if (departmentScope) {
+      conditions.push(eq(schoolNotices.department, departmentScope));
+    }
     const deleted = await database
       .delete(schoolNotices)
-      .where(
-        and(
-          eq(schoolNotices.id, id),
-          eq(schoolNotices.institutionCode, institutionCode)
-        )
-      )
+      .where(and(...conditions))
       .returning();
 
     if (deleted.length === 0) {

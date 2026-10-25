@@ -250,7 +250,7 @@ export async function updateDepartmentNoticeApi(
 }
 
 export async function deleteDepartmentNoticeApi(noticeId: string): Promise<{ success: boolean }> {
-  const res = await apiClient<any>(`/admin/hod/notices/${noticeId}`, {
+  await apiClient<any>(`/admin/hod/notices/${noticeId}`, {
     method: 'DELETE',
   });
   return { success: true };

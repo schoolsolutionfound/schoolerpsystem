@@ -69,7 +69,7 @@ export async function academicsRoutes(fastify: FastifyInstance) {
   fastify.get('/class-sections', { preHandler: [requireStaff] }, (req, reply) => listClassSectionsHandler(req, reply));
   fastify.get('/class-sections/:id/students', { preHandler: [requireStaff] }, (req, reply) => getClassSectionStudentsHandler(req as any, reply));
   fastify.post('/class-sections', { preHandler: [requireAdminOrPrincipal] }, (req, reply) => createClassSectionHandler(req, reply));
-  fastify.put('/class-sections/:id', { preHandler: [requireAdminOrPrincipal] }, (req, reply) => updateClassSectionHandler(req as any, reply));
+  fastify.put('/class-sections/:id', { preHandler: [requireRole('admin', 'principal', 'hod')] }, (req, reply) => updateClassSectionHandler(req as any, reply));
   fastify.delete('/class-sections/:id', { preHandler: [requireAdminOrPrincipal] }, (req, reply) => deleteClassSectionHandler(req as any, reply));
 
   // Subjects
