@@ -90,8 +90,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   logoImage: {
-    height: 26,
-    width: 96,
+    height: 38,
+    width: 130,
   },
   rightCol: {
     width: 60,

@@ -104,6 +104,7 @@ const AppLayout = function Layout() {
   const isSplashHidden = useRef(false);
   const institutionCode = useUserStore((state) => state.institutionCode);
   const setMaintenance = useConfigStore((state) => state.setMaintenance);
+  const maintenanceConfigFetchedRef = useRef(false);
 
   const CURRENT_APP_VERSION = Constants.expoConfig?.version || '1.0.0';
 
@@ -156,6 +157,11 @@ const AppLayout = function Layout() {
         if (!cancelled) setIsMCheckLoading(false);
         return;
       }
+      if (maintenanceConfigFetchedRef.current) {
+        if (!cancelled) setIsMCheckLoading(false);
+        return;
+      }
+      maintenanceConfigFetchedRef.current = true;
       try {
         const res = await fetchInstitutionConfigApi();
         const data = res?.data;
@@ -185,6 +191,7 @@ const AppLayout = function Layout() {
         setIsProfileSynced(false);
         resetUser();
         setMaintenance(false, '0.0.0');
+        maintenanceConfigFetchedRef.current = false;
         if (!cancelled) setIsMCheckLoading(false);
       } else {
         applyMaintenanceConfig();

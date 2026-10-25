@@ -1,16 +1,14 @@
 import React from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, Alert } from 'react-native';
+import { View, StyleSheet, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { performLogout } from '../../utils/logout';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-import { performLogout } from '../../utils/logout';
 import { useUserStore } from '../../store/useUserStore';
-import { updateMyProfileApi } from '../../api/users';
-import {
-  StaffProfileView,
-  StaffProfilePatch,
-} from '../../features/shared/components/StaffProfileView';
+import { BorderRadius } from '../../constants/theme';
+import { ProfileCustomFields } from '../../features/shared/formFields/ProfileCustomFields';
+import { useProfileCustomFields } from '../../features/shared/formFields/useProfileCustomFields';
 
 export default function HODProfileScreen() {
   const router = useRouter();
@@ -21,35 +19,13 @@ export default function HODProfileScreen() {
   const phone = useUserStore((s) => s.phone) || '';
   const department = useUserStore((s) => s.department) || '';
   const employeeId = useUserStore((s) => s.employeeId) || '';
-  const designation = useUserStore((s) => s.designation) || 'Head of Department';
-  const profilePic = useUserStore((s) => s.profilePic) || '';
-  const setUserProfile = useUserStore((s) => s.setUserProfile);
   const resetUser = useUserStore((s) => s.resetUser);
-
-  const handleSaveProfile = async (patch: StaffProfilePatch): Promise<boolean> => {
-    try {
-      await updateMyProfileApi(patch);
-      setUserProfile({
-        ...(patch.fullName !== undefined ? { fullName: patch.fullName } : {}),
-        ...(patch.phone !== undefined ? { phone: patch.phone } : {}),
-        ...(patch.designation !== undefined ? { designation: patch.designation } : {}),
-        ...(patch.profilePicUrl ? { profilePic: patch.profilePicUrl } : {}),
-      });
-      Alert.alert('Profile Updated', 'Your profile information has been saved successfully.');
-      return true;
-    } catch (err: any) {
-      Alert.alert('Save Failed', err?.message || 'Could not update your profile. Please try again.');
-      return false;
-    }
-  };
+  const { fields: roleFields, values: roleFieldValues, save: saveRoleFields } = useProfileCustomFields();
 
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to log out?', [
       { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: async () => {
+      { text: 'Logout', style: 'destructive', onPress: async () => {
           await performLogout();
           resetUser();
           router.replace('/auth');
@@ -62,58 +38,83 @@ export default function HODProfileScreen() {
     <View style={styles.container}>
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backBtn}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <MaterialCommunityIcons name="arrow-left" size={22} color="#171717" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Department Profile</Text>
         </View>
+        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+          <View style={styles.card}>
+            <View style={styles.avatarRow}>
+              <View style={[styles.avatarCircle, { backgroundColor: '#FEF3C7' }]}>
+                <Text style={[styles.avatarText, { color: '#D97706' }]}>{fullName.substring(0, 2).toUpperCase()}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.nameText}>{fullName}</Text>
+                <Text style={styles.emailText}>{email}</Text>
+                <View style={styles.badgeRow}>
+                  <View style={[styles.roleBadge, { backgroundColor: '#FEF3C7' }]}>
+                    <Text style={[styles.roleBadgeText, { color: '#D97706' }]}>HOD</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+          </View>
 
-        <StaffProfileView
-          roleLabel="HOD"
-          fullName={fullName}
-          email={email}
-          phone={phone}
-          designation={designation}
-          institutionName={institutionName}
-          institutionCode={institutionCode}
-          profilePic={profilePic}
-          accent="#D97706"
-          accentSoft="#FEF3C7"
-          accentText="#92400E"
-          avatarBg="#FEF3C7"
-          avatarTextColor="#D97706"
-          buttonTextColor="#FFFFFF"
-          details={[
-            { id: 'email', icon: 'email-outline', label: 'Official Email', value: email },
-            { id: 'phone', icon: 'phone-outline', label: 'Contact Phone', value: phone },
-            { id: 'department', icon: 'domain', label: 'Department', value: department },
-            {
-              id: 'employeeId',
-              icon: 'badge-account-outline',
-              label: 'Employee ID',
-              value: employeeId,
-            },
-            {
-              id: 'institution',
-              icon: 'office-building-outline',
-              label: 'Institution',
-              value: institutionName || institutionCode,
-            },
-            {
-              id: 'institutionCode',
-              icon: 'identifier',
-              label: 'Institution Code',
-              value: institutionCode,
-            },
-          ]}
-          onSaveProfile={handleSaveProfile}
-          onChangePassword={() => router.push('/change-password')}
-          onLogout={handleLogout}
-        />
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Contact Info</Text>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Email</Text>
+              <Text style={styles.infoValue}>{email || '—'}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Phone</Text>
+              <Text style={styles.infoValue}>{phone || '—'}</Text>
+            </View>
+          </View>
+
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Department & Employment</Text>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Department</Text>
+              <Text style={styles.infoValue}>{department || '—'}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Employee ID</Text>
+              <Text style={styles.infoValue}>{employeeId || '—'}</Text>
+            </View>
+          </View>
+
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Institution</Text>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Name</Text>
+              <Text style={styles.infoValue}>{institutionName || institutionCode || '—'}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Code</Text>
+              <Text style={styles.infoValue}>{institutionCode || '—'}</Text>
+            </View>
+          </View>
+
+          {roleFields.length > 0 && (
+            <ProfileCustomFields fields={roleFields} values={roleFieldValues} onSave={saveRoleFields} />
+          )}
+
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Account</Text>
+            <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/change-password')}>
+              <MaterialCommunityIcons name="lock-reset" size={20} color="#F4C430" />
+              <Text style={styles.menuText}>Change Password</Text>
+              <MaterialCommunityIcons name="chevron-right" size={20} color="#6B6B6B" style={{ marginLeft: 'auto' }} />
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.menuItem, { borderBottomWidth: 0 }]} onPress={handleLogout}>
+              <MaterialCommunityIcons name="logout" size={20} color="#DC3545" />
+              <Text style={[styles.menuText, { color: '#DC3545' }]}>Logout</Text>
+              <MaterialCommunityIcons name="chevron-right" size={20} color="#6B6B6B" style={{ marginLeft: 'auto' }} />
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
       </SafeAreaView>
     </View>
   );
@@ -122,16 +123,23 @@ export default function HODProfileScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFFDF7' },
   safe: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E8E5DC',
-    backgroundColor: '#FFFFFF',
-    gap: 12,
-  },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E8E5DC', backgroundColor: '#FFFFFF', gap: 12 },
   backBtn: { padding: 4 },
   headerTitle: { fontSize: 17, fontWeight: '700', color: '#171717' },
+  scroll: { padding: 16, gap: 14, paddingBottom: 40 },
+  card: { backgroundColor: '#FFFFFF', borderRadius: BorderRadius.card, padding: 18, borderWidth: 1, borderColor: '#E8E5DC', gap: 14 },
+  avatarRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  avatarCircle: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontSize: 18, fontWeight: '800' },
+  nameText: { fontSize: 18, fontWeight: '800', color: '#171717' },
+  emailText: { fontSize: 13, color: '#6B6B6B', marginTop: 2 },
+  badgeRow: { marginTop: 6 },
+  roleBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: BorderRadius.chip, alignSelf: 'flex-start' },
+  roleBadgeText: { fontSize: 11, fontWeight: '800' },
+  sectionTitle: { fontSize: 15, fontWeight: '800', color: '#171717' },
+  infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 28 },
+  infoLabel: { fontSize: 13, color: '#6B6B6B', fontWeight: '500', flexShrink: 1 },
+  infoValue: { fontSize: 13, fontWeight: '700', color: '#171717', flexShrink: 1, textAlign: 'right' },
+  menuItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#FFFDF7' },
+  menuText: { fontSize: 14, fontWeight: '600', color: '#171717' },
 });
