@@ -335,17 +335,21 @@ export const AdminSettingsView: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: 16, paddingBottom: 40, gap: 14 },
+  content: { padding: 20, paddingBottom: 40, gap: 14 },
+  pageHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 },
+  pageTitle: { fontSize: 24, fontWeight: '800', color: '#111827', letterSpacing: 0.2 },
+  pageSubtitle: { fontSize: 13, color: '#6B7280', marginTop: 2 },
 
   introCard: {
     flexDirection: 'row',
     gap: 12,
     backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.card,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: '#E8E5DC',
     padding: 16,
     alignItems: 'flex-start',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
   },
   introTextWrap: { flex: 1, gap: 4 },
   introTitle: { fontSize: 16, fontWeight: '800', fontFamily: FontFamily.extrabold, color: '#171717' },
@@ -392,14 +396,15 @@ const styles = StyleSheet.create({
 
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.card,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: '#E8E5DC',
     padding: 16,
     gap: 12,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
   },
   cardHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  cardTitle: { fontSize: 14, fontWeight: '700', fontFamily: FontFamily.bold, color: '#171717' },
+  cardTitle: { fontSize: 15, fontWeight: '700', fontFamily: FontFamily.bold, color: '#171717' },
 
   inputGroup: { gap: 4 },
   inputLabel: { fontSize: 12, fontWeight: '600', fontFamily: FontFamily.semibold, color: '#6B6B6B' },
@@ -407,11 +412,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: BorderRadius.input,
     borderWidth: 1,
-    borderColor: '#E8E5DC',
+    borderColor: '#E5E7EB',
     paddingHorizontal: 12,
     height: 40,
     fontSize: 13,
-    color: '#171717',
+    color: '#111827',
   },
 
   toggleRow: { flexDirection: 'row', gap: 20, paddingVertical: 2 },
@@ -446,8 +451,8 @@ const styles = StyleSheet.create({
   fieldCard: {
     borderWidth: 1,
     borderColor: '#E8E5DC',
-    borderRadius: 5,
-    backgroundColor: '#FFFDF7',
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
     padding: 12,
     gap: 10,
   },

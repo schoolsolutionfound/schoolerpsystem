@@ -1821,11 +1821,12 @@ const styles = StyleSheet.create({
   content: { paddingBottom: 60 },
 
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  sectionTitle: { fontSize: 16, fontWeight: '800', color: '#1A1B1C' },
-  sectionCount: { fontSize: 11, color: '#6B6B6B', marginTop: 2 },
+  sectionTitle: { fontSize: 17, fontWeight: '800', color: '#111827' },
+  sectionCount: { fontSize: 11, color: '#6B7280', marginTop: 2 },
   addBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#F4C430',
-    borderRadius: 5, paddingHorizontal: 14, height: 38, justifyContent: 'center',
+    flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#F4C430',
+    borderRadius: 5, paddingHorizontal: 14, height: 40, justifyContent: 'center',
+    shadowColor: '#171717', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.12, shadowRadius: 2, elevation: 2,
   },
   addBtnText: { color: '#1A1B1C', fontWeight: '800', fontSize: 13 },
 
@@ -1836,8 +1837,8 @@ const styles = StyleSheet.create({
   hintText: { fontSize: 11, color: '#6B6B6B', marginBottom: 12, lineHeight: 15 },
 
   card: {
-    backgroundColor: '#FFFFFF', borderRadius: 5, padding: 14, borderWidth: 1, borderColor: '#E8E5DC',
-    marginBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#E8E5DC',
+    marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 12,
     shadowColor: '#1A1B1C', shadowOpacity: 0.05, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2,
   },
   iconTile: {
@@ -1856,22 +1857,23 @@ const styles = StyleSheet.create({
   unassignText: { color: '#EF4444', fontSize: 12, fontWeight: '700' },
 
   heroCard: {
-    backgroundColor: '#1A1B1C', borderRadius: 5, padding: 18, borderWidth: 1, borderColor: '#2A2B2C',
+    backgroundColor: '#FFFFFF', borderRadius: 14, padding: 18, borderWidth: 1, borderColor: '#E8E5DC',
     marginBottom: 4,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
   },
   heroTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  heroValue: { fontSize: 24, fontWeight: '900', color: '#F4C430' },
+  heroValue: { fontSize: 24, fontWeight: '900', color: '#111827' },
   heroMicro: {
-    fontSize: 10, color: '#8A8A8A', marginTop: 6, textTransform: 'uppercase',
+    fontSize: 10, color: '#6B7280', marginTop: 6, textTransform: 'uppercase',
     letterSpacing: 0.6, fontWeight: '700',
   },
-  heroMeta: { fontSize: 11, color: '#8A8A8A', marginTop: 4 },
+  heroMeta: { fontSize: 11, color: '#6B7280', marginTop: 4 },
 
-  smallBtn: { backgroundColor: '#1A1B1C', borderRadius: 5, paddingHorizontal: 12, height: 32, justifyContent: 'center', alignItems: 'center' },
-  smallBtnText: { fontSize: 11, fontWeight: '700', color: '#F4C430' },
+  smallBtn: { backgroundColor: '#FFF4C7', borderRadius: 5, borderWidth: 1, borderColor: '#F4C430', paddingHorizontal: 12, height: 32, justifyContent: 'center', alignItems: 'center' },
+  smallBtnText: { fontSize: 11, fontWeight: '700', color: '#92400E' },
 
   bulkCard: {
-    backgroundColor: '#FFFFFF', borderRadius: 5, padding: 16, borderWidth: 1, borderColor: '#E8E5DC',
+    backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#E8E5DC',
     marginTop: 18,
     shadowColor: '#1A1B1C', shadowOpacity: 0.05, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2,
   },
@@ -1890,7 +1892,7 @@ const styles = StyleSheet.create({
   checkboxMeta: { fontSize: 11, color: '#6B6B6B', fontWeight: '600' },
 
   emptyCard: {
-    backgroundColor: '#FFFFFF', borderRadius: 5, padding: 28, alignItems: 'center',
+    backgroundColor: '#FFFFFF', borderRadius: 14, padding: 28, alignItems: 'center',
     borderWidth: 1, borderColor: '#E8E5DC', marginTop: 8,
   },
   emptyIconTile: {
@@ -1900,9 +1902,9 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: 15, fontWeight: '800', color: '#1A1B1C', marginTop: 10 },
   emptySub: { fontSize: 12, color: '#6B6B6B', textAlign: 'center', marginTop: 4, lineHeight: 17 },
 
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 20 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
   modalContent: {
-    backgroundColor: '#FFFFFF', borderRadius: 5, padding: 20,
+    backgroundColor: '#FFFFFF', borderRadius: 14, padding: 20, borderWidth: 1, borderColor: '#E8E5DC',
     shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 10,
   },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
@@ -1914,11 +1916,11 @@ const styles = StyleSheet.create({
   label: { fontSize: 12, fontWeight: '700', color: '#1A1B1C' },
   input: {
     height: 44, borderWidth: 1, borderColor: '#E8E5DC', borderRadius: 5,
-    paddingHorizontal: 12, fontSize: 13, backgroundColor: '#FFFDF7', color: '#1A1B1C',
+    paddingHorizontal: 12, fontSize: 13, backgroundColor: '#FFFFFF', color: '#111827',
   },
   inputWithIcon: {
     flexDirection: 'row', alignItems: 'center', gap: 8, height: 44, borderWidth: 1,
-    borderColor: '#E8E5DC', borderRadius: 5, paddingHorizontal: 12, backgroundColor: '#FFFDF7',
+    borderColor: '#E5E7EB', borderRadius: 5, paddingHorizontal: 12, backgroundColor: '#FFFFFF',
   },
   inputIconText: { flex: 1, fontSize: 13, color: '#1A1B1C' },
   inputPlaceholder: { color: '#9CA3AF' },
@@ -1941,7 +1943,7 @@ const styles = StyleSheet.create({
   examSubjectName: { fontSize: 13, fontWeight: '700', color: '#1A1B1C' },
   smallInput: {
     width: 58, height: 36, borderWidth: 1, borderColor: '#E8E5DC', borderRadius: 5,
-    paddingHorizontal: 6, fontSize: 13, backgroundColor: '#FFFDF7', color: '#1A1B1C', textAlign: 'center',
+    paddingHorizontal: 6, fontSize: 13, backgroundColor: '#FFFFFF', color: '#111827', textAlign: 'center',
   },
   rosterRow: {
     backgroundColor: '#FFFFFF', borderRadius: 5, borderWidth: 1, borderColor: '#E8E5DC',
@@ -1951,7 +1953,7 @@ const styles = StyleSheet.create({
   rosterName: { fontSize: 13, fontWeight: '700', color: '#1A1B1C' },
   marksInput: {
     width: 76, height: 36, borderWidth: 1, borderColor: '#E8E5DC', borderRadius: 5,
-    paddingHorizontal: 8, fontSize: 13, backgroundColor: '#FFFDF7', color: '#1A1B1C', textAlign: 'right',
+    paddingHorizontal: 8, fontSize: 13, backgroundColor: '#FFFFFF', color: '#111827', textAlign: 'right',
   },
 
   dateModalOverlay: {

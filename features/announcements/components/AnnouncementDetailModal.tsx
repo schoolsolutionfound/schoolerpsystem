@@ -97,7 +97,7 @@ export const AnnouncementDetailModal: React.FC<AnnouncementDetailModalProps> = (
       visible={visible}
       onClose={onClose}
       title="Announcement Details"
-      cardStyle={{ borderRadius: 5 }}
+      cardStyle={{ borderRadius: 14 }}
     >
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         {/* Title */}
@@ -171,10 +171,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: '#FFFDF7',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E8E5DC',
-    borderRadius: 5,
+    borderRadius: 12,
     padding: 12,
   },
   metaLabel: {
@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFBEB',
     borderWidth: 1,
     borderColor: '#FDE68A',
-    borderRadius: 5,
+    borderRadius: 12,
     padding: 12,
   },
   metaLabelRole: {
@@ -218,8 +218,8 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   contentBox: {
-    backgroundColor: '#FAFAF9',
-    borderRadius: 5,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E8E5DC',
     padding: 14,
@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF2F2',
     borderWidth: 1,
     borderColor: '#FECACA',
-    borderRadius: 5,
+    borderRadius: 10,
     paddingHorizontal: 8,
   },
   deleteBtnText: {
@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#F4C430',
-    borderRadius: 5,
+    borderRadius: 10,
     paddingHorizontal: 8,
   },
   closeBtnText: {

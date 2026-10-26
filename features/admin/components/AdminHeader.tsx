@@ -51,7 +51,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
               <Image source={{ uri: profilePic }} style={styles.avatarImage} />
             ) : (
               <View style={styles.avatarPlaceholder}>
-                <MaterialCommunityIcons name="shield-crown" size={30} color="#F4C430" />
+                <MaterialCommunityIcons name="shield-crown" size={30} color="#1A1B1C" />
               </View>
             )}
           </View>
@@ -69,13 +69,16 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: { gap: 12 },
+  container: { gap: 12, backgroundColor: '#F9FAFB' },
   topHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 8,
+    backgroundColor: '#FFFEFE',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E8E5DC',
   },
   logoImage: {
     height: 56,
@@ -85,6 +88,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
+    backgroundColor: '#F3F4F6',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -109,7 +113,7 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     overflow: 'hidden',
     borderWidth: 2,
-    borderColor: '#1A1B1C',
+    borderColor: '#F4C430',
   },
   avatarImage: { width: '100%', height: '100%' },
   avatarPlaceholder: {
@@ -120,6 +124,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   greetingTextWrap: { flex: 1 },
-  greetingText: { fontSize: 14, color: '#6B6B6B', marginBottom: 2 },
-  userNameText: { fontSize: 22, fontWeight: '800', color: '#1A1B1C' },
+  greetingText: { fontSize: 14, color: '#6B7280', marginBottom: 2 },
+  userNameText: { fontSize: 22, fontWeight: '800', color: '#171717' },
 });

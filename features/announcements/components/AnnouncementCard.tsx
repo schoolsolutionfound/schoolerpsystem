@@ -129,7 +129,7 @@ export const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 5,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: '#E8E5DC',
     padding: 16,
@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFDF7',
     borderWidth: 1,
     borderColor: '#E8E5DC',
-    borderRadius: 5,
+    borderRadius: 8,
     paddingHorizontal: 9,
     paddingVertical: 4,
   },
@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF3C7',
     borderWidth: 1,
     borderColor: '#FDE68A',
-    borderRadius: 5,
+    borderRadius: 8,
     paddingHorizontal: 9,
     paddingVertical: 4,
   },

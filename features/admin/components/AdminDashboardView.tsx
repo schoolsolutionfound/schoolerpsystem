@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, ScrollView, RefreshControl } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { BorderRadius } from '../../../constants/theme';
 import { FontFamily } from '../../../constants/fonts';
 
 export interface AdminDashboardStats {
@@ -121,7 +120,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ fullName
               <View style={styles.checkCardTop}>
                 <View style={[styles.checkNum, item.done && styles.checkNumDone]}>
                   {item.done ? (
-                    <MaterialCommunityIcons name="check" size={14} color="#F4C430" />
+                    <MaterialCommunityIcons name="check" size={14} color="#1A1B1C" />
                   ) : (
                     <Text style={styles.checkNumText}>{item.step}</Text>
                   )}
@@ -139,14 +138,14 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ fullName
 
 const styles = StyleSheet.create({
   scrollArea: { flex: 1 },
-  container: { flexGrow: 1, backgroundColor: '#FFFEFE', paddingBottom: 40 },
+  container: { flexGrow: 1, backgroundColor: '#F9FAFB', paddingBottom: 40 },
 
   // Sections
   section: { paddingHorizontal: 20, marginTop: 24 },
   sectionLabel: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#6B6B6B',
+    color: '#6B7280',
     letterSpacing: 1.2,
     marginBottom: 12,
     paddingHorizontal: 20,
@@ -163,14 +162,19 @@ const styles = StyleSheet.create({
   statCard: {
     width: '31%',
     backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.card,
-    padding: 14,
+    borderRadius: 14,
+    padding: 16,
     borderWidth: 1,
     borderColor: '#E8E5DC',
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
   },
-  statValue: { fontSize: 22, fontWeight: '800', color: '#1A1B1C', fontFamily: FontFamily.extrabold },
-  statLabel: { fontSize: 11, fontWeight: '600', color: '#1A1B1C', marginTop: 2, fontFamily: FontFamily.semibold },
+  statValue: { fontSize: 22, fontWeight: '800', color: '#111827', fontFamily: FontFamily.extrabold },
+  statLabel: { fontSize: 11, fontWeight: '600', color: '#6B7280', marginTop: 2, fontFamily: FontFamily.semibold },
 
   // Quick Actions
   actionsRow: {
@@ -181,15 +185,20 @@ const styles = StyleSheet.create({
   actionBtn: {
     width: '48%',
     backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.card,
-    borderWidth: 1.5,
-    borderColor: '#F4C430',
-    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    paddingVertical: 13,
     paddingHorizontal: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
   },
-  actionText: { fontSize: 13, fontWeight: '700', color: '#1A1B1C', fontFamily: FontFamily.bold },
+  actionText: { fontSize: 13, fontWeight: '700', color: '#92400E', fontFamily: FontFamily.bold },
 
   // Checklist
   checkGrid: {
@@ -199,12 +208,20 @@ const styles = StyleSheet.create({
   },
   checkCard: {
     width: '48%',
-    backgroundColor: '#F4C430',
-    borderRadius: BorderRadius.card,
-    padding: 14,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
   },
   checkCardDone: {
-    backgroundColor: '#1A1B1C',
+    backgroundColor: '#FFF4C7',
+    borderColor: '#F4C430',
   },
   checkCardTop: {
     flexDirection: 'row',
@@ -213,17 +230,18 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   checkNum: {
-    width: 26,
-    height: 26,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: '#1A1B1C',
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#F4C430',
+    backgroundColor: '#FFF4C7',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkNumText: { fontSize: 12, fontWeight: '800', fontFamily: FontFamily.extrabold, color: '#1A1B1C' },
-  checkNumDone: { borderColor: '#F4C430' },
-  checkCardTitle: { fontSize: 13, fontWeight: '800', color: '#1A1B1C', fontFamily: FontFamily.bold },
-  checkCardSub: { fontSize: 11, color: '#1A1B1C', marginTop: 3, fontFamily: FontFamily.medium, opacity: 0.7 },
-  checkCardTextDone: { color: '#FFFEFE' },
+  checkNumText: { fontSize: 12, fontWeight: '800', fontFamily: FontFamily.extrabold, color: '#92400E' },
+  checkNumDone: { backgroundColor: '#F4C430', borderColor: '#F4C430' },
+  checkCardTitle: { fontSize: 14, fontWeight: '800', color: '#111827', fontFamily: FontFamily.bold },
+  checkCardSub: { fontSize: 11.5, color: '#6B7280', marginTop: 3, fontFamily: FontFamily.medium },
+  checkCardTextDone: { color: '#111827' },
 });

@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
   typeCard: {
     flex: 1,
     backgroundColor: Colors.light.card,
-    borderRadius: 5,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: Colors.light.border,
     padding: 10,
@@ -229,14 +229,14 @@ const styles = StyleSheet.create({
   roleChip: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 5,
+    borderRadius: 8,
     backgroundColor: '#F3F4F6',
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
   roleChipSelected: {
-    backgroundColor: Colors.light.secondary,
-    borderColor: Colors.light.secondary,
+    backgroundColor: '#F4C430',
+    borderColor: '#F4C430',
   },
   roleText: {
     fontSize: 12,
@@ -244,7 +244,8 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
   },
   roleTextSelected: {
-    color: '#FFFFFF',
+    color: '#1A1B1C',
+    fontFamily: FontFamily.bold,
   },
   noDataText: {
     fontSize: 12,

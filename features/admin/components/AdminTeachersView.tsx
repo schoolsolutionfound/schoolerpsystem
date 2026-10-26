@@ -980,10 +980,10 @@ export const AdminTeachersView: React.FC<AdminTeachersViewProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
-  pageHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
-  pageTitle: { fontSize: 20, fontWeight: '800', color: '#1A1B1C' },
-  pageSubtitle: { fontSize: 12, color: '#6B6B6B', marginTop: 2 },
+  container: { flex: 1, padding: 20 },
+  pageHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 },
+  pageTitle: { fontSize: 24, fontWeight: '800', color: '#111827', letterSpacing: 0.2 },
+  pageSubtitle: { fontSize: 13, color: '#6B7280', marginTop: 2 },
   headerBar: { flexDirection: 'row', gap: 10, marginBottom: 10 },
   searchBox: {
     flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF',
@@ -992,7 +992,7 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, fontSize: 13, color: '#1A1B1C' },
   loadMoreBtn: { alignItems: 'center', paddingVertical: 14, marginTop: 4 },
   loadMoreText: { fontSize: 13, fontWeight: '700', color: '#F4C430' },
-  addBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#F4C430', borderRadius: 5, paddingHorizontal: 14, height: 38, justifyContent: 'center' },
+  addBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#F4C430', borderRadius: 5, paddingHorizontal: 14, height: 40, justifyContent: 'center', shadowColor: '#171717', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.12, shadowRadius: 2, elevation: 2 },
   addBtnText: { color: '#1A1B1C', fontWeight: '800', fontSize: 13 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   importBtn: {
@@ -1000,23 +1000,24 @@ const styles = StyleSheet.create({
     height: 38,
     borderRadius: 5,
     backgroundColor: '#FFFDF7',
-    borderWidth: 1.5,
-    borderColor: '#1A1B1C',
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  listContainer: { gap: 8, paddingBottom: 40 },
+  listContainer: { gap: 10, paddingBottom: 40 },
   emptyCard: {
-    backgroundColor: '#FFFFFF', borderRadius: 5, padding: 30, alignItems: 'center',
+    backgroundColor: '#FFFFFF', borderRadius: 14, padding: 30, alignItems: 'center',
     borderWidth: 1, borderColor: '#E8E5DC', marginTop: 20,
   },
   emptyTitle: { fontSize: 16, fontWeight: '700', color: '#1A1B1C', marginTop: 10 },
   emptySub: { fontSize: 12, color: '#6B6B6B', textAlign: 'center', marginTop: 4, lineHeight: 16 },
   teacherCard: {
-    backgroundColor: '#FFFFFF', borderRadius: 5, padding: 14,
+    backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16,
     borderWidth: 1, borderColor: '#E8E5DC', flexDirection: 'row', alignItems: 'center', gap: 12,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
   },
-  avatarCircle: { width: 40, height: 40, borderRadius: 5, backgroundColor: '#1A1B1C', alignItems: 'center', justifyContent: 'center' },
+  avatarCircle: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#1A1B1C', alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
   teacherDetails: { flex: 1 },
   teacherName: { fontSize: 14, fontWeight: '700', color: '#1A1B1C' },
@@ -1029,8 +1030,8 @@ const styles = StyleSheet.create({
   },
 
   // Modal
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 20 },
-  modalContent: { backgroundColor: '#FFFFFF', borderRadius: 5, padding: 20, gap: 14 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
+  modalContent: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 20, gap: 14, borderWidth: 1, borderColor: '#E8E5DC', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 8 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   modalTitle: { fontSize: 17, fontWeight: '800', color: '#1A1B1C' },
   sectionHeader: { fontSize: 11, fontWeight: '800', color: '#6B6B6B', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
@@ -1039,12 +1040,12 @@ const styles = StyleSheet.create({
   nameField: { flex: 1, gap: 4 },
   inputWithIcon: {
     flexDirection: 'row', alignItems: 'center', gap: 8, height: 44, borderWidth: 1,
-    borderColor: '#E8E5DC', borderRadius: 5, paddingHorizontal: 12, backgroundColor: '#FFFDF7',
+    borderColor: '#E5E7EB', borderRadius: 5, paddingHorizontal: 12, backgroundColor: '#FFFFFF',
   },
   inputIconText: { flex: 1, fontSize: 13, color: '#1A1B1C' },
   formGroup: { gap: 4, marginBottom: 10 },
   label: { fontSize: 12, fontWeight: '700', color: '#1A1B1C' },
-  input: { height: 44, borderWidth: 1, borderColor: '#E8E5DC', borderRadius: 5, paddingHorizontal: 12, fontSize: 13, backgroundColor: '#FFFDF7', color: '#1A1B1C' },
+  input: { height: 44, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 5, paddingHorizontal: 12, fontSize: 13, backgroundColor: '#FFFFFF', color: '#111827' },
   hintText: { fontSize: 11, color: '#6B6B6B', marginTop: 2 },
   chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6 },
   chipOption: {

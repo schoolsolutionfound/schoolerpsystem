@@ -248,7 +248,7 @@ export default function AdminBulkFeedScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFDF7' },
+  container: { flex: 1, backgroundColor: '#F9FAFB' },
   safe: { flex: 1 },
   tabBar: {
     flexDirection: 'row',
@@ -259,5 +259,5 @@ const styles = StyleSheet.create({
   },
   tabItem: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   tabLabel: { fontSize: 10, fontWeight: '500', color: '#6B6B6B', marginTop: 2 },
-  tabLabelActive: { color: '#F4C430', fontWeight: '700' },
+  tabLabelActive: { color: '#92400E', fontWeight: '700' },
 });

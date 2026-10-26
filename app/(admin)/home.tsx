@@ -663,7 +663,7 @@ export default function AdminHomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFDF7' },
+  container: { flex: 1, backgroundColor: '#F9FAFB' },
   safe: { flex: 1 },
   content: { flex: 1 },
 

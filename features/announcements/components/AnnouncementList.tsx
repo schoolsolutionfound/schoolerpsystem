@@ -271,7 +271,7 @@ const styles = StyleSheet.create({
     paddingRight: 6,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 24,
     fontFamily: FontFamily.bold,
     color: '#171717',
   },
@@ -288,7 +288,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F4C430',
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 5,
+    borderRadius: 10,
     shadowColor: '#171717',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.15,
@@ -334,7 +334,7 @@ const styles = StyleSheet.create({
     borderColor: '#E8E5DC',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 5,
+    borderRadius: 8,
   },
   paginationBtnDisabled: {
     backgroundColor: '#F8FAFC',
@@ -352,7 +352,7 @@ const styles = StyleSheet.create({
   paginationIndicator: {
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 5,
+    borderRadius: 8,
     backgroundColor: '#FFFDF0',
     borderWidth: 1,
     borderColor: '#FEF08A',

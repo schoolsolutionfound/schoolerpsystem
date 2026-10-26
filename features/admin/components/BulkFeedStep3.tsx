@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
   scrollSuccess: { paddingHorizontal: 20, paddingVertical: 14, alignItems: 'center', width: '100%' },
   topHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, width: '100%' },
   backBtn: { padding: 4 },
-  headerTitle: { fontSize: 18, fontFamily: FontFamily.bold, color: '#1A1B1C' },
+  headerTitle: { fontSize: 24, fontFamily: FontFamily.bold, color: '#111827' },
   successIconWrapper: { marginVertical: 20 },
   successCircleBig: {
     width: 96,
@@ -170,12 +170,13 @@ const styles = StyleSheet.create({
   statsCard: {
     width: '100%',
     backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.card,
+    borderRadius: 14,
     padding: 16,
     borderWidth: 1,
     borderColor: '#E8E5DC',
     gap: 12,
     marginBottom: 12,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
   },
   statRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   statIconBox: {
@@ -186,9 +187,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  statLabel: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B6B6B' },
-  statNum: { fontSize: 18, fontFamily: FontFamily.extrabold, color: '#1A1B1C' },
-  statDivider: { height: 1, backgroundColor: '#FFFDF7' },
+  statLabel: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B7280' },
+  statNum: { fontSize: 18, fontFamily: FontFamily.extrabold, color: '#111827' },
+  statDivider: { height: 1, backgroundColor: '#F1F5F9' },
   errorToggle: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -216,7 +217,7 @@ const styles = StyleSheet.create({
   tempPwCard: {
     alignSelf: 'stretch',
     backgroundColor: '#FFFBEB',
-    borderRadius: BorderRadius.card,
+    borderRadius: 14,
     padding: 14,
     marginBottom: 12,
     borderWidth: 1,
@@ -250,7 +251,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     width: '100%',
   },
-  primaryActionText: { color: '#FFFFFF', fontSize: 15, fontFamily: FontFamily.bold },
+  primaryActionText: { color: '#1A1B1C', fontSize: 15, fontFamily: FontFamily.bold },
   dashboardLinkBtn: { paddingVertical: 12, marginTop: 4 },
-  dashboardLinkText: { color: '#F4C430', fontSize: 14, fontFamily: FontFamily.bold, textAlign: 'center' },
+  dashboardLinkText: { color: '#92400E', fontSize: 14, fontFamily: FontFamily.bold, textAlign: 'center' },
 });
