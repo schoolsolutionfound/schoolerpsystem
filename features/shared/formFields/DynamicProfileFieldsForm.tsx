@@ -13,6 +13,7 @@ interface DynamicProfileFieldsFormProps {
   fields: ProfileFormField[];
   values: CustomFieldValues;
   onChange: (fieldId: string, value: any) => void;
+  theme?: 'light' | 'dark';
 }
 
 /**
@@ -20,8 +21,10 @@ interface DynamicProfileFieldsFormProps {
  * style: each field has a name, a type from the dropdown (text / number /
  * document / ...), and a required marker. Used by complete-profile.
  */
-export const DynamicProfileFieldsForm: React.FC<DynamicProfileFieldsFormProps> = ({ fields, values, onChange }) => {
+export const DynamicProfileFieldsForm: React.FC<DynamicProfileFieldsFormProps> = ({ fields, values, onChange, theme = 'light' }) => {
   const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const dark = theme === 'dark';
+  const inputStyle = [styles.input, dark && styles.inputDark];
 
   if (!fields.length) return null;
 
@@ -55,9 +58,9 @@ export const DynamicProfileFieldsForm: React.FC<DynamicProfileFieldsFormProps> =
       case 'textarea':
         return (
           <TextInput
-            style={[styles.input, styles.textarea]}
+            style={[styles.input, styles.textarea, dark && styles.inputDark, dark && styles.textareaDark]}
             placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={dark ? '#6B6B6B' : '#9CA3AF'}
             multiline
             value={strValue}
             onChangeText={(v) => onChange(field.id, v)}
@@ -66,9 +69,9 @@ export const DynamicProfileFieldsForm: React.FC<DynamicProfileFieldsFormProps> =
       case 'number':
         return (
           <TextInput
-            style={styles.input}
+            style={inputStyle}
             placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={dark ? '#6B6B6B' : '#9CA3AF'}
             keyboardType="numeric"
             value={strValue}
             onChangeText={(v) => onChange(field.id, v)}
@@ -77,9 +80,9 @@ export const DynamicProfileFieldsForm: React.FC<DynamicProfileFieldsFormProps> =
       case 'phone':
         return (
           <TextInput
-            style={styles.input}
+            style={inputStyle}
             placeholder={field.placeholder || 'Enter phone number'}
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={dark ? '#6B6B6B' : '#9CA3AF'}
             keyboardType="phone-pad"
             value={strValue}
             onChangeText={(v) => onChange(field.id, v)}
@@ -88,9 +91,9 @@ export const DynamicProfileFieldsForm: React.FC<DynamicProfileFieldsFormProps> =
       case 'email':
         return (
           <TextInput
-            style={styles.input}
+            style={inputStyle}
             placeholder={field.placeholder || 'Enter email address'}
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={dark ? '#6B6B6B' : '#9CA3AF'}
             keyboardType="email-address"
             autoCapitalize="none"
             value={strValue}
@@ -104,6 +107,7 @@ export const DynamicProfileFieldsForm: React.FC<DynamicProfileFieldsFormProps> =
             value={strValue}
             onChange={(v) => onChange(field.id, v)}
             placeholder={field.placeholder || 'YYYY-MM-DD'}
+            theme={theme}
           />
         );
       case 'dropdown':
@@ -115,6 +119,7 @@ export const DynamicProfileFieldsForm: React.FC<DynamicProfileFieldsFormProps> =
             placeholder={field.placeholder || 'Select an option'}
             variant="dialog"
             menuTitle={field.label}
+            theme={theme}
           />
         );
       case 'checkbox':
@@ -124,10 +129,10 @@ export const DynamicProfileFieldsForm: React.FC<DynamicProfileFieldsFormProps> =
             activeOpacity={0.7}
             onPress={() => onChange(field.id, rawValue !== true)}
           >
-            <View style={[styles.checkBox, rawValue === true && styles.checkBoxOn]}>
+            <View style={[styles.checkBox, dark && styles.checkBoxDark, rawValue === true && styles.checkBoxOn]}>
               {rawValue === true && <MaterialCommunityIcons name="check" size={14} color="#1A1B1C" />}
             </View>
-            <Text style={styles.checkText}>{rawValue === true ? 'Yes' : 'No'}</Text>
+            <Text style={[styles.checkText, dark && styles.checkTextDark]}>{rawValue === true ? 'Yes' : 'No'}</Text>
           </TouchableOpacity>
         );
       case 'document': {
@@ -135,7 +140,7 @@ export const DynamicProfileFieldsForm: React.FC<DynamicProfileFieldsFormProps> =
         const uploading = uploadingId === field.id;
         return (
           <TouchableOpacity
-            style={[styles.docBox, uploading && styles.docBoxBusy]}
+            style={[styles.docBox, dark && styles.docBoxDark, uploading && styles.docBoxBusy]}
             activeOpacity={0.8}
             disabled={uploading}
             onPress={() => handlePickDocument(field)}
@@ -145,13 +150,13 @@ export const DynamicProfileFieldsForm: React.FC<DynamicProfileFieldsFormProps> =
             ) : doc?.url ? (
               <>
                 <MaterialCommunityIcons name="file-check-outline" size={20} color="#F4C430" />
-                <Text style={styles.docName} numberOfLines={1}>{doc.name}</Text>
-                <Text style={styles.docHint}>Tap to replace</Text>
+                <Text style={[styles.docName, dark && styles.docNameDark]} numberOfLines={1}>{doc.name}</Text>
+                <Text style={[styles.docHint, dark && styles.docHintDark]}>Tap to replace</Text>
               </>
             ) : (
               <>
                 <MaterialCommunityIcons name="file-upload-outline" size={22} color="#F4C430" />
-                <Text style={styles.docHint}>Tap to upload a document</Text>
+                <Text style={[styles.docHint, dark && styles.docHintDark]}>Tap to upload a document</Text>
               </>
             )}
           </TouchableOpacity>
@@ -161,9 +166,9 @@ export const DynamicProfileFieldsForm: React.FC<DynamicProfileFieldsFormProps> =
       default:
         return (
           <TextInput
-            style={styles.input}
+            style={inputStyle}
             placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={dark ? '#6B6B6B' : '#9CA3AF'}
             value={strValue}
             onChangeText={(v) => onChange(field.id, v)}
           />
@@ -172,11 +177,11 @@ export const DynamicProfileFieldsForm: React.FC<DynamicProfileFieldsFormProps> =
   };
 
   return (
-    <View style={styles.sectionCard}>
-      <Text style={styles.sectionHeaderTitle}>Profile Details</Text>
+    <View style={[styles.sectionCard, dark && styles.sectionCardDark]}>
+      <Text style={[styles.sectionHeaderTitle, dark && styles.sectionHeaderTitleDark]}>Profile Details</Text>
       {fields.map((field) => (
         <View key={field.id} style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>
+          <Text style={[styles.inputLabel, dark && styles.inputLabelDark]}>
             {field.label}
             {field.required && <Text style={styles.reqMark}> *</Text>}
           </Text>
@@ -251,4 +256,14 @@ const styles = StyleSheet.create({
   docBoxBusy: { opacity: 0.7 },
   docName: { flexShrink: 1, fontSize: 13, color: '#171717', fontWeight: '600', fontFamily: FontFamily.semibold },
   docHint: { fontSize: 12, color: '#1A1B1C', fontWeight: '600', fontFamily: FontFamily.semibold },
+  sectionCardDark: { backgroundColor: '#1F1F1F', borderColor: 'rgba(244,196,48,0.12)' },
+  sectionHeaderTitleDark: { color: '#E5E7EB' },
+  inputLabelDark: { color: '#9CA3AF' },
+  inputDark: { backgroundColor: '#171717', borderColor: 'rgba(244,196,48,0.15)', color: '#E5E7EB' },
+  textareaDark: { color: '#E5E7EB' },
+  checkBoxDark: { backgroundColor: '#171717', borderColor: 'rgba(244,196,48,0.25)' },
+  checkTextDark: { color: '#E5E7EB' },
+  docBoxDark: { backgroundColor: '#171717', borderColor: 'rgba(244,196,48,0.25)' },
+  docNameDark: { color: '#E5E7EB' },
+  docHintDark: { color: '#9CA3AF' },
 });

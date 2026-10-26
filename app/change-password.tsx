@@ -208,6 +208,8 @@ export default function ChangePasswordScreen() {
               loading={loading}
               onSubmit={handleContinue}
               submitButtonText={isFirstLogin ? 'Continue to Profile' : 'Update Password'}
+              theme="dark"
+              hideStrengthMeter
             />
 
             {/* Footer Hint */}

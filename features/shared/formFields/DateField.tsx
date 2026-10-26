@@ -32,10 +32,12 @@ export interface DateFieldProps {
   placeholder?: string;
   required?: boolean;
   style?: any;
+  theme?: 'light' | 'dark';
 }
 
 /** Shared calendar date input (YYYY-MM-DD), same UX as the admin student/teacher forms. */
-export const DateField: React.FC<DateFieldProps> = ({ label, value, onChange, placeholder = 'YYYY-MM-DD', required, style }) => {
+export const DateField: React.FC<DateFieldProps> = ({ label, value, onChange, placeholder = 'YYYY-MM-DD', required, style, theme = 'light' }) => {
+  const dark = theme === 'dark';
   const [open, setOpen] = useState(false);
   const [temp, setTemp] = useState<Date>(new Date());
   const [viewYear, setViewYear] = useState(new Date().getFullYear());
@@ -73,14 +75,14 @@ export const DateField: React.FC<DateFieldProps> = ({ label, value, onChange, pl
   return (
     <View style={[styles.formGroup, style]}>
       {!!label && (
-        <Text style={styles.label}>
+        <Text style={[styles.label, dark && styles.labelDark]}>
           {label}
           {required && <Text style={styles.reqMark}> *</Text>}
         </Text>
       )}
-      <TouchableOpacity style={styles.inputWithIcon} activeOpacity={0.7} onPress={openPicker}>
+      <TouchableOpacity style={[styles.inputWithIcon, dark && styles.inputWithIconDark]} activeOpacity={0.7} onPress={openPicker}>
         <MaterialCommunityIcons name="calendar-blank-outline" size={16} color="#9CA3AF" />
-        <Text style={[styles.inputIconText, !value && styles.inputPlaceholder]} numberOfLines={1}>
+        <Text style={[styles.inputIconText, dark && styles.inputIconTextDark, !value && styles.inputPlaceholder]} numberOfLines={1}>
           {value || placeholder}
         </Text>
         {!!value && (
@@ -92,16 +94,16 @@ export const DateField: React.FC<DateFieldProps> = ({ label, value, onChange, pl
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setOpen(false)}>
-          <View onStartShouldSetResponder={() => true} style={styles.modalCard}>
-            <Text style={styles.modalTitle}>{label || 'Select date'}</Text>
+          <View onStartShouldSetResponder={() => true} style={[styles.modalCard, dark && styles.modalCardDark]}>
+            <Text style={[styles.modalTitle, dark && styles.modalTitleDark]}>{label || 'Select date'}</Text>
 
             <View style={styles.monthNav}>
               <TouchableOpacity style={styles.monthBtn} onPress={() => shiftMonth(-1)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <MaterialCommunityIcons name="chevron-left" size={18} color="#6B6B6B" />
+                <MaterialCommunityIcons name="chevron-left" size={18} color={dark ? '#9CA3AF' : '#6B6B6B'} />
               </TouchableOpacity>
-              <Text style={styles.monthLabel}>{`${MONTH_NAMES[viewMonth]} ${viewYear}`}</Text>
+              <Text style={[styles.monthLabel, dark && styles.monthLabelDark]}>{`${MONTH_NAMES[viewMonth]} ${viewYear}`}</Text>
               <TouchableOpacity style={styles.monthBtn} onPress={() => shiftMonth(1)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <MaterialCommunityIcons name="chevron-right" size={18} color="#6B6B6B" />
+                <MaterialCommunityIcons name="chevron-right" size={18} color={dark ? '#9CA3AF' : '#6B6B6B'} />
               </TouchableOpacity>
             </View>
 
@@ -125,7 +127,7 @@ export const DateField: React.FC<DateFieldProps> = ({ label, value, onChange, pl
                       setOpen(false);
                     }}
                   >
-                    <Text style={[styles.dayText, sel && styles.dayTextSel]}>{d}</Text>
+                    <Text style={[styles.dayText, dark && styles.dayTextDark, sel && styles.dayTextSel]}>{d}</Text>
                   </TouchableOpacity>
                 );
               })}
@@ -133,10 +135,10 @@ export const DateField: React.FC<DateFieldProps> = ({ label, value, onChange, pl
 
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.clearBtn} onPress={() => { onChange(''); setOpen(false); }}>
-                <Text style={styles.clearText}>Clear</Text>
+                <Text style={[styles.clearText, dark && styles.clearTextDark]}>Clear</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.doneBtn} onPress={() => setOpen(false)}>
-                <Text style={styles.doneText}>Done</Text>
+                <Text style={[styles.doneText, dark && styles.doneTextDark]}>Done</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -185,4 +187,13 @@ const styles = StyleSheet.create({
   clearText: { fontSize: 13, color: '#6B6B6B', fontWeight: '600', fontFamily: FontFamily.semibold },
   doneBtn: { paddingVertical: 8, paddingHorizontal: 16, backgroundColor: '#F4C430', borderRadius: BorderRadius.button },
   doneText: { fontSize: 13, color: '#FFFFFF', fontWeight: '700', fontFamily: FontFamily.bold },
+  labelDark: { color: '#9CA3AF' },
+  inputWithIconDark: { backgroundColor: '#171717', borderColor: 'rgba(244,196,48,0.15)' },
+  inputIconTextDark: { color: '#E5E7EB' },
+  modalCardDark: { backgroundColor: '#1F1F1F', borderWidth: 1, borderColor: 'rgba(244,196,48,0.15)' },
+  modalTitleDark: { color: '#E5E7EB' },
+  monthLabelDark: { color: '#E5E7EB' },
+  dayTextDark: { color: '#E5E7EB' },
+  clearTextDark: { color: '#9CA3AF' },
+  doneTextDark: { color: '#1A1B1C' },
 });

@@ -156,28 +156,34 @@ export default function CompleteProfileScreen() {
       <SafeAreaView style={styles.safe}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.flex}>
           <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-            <TouchableOpacity
-              style={styles.topRow}
-              activeOpacity={0.7}
-              onPress={() => router.replace('/change-password')}
-            >
-              <MaterialCommunityIcons name="arrow-left" size={20} color="#171717" />
-              <Text style={styles.topRowText}>Back</Text>
-            </TouchableOpacity>
+            <View style={styles.topBar}>
+              <TouchableOpacity
+                style={styles.backBtn}
+                activeOpacity={0.7}
+                onPress={() => router.replace('/change-password')}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <MaterialCommunityIcons name="arrow-left" size={22} color="#F4C430" />
+              </TouchableOpacity>
+              <Text style={styles.topBarTitle}>Step 2 of 2</Text>
+              <View style={{ width: 40 }} />
+            </View>
 
             <View style={styles.progressContainer}>
-              <Text style={styles.stepText}>Step 2 of 2</Text>
+              <Text style={styles.stepText}>Complete Your Profile</Text>
               <View style={styles.barTrack}>
                 <View style={[styles.barFill, { width: '100%' }]} />
               </View>
             </View>
 
-            <View style={styles.header}>
+            <View style={styles.headerCard}>
               <View style={styles.iconCircle}>
-                <MaterialCommunityIcons name="account-check-outline" size={30} color="#1A1B1C" />
+                <MaterialCommunityIcons name="account-check-outline" size={30} color="#F4C430" />
               </View>
-              <Text style={styles.title}>Complete Your Profile</Text>
-              <Text style={styles.subtitle}>Fill in the remaining details to activate your account.</Text>
+              <View style={styles.headerText}>
+                <Text style={styles.title}>Complete Your Profile</Text>
+                <Text style={styles.subtitle}>Fill in the remaining details to activate your account.</Text>
+              </View>
             </View>
 
             <View style={styles.picCard}>
@@ -185,7 +191,7 @@ export default function CompleteProfileScreen() {
                 {avatarSource ? (
                   <Image source={{ uri: avatarSource }} style={styles.picImg} resizeMode="cover" />
                 ) : (
-                  <MaterialCommunityIcons name="account" size={44} color="#1A1B1C" />
+                  <MaterialCommunityIcons name="account" size={44} color="#F4C430" />
                 )}
               </View>
               <View style={styles.picInfo}>
@@ -210,6 +216,7 @@ export default function CompleteProfileScreen() {
                 fields={profileFields}
                 values={values}
                 onChange={(fieldId, v) => setValues((prev) => ({ ...prev, [fieldId]: v }))}
+                theme="dark"
               />
             ) : (
               !hasAnyInput && !syncing && (
@@ -259,59 +266,98 @@ export default function CompleteProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFDF7' },
+  container: { flex: 1, backgroundColor: '#1A1B1C' },
   safe: { flex: 1 },
   flex: { flex: 1 },
-  scroll: { paddingHorizontal: 20, paddingVertical: 14, gap: 14, paddingBottom: 40 },
-  topRow: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingVertical: 8, minHeight: 40 },
-  topRowText: { fontSize: 14, fontWeight: '700', fontFamily: FontFamily.bold, color: '#171717' },
-  progressContainer: { gap: 4, marginBottom: 4 },
-  stepText: { fontSize: 12, fontWeight: '700', fontFamily: FontFamily.bold, color: '#1A1B1C' },
-  barTrack: { height: 6, backgroundColor: '#E8E5DC', borderRadius: 3, overflow: 'hidden' },
-  barFill: { height: '100%', backgroundColor: '#F4C430', borderRadius: 3 },
-  header: { gap: 4, marginBottom: 4, alignItems: 'center' },
-  iconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 5,
-    backgroundColor: '#F4C430',
-    justifyContent: 'center',
+  scroll: { paddingHorizontal: 20, paddingVertical: 14, gap: 20, paddingBottom: 40 },
+  topBar: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
-    shadowColor: '#F4C430',
-    shadowOpacity: 0.45,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(244,196,48,0.15)',
+    backgroundColor: '#1A1B1C',
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(244,196,48,0.10)',
+  },
+  topBarTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    fontFamily: FontFamily.bold,
+    color: '#F4C430',
+  },
+  progressContainer: { gap: 8, marginBottom: 4, paddingHorizontal: 4 },
+  stepText: { fontSize: 12, fontWeight: '700', fontFamily: FontFamily.bold, color: '#F4C430' },
+  barTrack: { height: 5, backgroundColor: 'rgba(244,196,48,0.2)', borderRadius: 2.5, overflow: 'hidden' },
+  barFill: { height: '100%', backgroundColor: '#F4C430', borderRadius: 2.5 },
+  headerCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#1F1F1F',
+    borderRadius: BorderRadius.card,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(244,196,48,0.15)',
+    gap: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
+    elevation: 4,
   },
-  title: { fontSize: 22, fontWeight: '800', fontFamily: FontFamily.extrabold, color: '#1A1B1C', textAlign: 'center' },
-  subtitle: { fontSize: 13, color: '#6B6B6B', textAlign: 'center', lineHeight: 19 },
+  headerText: { flex: 1 },
+  iconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#1A1B1C',
+    borderWidth: 2,
+    borderColor: 'rgba(244,196,48,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexShrink: 0,
+  },
+  title: { fontSize: 22, fontWeight: '800', fontFamily: FontFamily.extrabold, color: '#F4C430' },
+  subtitle: { fontSize: 13, color: '#9CA3AF', lineHeight: 19, marginTop: 2 },
 
   picCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#1F1F1F',
     borderRadius: BorderRadius.card,
     borderWidth: 1,
-    borderColor: '#F0E4B8',
+    borderColor: 'rgba(244,196,48,0.12)',
     padding: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.24,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
   },
   picWrap: {
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: '#F4C430',
+    backgroundColor: '#1A1B1C',
     borderWidth: 2,
-    borderColor: 'rgba(26,27,28,0.10)',
+    borderColor: 'rgba(244,196,48,0.3)',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
   picImg: { width: '100%', height: '100%' },
   picInfo: { flex: 1, gap: 3 },
-  picName: { fontSize: 16, fontWeight: '800', fontFamily: FontFamily.extrabold, color: '#171717' },
-  picEmail: { fontSize: 12, color: '#6B6B6B', fontFamily: FontFamily.medium },
+  picName: { fontSize: 16, fontWeight: '800', fontFamily: FontFamily.extrabold, color: '#E5E7EB' },
+  picEmail: { fontSize: 12, color: '#9CA3AF', fontFamily: FontFamily.medium },
   picBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -326,18 +372,18 @@ const styles = StyleSheet.create({
   picBtnText: { fontSize: 12, fontWeight: '800', fontFamily: FontFamily.bold, color: '#1A1B1C' },
 
   identityCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#1F1F1F',
     borderRadius: BorderRadius.card,
     borderWidth: 1,
-    borderColor: '#F0E4B8',
+    borderColor: 'rgba(244,196,48,0.12)',
     borderLeftWidth: 3,
     borderLeftColor: '#F4C430',
     padding: 16,
     gap: 4,
   },
-  identityLabel: { fontSize: 12, color: '#6B6B6B', fontWeight: '600', fontFamily: FontFamily.semibold },
-  identityValue: { fontSize: 14, color: '#171717', fontWeight: '700', fontFamily: FontFamily.bold },
-  identityHint: { fontSize: 13, color: '#6B6B6B', fontFamily: FontFamily.medium, lineHeight: 18 },
+  identityLabel: { fontSize: 12, color: '#9CA3AF', fontWeight: '600', fontFamily: FontFamily.semibold },
+  identityValue: { fontSize: 14, color: '#E5E7EB', fontWeight: '700', fontFamily: FontFamily.bold },
+  identityHint: { fontSize: 13, color: '#9CA3AF', fontFamily: FontFamily.medium, lineHeight: 18 },
 
   saveBtn: {
     backgroundColor: '#F4C430',
@@ -355,37 +401,37 @@ const styles = StyleSheet.create({
   saveBtnBusy: { opacity: 0.7 },
   saveBtnText: { fontSize: 15, fontWeight: '800', fontFamily: FontFamily.bold, color: '#1A1B1C' },
 
-  syncOverlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(255,255,255,0.9)', justifyContent: 'center', alignItems: 'center', zIndex: 100, gap: 12 },
-  syncText: { fontSize: 15, color: '#6B6B6B', fontWeight: '600', fontFamily: FontFamily.semibold },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  syncOverlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(26,27,28,0.9)', justifyContent: 'center', alignItems: 'center', zIndex: 100, gap: 12 },
+  syncText: { fontSize: 15, color: '#9CA3AF', fontWeight: '600', fontFamily: FontFamily.semibold },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.6)', justifyContent: 'center', alignItems: 'center', padding: 24 },
   modalCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 5,
-    padding: 24,
+    backgroundColor: '#1F1F1F',
+    borderRadius: BorderRadius.modal,
+    padding: 28,
     alignItems: 'center',
     width: '100%',
-    gap: 12,
+    gap: 14,
     borderWidth: 1,
-    borderColor: '#F0E4B8',
+    borderColor: 'rgba(244,196,48,0.2)',
     shadowColor: '#000000',
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 5,
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
   },
   checkCircleBig: {
-    width: 72,
-    height: 72,
-    borderRadius: 5,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     backgroundColor: '#F4C430',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#F4C430',
     shadowOpacity: 0.5,
-    shadowRadius: 14,
+    shadowRadius: 16,
     shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+    elevation: 5,
   },
-  modalTitle: { fontSize: 20, fontWeight: '800', fontFamily: FontFamily.extrabold, color: '#1A1B1C' },
-  modalSub: { fontSize: 13, color: '#6B6B6B', textAlign: 'center', lineHeight: 18 },
+  modalTitle: { fontSize: 22, fontWeight: '800', fontFamily: FontFamily.extrabold, color: '#F4C430' },
+  modalSub: { fontSize: 13, color: '#9CA3AF', textAlign: 'center', lineHeight: 20 },
 });

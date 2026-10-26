@@ -21,6 +21,7 @@ interface DropdownSelectProps {
   leadingIcon?: string;
   /** lets parents lift their container above later siblings while open */
   onOpenChange?: (open: boolean) => void;
+  theme?: 'light' | 'dark';
 }
 
 export const DropdownSelect: React.FC<DropdownSelectProps> = ({
@@ -34,7 +35,9 @@ export const DropdownSelect: React.FC<DropdownSelectProps> = ({
   style,
   leadingIcon,
   onOpenChange,
+  theme = 'light',
 }) => {
+  const dark = theme === 'dark';
   const [open, setOpenState] = useState(false);
   const setOpen = (next: boolean) => {
     setOpenState(next);
@@ -44,8 +47,8 @@ export const DropdownSelect: React.FC<DropdownSelectProps> = ({
   const selected = norm.find((o) => o.key === value);
 
   const menu = (
-    <View style={variant === 'dialog' ? styles.dialogMenu : styles.menu}>
-      {!!menuTitle && <Text style={styles.menuTitle}>{menuTitle}</Text>}
+    <View style={[variant === 'dialog' ? styles.dialogMenu : styles.menu, dark && (variant === 'dialog' ? styles.dialogMenuDark : styles.menuDark)]}>
+      {!!menuTitle && <Text style={[styles.menuTitle, dark && styles.menuTitleDark]}>{menuTitle}</Text>}
       <ScrollView style={{ maxHeight: 260 }} showsVerticalScrollIndicator={false}>
         {norm.map((o) => (
           <TouchableOpacity
@@ -56,7 +59,7 @@ export const DropdownSelect: React.FC<DropdownSelectProps> = ({
               setOpen(false);
             }}
           >
-            <Text numberOfLines={1} style={[styles.itemText, value === o.key && styles.itemTextActive]}>
+            <Text numberOfLines={1} style={[styles.itemText, dark && styles.itemTextDark, value === o.key && styles.itemTextActive, dark && value === o.key && styles.itemTextActiveDark]}>
               {o.label}
             </Text>
             {value === o.key && <MaterialCommunityIcons name="check" size={16} color="#1A1B1C" />}
@@ -69,10 +72,10 @@ export const DropdownSelect: React.FC<DropdownSelectProps> = ({
   if (variant === 'dialog') {
     return (
       <View style={style}>
-        {!!label && <Text style={styles.label}>{label}</Text>}
-        <TouchableOpacity style={styles.select} onPress={() => setOpen(true)}>
-          {!!leadingIcon && <MaterialCommunityIcons name={leadingIcon as any} size={16} color="#6B6B6B" />}
-          <Text numberOfLines={1} style={styles.text}>
+        {!!label && <Text style={[styles.label, dark && styles.labelDark]}>{label}</Text>}
+        <TouchableOpacity style={[styles.select, dark && styles.selectDark]} onPress={() => setOpen(true)}>
+          {!!leadingIcon && <MaterialCommunityIcons name={leadingIcon as any} size={16} color={dark ? '#9CA3AF' : '#6B6B6B'} />}
+          <Text numberOfLines={1} style={[styles.text, dark && styles.textDark]}>
             {selected?.label || placeholder}
           </Text>
           <MaterialCommunityIcons name="menu-down" size={16} color="#9CA3AF" />
@@ -88,11 +91,11 @@ export const DropdownSelect: React.FC<DropdownSelectProps> = ({
 
   return (
     <View style={[styles.wrap, open && { zIndex: 60 }, style]}>
-      {!!label && <Text style={styles.label}>{label}</Text>}
+      {!!label && <Text style={[styles.label, dark && styles.labelDark]}>{label}</Text>}
       <View style={styles.control}>
-        <TouchableOpacity style={styles.select} onPress={() => setOpen(!open)}>
-          {!!leadingIcon && <MaterialCommunityIcons name={leadingIcon as any} size={16} color="#6B6B6B" />}
-          <Text numberOfLines={1} style={styles.text}>
+        <TouchableOpacity style={[styles.select, dark && styles.selectDark]} onPress={() => setOpen(!open)}>
+          {!!leadingIcon && <MaterialCommunityIcons name={leadingIcon as any} size={16} color={dark ? '#9CA3AF' : '#6B6B6B'} />}
+          <Text numberOfLines={1} style={[styles.text, dark && styles.textDark]}>
             {selected?.label || placeholder}
           </Text>
           <MaterialCommunityIcons name={open ? 'menu-up' : 'menu-down'} size={16} color="#9CA3AF" />
@@ -177,4 +180,12 @@ const styles = StyleSheet.create({
   item: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 11, gap: 8 },
   itemText: { fontSize: 13, color: '#1A1B1C', flexShrink: 1 },
   itemTextActive: { fontWeight: '800' },
+  labelDark: { color: '#9CA3AF' },
+  selectDark: { backgroundColor: '#171717', borderColor: 'rgba(244,196,48,0.15)' },
+  textDark: { color: '#E5E7EB' },
+  menuDark: { backgroundColor: '#1F1F1F', borderColor: 'rgba(244,196,48,0.15)' },
+  dialogMenuDark: { backgroundColor: '#1F1F1F', borderColor: 'rgba(244,196,48,0.15)' },
+  menuTitleDark: { color: '#9CA3AF' },
+  itemTextDark: { color: '#E5E7EB' },
+  itemTextActiveDark: { color: '#F4C430' },
 });
