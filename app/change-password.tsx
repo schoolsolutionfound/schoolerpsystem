@@ -124,14 +124,18 @@ export default function ChangePasswordScreen() {
           <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
             {/* Top Bar */}
             <View style={styles.topBar}>
-              <TouchableOpacity
-                style={styles.backBtn}
-                onPress={() => isFirstLogin ? router.replace('/complete-profile') : router.back()}
-                activeOpacity={0.7}
-                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              >
-                <Feather name="arrow-left" size={22} color="#F4C430" />
-              </TouchableOpacity>
+              {isFirstLogin ? (
+                <View style={{ width: 40 }} />
+              ) : (
+                <TouchableOpacity
+                  style={styles.backBtn}
+                  onPress={() => router.back()}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                >
+                  <Feather name="arrow-left" size={22} color="#F4C430" />
+                </TouchableOpacity>
+              )}
               <Text style={styles.topBarTitle}>
                 {isFirstLogin ? 'Step 1 of 2' : 'Change Password'}
               </Text>
