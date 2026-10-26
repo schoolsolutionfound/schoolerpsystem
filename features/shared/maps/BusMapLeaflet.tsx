@@ -27,7 +27,7 @@ export const BusMapLeaflet: React.FC<BusMapProps> = ({
   isLive,
   height = 280,
 }) => {
-  const webViewRef = useRef<WebView>(null);
+  const webViewRef = useRef<React.ComponentRef<typeof WebView>>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [isFollowingBus, setIsFollowingBus] = useState(true);

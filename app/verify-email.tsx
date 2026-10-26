@@ -51,7 +51,7 @@ export default function VerifyEmailScreen() {
 
   // Refs for the six boxes so focus can be driven imperatively on
   // auto-advance / backspace without re-rendering the whole list.
-  const inputs = useRef<(TextInput | null)[]>([]);
+  const inputs = useRef<(React.ComponentRef<typeof TextInput> | null)[]>([]);
 
   // Server-side resend is rate-limited (3/hour); surface a local cooldown so
   // the user isn't hammered with 429s while they mash the button.

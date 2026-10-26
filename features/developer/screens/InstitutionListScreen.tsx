@@ -184,7 +184,7 @@ export function InstitutionListScreen() {
                 </View>
               ) : !hasNextPage ? (
                 <Text style={styles.footerText}>All {total} institutions loaded</Text>
-              ) : null
+              ) : undefined
             }
             contentContainerStyle={styles.listContainer}
             showsVerticalScrollIndicator={false}

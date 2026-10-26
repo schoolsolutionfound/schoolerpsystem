@@ -45,7 +45,7 @@ export const InstitutionSearchSelect: React.FC<InstitutionSearchSelectProps> = (
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [debounced, setDebounced] = useState('');
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<React.ComponentRef<typeof TextInput>>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(search), DEBOUNCE_MS);
