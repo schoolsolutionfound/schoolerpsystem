@@ -1017,15 +1017,15 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#E8E5DC', flexDirection: 'row', alignItems: 'center', gap: 12,
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
   },
-  avatarCircle: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#1A1B1C', alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
+  avatarCircle: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontSize: 13, fontWeight: '800', color: '#D97706' },
   teacherDetails: { flex: 1 },
   teacherName: { fontSize: 14, fontWeight: '700', color: '#1A1B1C' },
   teacherEmail: { fontSize: 12, color: '#6B6B6B', marginTop: 1 },
   teacherMeta: { fontSize: 11, color: '#9CA3AF', marginTop: 3 },
   actions: { gap: 6 },
   actionBtn: {
-    width: 34, height: 34, borderRadius: 5, backgroundColor: '#FFFDF7', borderWidth: 1, borderColor: '#E8E5DC',
+    width: 34, height: 34, borderRadius: 10, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E8E5DC',
     alignItems: 'center', justifyContent: 'center',
   },
 
@@ -1062,7 +1062,7 @@ const styles = StyleSheet.create({
   },
   dateModalCard: {
     width: '100%', maxWidth: 340, backgroundColor: '#FFFFFF',
-    borderRadius: 5, padding: 16,
+    borderRadius: 14, padding: 20, borderWidth: 1, borderColor: '#E8E5DC',
     shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 20,
     shadowOffset: { width: 0, height: 8 }, elevation: 10,
   },

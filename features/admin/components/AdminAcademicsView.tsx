@@ -1795,25 +1795,26 @@ function MarksTab({ classSections, subjects, onDataChange }: any) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
-  pageHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  pageTitle: { fontSize: 20, fontWeight: '800', color: '#1A1B1C' },
-  pageSubtitle: { fontSize: 12, color: '#6B6B6B', marginTop: 2 },
+  container: { flex: 1, padding: 20 },
+  pageHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
+  pageTitle: { fontSize: 24, fontWeight: '800', color: '#111827', letterSpacing: 0.2 },
+  pageSubtitle: { fontSize: 13, color: '#6B7280', marginTop: 2 },
 
   statsCard: {
-    backgroundColor: '#1A1B1C', borderRadius: 5, padding: 16, flexDirection: 'row',
-    justifyContent: 'space-between', alignItems: 'center', borderWidth: 1, borderColor: '#2A2B2C',
+    backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16, flexDirection: 'row',
+    justifyContent: 'space-between', alignItems: 'center', borderWidth: 1, borderColor: '#E8E5DC',
     marginBottom: 12,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
   },
   statBox: { alignItems: 'center', flex: 1 },
-  statValue: { fontSize: 20, fontWeight: '800', color: '#F4C430' },
-  statLabel: { fontSize: 9, color: '#8A8A8A', marginTop: 3, textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: '700' },
-  statDivider: { width: 1, height: 26, backgroundColor: '#2A2B2C' },
+  statValue: { fontSize: 20, fontWeight: '800', color: '#111827' },
+  statLabel: { fontSize: 9, color: '#6B7280', marginTop: 3, textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: '700' },
+  statDivider: { width: 1, height: 26, backgroundColor: '#F1F5F9' },
 
   tabBarWrap: { borderBottomWidth: 1, borderBottomColor: '#E8E5DC', marginBottom: 14 },
   tabBarRow: { paddingRight: 20 },
   tabItem: { marginRight: 20, paddingTop: 4 },
-  tabLabel: { fontSize: 13, fontWeight: '700', color: '#6B6B6B', paddingBottom: 9 },
+  tabLabel: { fontSize: 13, fontWeight: '700', color: '#6B7280', paddingBottom: 9 },
   tabLabelActive: { color: '#1A1B1C', fontWeight: '800' },
   tabUnderline: { height: 2.5, borderRadius: 5, backgroundColor: 'transparent' },
   tabUnderlineActive: { backgroundColor: '#F4C430' },
