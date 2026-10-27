@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { FontFamily } from '../../../constants/fonts';
 import { ClassTeacherTimetableBuilder } from '../../teacher/components/ClassTeacherTimetableBuilder';
 import { DropdownSelect } from './DropdownSelect';
 
@@ -135,8 +136,8 @@ export const PrincipalTimetableView: React.FC<{ classSections: any[] }> = ({ cla
 };
 
 const principalStyles = StyleSheet.create({
-  container: { flex: 1, padding: 20, paddingBottom: 40, backgroundColor: '#F9FAFB' },
-  sectionTitle: { fontSize: 17, fontWeight: '800', color: '#111827', marginBottom: 12 },
+  container: { flex: 1, padding: 16, paddingBottom: 40, backgroundColor: '#F9FAFB' },
+  sectionTitle: { fontSize: 18, fontWeight: '800', fontFamily: FontFamily.extrabold, color: '#111827', marginBottom: 12 },
   chipRow: { gap: 8, paddingBottom: 4 },
   chip: {
     backgroundColor: '#FFFFFF',
@@ -148,29 +149,30 @@ const principalStyles = StyleSheet.create({
     marginRight: 6,
   },
   chipSelected: { backgroundColor: '#F4C430', borderColor: '#F4C430', borderWidth: 1 },
-  chipText: { fontSize: 12, fontWeight: '700', color: '#4B5563' },
-  chipTextSelected: { color: '#1A1B1C', fontWeight: '900' },
+  chipText: { fontSize: 12, fontWeight: '700', fontFamily: FontFamily.semibold, color: '#4B5563' },
+  chipTextSelected: { color: '#1A1B1C', fontWeight: '900', fontFamily: FontFamily.bold },
   builderWrap: { flex: 1, marginTop: 14 },
   emptyCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 30,
+    borderRadius: 12,
+    padding: 28,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#E8E5DC',
     marginTop: 20,
   },
-  emptyTitle: { fontSize: 15, fontWeight: '800', color: '#111827', marginTop: 10 },
-  emptySub: { fontSize: 12, color: '#6B7280', textAlign: 'center', marginTop: 4, lineHeight: 16 },
+  emptyTitle: { fontSize: 15, fontWeight: '800', fontFamily: FontFamily.extrabold, color: '#111827', marginTop: 10 },
+  emptySub: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B7280', textAlign: 'center', marginTop: 4, lineHeight: 16 },
 });
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  sectionTitle: { fontSize: 17, fontWeight: '800', color: '#111827' },
-  sectionCount: { fontSize: 11, color: '#6B7280', marginTop: 2 },
+  sectionTitle: { fontSize: 18, fontWeight: '800', fontFamily: FontFamily.extrabold, color: '#111827' },
+  sectionCount: { fontSize: 11, fontFamily: FontFamily.regular, color: '#6B7280', marginTop: 2 },
   assignMeta: {
     fontSize: 10,
+    fontFamily: FontFamily.extrabold,
     color: '#8A8A8A',
     fontWeight: '800',
     textTransform: 'uppercase',
@@ -181,8 +183,8 @@ const styles = StyleSheet.create({
   builderWrap: { flex: 1, marginTop: 10 },
   emptyCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 30,
+    borderRadius: 12,
+    padding: 28,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#E8E5DC',
@@ -196,6 +198,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  emptyTitle: { fontSize: 15, fontWeight: '800', color: '#111827', marginTop: 10 },
-  emptySub: { fontSize: 12, color: '#6B7280', textAlign: 'center', marginTop: 4, lineHeight: 16 },
+  emptyTitle: { fontSize: 15, fontWeight: '800', fontFamily: FontFamily.extrabold, color: '#111827', marginTop: 10 },
+  emptySub: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B7280', textAlign: 'center', marginTop: 4, lineHeight: 16 },
 });

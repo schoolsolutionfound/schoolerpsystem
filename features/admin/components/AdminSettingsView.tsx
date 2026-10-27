@@ -335,10 +335,10 @@ export const AdminSettingsView: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: 20, paddingBottom: 40, gap: 14 },
+  content: { padding: 16, paddingBottom: 40, gap: 14 },
   pageHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 },
-  pageTitle: { fontSize: 24, fontWeight: '800', color: '#111827', letterSpacing: 0.2 },
-  pageSubtitle: { fontSize: 13, color: '#6B7280', marginTop: 2 },
+  pageTitle: { fontSize: 20, fontFamily: FontFamily.extrabold, color: '#111827', letterSpacing: 0.2 },
+  pageSubtitle: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B7280', marginTop: 2 },
 
   introCard: {
     flexDirection: 'row',
@@ -388,7 +388,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   countBadgeActive: { backgroundColor: 'rgba(26,27,28,0.15)' },
-  countText: { fontSize: 10, fontWeight: '800', color: '#6B6B6B' },
+  countText: { fontSize: 10, fontFamily: FontFamily.bold, color: '#6B6B6B' },
   countTextActive: { color: '#1A1B1C' },
 
   loadingBox: { alignItems: 'center', paddingVertical: 40, gap: 10 },
@@ -416,6 +416,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     height: 40,
     fontSize: 13,
+    fontFamily: FontFamily.regular,
     color: '#111827',
   },
 

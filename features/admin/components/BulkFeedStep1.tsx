@@ -239,10 +239,10 @@ export const BulkFeedStep1: React.FC<BulkFeedStep1Props> = ({
 };
 
 const styles = StyleSheet.create({
-  scroll: { paddingHorizontal: 20, paddingVertical: 14, gap: 16 },
+  scroll: { paddingHorizontal: 16, paddingVertical: 14, gap: 16 },
   topHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   backBtn: { padding: 4 },
-  headerTitle: { fontSize: 24, fontWeight: '800', color: '#111827' },
+  headerTitle: { fontSize: 20, fontFamily: FontFamily.extrabold, color: '#111827' },
   bannerCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -263,10 +263,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   bannerTextWrap: { flex: 1 },
-  bannerTitle: { fontSize: 16, fontWeight: '700', color: '#1A1B1C' },
-  bannerSub: { fontSize: 12, color: '#6B6B6B', marginTop: 2 },
+  bannerTitle: { fontSize: 16, fontFamily: FontFamily.bold, color: '#1A1B1C' },
+  bannerSub: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B6B6B', marginTop: 2 },
   sectionCard: { gap: 12 },
-  sectionHeader: { fontSize: 14, fontWeight: '700', color: '#1A1B1C', marginBottom: 4 },
+  sectionHeader: { fontSize: 14, fontFamily: FontFamily.bold, color: '#1A1B1C', marginBottom: 4 },
   radioCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -287,8 +287,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   radioTextWrap: { flex: 1 },
-  radioTitle: { fontSize: 14, fontWeight: '700', color: '#1A1B1C' },
-  radioSub: { fontSize: 12, color: '#6B6B6B', marginTop: 2 },
+  radioTitle: { fontSize: 14, fontFamily: FontFamily.bold, color: '#1A1B1C' },
+  radioSub: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B6B6B', marginTop: 2 },
   radioOuter: {
     width: 20,
     height: 20,
@@ -318,14 +318,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  uploadDragText: { fontSize: 13, color: '#6B6B6B' },
+  uploadDragText: { fontSize: 13, fontFamily: FontFamily.regular, color: '#6B6B6B' },
   chooseFileBtn: {
     backgroundColor: '#F4C430',
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: BorderRadius.button,
   },
-  chooseFileText: { color: '#1A1B1C', fontSize: 13, fontWeight: '700' },
+  chooseFileText: { color: '#1A1B1C', fontSize: 13, fontFamily: FontFamily.bold },
   csvFormatBox: {
     backgroundColor: '#F9FAFB',
     borderRadius: 12,
@@ -349,9 +349,9 @@ const styles = StyleSheet.create({
     width: '100%',
     gap: 10,
   },
-  fileName: { fontSize: 13, fontWeight: '600', color: '#1A1B1C' },
-  fileSize: { fontSize: 11, color: '#6B6B6B' },
-  fileSupportText: { fontSize: 11, color: '#6B6B6B', textAlign: 'center' },
+  fileName: { fontSize: 13, fontFamily: FontFamily.semibold, color: '#1A1B1C' },
+  fileSize: { fontSize: 11, fontFamily: FontFamily.regular, color: '#6B6B6B' },
+  fileSupportText: { fontSize: 11, fontFamily: FontFamily.regular, color: '#6B6B6B', textAlign: 'center' },
   rowInputs: { flexDirection: 'row' },
   roleToggleRow: { flexDirection: 'row', gap: 8 },
   roleToggleBtn: {
@@ -362,10 +362,10 @@ const styles = StyleSheet.create({
     flex: 1, justifyContent: 'center',
   },
   roleToggleActive: { borderColor: '#F4C430', backgroundColor: '#F4C430' },
-  roleToggleText: { fontSize: 13, fontWeight: '600', color: '#6B6B6B' },
-  roleToggleTextActive: { color: '#1A1B1C' },
+  roleToggleText: { fontSize: 13, fontFamily: FontFamily.semibold, color: '#6B6B6B' },
+  roleToggleTextActive: { color: '#1A1B1C', fontFamily: FontFamily.bold },
   inputGroup: { marginBottom: 6 },
-  inputLabel: { fontSize: 12, fontWeight: '600', color: '#6B6B6B', marginBottom: 4 },
+  inputLabel: { fontSize: 12, fontFamily: FontFamily.semibold, color: '#6B6B6B', marginBottom: 4 },
   input: {
     backgroundColor: '#FFFFFF',
     borderRadius: BorderRadius.input,
@@ -374,6 +374,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     height: 44,
     fontSize: 13,
+    fontFamily: FontFamily.regular,
     color: '#111827',
   },
   seedBtn: {
@@ -388,7 +389,7 @@ const styles = StyleSheet.create({
     marginVertical: 4,
     gap: 6,
   },
-  seedBtnText: { color: '#F4C430', fontSize: 13, fontWeight: '600' },
+  seedBtnText: { color: '#F4C430', fontSize: 13, fontFamily: FontFamily.semibold },
   primaryActionBtn: {
     backgroundColor: '#F4C430',
     borderRadius: BorderRadius.button,
@@ -400,5 +401,5 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   disabledActionBtn: { opacity: 0.5 },
-  primaryActionText: { color: '#1A1B1C', fontSize: 15, fontWeight: '800' },
+  primaryActionText: { color: '#1A1B1C', fontSize: 15, fontFamily: FontFamily.extrabold },
 });

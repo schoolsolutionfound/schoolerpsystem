@@ -13,6 +13,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { FontFamily } from '../../../constants/fonts';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { useUserStore } from '../../../store/useUserStore';
@@ -255,7 +256,7 @@ backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.55)' },
   },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   brandLogo: { width: 34, height: 34 },
-  brandTitle: { fontSize: 14, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.3 },
+  brandTitle: { fontSize: 14, fontFamily: FontFamily.extrabold, color: '#FFFFFF', letterSpacing: 0.3 },
   closeBtn: {
     width: 32,
     height: 32,
@@ -272,7 +273,7 @@ backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.55)' },
   sectionLabel: {
     fontSize: 10,
     color: '#6A6A6A',
-    fontWeight: '800',
+    fontFamily: FontFamily.bold,
     letterSpacing: 1,
     paddingHorizontal: 10,
     marginBottom: 6,
@@ -295,7 +296,7 @@ backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.55)' },
     alignItems: 'center',
     justifyContent: 'center',
   },
-  menuText: { flex: 1, fontSize: 14, fontWeight: '600', color: '#E5E5E5' },
+  menuText: { flex: 1, fontSize: 14, fontFamily: FontFamily.semibold, color: '#E5E5E5' },
 
   footer: {
     paddingHorizontal: 14,
@@ -316,6 +317,6 @@ backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.55)' },
     borderWidth: 1,
     borderColor: 'rgba(244, 196, 48, 0.3)',
   },
-  logoutText: { fontSize: 14, fontWeight: '800', color: '#F4C430', letterSpacing: 0.3 },
-  version: { fontSize: 10, color: '#5A5A5A', textAlign: 'center', marginTop: 10, letterSpacing: 0.5 },
+  logoutText: { fontSize: 14, fontFamily: FontFamily.extrabold, color: '#F4C430', letterSpacing: 0.3 },
+  version: { fontSize: 10, fontFamily: FontFamily.regular, color: '#5A5A5A', textAlign: 'center', marginTop: 10, letterSpacing: 0.5 },
 });

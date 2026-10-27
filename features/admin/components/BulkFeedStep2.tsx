@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { FontFamily } from '../../../constants/fonts';
 import { BorderRadius } from '../../../constants/theme';
 
 export interface BulkFeedStep2Props {
@@ -116,10 +117,10 @@ export const BulkFeedStep2: React.FC<BulkFeedStep2Props> = ({
 };
 
 const styles = StyleSheet.create({
-  scroll: { paddingHorizontal: 20, paddingVertical: 14, gap: 16 },
+  scroll: { paddingHorizontal: 16, paddingVertical: 14, gap: 16 },
   topHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   backBtn: { padding: 4 },
-  headerTitle: { fontSize: 24, fontWeight: '800', color: '#111827' },
+  headerTitle: { fontSize: 20, fontFamily: FontFamily.extrabold, color: '#111827' },
   previewHeaderCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -139,9 +140,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  previewCardTitle: { fontSize: 15, fontWeight: '700', color: '#111827' },
-  previewCardSub: { fontSize: 12, color: '#92400E', fontWeight: '600', marginTop: 2 },
-  previewNoticeText: { fontSize: 13, color: '#6B7280', marginVertical: 4 },
+  previewCardTitle: { fontSize: 15, fontFamily: FontFamily.bold, color: '#111827' },
+  previewCardSub: { fontSize: 12, fontFamily: FontFamily.semibold, color: '#92400E', marginTop: 2 },
+  previewNoticeText: { fontSize: 13, fontFamily: FontFamily.regular, color: '#6B7280', marginVertical: 4 },
   tableCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 14,
@@ -157,7 +158,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E8E5DC',
   },
-  colHeader: { fontSize: 12, fontWeight: '700', color: '#6B6B6B' },
+  colHeader: { fontSize: 12, fontFamily: FontFamily.bold, color: '#6B6B6B' },
   tableDataRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -173,18 +174,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  avatarTextSmall: { fontSize: 12, fontWeight: '700' },
-  rowNameText: { flex: 1, fontSize: 13, fontWeight: '600', color: '#1A1B1C', marginLeft: 10 },
-  rowRollText: { width: 70, fontSize: 12, color: '#6B6B6B' },
+  avatarTextSmall: { fontSize: 12, fontFamily: FontFamily.bold },
+  rowNameText: { flex: 1, fontSize: 13, fontFamily: FontFamily.semibold, color: '#1A1B1C', marginLeft: 10 },
+  rowRollText: { width: 70, fontSize: 12, fontFamily: FontFamily.regular, color: '#6B6B6B' },
   typeBadge: {
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: BorderRadius.chip,
   },
-  typeBadgeText: { fontSize: 11, fontWeight: '700' },
-  tableFooterHint: { fontSize: 11, color: '#6B6B6B', textAlign: 'center', marginVertical: 4 },
+  typeBadgeText: { fontSize: 11, fontFamily: FontFamily.bold },
+  tableFooterHint: { fontSize: 11, fontFamily: FontFamily.regular, color: '#6B6B6B', textAlign: 'center', marginVertical: 4 },
   sectionCard: { gap: 12 },
-  sectionHeader: { fontSize: 15, fontWeight: '700', color: '#111827', marginBottom: 4 },
+  sectionHeader: { fontSize: 15, fontFamily: FontFamily.bold, color: '#111827', marginBottom: 4 },
   checkboxRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -205,8 +206,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   checkboxActive: { backgroundColor: '#F4C430', borderColor: '#F4C430' },
-  optionTitle: { fontSize: 13, fontWeight: '700', color: '#1A1B1C' },
-  optionSub: { fontSize: 11, color: '#6B6B6B', marginTop: 2 },
+  optionTitle: { fontSize: 13, fontFamily: FontFamily.bold, color: '#1A1B1C' },
+  optionSub: { fontSize: 11, fontFamily: FontFamily.regular, color: '#6B6B6B', marginTop: 2 },
   primaryActionBtn: {
     backgroundColor: '#F4C430',
     borderRadius: BorderRadius.button,
@@ -217,7 +218,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     width: '100%',
   },
-  primaryActionText: { color: '#1A1B1C', fontSize: 15, fontWeight: '800' },
+  primaryActionText: { color: '#1A1B1C', fontSize: 15, fontFamily: FontFamily.extrabold },
   cancelBtn: {
     backgroundColor: '#FFFFFF',
     borderRadius: BorderRadius.button,
@@ -228,5 +229,5 @@ const styles = StyleSheet.create({
     marginTop: 4,
     width: '100%',
   },
-  cancelBtnText: { color: '#6B6B6B', fontSize: 14, fontWeight: '600' },
+  cancelBtnText: { color: '#6B6B6B', fontSize: 14, fontFamily: FontFamily.semibold },
 });

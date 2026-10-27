@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Modal } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { FontFamily } from '../../../constants/fonts';
 
 export interface DropdownOption {
   key: string;
@@ -114,7 +115,7 @@ export const DropdownSelect: React.FC<DropdownSelectProps> = ({
 const styles = StyleSheet.create({
   wrap: { position: 'relative' },
   control: { position: 'relative' },
-  label: { fontSize: 12, fontWeight: '700', color: '#1A1B1C' },
+  label: { fontSize: 12, fontFamily: FontFamily.bold, color: '#1A1B1C' },
   select: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -126,7 +127,7 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
     paddingHorizontal: 12,
   },
-  text: { flex: 1, fontSize: 13, fontWeight: '600', color: '#1A1B1C' },
+  text: { flex: 1, fontSize: 13, fontFamily: FontFamily.semibold, color: '#1A1B1C' },
   backdrop: { position: 'absolute', top: -40, left: -400, right: -400, bottom: -2000, backgroundColor: 'transparent' },
   menu: {
     position: 'absolute',
@@ -170,7 +171,7 @@ const styles = StyleSheet.create({
   },
   menuTitle: {
     fontSize: 11,
-    fontWeight: '800',
+    fontFamily: FontFamily.extrabold,
     color: '#6B6B6B',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -178,8 +179,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   item: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 11, gap: 8 },
-  itemText: { fontSize: 13, color: '#1A1B1C', flexShrink: 1 },
-  itemTextActive: { fontWeight: '800' },
+  itemText: { fontSize: 13, fontFamily: FontFamily.regular, color: '#1A1B1C', flexShrink: 1 },
+  itemTextActive: { fontFamily: FontFamily.bold },
   labelDark: { color: '#9CA3AF' },
   selectDark: { backgroundColor: '#171717', borderColor: 'rgba(244,196,48,0.15)' },
   textDark: { color: '#E5E7EB' },

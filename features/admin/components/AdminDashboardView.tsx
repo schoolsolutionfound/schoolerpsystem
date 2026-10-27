@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
   section: { paddingHorizontal: 20, marginTop: 24 },
   sectionLabel: {
     fontSize: 11,
-    fontWeight: '800',
+    fontFamily: FontFamily.extrabold,
     color: '#6B7280',
     letterSpacing: 1.2,
     marginBottom: 12,

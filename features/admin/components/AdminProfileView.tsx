@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Text, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator, RefreshControl } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { FontFamily } from '../../../constants/fonts';
 import { BorderRadius } from '../../../constants/theme';
 import { ProfileCustomFields } from '../../shared/formFields/ProfileCustomFields';
 import { useProfileCustomFields } from '../../shared/formFields/useProfileCustomFields';
@@ -237,7 +238,7 @@ export const AdminProfileView: React.FC<AdminProfileViewProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: { padding: 20, gap: 14, paddingBottom: 40 },
+  container: { padding: 16, gap: 14, paddingBottom: 40 },
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 14,
@@ -258,23 +259,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { fontSize: 18, fontWeight: '800', color: '#171717' },
-  nameText: { fontSize: 18, fontWeight: '800', color: '#111827' },
-  emailText: { fontSize: 13, color: '#6B7280', marginTop: 2 },
+  avatarText: { fontSize: 18, fontFamily: FontFamily.extrabold, color: '#171717' },
+  nameText: { fontSize: 18, fontFamily: FontFamily.extrabold, color: '#111827' },
+  emailText: { fontSize: 13, fontFamily: FontFamily.regular, color: '#6B7280', marginTop: 2 },
   badgeRow: { marginTop: 6 },
   roleBadge: { backgroundColor: '#FFF4C7', borderWidth: 1, borderColor: '#F4C430', paddingHorizontal: 10, paddingVertical: 3, borderRadius: BorderRadius.chip, alignSelf: 'flex-start' },
-  roleBadgeText: { fontSize: 11, fontWeight: '800', color: '#92400E' },
+  roleBadgeText: { fontSize: 11, fontFamily: FontFamily.extrabold, color: '#92400E' },
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionTitle: { fontSize: 15, fontWeight: '800', color: '#111827' },
+  sectionTitle: { fontSize: 15, fontFamily: FontFamily.extrabold, color: '#111827' },
   editBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: BorderRadius.chip, backgroundColor: '#FFF4C7', borderWidth: 1, borderColor: '#F4C430' },
-  editBtnText: { fontSize: 12, fontWeight: '800', color: '#92400E' },
+  editBtnText: { fontSize: 12, fontFamily: FontFamily.extrabold, color: '#92400E' },
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 28 },
-  infoLabel: { fontSize: 13, color: '#6B6B6B', fontWeight: '500', flexShrink: 1 },
-  infoValue: { fontSize: 13, fontWeight: '700', color: '#1A1B1C', flexShrink: 1, textAlign: 'right' },
+  infoLabel: { fontSize: 13, fontFamily: FontFamily.medium, color: '#6B6B6B', flexShrink: 1 },
+  infoValue: { fontSize: 13, fontFamily: FontFamily.bold, color: '#1A1B1C', flexShrink: 1, textAlign: 'right' },
   codeText: { color: '#92400E' },
-  emptyHint: { fontSize: 13, color: '#9CA3AF', fontStyle: 'italic' },
+  emptyHint: { fontSize: 13, fontFamily: FontFamily.regular, color: '#9CA3AF', fontStyle: 'italic' },
   formGroup: { gap: 6 },
-  label: { fontSize: 12, fontWeight: '700', color: '#6B6B6B' },
+  label: { fontSize: 12, fontFamily: FontFamily.bold, color: '#6B6B6B' },
   input: {
     borderWidth: 1,
     borderColor: '#E5E7EB',
@@ -282,14 +283,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
+    fontFamily: FontFamily.regular,
     color: '#111827',
     backgroundColor: '#FFFFFF',
   },
   editActions: { flexDirection: 'row', gap: 10, marginTop: 4 },
   cancelBtn: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: BorderRadius.chip, borderWidth: 1, borderColor: '#E8E5DC' },
-  cancelBtnText: { fontSize: 14, fontWeight: '700', color: '#6B6B6B' },
+  cancelBtnText: { fontSize: 14, fontFamily: FontFamily.bold, color: '#6B6B6B' },
   saveBtn: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: BorderRadius.chip, backgroundColor: '#F4C430' },
-  saveBtnText: { fontSize: 14, fontWeight: '800', color: '#1A1B1C' },
+  saveBtnText: { fontSize: 14, fontFamily: FontFamily.extrabold, color: '#1A1B1C' },
   menuItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  menuText: { fontSize: 14, fontWeight: '600', color: '#1A1B1C' },
+  menuText: { fontSize: 14, fontFamily: FontFamily.semibold, color: '#1A1B1C' },
 });

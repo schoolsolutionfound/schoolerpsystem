@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Text, ScrollView, TextInput, TouchableOpacity, Modal, Alert, RefreshControl } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { FontFamily } from '../../../constants/fonts';
 import { BorderRadius } from '../../../constants/theme';
 import { resetUserPasswordApi, fetchFeesApi } from '../../../api/admin';
 import { DropdownSelect } from './DropdownSelect';
@@ -492,11 +493,11 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20 },
-  pageHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 },
-  pageTitle: { fontSize: 24, fontWeight: '800', color: '#111827', letterSpacing: 0.2 },
-  pageSubtitle: { fontSize: 13, color: '#6B7280', marginTop: 2 },
-  headerBar: { flexDirection: 'row', gap: 10, marginBottom: 10 },
+  container: { flex: 1, padding: 16 },
+  pageHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
+  pageTitle: { fontSize: 20, fontFamily: FontFamily.extrabold, color: '#111827', letterSpacing: 0.2 },
+  pageSubtitle: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B7280', marginTop: 2 },
+  headerBar: { flexDirection: 'row', gap: 10, marginBottom: 12 },
   searchBox: {
     flex: 1,
     flexDirection: 'row',
@@ -509,9 +510,9 @@ const styles = StyleSheet.create({
     height: 44,
     gap: 8,
   },
-  searchInput: { flex: 1, fontSize: 13, color: '#1A1B1C' },
+  searchInput: { flex: 1, fontSize: 13, fontFamily: FontFamily.medium, color: '#1A1B1C' },
   loadMoreBtn: { alignItems: 'center', paddingVertical: 14, marginTop: 4 },
-  loadMoreText: { fontSize: 13, fontWeight: '700', color: '#F4C430' },
+  loadMoreText: { fontSize: 13, fontFamily: FontFamily.bold, color: '#F4C430' },
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -522,7 +523,7 @@ const styles = StyleSheet.create({
     height: 38,
     justifyContent: 'center',
   },
-  addBtnText: { color: '#1A1B1C', fontWeight: '800', fontSize: 13 },
+  addBtnText: { color: '#1A1B1C', fontFamily: FontFamily.extrabold, fontSize: 13 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   importBtn: {
     width: 38,
@@ -537,19 +538,19 @@ const styles = StyleSheet.create({
   listContainer: { gap: 10, paddingBottom: 40 },
   emptyCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 30,
+    borderRadius: 12,
+    padding: 28,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#E8E5DC',
     marginTop: 20,
   },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: '#1A1B1C', marginTop: 10 },
-  emptySub: { fontSize: 12, color: '#6B6B6B', textAlign: 'center', marginTop: 4, lineHeight: 16 },
+  emptyTitle: { fontSize: 16, fontWeight: '700', fontFamily: FontFamily.extrabold, color: '#1A1B1C', marginTop: 10 },
+  emptySub: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B6B6B', textAlign: 'center', marginTop: 4, lineHeight: 16 },
   userCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 16,
+    borderRadius: 12,
+    padding: 14,
     borderWidth: 1,
     borderColor: '#E8E5DC',
     flexDirection: 'row',
@@ -558,18 +559,18 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
   },
   avatarCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#FEF3C7',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { fontSize: 13, fontWeight: '800', color: '#D97706' },
+  avatarText: { fontSize: 15, fontFamily: FontFamily.extrabold, color: '#D97706' },
   userDetails: { flex: 1 },
-  userName: { fontSize: 14, fontWeight: '700', color: '#1A1B1C' },
-  userEmail: { fontSize: 12, color: '#6B6B6B', marginTop: 1 },
-  userMeta: { fontSize: 11, color: '#9CA3AF', marginTop: 3 },
+  userName: { fontSize: 14, fontWeight: '700', fontFamily: FontFamily.bold, color: '#1A1B1C' },
+  userEmail: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B6B6B', marginTop: 1 },
+  userMeta: { fontSize: 11, fontFamily: FontFamily.regular, color: '#9CA3AF', marginTop: 3 },
   resetPwdBtn: {
     width: 34,
     height: 34,
@@ -583,21 +584,21 @@ const styles = StyleSheet.create({
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
   modalContent: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 20, gap: 14, borderWidth: 1, borderColor: '#E8E5DC', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 8 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  modalTitle: { fontSize: 17, fontWeight: '800', color: '#1A1B1C' },
-  sectionHeader: { fontSize: 11, fontWeight: '800', color: '#6B6B6B', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
+  modalTitle: { fontSize: 17, fontWeight: '800', fontFamily: FontFamily.extrabold, color: '#1A1B1C' },
+  sectionHeader: { fontSize: 11, fontWeight: '800', fontFamily: FontFamily.extrabold, color: '#6B6B6B', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
   formDivider: { height: 1, backgroundColor: '#F0EDE4', marginVertical: 12 },
   nameRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
   nameField: { flex: 1, gap: 4 },
   formGroup: { gap: 4, marginBottom: 10 },
   formRow: { marginBottom: 0 },
-  label: { fontSize: 12, fontWeight: '700', color: '#1A1B1C' },
-  input: { height: 44, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: BorderRadius.input, paddingHorizontal: 12, fontSize: 13, backgroundColor: '#FFFFFF', color: '#111827' },
+  label: { fontSize: 12, fontFamily: FontFamily.bold, color: '#1A1B1C' },
+  input: { height: 44, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: BorderRadius.input, paddingHorizontal: 12, fontSize: 13, fontFamily: FontFamily.regular, backgroundColor: '#FFFFFF', color: '#111827' },
   inputWithIcon: {
     flexDirection: 'row', alignItems: 'center', gap: 8, height: 44, borderWidth: 1,
     borderColor: '#E5E7EB', borderRadius: BorderRadius.input, paddingHorizontal: 12, backgroundColor: '#FFFFFF',
   },
-  inputIconText: { flex: 1, fontSize: 13, color: '#1A1B1C' },
-  hintText: { fontSize: 11, color: '#6B6B6B', marginTop: 2 },
+  inputIconText: { flex: 1, fontSize: 13, fontFamily: FontFamily.regular, color: '#1A1B1C' },
+  hintText: { fontSize: 11, fontFamily: FontFamily.regular, color: '#6B6B6B', marginTop: 2 },
   feeRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -610,12 +611,12 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   feeRowBody: { flex: 1, marginLeft: 10, marginRight: 8 },
-  feeRowTitle: { fontSize: 13, fontWeight: '700', color: '#1A1B1C' },
-  feeRowMeta: { fontSize: 11, color: '#6B6B6B', marginTop: 1 },
-  feeRowAmount: { fontSize: 13, fontWeight: '800', color: '#1A1B1C' },
+  feeRowTitle: { fontSize: 13, fontFamily: FontFamily.bold, color: '#1A1B1C' },
+  feeRowMeta: { fontSize: 11, fontFamily: FontFamily.regular, color: '#6B6B6B', marginTop: 1 },
+  feeRowAmount: { fontSize: 13, fontFamily: FontFamily.extrabold, color: '#1A1B1C' },
   modalFooter: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 6 },
   cancelBtn: { height: 40, paddingHorizontal: 16, borderRadius: BorderRadius.button, justifyContent: 'center', alignItems: 'center' },
-  cancelText: { color: '#6B6B6B', fontWeight: '700', fontSize: 13 },
+  cancelText: { color: '#6B6B6B', fontFamily: FontFamily.bold, fontSize: 13 },
   submitBtn: { height: 40, paddingHorizontal: 20, backgroundColor: '#F4C430', borderRadius: BorderRadius.button, justifyContent: 'center', alignItems: 'center', flexDirection: 'row', gap: 6 },
-  submitText: { color: '#1A1B1C', fontWeight: '800', fontSize: 13 },
+  submitText: { color: '#1A1B1C', fontFamily: FontFamily.extrabold, fontSize: 13 },
 });

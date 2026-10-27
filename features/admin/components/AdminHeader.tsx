@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, Image } from 'react-native';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
+import { FontFamily } from '../../../constants/fonts';
 import { BellIcon } from '../../notifications/components/BellIcon';
 
 interface AdminHeaderProps {
@@ -124,6 +125,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   greetingTextWrap: { flex: 1 },
-  greetingText: { fontSize: 14, color: '#6B7280', marginBottom: 2 },
-  userNameText: { fontSize: 22, fontWeight: '800', color: '#171717' },
+  greetingText: { fontSize: 14, fontFamily: FontFamily.medium, color: '#6B7280', marginBottom: 2 },
+  userNameText: { fontSize: 22, fontWeight: '800', fontFamily: FontFamily.extrabold, color: '#171717' },
 });

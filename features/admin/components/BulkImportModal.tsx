@@ -661,6 +661,7 @@ const styles = StyleSheet.create({
   },
   headerSub: {
     fontSize: 12.5,
+    fontFamily: FontFamily.regular,
     color: '#6B6B6B',
     textAlign: 'center',
     lineHeight: 18,
@@ -709,7 +710,7 @@ const styles = StyleSheet.create({
     color: '#1A1B1C',
     flex: 1,
   },
-  cardHint: { fontSize: 11, color: '#6B6B6B', lineHeight: 16 },
+  cardHint: { fontSize: 11, fontFamily: FontFamily.regular, color: '#6B6B6B', lineHeight: 16 },
   cardLifted: { zIndex: 10, elevation: 8 },
   headerStrip: {
     flexDirection: 'row',
@@ -779,7 +780,7 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.bold,
     color: '#1A1B1C',
   },
-  uploadHint: { fontSize: 10.5, color: '#9CA3AF' },
+  uploadHint: { fontSize: 10.5, fontFamily: FontFamily.regular, color: '#9CA3AF' },
   fileCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -807,7 +808,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2.5,
   },
   pillGolden: { backgroundColor: '#F4C430' },
-  pillText: { fontSize: 10, fontWeight: '700', color: '#6B6B6B' },
+  pillText: { fontSize: 10, fontFamily: FontFamily.bold, color: '#6B6B6B' },
   fileRemove: { padding: 2 },
   primaryBtn: {
     flexDirection: 'row',
@@ -855,7 +856,7 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.extrabold,
     color: '#1A1B1C',
   },
-  statLabel: { fontSize: 10.5, fontWeight: '700', color: '#6B6B6B', textTransform: 'uppercase', letterSpacing: 0.4 },
+  statLabel: { fontSize: 10.5, fontFamily: FontFamily.bold, color: '#6B6B6B', textTransform: 'uppercase', letterSpacing: 0.4 },
   noteBanner: {
     flexDirection: 'row',
     gap: 8,
@@ -869,7 +870,7 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 12,
   },
-  noteText: { flex: 1, fontSize: 11.5, color: '#92400E', lineHeight: 16 },
+  noteText: { flex: 1, fontSize: 11.5, fontFamily: FontFamily.regular, color: '#92400E', lineHeight: 16 },
   detailCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 14,
@@ -893,8 +894,8 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     fontFamily: FontFamily.bold,
   },
-  errorLine: { fontSize: 11.5, color: '#7F1D1D', marginBottom: 4, lineHeight: 16 },
-  errorRow: { fontWeight: '800', color: '#DC3545' },
+  errorLine: { fontSize: 11.5, fontFamily: FontFamily.regular, color: '#7F1D1D', marginBottom: 4, lineHeight: 16 },
+  errorRow: { fontFamily: FontFamily.extrabold, color: '#DC3545' },
   secretCard: {
     backgroundColor: '#1A1B1C',
     borderRadius: 14,
@@ -912,14 +913,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: 'rgba(244,196,48,0.15)',
   },
-  secretEmail: { fontSize: 11.5, color: '#E5E5E5', flex: 1 },
+  secretEmail: { fontSize: 11.5, fontFamily: FontFamily.regular, color: '#E5E5E5', flex: 1 },
   secretPass: {
     fontSize: 11.5,
     fontWeight: '800',
     fontFamily: FontFamily.bold,
     color: '#F4C430',
   },
-  secretMore: { fontSize: 10.5, color: '#9CA3AF', marginTop: 6 },
+  secretMore: { fontSize: 10.5, fontFamily: FontFamily.regular, color: '#9CA3AF', marginTop: 6 },
   footerRow: {
     flexDirection: 'row',
     gap: 8,

@@ -150,10 +150,10 @@ export const BulkFeedStep3: React.FC<BulkFeedStep3Props> = ({
 };
 
 const styles = StyleSheet.create({
-  scrollSuccess: { paddingHorizontal: 20, paddingVertical: 14, alignItems: 'center', width: '100%' },
+  scrollSuccess: { paddingHorizontal: 16, paddingVertical: 14, alignItems: 'center', width: '100%' },
   topHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, width: '100%' },
   backBtn: { padding: 4 },
-  headerTitle: { fontSize: 24, fontFamily: FontFamily.bold, color: '#111827' },
+  headerTitle: { fontSize: 20, fontFamily: FontFamily.extrabold, color: '#111827' },
   successIconWrapper: { marginVertical: 20 },
   successCircleBig: {
     width: 96,

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Text, ScrollView, TextInput, TouchableOpacity, Alert, Platform, Modal, FlatList, RefreshControl } from 'react-native';
+import { View, StyleSheet, Text, ScrollView, TextInput, TouchableOpacity, Alert, Modal, FlatList, RefreshControl } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { FontFamily } from '../../../constants/fonts';
 import { BorderRadius } from '../../../constants/theme';
 import { createClassSectionApi } from '../../../api/academics';
 import { buildTerms, levelsForInstitution, termCountFromPlan } from '../../shared/academicStructure';
@@ -716,7 +717,7 @@ export const AdminInstitutionView: React.FC<AdminInstitutionViewProps> = ({ conf
 };
 
 const styles = StyleSheet.create({
-  container: { padding: 20, gap: 14, paddingBottom: 40 },
+  container: { padding: 16, gap: 14, paddingBottom: 40 },
   infoCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 14,
@@ -733,18 +734,18 @@ const styles = StyleSheet.create({
   infoHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   infoHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
   instIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFF4C7', borderWidth: 1, borderColor: '#FDE68A', alignItems: 'center', justifyContent: 'center' },
-  instName: { fontSize: 16, fontWeight: '800', color: '#111827' },
-  instCode: { fontSize: 12, color: '#6B7280', fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', marginTop: 2 },
+  instName: { fontSize: 16, fontFamily: FontFamily.extrabold, color: '#111827' },
+  instCode: { fontSize: 12, fontFamily: FontFamily.medium, color: '#6B7280', marginTop: 2 },
   statusBadge: { backgroundColor: '#FFF4C7', borderWidth: 1, borderColor: '#F4C430', paddingHorizontal: 10, paddingVertical: 4, borderRadius: BorderRadius.chip},
-  statusBadgeText: { fontSize: 11, fontWeight: '800', color: '#92400E', letterSpacing: 0.3 },
+  statusBadgeText: { fontSize: 11, fontFamily: FontFamily.extrabold, color: '#92400E', letterSpacing: 0.3 },
   infoDivider: { height: 1, backgroundColor: '#F1F5F9' },
   infoYearRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
-  infoYearText: { fontSize: 12, color: '#6B7280', fontWeight: '600' },
+  infoYearText: { fontSize: 12, fontFamily: FontFamily.semibold, color: '#6B7280' },
   infoStatsRow: { flexDirection: 'row', alignItems: 'center' },
   infoStat: { flex: 1, alignItems: 'center', gap: 2 },
   infoStatDivider: { width: 1, height: 28, backgroundColor: '#F1F5F9' },
-  infoStatValue: { fontSize: 18, fontWeight: '800', color: '#111827' },
-  infoStatLabel: { fontSize: 11, color: '#6B7280', fontWeight: '600' },
+  infoStatValue: { fontSize: 18, fontFamily: FontFamily.extrabold, color: '#111827' },
+  infoStatLabel: { fontSize: 11, fontFamily: FontFamily.semibold, color: '#6B7280' },
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 14,
@@ -759,23 +760,23 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   cardHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  cardTitle: { fontSize: 15, fontWeight: '800', color: '#111827' },
+  cardTitle: { fontSize: 15, fontFamily: FontFamily.extrabold, color: '#111827' },
   countBadge: { backgroundColor: '#1A1B1C', paddingHorizontal: 8, paddingVertical: 2, borderRadius: BorderRadius.chip},
-  countBadgeText: { fontSize: 11, fontWeight: '800', color: '#F4C430' },
-  emptyHint: { fontSize: 12, color: '#9CA3AF', fontStyle: 'italic', paddingVertical: 4 },
+  countBadgeText: { fontSize: 11, fontFamily: FontFamily.extrabold, color: '#F4C430' },
+  emptyHint: { fontSize: 12, fontFamily: FontFamily.regular, color: '#9CA3AF', fontStyle: 'italic', paddingVertical: 4 },
   emptyBox: { alignItems: 'center', gap: 6, paddingVertical: 20, backgroundColor: '#FAFAF7', borderRadius: BorderRadius.card, borderWidth: 1, borderColor: '#E8E5DC', borderStyle: 'dashed' },
   listBox: { borderRadius: BorderRadius.card, borderWidth: 1, borderColor: '#E8E5DC', overflow: 'hidden' },
   listItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 11, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F0EDE4' },
   listItemLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
   listItemNum: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#F4C430', alignItems: 'center', justifyContent: 'center' },
-  listItemNumText: { fontSize: 11, fontWeight: '800', color: '#1A1B1C' },
-  listItemText: { fontSize: 13, fontWeight: '600', color: '#1A1B1C', flex: 1 },
+  listItemNumText: { fontSize: 11, fontFamily: FontFamily.extrabold, color: '#1A1B1C' },
+  listItemText: { fontSize: 13, fontFamily: FontFamily.semibold, color: '#1A1B1C', flex: 1 },
   pwStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 7, borderRadius: BorderRadius.chip},
   pwStatusSet: { backgroundColor: '#F4C430' },
   pwStatusWillClear: { backgroundColor: '#FEF3C7' },
-  pwStatusText: { fontSize: 12, fontWeight: '600', color: '#1A1B1C', flex: 1 },
-  pwClearText: { fontSize: 12, fontWeight: '800', color: '#1A1B1C', textDecorationLine: 'underline' },
-  pwRules: { fontSize: 11, color: '#9CA3AF' },
+  pwStatusText: { fontSize: 12, fontFamily: FontFamily.semibold, color: '#1A1B1C', flex: 1 },
+  pwClearText: { fontSize: 12, fontFamily: FontFamily.extrabold, color: '#1A1B1C', textDecorationLine: 'underline' },
+  pwRules: { fontSize: 11, fontFamily: FontFamily.regular, color: '#9CA3AF' },
   inputRow: { flexDirection: 'row', gap: 8 },
   input: {
     flex: 1,
@@ -785,6 +786,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.input,
     paddingHorizontal: 12,
     fontSize: 13,
+    fontFamily: FontFamily.regular,
     backgroundColor: '#FFFFFF',
     color: '#111827',
   },
@@ -798,7 +800,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 4,
   },
-  addBtnText: { color: '#1A1B1C', fontWeight: '800', fontSize: 13 },
+  addBtnText: { color: '#1A1B1C', fontFamily: FontFamily.extrabold, fontSize: 13 },
   chipContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
     flexDirection: 'row',
@@ -809,7 +811,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: BorderRadius.chip,
   },
-  chipText: { fontSize: 12, fontWeight: '700', color: '#1A1B1C' },
+  chipText: { fontSize: 12, fontFamily: FontFamily.bold, color: '#1A1B1C' },
   addBtnFull: {
     backgroundColor: '#F4C430',
     height: 42,
@@ -824,13 +826,13 @@ const styles = StyleSheet.create({
   classItemRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   classSubjects: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 12, paddingBottom: 10, paddingLeft: 46 },
   subjectTag: { backgroundColor: '#F4C430', paddingHorizontal: 8, paddingVertical: 3, borderRadius: BorderRadius.chip},
-  subjectTagText: { fontSize: 11, fontWeight: '700', color: '#1A1B1C' },
+  subjectTagText: { fontSize: 11, fontFamily: FontFamily.bold, color: '#1A1B1C' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
   modalCard: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 20, gap: 12, borderWidth: 1, borderColor: '#E8E5DC', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 8 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  modalTitle: { fontSize: 17, fontWeight: '800', color: '#1A1B1C' },
-  modalLabel: { fontSize: 12, fontWeight: '700', color: '#1A1B1C' },
-  modalHint: { fontSize: 11, color: '#6B6B6B', marginTop: -6 },
+  modalTitle: { fontSize: 17, fontFamily: FontFamily.extrabold, color: '#1A1B1C' },
+  modalLabel: { fontSize: 12, fontFamily: FontFamily.bold, color: '#1A1B1C' },
+  modalHint: { fontSize: 11, fontFamily: FontFamily.regular, color: '#6B6B6B', marginTop: -6 },
   checkRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
   checkBox: {
     width: 18,
@@ -845,7 +847,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F4C430',
     borderColor: '#F4C430',
   },
-  checkLabel: { fontSize: 13, fontWeight: '600', color: '#1A1B1C' },
+  checkLabel: { fontSize: 13, fontFamily: FontFamily.semibold, color: '#1A1B1C' },
   modalInput: {
     height: 42,
     borderWidth: 1,
@@ -853,6 +855,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.input,
     paddingHorizontal: 12,
     fontSize: 13,
+    fontFamily: FontFamily.regular,
     backgroundColor: '#FFFFFF',
     color: '#111827',
   },
@@ -872,6 +875,7 @@ const styles = StyleSheet.create({
   subjectSearchInput: {
     flex: 1,
     fontSize: 14,
+    fontFamily: FontFamily.medium,
     color: '#1A1B1C',
     backgroundColor: 'transparent',
     outlineWidth: 0,
@@ -895,13 +899,13 @@ const styles = StyleSheet.create({
     borderBottomColor: '#F0EDE4',
   },
   subjectOptionActive: { backgroundColor: '#FFFDF7' },
-  subjectOptionText: { fontSize: 13, fontWeight: '600', color: '#1A1B1C' },
-  subjectOptionTextActive: { fontWeight: '700' },
+  subjectOptionText: { fontSize: 13, fontFamily: FontFamily.semibold, color: '#1A1B1C' },
+  subjectOptionTextActive: { fontFamily: FontFamily.bold },
   modalFooter: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 4 },
   modalCancelBtn: { height: 40, paddingHorizontal: 16, borderRadius: BorderRadius.button, justifyContent: 'center', alignItems: 'center' },
-  modalCancelText: { color: '#6B6B6B', fontWeight: '700', fontSize: 13 },
+  modalCancelText: { color: '#6B6B6B', fontFamily: FontFamily.bold, fontSize: 13 },
   modalSaveBtn: { height: 40, paddingHorizontal: 20, backgroundColor: '#F4C430', borderRadius: BorderRadius.button, justifyContent: 'center', alignItems: 'center' },
-  modalSaveText: { color: '#1A1B1C', fontWeight: '800', fontSize: 13 },
+  modalSaveText: { color: '#1A1B1C', fontFamily: FontFamily.extrabold, fontSize: 13 },
   saveBtn: {
     backgroundColor: '#F4C430',
     height: 48,
@@ -912,5 +916,5 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 4,
   },
-  saveBtnText: { color: '#1A1B1C', fontWeight: '800', fontSize: 14 },
+  saveBtnText: { color: '#1A1B1C', fontFamily: FontFamily.extrabold, fontSize: 14 },
 });

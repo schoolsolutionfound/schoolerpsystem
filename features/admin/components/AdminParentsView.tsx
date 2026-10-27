@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Text, ScrollView, TextInput, TouchableOpacity, Modal, Alert, Switch, ActivityIndicator, RefreshControl } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { FontFamily } from '../../../constants/fonts';
 import { DropdownSelect } from './DropdownSelect';
 import { BulkImportModal } from './BulkImportModal';
 import { fetchStudentsApi, resetUserPasswordApi } from '../../../api/admin';
@@ -635,12 +636,12 @@ export const AdminParentsView: React.FC<AdminParentsViewProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20 },
-  pageHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 },
-  pageTitle: { fontSize: 24, fontWeight: '800', color: '#111827', letterSpacing: 0.2 },
-  pageSubtitle: { fontSize: 13, color: '#6B7280', marginTop: 2 },
+  container: { flex: 1, padding: 16 },
+  pageHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
+  pageTitle: { fontSize: 20, fontFamily: FontFamily.extrabold, color: '#111827', letterSpacing: 0.2 },
+  pageSubtitle: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B7280', marginTop: 2 },
   addBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#F4C430', borderRadius: BorderRadius.button, paddingHorizontal: 14, height: 40, justifyContent: 'center', shadowColor: '#171717', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.12, shadowRadius: 2, elevation: 2 },
-  addBtnText: { color: '#1A1B1C', fontWeight: '800', fontSize: 13 },
+  addBtnText: { color: '#1A1B1C', fontFamily: FontFamily.extrabold, fontSize: 13 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   importBtn: {
     width: 38,
@@ -653,37 +654,37 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  headerBar: { flexDirection: 'row', gap: 10, marginBottom: 10 },
+  headerBar: { flexDirection: 'row', gap: 10, marginBottom: 12 },
   searchBox: {
     flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF',
     borderRadius: BorderRadius.input, borderWidth: 1, borderColor: '#E8E5DC', paddingHorizontal: 12, height: 44, gap: 8,
   },
-  searchInput: { flex: 1, fontSize: 13, color: '#1A1B1C' },
+  searchInput: { flex: 1, fontSize: 13, fontFamily: FontFamily.medium, color: '#1A1B1C' },
 
   listContainer: { gap: 10, paddingBottom: 40 },
-  emptyCard: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 30, alignItems: 'center', borderWidth: 1, borderColor: '#E8E5DC', marginTop: 20 },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: '#1A1B1C', marginTop: 10 },
-  emptySub: { fontSize: 12, color: '#6B6B6B', textAlign: 'center', marginTop: 4, lineHeight: 16 },
+  emptyCard: { backgroundColor: '#FFFFFF', borderRadius: 12, padding: 28, alignItems: 'center', borderWidth: 1, borderColor: '#E8E5DC', marginTop: 20 },
+  emptyTitle: { fontSize: 16, fontFamily: FontFamily.extrabold, color: '#1A1B1C', marginTop: 10 },
+  emptySub: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B6B6B', textAlign: 'center', marginTop: 4, lineHeight: 16 },
 
   parentCard: {
-    backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#E8E5DC',
+    backgroundColor: '#FFFFFF', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#E8E5DC',
     flexDirection: 'row', alignItems: 'center', gap: 12,
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
   },
-  avatarCircle: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontSize: 13, fontWeight: '800', color: '#D97706' },
+  avatarCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontSize: 15, fontFamily: FontFamily.extrabold, color: '#D97706' },
   parentDetails: { flex: 1 },
-  parentName: { fontSize: 14, fontWeight: '700', color: '#1A1B1C' },
-  parentEmail: { fontSize: 12, color: '#6B6B6B', marginTop: 1 },
-  parentMeta: { fontSize: 11, color: '#9CA3AF', marginTop: 3 },
+  parentName: { fontSize: 14, fontWeight: '700', fontFamily: FontFamily.bold, color: '#1A1B1C' },
+  parentEmail: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B6B6B', marginTop: 1 },
+  parentMeta: { fontSize: 11, fontFamily: FontFamily.regular, color: '#9CA3AF', marginTop: 3 },
   resetIconBtn: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, borderColor: '#E8E5DC', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
 
   // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
   modalContent: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 20, gap: 14, borderWidth: 1, borderColor: '#E8E5DC', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 8 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  modalTitle: { fontSize: 17, fontWeight: '800', color: '#1A1B1C' },
-  sectionHeader: { fontSize: 11, fontWeight: '800', color: '#6B6B6B', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
+  modalTitle: { fontSize: 17, fontFamily: FontFamily.extrabold, color: '#1A1B1C' },
+  sectionHeader: { fontSize: 11, fontFamily: FontFamily.extrabold, color: '#6B6B6B', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
   formDivider: { height: 1, backgroundColor: '#F0EDE4', marginVertical: 12 },
   nameRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
   nameField: { flex: 1, gap: 4 },
@@ -691,56 +692,56 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 8, height: 44, borderWidth: 1,
     borderColor: '#E5E7EB', borderRadius: BorderRadius.input, paddingHorizontal: 12, backgroundColor: '#FFFFFF',
   },
-  inputIconText: { flex: 1, fontSize: 13, color: '#1A1B1C' },
+  inputIconText: { flex: 1, fontSize: 13, fontFamily: FontFamily.regular, color: '#1A1B1C' },
   formGroup: { gap: 4, marginBottom: 10 },
-  label: { fontSize: 12, fontWeight: '700', color: '#1A1B1C' },
-  input: { height: 44, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: BorderRadius.input, paddingHorizontal: 12, fontSize: 13, backgroundColor: '#FFFFFF', color: '#111827' },
-  hintText: { fontSize: 11, color: '#6B6B6B', marginTop: 2 },
+  label: { fontSize: 12, fontFamily: FontFamily.bold, color: '#1A1B1C' },
+  input: { height: 44, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: BorderRadius.input, paddingHorizontal: 12, fontSize: 13, fontFamily: FontFamily.regular, backgroundColor: '#FFFFFF', color: '#111827' },
+  hintText: { fontSize: 11, fontFamily: FontFamily.regular, color: '#6B6B6B', marginTop: 2 },
 
   disabledInput: {
     flexDirection: 'row', alignItems: 'center', gap: 8, height: 44, borderWidth: 1,
     borderColor: '#E8E5DC', borderRadius: BorderRadius.input, paddingHorizontal: 12, backgroundColor: '#F5F4F0',
   },
-  disabledInputText: { flex: 1, fontSize: 13, color: '#6B6B6B' },
+  disabledInputText: { flex: 1, fontSize: 13, fontFamily: FontFamily.regular, color: '#6B6B6B' },
   statusRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6, marginBottom: 4 },
-  statusLabel: { fontSize: 12, fontWeight: '700', color: '#1A1B1C' },
+  statusLabel: { fontSize: 12, fontFamily: FontFamily.bold, color: '#1A1B1C' },
   statusChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 5, borderRadius: BorderRadius.chip, backgroundColor: '#F4C430' },
   statusDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#16A34A' },
-  statusChipText: { fontSize: 11, fontWeight: '800', color: '#1A1B1C' },
+  statusChipText: { fontSize: 11, fontFamily: FontFamily.extrabold, color: '#1A1B1C' },
 
   chipRowWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 4 },
   chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: BorderRadius.chip, borderWidth: 1, borderColor: '#E8E5DC', backgroundColor: '#FFFDF7' },
   chipSelected: { backgroundColor: '#F4C430', borderColor: '#F4C430' },
-  chipText: { fontSize: 12, fontWeight: '600', color: '#6B6B6B' },
-  chipTextSelected: { color: '#1A1B1C', fontWeight: '800' },
+  chipText: { fontSize: 12, fontFamily: FontFamily.semibold, color: '#6B6B6B' },
+  chipTextSelected: { color: '#1A1B1C', fontFamily: FontFamily.bold },
 
   resultsBox: { borderWidth: 1, borderColor: '#E8E5DC', borderRadius: 12, backgroundColor: '#FFFFFF', marginTop: 6 },
   resultRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderBottomWidth: 1, borderBottomColor: '#F0EDE4' },
   resultAvatar: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center' },
-  resultAvatarText: { fontSize: 10, fontWeight: '800', color: '#D97706' },
-  resultName: { fontSize: 13, fontWeight: '700', color: '#1A1B1C' },
-  resultMeta: { fontSize: 11, color: '#6B6B6B', marginTop: 1 },
+  resultAvatarText: { fontSize: 10, fontFamily: FontFamily.extrabold, color: '#D97706' },
+  resultName: { fontSize: 13, fontFamily: FontFamily.bold, color: '#1A1B1C' },
+  resultMeta: { fontSize: 11, fontFamily: FontFamily.regular, color: '#6B6B6B', marginTop: 1 },
 
   childCard: { borderWidth: 1, borderColor: '#E8E5DC', borderRadius: 12, backgroundColor: '#F9FAFB', padding: 12, marginTop: 8, gap: 6 },
   childCardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   childInfo: { flex: 1 },
-  childName: { fontSize: 13, fontWeight: '700', color: '#1A1B1C' },
-  childMeta: { fontSize: 11, color: '#6B6B6B', marginTop: 1 },
+  childName: { fontSize: 13, fontFamily: FontFamily.bold, color: '#1A1B1C' },
+  childMeta: { fontSize: 11, fontFamily: FontFamily.regular, color: '#6B6B6B', marginTop: 1 },
   childDropdown: { marginTop: 2 },
-  permLabel: { fontSize: 11, fontWeight: '700', color: '#6B6B6B', textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 2 },
+  permLabel: { fontSize: 11, fontFamily: FontFamily.extrabold, color: '#6B6B6B', textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 2 },
   permChip: {
     flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, paddingVertical: 6,
     borderRadius: BorderRadius.chip, borderWidth: 1, borderColor: '#E8E5DC', backgroundColor: '#FFFFFF',
   },
   permChipOn: { backgroundColor: '#F4C430', borderColor: '#F4C430' },
-  permChipText: { fontSize: 11, fontWeight: '600', color: '#9CA3AF' },
-  permChipTextOn: { color: '#1A1B1C', fontWeight: '800' },
+  permChipText: { fontSize: 11, fontFamily: FontFamily.semibold, color: '#9CA3AF' },
+  permChipTextOn: { color: '#1A1B1C', fontFamily: FontFamily.bold },
 
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 },
 
   modalFooter: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 6 },
   cancelBtn: { height: 40, paddingHorizontal: 16, borderRadius: BorderRadius.button, justifyContent: 'center', alignItems: 'center' },
-  cancelText: { color: '#6B6B6B', fontWeight: '700', fontSize: 13 },
+  cancelText: { color: '#6B6B6B', fontFamily: FontFamily.bold, fontSize: 13 },
   submitBtn: { height: 40, paddingHorizontal: 20, backgroundColor: '#F4C430', borderRadius: BorderRadius.button, justifyContent: 'center', alignItems: 'center', flexDirection: 'row', gap: 6 },
-  submitText: { color: '#1A1B1C', fontWeight: '800', fontSize: 13 },
+  submitText: { color: '#1A1B1C', fontFamily: FontFamily.extrabold, fontSize: 13 },
 });

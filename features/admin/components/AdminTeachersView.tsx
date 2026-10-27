@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Text, ScrollView, TextInput, TouchableOpacity, Modal, Alert, RefreshControl } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { FontFamily } from '../../../constants/fonts';
 import { DropdownSelect } from './DropdownSelect';
 import { BulkImportModal } from './BulkImportModal';
 import { createSubjectTeacherApi, updateClassSectionApi } from '../../../api/academics';
@@ -955,7 +956,7 @@ export const AdminTeachersView: React.FC<AdminTeachersViewProps> = ({
               </TouchableOpacity>
             </View>
             <Text style={styles.deleteText}>
-              Are you sure you want to delete <Text style={{ fontWeight: '700' }}>{deleteConfirm?.fullName}</Text>? This will remove their account permanently.
+              Are you sure you want to delete <Text style={{ fontFamily: FontFamily.bold }}>{deleteConfirm?.fullName}</Text>? This will remove their account permanently.
             </Text>
             <View style={styles.modalFooter}>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setDeleteConfirm(null)}>
@@ -980,20 +981,20 @@ export const AdminTeachersView: React.FC<AdminTeachersViewProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20 },
-  pageHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 },
-  pageTitle: { fontSize: 24, fontWeight: '800', color: '#111827', letterSpacing: 0.2 },
-  pageSubtitle: { fontSize: 13, color: '#6B7280', marginTop: 2 },
-  headerBar: { flexDirection: 'row', gap: 10, marginBottom: 10 },
+  container: { flex: 1, padding: 16 },
+  pageHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
+  pageTitle: { fontSize: 20, fontWeight: '800', fontFamily: FontFamily.extrabold, color: '#111827', letterSpacing: 0.2 },
+  pageSubtitle: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B7280', marginTop: 2 },
+  headerBar: { flexDirection: 'row', gap: 10, marginBottom: 12 },
   searchBox: {
     flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF',
     borderRadius: 5, borderWidth: 1, borderColor: '#E8E5DC', paddingHorizontal: 12, height: 44, gap: 8,
   },
-  searchInput: { flex: 1, fontSize: 13, color: '#1A1B1C' },
+  searchInput: { flex: 1, fontSize: 13, fontFamily: FontFamily.medium, color: '#1A1B1C' },
   loadMoreBtn: { alignItems: 'center', paddingVertical: 14, marginTop: 4 },
-  loadMoreText: { fontSize: 13, fontWeight: '700', color: '#F4C430' },
+  loadMoreText: { fontSize: 13, fontFamily: FontFamily.bold, color: '#F4C430' },
   addBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#F4C430', borderRadius: 5, paddingHorizontal: 14, height: 40, justifyContent: 'center', shadowColor: '#171717', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.12, shadowRadius: 2, elevation: 2 },
-  addBtnText: { color: '#1A1B1C', fontWeight: '800', fontSize: 13 },
+  addBtnText: { color: '#1A1B1C', fontWeight: '800', fontSize: 13, fontFamily: FontFamily.extrabold },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   importBtn: {
     width: 38,
@@ -1007,22 +1008,22 @@ const styles = StyleSheet.create({
   },
   listContainer: { gap: 10, paddingBottom: 40 },
   emptyCard: {
-    backgroundColor: '#FFFFFF', borderRadius: 14, padding: 30, alignItems: 'center',
+    backgroundColor: '#FFFFFF', borderRadius: 12, padding: 28, alignItems: 'center',
     borderWidth: 1, borderColor: '#E8E5DC', marginTop: 20,
   },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: '#1A1B1C', marginTop: 10 },
-  emptySub: { fontSize: 12, color: '#6B6B6B', textAlign: 'center', marginTop: 4, lineHeight: 16 },
+  emptyTitle: { fontSize: 16, fontFamily: FontFamily.extrabold, color: '#1A1B1C', marginTop: 10 },
+  emptySub: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B6B6B', textAlign: 'center', marginTop: 4, lineHeight: 16 },
   teacherCard: {
-    backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16,
+    backgroundColor: '#FFFFFF', borderRadius: 12, padding: 14,
     borderWidth: 1, borderColor: '#E8E5DC', flexDirection: 'row', alignItems: 'center', gap: 12,
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
   },
-  avatarCircle: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontSize: 13, fontWeight: '800', color: '#D97706' },
+  avatarCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontSize: 15, fontFamily: FontFamily.extrabold, color: '#D97706' },
   teacherDetails: { flex: 1 },
-  teacherName: { fontSize: 14, fontWeight: '700', color: '#1A1B1C' },
-  teacherEmail: { fontSize: 12, color: '#6B6B6B', marginTop: 1 },
-  teacherMeta: { fontSize: 11, color: '#9CA3AF', marginTop: 3 },
+  teacherName: { fontSize: 14, fontFamily: FontFamily.bold, color: '#1A1B1C' },
+  teacherEmail: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B6B6B', marginTop: 1 },
+  teacherMeta: { fontSize: 11, fontFamily: FontFamily.regular, color: '#9CA3AF', marginTop: 3 },
   actions: { gap: 6 },
   actionBtn: {
     width: 34, height: 34, borderRadius: 10, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E8E5DC',
@@ -1033,8 +1034,8 @@ const styles = StyleSheet.create({
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
   modalContent: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 20, gap: 14, borderWidth: 1, borderColor: '#E8E5DC', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 8 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  modalTitle: { fontSize: 17, fontWeight: '800', color: '#1A1B1C' },
-  sectionHeader: { fontSize: 11, fontWeight: '800', color: '#6B6B6B', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
+  modalTitle: { fontSize: 17, fontFamily: FontFamily.extrabold, color: '#1A1B1C' },
+  sectionHeader: { fontSize: 11, fontFamily: FontFamily.extrabold, color: '#6B6B6B', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
   formDivider: { height: 1, backgroundColor: '#F0EDE4', marginVertical: 12 },
   nameRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
   nameField: { flex: 1, gap: 4 },
@@ -1042,19 +1043,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 8, height: 44, borderWidth: 1,
     borderColor: '#E5E7EB', borderRadius: 5, paddingHorizontal: 12, backgroundColor: '#FFFFFF',
   },
-  inputIconText: { flex: 1, fontSize: 13, color: '#1A1B1C' },
+  inputIconText: { flex: 1, fontSize: 13, fontFamily: FontFamily.regular, color: '#1A1B1C' },
   formGroup: { gap: 4, marginBottom: 10 },
-  label: { fontSize: 12, fontWeight: '700', color: '#1A1B1C' },
-  input: { height: 44, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 5, paddingHorizontal: 12, fontSize: 13, backgroundColor: '#FFFFFF', color: '#111827' },
-  hintText: { fontSize: 11, color: '#6B6B6B', marginTop: 2 },
+  label: { fontSize: 12, fontFamily: FontFamily.bold, color: '#1A1B1C' },
+  input: { height: 44, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 5, paddingHorizontal: 12, fontSize: 13, fontFamily: FontFamily.regular, backgroundColor: '#FFFFFF', color: '#111827' },
+  hintText: { fontSize: 11, fontFamily: FontFamily.regular, color: '#6B6B6B', marginTop: 2 },
   chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6 },
   chipOption: {
     flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6,
     borderRadius: 5, borderWidth: 1, borderColor: '#E8E5DC', backgroundColor: '#FFFFFF',
   },
   chipOptionActive: { backgroundColor: '#F4C430', borderColor: '#F4C430' },
-  chipOptionText: { fontSize: 12, fontWeight: '600', color: '#6B6B6B' },
-  chipOptionTextActive: { color: '#1A1B1C', fontWeight: '800' },
+  chipOptionText: { fontSize: 12, fontFamily: FontFamily.semibold, color: '#6B6B6B' },
+  chipOptionTextActive: { color: '#1A1B1C', fontFamily: FontFamily.bold },
   inputPlaceholder: { color: '#9CA3AF' },
   dateModalOverlay: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center',
@@ -1066,29 +1067,29 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 20,
     shadowOffset: { width: 0, height: 8 }, elevation: 10,
   },
-  dateModalTitle: { fontSize: 13, fontWeight: '800', color: '#1A1B1C', marginBottom: 4 },
+  dateModalTitle: { fontSize: 13, fontFamily: FontFamily.extrabold, color: '#1A1B1C', marginBottom: 4 },
   dateMonthNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, marginBottom: 6 },
   dateMonthBtn: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
-  dateMonthLabel: { flex: 1, textAlign: 'center', fontSize: 14, fontWeight: '800', color: '#1A1B1C' },
+  dateMonthLabel: { flex: 1, textAlign: 'center', fontSize: 14, fontFamily: FontFamily.extrabold, color: '#1A1B1C' },
   dateDowRow: { flexDirection: 'row', marginBottom: 4 },
-  dateDowText: { width: '14.28%', textAlign: 'center', fontSize: 10, fontWeight: '800', color: '#9CA3AF' },
+  dateDowText: { width: '14.28%', textAlign: 'center', fontSize: 10, fontFamily: FontFamily.extrabold, color: '#9CA3AF' },
   dateGrid: { flexDirection: 'row', flexWrap: 'wrap' },
   dateDayCell: { width: '14.28%', height: 40, alignItems: 'center', justifyContent: 'center' },
   dateDaySelected: { backgroundColor: '#F4C430', borderRadius: 5},
   dateDayToday: { borderWidth: 1, borderColor: '#F4C430', borderRadius: 5},
-  dateDayText: { fontSize: 13, fontWeight: '600', color: '#1A1B1C' },
-  dateDayTextSelected: { fontWeight: '800', color: '#1A1B1C' },
+  dateDayText: { fontSize: 13, fontFamily: FontFamily.semibold, color: '#1A1B1C' },
+  dateDayTextSelected: { fontFamily: FontFamily.extrabold, color: '#1A1B1C' },
   dateModalActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 },
   dateActionBtns: { flexDirection: 'row', gap: 8 },
-  dateClearText: { fontSize: 13, fontWeight: '700', color: '#6B6B6B' },
+  dateClearText: { fontSize: 13, fontFamily: FontFamily.bold, color: '#6B6B6B' },
   dateCancelBtn: { height: 38, paddingHorizontal: 16, borderRadius: 5, justifyContent: 'center', alignItems: 'center' },
-  dateCancelText: { fontSize: 13, fontWeight: '700', color: '#6B6B6B' },
+  dateCancelText: { fontSize: 13, fontFamily: FontFamily.bold, color: '#6B6B6B' },
   dateConfirmBtn: { height: 38, paddingHorizontal: 20, borderRadius: 5, backgroundColor: '#F4C430', justifyContent: 'center', alignItems: 'center' },
-  dateConfirmText: { fontSize: 13, fontWeight: '800', color: '#1A1B1C' },
+  dateConfirmText: { fontSize: 13, fontFamily: FontFamily.extrabold, color: '#1A1B1C' },
   modalFooter: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 6 },
   cancelBtn: { height: 40, paddingHorizontal: 16, borderRadius: 5, justifyContent: 'center', alignItems: 'center' },
-  cancelText: { color: '#6B6B6B', fontWeight: '700', fontSize: 13 },
+  cancelText: { color: '#6B6B6B', fontFamily: FontFamily.bold, fontSize: 13 },
   submitBtn: { height: 40, paddingHorizontal: 20, backgroundColor: '#F4C430', borderRadius: 5, justifyContent: 'center', alignItems: 'center', flexDirection: 'row', gap: 6 },
-  submitText: { color: '#1A1B1C', fontWeight: '800', fontSize: 13 },
-  deleteText: { fontSize: 14, color: '#1A1B1C', lineHeight: 20, marginVertical: 10 },
+  submitText: { color: '#1A1B1C', fontFamily: FontFamily.extrabold, fontSize: 13 },
+  deleteText: { fontSize: 14, fontFamily: FontFamily.regular, color: '#1A1B1C', lineHeight: 20, marginVertical: 10 },
 });
