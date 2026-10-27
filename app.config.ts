@@ -74,7 +74,6 @@ export default {
       "expo-web-browser",
       "expo-secure-store",
       "@react-native-community/datetimepicker",
-      "@sentry/react-native",
       "expo-audio",
       "expo-font",
       "expo-image",
