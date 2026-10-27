@@ -1,8 +1,19 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Text, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator, RefreshControl } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+  RefreshControl,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { FontFamily } from '../../../constants/fonts';
-import { BorderRadius } from '../../../constants/theme';
 import { ProfileCustomFields } from '../../shared/formFields/ProfileCustomFields';
 import { useProfileCustomFields } from '../../shared/formFields/useProfileCustomFields';
 
@@ -63,6 +74,17 @@ export const AdminProfileView: React.FC<AdminProfileViewProps> = ({
   const [designationVal, setDesignationVal] = useState(designation);
   const [addressVal, setAddressVal] = useState(address);
 
+  const initials = (fullName || 'Administrator')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase() || 'AD';
+
+  const displayRole = designation || roleName || 'Institution Administrator';
+
   const startEdit = () => {
     setNameVal(fullName);
     setPhoneVal(phone);
@@ -93,205 +115,384 @@ export const AdminProfileView: React.FC<AdminProfileViewProps> = ({
     }
   };
 
-  const renderInfoRow = (label: string, value: string, mono?: boolean) => (
-    <View style={styles.infoRow}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={[styles.infoValue, mono && styles.codeText]}>{value}</Text>
-    </View>
-  );
+  const detailItems = [
+    { id: 'email', icon: 'email-outline', label: 'Official Email', value: email },
+    { id: 'phone', icon: 'phone-outline', label: 'Contact Phone', value: phone },
+    { id: 'designation', icon: 'briefcase-outline', label: 'Designation', value: designation },
+    { id: 'institution', icon: 'office-building-outline', label: 'Assigned Institution', value: institutionName },
+    { id: 'code', icon: 'badge-account-outline', label: 'Institution Code', value: institutionCode },
+    { id: 'role', icon: 'shield-account-outline', label: 'Role', value: roleName },
+    ...(address ? [{ id: 'address', icon: 'map-marker-outline', label: 'Office Address', value: address }] : []),
+  ];
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.container}
-      showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1A1B1C" colors={['#1A1B1C']} />}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={{ flex: 1 }}
     >
-      {/* Profile Header */}
-      <View style={styles.card}>
-        <View style={styles.headerRow}>
-          <View style={styles.avatarCircle}>
-            <Text style={styles.avatarText}>{fullName.substring(0, 2).toUpperCase()}</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.nameText}>{fullName}</Text>
-            <Text style={styles.emailText}>{email}</Text>
-            <View style={styles.badgeRow}>
-              <View style={styles.roleBadge}>
-                <Text style={styles.roleBadgeText}>{roleName || 'Institution Admin'}</Text>
-              </View>
+      <ScrollView
+        style={styles.viewBody}
+        contentContainerStyle={{ paddingBottom: 60 }}
+        nestedScrollEnabled
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          onRefresh ? (
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#1A1B1C']}
+              tintColor="#1A1B1C"
+            />
+          ) : undefined
+        }
+      >
+        <View style={styles.card}>
+          <View style={styles.avatarContainer}>
+            <View style={styles.avatarFallback}>
+              <Text style={styles.avatarInitials}>{initials}</Text>
+            </View>
+            <View style={styles.badge}>
+              <MaterialCommunityIcons name="check-decagram" size={20} color="#F4C430" />
             </View>
           </View>
-        </View>
-      </View>
 
-      {/* Personal Details — view or edit */}
-      <View style={styles.card}>
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Personal Details</Text>
-          {onSaveProfile && !editing && (
-            <TouchableOpacity style={styles.editBtn} onPress={startEdit} accessibilityLabel="Edit profile">
-              <MaterialCommunityIcons name="pencil" size={14} color="#F4C430" />
-              <Text style={styles.editBtnText}>Edit</Text>
+          <Text style={styles.name}>{fullName}</Text>
+          <Text style={styles.title}>{displayRole}</Text>
+          <Text style={styles.empTagText}>ID: {institutionCode || 'N/A'}</Text>
+
+          {onSaveProfile && (
+            <TouchableOpacity
+              style={styles.editToggleBtn}
+              onPress={editing ? cancelEdit : startEdit}
+              activeOpacity={0.8}
+            >
+              <MaterialCommunityIcons
+                name={editing ? 'close' : 'pencil-outline'}
+                size={16}
+                color="#171717"
+              />
+              <Text style={styles.editToggleText}>
+                {editing ? 'Cancel Editing' : 'Edit Profile Info'}
+              </Text>
             </TouchableOpacity>
           )}
         </View>
 
         {editing ? (
-          <>
+          <View style={styles.editCard}>
+            <Text style={styles.editCardTitle}>Edit Admin Profile</Text>
+
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Full Name *</Text>
+              <Text style={styles.formLabel}>Full Name *</Text>
               <TextInput
-                style={styles.input}
+                style={styles.formInput}
                 value={nameVal}
                 onChangeText={setNameVal}
                 placeholder="Your full name"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor="#475569"
               />
             </View>
+
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Phone</Text>
+              <Text style={styles.formLabel}>Phone Number</Text>
               <TextInput
-                style={styles.input}
+                style={styles.formInput}
                 value={phoneVal}
                 onChangeText={setPhoneVal}
                 placeholder="e.g. +91 98765 43210"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor="#475569"
                 keyboardType="phone-pad"
                 autoCapitalize="none"
               />
             </View>
+
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Designation</Text>
+              <Text style={styles.formLabel}>Designation / Role Title</Text>
               <TextInput
-                style={styles.input}
+                style={styles.formInput}
                 value={designationVal}
                 onChangeText={setDesignationVal}
                 placeholder="e.g. Principal, HR"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor="#475569"
               />
             </View>
+
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Address</Text>
+              <Text style={styles.formLabel}>Address</Text>
               <TextInput
-                style={[styles.input, { minHeight: 60, textAlignVertical: 'top' }]}
+                style={[styles.formInput, styles.addressInput]}
                 value={addressVal}
                 onChangeText={setAddressVal}
                 placeholder="Your address"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor="#475569"
                 multiline
               />
             </View>
-            <View style={styles.editActions}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={cancelEdit} disabled={saving}>
-                <Text style={styles.cancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.saveBtn} onPress={saveEdit} disabled={saving}>
-                {saving ? (
-                  <ActivityIndicator size="small" color="#1A1B1C" />
-                ) : (
-                  <Text style={styles.saveBtnText}>Save</Text>
-                )}
+
+            <TouchableOpacity style={styles.primaryBtn} onPress={saveEdit} disabled={saving}>
+              {saving ? (
+                <ActivityIndicator size="small" color="#171717" />
+              ) : (
+                <Text style={styles.primaryBtnText}>Save Profile Updates</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            <Text style={styles.sectionHeader}>Professional Details</Text>
+
+            <View style={styles.infoSection}>
+              <View style={styles.infoCard}>
+                {detailItems.map((item, index, arr) => {
+                  const isLast = index === arr.length - 1;
+                  return (
+                    <View
+                      key={item.id}
+                      style={[styles.detailRow, isLast && { borderBottomWidth: 0 }]}
+                    >
+                      <View style={styles.detailIconWrap}>
+                        <MaterialCommunityIcons name={item.icon as any} size={18} color="#D97706" />
+                      </View>
+                      <View style={styles.detailContent}>
+                        <Text style={styles.detailLabel}>{item.label}</Text>
+                        <Text style={styles.detailValue} selectable>
+                          {item.value || 'Not Provided'}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+
+            {roleFields.length > 0 && (
+              <View style={{ marginBottom: 20 }}>
+                <ProfileCustomFields
+                  fields={roleFields}
+                  values={roleFieldValues}
+                  onSave={saveRoleFields}
+                />
+              </View>
+            )}
+
+            <Text style={styles.sectionHeader}>Account & Security</Text>
+
+            <View style={styles.infoCard}>
+              <TouchableOpacity
+                style={[styles.detailRow, { borderBottomWidth: 0 }]}
+                onPress={onChangePassword}
+                activeOpacity={0.7}
+              >
+                <View style={styles.detailIconWrap}>
+                  <MaterialCommunityIcons name="lock-reset" size={18} color="#D97706" />
+                </View>
+                <View style={styles.detailContent}>
+                  <Text style={styles.detailLabel}>Password</Text>
+                  <Text style={styles.detailValue}>Change Password</Text>
+                </View>
+                <MaterialCommunityIcons name="chevron-right" size={20} color="#6B6B6B" />
               </TouchableOpacity>
             </View>
           </>
-        ) : (
-          <>
-            {designation ? renderInfoRow('Designation', designation) : null}
-            {phone ? renderInfoRow('Phone', phone) : null}
-            {address ? renderInfoRow('Address', address) : null}
-            {!designation && !phone && !address && (
-              <Text style={styles.emptyHint}>No personal details yet — tap Edit to add them.</Text>
-            )}
-          </>
         )}
-      </View>
 
-      {/* Institutional Scoping */}
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Role & Institution</Text>
-        {renderInfoRow('Assigned Institution', institutionName)}
-        {renderInfoRow('Institution Code', institutionCode || 'N/A', true)}
-      </View>
-
-      {/* Admin-configured form fields (admission officer etc.); empty for admin/dev */}
-      {roleFields.length > 0 && (
-        <ProfileCustomFields fields={roleFields} values={roleFieldValues} onSave={saveRoleFields} />
-      )}
-
-      {/* Account Settings & Controls */}
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Account & Security</Text>
-        <TouchableOpacity style={styles.menuItem} onPress={onChangePassword}>
-          <MaterialCommunityIcons name="lock-reset" size={20} color="#F4C430" />
-          <Text style={styles.menuText}>Change Password</Text>
-          <MaterialCommunityIcons name="chevron-right" size={20} color="#6B6B6B" style={{ marginLeft: 'auto' }} />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={[styles.menuItem, { borderBottomWidth: 0 }]} onPress={onLogout}>
-          <MaterialCommunityIcons name="logout" size={20} color="#DC3545" />
-          <Text style={[styles.menuText, { color: '#DC3545' }]}>Logout</Text>
-          <MaterialCommunityIcons name="chevron-right" size={20} color="#6B6B6B" style={{ marginLeft: 'auto' }} />
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+        <View style={styles.logoutWrap}>
+          <TouchableOpacity style={styles.logoutBtnLarge} onPress={onLogout} activeOpacity={0.8}>
+            <MaterialCommunityIcons name="logout" size={20} color="#DC2626" />
+            <Text style={styles.logoutBtnText}>Sign Out</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { padding: 16, gap: 14, paddingBottom: 40 },
+  viewBody: { flex: 1, padding: 20 },
   card: {
+    alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 18,
+    padding: 24,
+    borderRadius: 5,
     borderWidth: 1,
     borderColor: '#E8E5DC',
-    gap: 14,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
+    marginBottom: 20,
   },
-  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  avatarCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+  avatarContainer: {
+    position: 'relative',
+    marginBottom: 12,
+  },
+  avatarFallback: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
     backgroundColor: '#FFF4C7',
-    borderWidth: 2,
+    borderWidth: 2.5,
     borderColor: '#F4C430',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { fontSize: 18, fontFamily: FontFamily.extrabold, color: '#171717' },
-  nameText: { fontSize: 18, fontFamily: FontFamily.extrabold, color: '#111827' },
-  emailText: { fontSize: 13, fontFamily: FontFamily.regular, color: '#6B7280', marginTop: 2 },
-  badgeRow: { marginTop: 6 },
-  roleBadge: { backgroundColor: '#FFF4C7', borderWidth: 1, borderColor: '#F4C430', paddingHorizontal: 10, paddingVertical: 3, borderRadius: BorderRadius.chip, alignSelf: 'flex-start' },
-  roleBadgeText: { fontSize: 11, fontFamily: FontFamily.extrabold, color: '#92400E' },
-  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionTitle: { fontSize: 15, fontFamily: FontFamily.extrabold, color: '#111827' },
-  editBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: BorderRadius.chip, backgroundColor: '#FFF4C7', borderWidth: 1, borderColor: '#F4C430' },
-  editBtnText: { fontSize: 12, fontFamily: FontFamily.extrabold, color: '#92400E' },
-  infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 28 },
-  infoLabel: { fontSize: 13, fontFamily: FontFamily.medium, color: '#6B6B6B', flexShrink: 1 },
-  infoValue: { fontSize: 13, fontFamily: FontFamily.bold, color: '#1A1B1C', flexShrink: 1, textAlign: 'right' },
-  codeText: { color: '#92400E' },
-  emptyHint: { fontSize: 13, fontFamily: FontFamily.regular, color: '#9CA3AF', fontStyle: 'italic' },
-  formGroup: { gap: 6 },
-  label: { fontSize: 12, fontFamily: FontFamily.bold, color: '#6B6B6B' },
-  input: {
+  avatarInitials: {
+    fontSize: 32,
+    fontFamily: FontFamily.extrabold,
+    color: '#171717',
+    letterSpacing: 0.5,
+  },
+  badge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 2,
+    shadowColor: '#171717',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  name: {
+    fontSize: 20,
+    fontFamily: FontFamily.extrabold,
+    color: '#171717',
+    textAlign: 'center',
+  },
+  title: {
+    fontSize: 13,
+    fontFamily: FontFamily.medium,
+    color: '#6B6B6B',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  empTagText: {
+    fontSize: 12,
+    fontFamily: FontFamily.bold,
+    color: '#64748B',
+    marginTop: 4,
+  },
+  editToggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 16,
+    backgroundColor: '#F4C430',
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 5,
+    shadowColor: '#171717',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  editToggleText: {
+    fontSize: 12,
+    fontFamily: FontFamily.bold,
+    color: '#171717',
+  },
+  editCard: {
+    backgroundColor: '#FFFFFF',
+    padding: 18,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    marginBottom: 20,
+    gap: 12,
+  },
+  editCardTitle: {
+    fontSize: 16,
+    fontFamily: FontFamily.bold,
+    color: '#171717',
+    marginBottom: 6,
+  },
+  formGroup: { marginBottom: 14, gap: 5 },
+  formLabel: { fontSize: 12, fontFamily: FontFamily.bold, color: '#374151' },
+  formInput: {
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: BorderRadius.input,
+    borderRadius: 5,
     paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
+    paddingVertical: 8,
+    fontSize: 13,
     fontFamily: FontFamily.regular,
     color: '#111827',
-    backgroundColor: '#FFFFFF',
   },
-  editActions: { flexDirection: 'row', gap: 10, marginTop: 4 },
-  cancelBtn: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: BorderRadius.chip, borderWidth: 1, borderColor: '#E8E5DC' },
-  cancelBtnText: { fontSize: 14, fontFamily: FontFamily.bold, color: '#6B6B6B' },
-  saveBtn: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: BorderRadius.chip, backgroundColor: '#F4C430' },
-  saveBtnText: { fontSize: 14, fontFamily: FontFamily.extrabold, color: '#1A1B1C' },
-  menuItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  menuText: { fontSize: 14, fontFamily: FontFamily.semibold, color: '#1A1B1C' },
+  addressInput: { minHeight: 60, textAlignVertical: 'top' },
+  primaryBtn: {
+    backgroundColor: '#F4C430',
+    paddingVertical: 11,
+    paddingHorizontal: 16,
+    borderRadius: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primaryBtnText: { color: '#171717', fontSize: 13, fontFamily: FontFamily.bold },
+  sectionHeader: {
+    fontSize: 18,
+    fontFamily: FontFamily.extrabold,
+    color: '#111827',
+    marginBottom: 14,
+    letterSpacing: 0.2,
+  },
+  infoSection: { marginBottom: 20 },
+  infoCard: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  detailIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 5,
+    backgroundColor: '#FFFDF0',
+    borderWidth: 1,
+    borderColor: '#FEF08A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  detailContent: { flex: 1, justifyContent: 'center' },
+  detailLabel: {
+    fontSize: 11,
+    fontFamily: FontFamily.semibold,
+    color: '#64748B',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  detailValue: {
+    fontSize: 13.5,
+    fontFamily: FontFamily.bold,
+    color: '#171717',
+    marginTop: 2,
+    lineHeight: 18,
+  },
+  logoutWrap: { gap: 12, marginTop: 24, marginBottom: 40 },
+  logoutBtnLarge: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    paddingVertical: 14,
+    borderRadius: 5,
+  },
+  logoutBtnText: {
+    color: '#DC2626',
+    fontSize: 15,
+    fontFamily: FontFamily.bold,
+  },
 });

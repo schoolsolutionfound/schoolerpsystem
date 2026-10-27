@@ -63,7 +63,12 @@ function extractGroup(pathname: string): string {
   return match ? `/${match[1]}` : '';
 }
 
-export function isRouteAllowedForRole(pathname: string, role?: string, roles?: string[]): boolean {
+export function isRouteAllowedForRole(
+  pathname: string,
+  role?: string,
+  roles?: string[],
+  activeGroup?: string,
+): boolean {
   if (SHARED_ROUTES.includes(pathname)) return true;
 
   const allRoles = Array.from(new Set([
@@ -77,7 +82,12 @@ export function isRouteAllowedForRole(pathname: string, role?: string, roles?: s
   const scopedRoles = ROLE_SCOPED_ROOT_ROUTES[pathname];
   if (scopedRoles) return allRoles.some((r) => scopedRoles.includes(r));
 
-  const pathGroup = extractGroup(pathname);
+  // Expo Router strips group segments from usePathname(), so fall back to the
+  // current group from useSegments() when scoring grouped routes.
+  const activeGroupPath = activeGroup
+    ? activeGroup.startsWith('/') ? activeGroup : `/${activeGroup}`
+    : '';
+  const pathGroup = extractGroup(pathname) || activeGroupPath;
   // Routes without a group prefix are denied unless listed in
   // SHARED_ROUTES or ROLE_SCOPED_ROOT_ROUTES above.
   if (!pathGroup) return false;

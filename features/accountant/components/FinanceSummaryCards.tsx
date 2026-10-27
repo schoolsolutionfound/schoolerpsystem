@@ -84,7 +84,7 @@ export const FinanceSummaryCards: React.FC<FinanceSummaryCardsProps> = ({ onSele
           {netTally < 0 ? '-' : ''}{formatINR(netTally)}
         </Text>
         <Text style={styles.cardSubtitle}>
-          {netTally >= 0 ? 'Surplus Balance' : 'Net Deficit'}
+          {netTally >= 0 ? 'Income above expenses' : 'Expenses above income'}
         </Text>
       </TouchableOpacity>
 
@@ -119,16 +119,12 @@ const styles = StyleSheet.create({
   card: {
     width: Platform.OS === 'web' ? '23.5%' : '48%',
     backgroundColor: '#FFFFFF',
-    borderRadius: 5,
-    padding: 12,
+    borderRadius: 14,
+    padding: 14,
     borderLeftWidth: 4,
     borderWidth: 1,
     borderColor: '#E8E5DC',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    elevation: 1,
     minWidth: 140,
   },
   cardHeader: {
@@ -140,7 +136,7 @@ const styles = StyleSheet.create({
   iconContainer: {
     width: 32,
     height: 32,
-    borderRadius: 5,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -152,7 +148,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   cardValue: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '800',
     color: '#171717',
     marginVertical: 2,

@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Animated, Dimensions, StatusBar, Image, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { onAuthStateChanged } from 'firebase/auth';
 import LottieView from 'lottie-react-native';
 import { auth } from '../firebaseConfig';
@@ -13,18 +12,20 @@ const { width } = Dimensions.get('window');
 
 export default function AppSplashScreen() {
   const router = useRouter();
-  const startTimeRef = useRef(Date.now());
+  const startTimeRef = useRef(() => Date.now());
 
-  const progressAnim = useRef(new Animated.Value(0)).current;
-  const logoScale = useRef(new Animated.Value(0.6)).current;
-  const logoOpacity = useRef(new Animated.Value(0)).current;
-  const textOpacity = useRef(new Animated.Value(0)).current;
-  const glowAnim = useRef(new Animated.Value(0.3)).current;
+  const [progressAnim] = useState(() => new Animated.Value(0));
+  const [logoScale] = useState(() => new Animated.Value(0.6));
+  const [logoOpacity] = useState(() => new Animated.Value(0));
+  const [textOpacity] = useState(() => new Animated.Value(0));
+  const [glowAnim] = useState(() => new Animated.Value(0.3));
 
   const _hasHydrated = useUserStore((state) => state._hasHydrated);
   const isProfileSynced = useUserStore((state) => state.isProfileSynced);
   const userRole = useUserStore((state) => state.userRole);
   const isEmailVerified = useUserStore((state) => state.isEmailVerified);
+  const mustChangePassword = useUserStore((state) => state.mustChangePassword);
+  const profileCompleted = useUserStore((state) => state.profileCompleted);
 
   const [authStateResolved, setAuthStateResolved] = useState(false);
 
@@ -66,12 +67,12 @@ export default function AppSplashScreen() {
     // Subtle pulsing glow behind logo
     Animated.loop(
       Animated.sequence([
-        Animated.timing(glowAnim, {
-          toValue: 0.6,
-          duration: 1200,
-          useNativeDriver: Platform.OS !== 'web',
-        }),
-        Animated.timing(glowAnim, {
+      Animated.timing(glowAnim, {
+        toValue: 0.6,
+        duration: 1200,
+        useNativeDriver: Platform.OS !== 'web',
+      }),
+      Animated.timing(glowAnim, {
           toValue: 0.3,
           duration: 1200,
           useNativeDriver: Platform.OS !== 'web',
@@ -79,7 +80,8 @@ export default function AppSplashScreen() {
       ])
     ).start();
 
-    const unsubscribeAuth = onAuthStateChanged(auth, () => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      if (__DEV__) console.log('[BOOT] splash auth resolved', { authenticated: !!user, uid: user?.uid ?? null });
       setAuthStateResolved(true);
     });
 
@@ -89,15 +91,34 @@ export default function AppSplashScreen() {
   useEffect(() => {
     const user = auth.currentUser;
     const isReadyToNavigate = authStateResolved && _hasHydrated && (!user || isProfileSynced);
+    if (__DEV__) {
+      console.log('[BOOT] splash readiness', {
+        authenticated: !!user,
+        authStateResolved,
+        hydrated: _hasHydrated,
+        profileSynced: isProfileSynced,
+        userRole,
+        isEmailVerified,
+        mustChangePassword,
+        profileCompleted,
+        isReadyToNavigate,
+      });
+    }
     if (!isReadyToNavigate) return;
 
     let finalRoute: any = '/auth';
 
     if (user) {
-      if (userRole === 'student' && !isEmailVerified) {
-        finalRoute = '/verify-email';
-      } else if (userRole === 'loading') {
+      if (userRole === 'loading') {
+        if (__DEV__) console.warn('[BOOT] splash waiting: authenticated but role still loading');
         return;
+      }
+      if (!isEmailVerified) {
+        finalRoute = '/verify-email';
+      } else if (mustChangePassword) {
+        finalRoute = '/change-password';
+      } else if (!profileCompleted) {
+        finalRoute = '/complete-profile';
       } else {
         finalRoute = getHomeRouteForRole(userRole);
       }
@@ -105,18 +126,23 @@ export default function AppSplashScreen() {
       finalRoute = '/auth';
     }
 
-    const remaining = Math.max(0, 2200 - (Date.now() - startTimeRef.current));
+    const remaining = Math.max(0, 2200 - (Date.now() - startTimeRef.current()));
+    if (__DEV__) console.log('[BOOT] splash will navigate', { finalRoute, remaining });
 
     const failsafe = setTimeout(() => {
-      if (!isReadyToNavigate) router.replace('/auth');
+      if (!isReadyToNavigate) {
+        if (__DEV__) console.warn('[BOOT] splash failsafe fired, redirecting to /auth');
+        router.replace('/auth');
+      }
     }, 8000);
 
     const timer = setTimeout(() => {
+      if (__DEV__) console.log('[BOOT] splash navigating now', { finalRoute });
       router.replace(finalRoute);
     }, remaining);
 
     return () => { clearTimeout(timer); clearTimeout(failsafe); };
-  }, [authStateResolved, isProfileSynced, _hasHydrated, userRole, isEmailVerified, router]);
+  }, [authStateResolved, isProfileSynced, _hasHydrated, userRole, isEmailVerified, mustChangePassword, profileCompleted, router]);
 
   return (
     <View style={styles.container}>
@@ -165,17 +191,17 @@ export default function AppSplashScreen() {
       {/* Progress bar */}
       <View style={styles.progressContainer}>
         <View style={styles.progressTrack}>
-          <Animated.View
-            style={[
-              styles.progressFill,
-              {
-                width: progressAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: ['0%', '100%'],
-                }),
-              },
-            ]}
-          />
+            <Animated.View
+              style={[
+                styles.progressFill,
+                {
+                  width: progressAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['0%', '100%'],
+                  }),
+                },
+              ]}
+            />
         </View>
         <Text style={styles.loadingText}>Loading your experience...</Text>
       </View>

@@ -1488,7 +1488,19 @@ export class AcademicsRepository {
     };
     markMem.save(record);
     if (db) {
-      await db.insert(marks).values(record).onConflictDoNothing();
+      await db
+        .insert(marks)
+        .values(record)
+        .onConflictDoUpdate({
+          target: [marks.examSubjectId, marks.studentId],
+          set: {
+            marksObtained: record.marksObtained,
+            grade: record.grade,
+            remarks: record.remarks,
+            enteredBy: record.enteredBy,
+            updatedAt: new Date(),
+          },
+        });
       return record;
     }
     return record;

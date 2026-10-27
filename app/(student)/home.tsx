@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Text, Platform, RefreshControl } from 'react-native';
+import { View, StyleSheet, ScrollView, Platform, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useUserStore } from '../../store/useUserStore';
 import { fetchMyTimetableApi, fetchStudentAttendanceHistoryApi } from '../../api/academics';
-import { StudentHomeHeader } from '../../features/student/components/StudentHomeHeader';
+import { UnifiedHeader } from '../../features/shared/components/layout/UnifiedHeader';
+import { FloatingFooter } from '../../features/shared/components/layout/FloatingFooter';
+import { useDebugTab } from '../../features/shared/hooks/useDebugTab';
 import { StudentHomeAttendanceCard } from '../../features/student/components/StudentHomeAttendanceCard';
 import { StudentHomeAnnouncements } from '../../features/student/components/StudentHomeAnnouncements';
 import { StudentHomePeriodsList } from '../../features/student/components/StudentHomePeriodsList';
@@ -64,6 +65,7 @@ export default function HomeScreen() {
 
   const { tab } = useLocalSearchParams<{ tab?: string }>();
   const [activeTab, setActiveTab] = useState<Tab>((tab as Tab) || 'home');
+  useDebugTab('student', activeTab);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const [attendanceLoading, setAttendanceLoading] = useState(true);
@@ -201,11 +203,10 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <SafeAreaView style={styles.safe}>
         {activeTab !== 'marks' && activeTab !== 'fees' && activeTab !== 'library' && (
-          <StudentHomeHeader
-            fullName={fullName}
+          <UnifiedHeader
+            userName={fullName}
             profilePic={profilePic}
             onMenuPress={() => setDrawerOpen(true)}
-            onSettingsPress={() => router.push('/settings')}
             onNotificationsPress={() => router.push('/notifications')}
             onProfilePress={() => router.push('/(student)/profile')}
             showProfile={activeTab === 'home'}
@@ -216,58 +217,13 @@ export default function HomeScreen() {
           {renderTabContent()}
         </View>
 
-        {/* Bottom Tab Bar matching screenshot */}
-        <View style={styles.tabBarBg}>
-          <View style={styles.tabBar}>
-            {TABS.map((tab) => {
-              const isCenter = tab.key === 'bus';
-              const isActive = activeTab === tab.key;
-
-              if (isCenter) {
-                return (
-                  <TouchableOpacity
-                    key={tab.key}
-                    style={styles.centerBtnWrap}
-                    onPress={() => setActiveTab(tab.key)}
-                    activeOpacity={0.85}
-                  >
-                    <View style={styles.centerBtnOuter}>
-                      <MaterialCommunityIcons
-                        name="bus"
-                        size={28}
-                        color="#111827"
-                      />
-                    </View>
-                    <Text style={[styles.centerLabel, isActive && styles.centerLabelActive]}>
-                      {tab.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              }
-
-              return (
-                <TouchableOpacity
-                  key={tab.key}
-                  style={styles.tabItem}
-                  onPress={() => setActiveTab(tab.key)}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.tabIconBg, isActive && styles.tabIconBgActive]}>
-                    <MaterialCommunityIcons
-                      name={isActive ? (tab.iconFilled as any) : (tab.icon as any)}
-                      size={22}
-                      color={isActive ? '#111827' : '#9CA3AF'}
-                    />
-                  </View>
-                  <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
-                    {tab.label}
-                  </Text>
-                  {isActive && <View style={styles.activeIndicator} />}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
+        <FloatingFooter
+          tabs={TABS}
+          activeKey={activeTab}
+          onTabPress={setActiveTab}
+          centerKey="bus"
+          centerIcon="bus"
+        />
       </SafeAreaView>
 
       <StudentDrawer

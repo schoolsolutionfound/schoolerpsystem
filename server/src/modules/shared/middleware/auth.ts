@@ -10,6 +10,7 @@ export interface AuthenticatedUser {
   displayName?: string;
   institutionCode?: string;
   emailVerified?: boolean;
+  mustChangePassword?: boolean;
   department?: string;
   placementAccess?: 'head' | 'member' | null;
 }
@@ -26,12 +27,15 @@ declare module 'fastify' {
  * is rotated. Kept minimal on purpose: logout (cleanup), change-password
  * (the fix), login-sync (post-login bootstrap), and the own-profile
  * endpoints the client needs to run its first-login redirect flow
- * (useAuthGuard reads /users/me, then redirects to /change-password →
- * /complete-profile).
+ * (useAuthGuard reads /users/me, then redirects through verify-email,
+ * change-password, and complete-profile).
  */
 const PASSWORD_GATE_EXEMPT_ROUTES = new Set([
   '/api/v1/auth/login-sync',
   '/api/v1/auth/logout',
+  '/api/v1/auth/verify-email/verify',
+  '/api/v1/auth/verify-email/resend',
+  '/api/v1/auth/verify-email/status',
   '/api/v1/auth/change-password',
   '/api/v1/users/me',
   '/api/v1/users/complete-profile',
@@ -41,21 +45,18 @@ const PASSWORD_GATE_EXEMPT_ROUTES = new Set([
  * Routes an unverified user may still hit when EMAIL_VERIFICATION_ENFORCED is
  * on. Kept minimal: the verify screen needs to resend and poll status, the
  * user needs logout, and login-sync is the post-auth bootstrap the client runs
- * before it knows verification is outstanding. The first-login chain routes
- * (change-password → complete-profile) are included so a fresh account can
- * finish onboarding BEFORE verifying — verification is the last step.
+ * before it knows verification is outstanding. Verification is the first
+ * onboarding step, so the later password/profile routes are not exempt.
  */
 const EMAIL_GATE_EXEMPT_ROUTES = new Set([
   '/api/v1/auth/login-sync',
   '/api/v1/auth/logout',
-  // The verify route MUST be exempt — it is the one call an unverified user
+  // The verify route MUST be exempt �?" it is the one call an unverified user
   // makes, so gating it would make verification impossible.
   '/api/v1/auth/verify-email/verify',
   '/api/v1/auth/verify-email/resend',
   '/api/v1/auth/verify-email/status',
   '/api/v1/users/me',
-  '/api/v1/auth/change-password',
-  '/api/v1/users/complete-profile',
 ]);
 
 export async function authenticate(request: FastifyRequest, reply: FastifyReply) {
@@ -85,15 +86,14 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
 
   let firebaseUid = '';
   let email = '';
-  let tokenRole = '';
 
   if (isFirebaseAdminInitialized) {
     try {
-      const decodedToken = await admin.auth().verifyIdToken(token);
-      // Email verification check disabled — can be re-enabled later
+      // Check revocation so logout, password reset, and password change end
+      // sessions immediately instead of waiting for the ID token to expire.
+      const decodedToken = await admin.auth().verifyIdToken(token, true);
       firebaseUid = decodedToken.uid;
       email = decodedToken.email || '';
-      tokenRole = (decodedToken.role as string) || '';
     } catch (error: any) {
       console.warn('[Auth Middleware Warning] Firebase Token verification failed:', error.message);
     }
@@ -110,7 +110,7 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
   }
 
   // Robust Flow: Fetch User from PostgreSQL to retrieve authoritative Role & Institution mapping
-  let dbUserRole = tokenRole;
+  let dbUserRole = '';
   let institutionCode = '';
   let mustChangePassword = false;
   let emailVerified = true;
@@ -119,7 +119,7 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
 
   const cached = getCachedAuth(firebaseUid);
   if (cached) {
-    dbUserRole = cached.role || tokenRole;
+    dbUserRole = cached.role;
     institutionCode = cached.institutionCode;
     mustChangePassword = cached.mustChangePassword;
     emailVerified = cached.emailVerified;
@@ -129,7 +129,7 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
     try {
       const dbUser = await dbFindByUid(firebaseUid);
       if (dbUser) {
-        dbUserRole = dbUser.role || tokenRole;
+        dbUserRole = dbUser.role || '';
         institutionCode = dbUser.institutionCode || '';
         mustChangePassword = Boolean(dbUser.mustChangePassword);
         emailVerified = dbUser.emailVerified ?? true;
@@ -214,6 +214,7 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
     role: dbUserRole,
     institutionCode,
     emailVerified,
+    mustChangePassword,
     department,
     placementAccess,
   };
@@ -255,6 +256,16 @@ export function normalizeRole(role: string | undefined): string {
   if (normalized === 'developer') return 'dev';
   if (normalized === 'hid') return 'hod';
   return normalized;
+}
+
+export function isValidRole(role: string): boolean {
+  const validRoles = [
+    'admin', 'principal', 'hod', 'teacher', 'student', 'parent',
+    'librarian', 'accountant', 'staff', 'driver', 'placement_officer',
+    'admission_officer', 'counselor', 'coordinator', 'professor',
+    'assistant_professor', 'associate_professor', 'lab_instructor', 'dev'
+  ];
+  return validRoles.includes(normalizeRole(role));
 }
 
 export function getTenantInstitutionCode(request: FastifyRequest): string {

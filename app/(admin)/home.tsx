@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Alert, Platform } from 'react-native';
+import { View, StyleSheet, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { FontFamily } from '../../constants/fonts';
 import { performLogout } from '../../utils/logout';
 import { useUserStore } from '../../store/useUserStore';
@@ -45,7 +44,9 @@ import { AdminParentsView } from '../../features/admin/components/AdminParentsVi
 import { AdminProfileView } from '../../features/admin/components/AdminProfileView';
 import { AdminSkeleton } from '../../features/admin/components/skeletons/AdminSkeletons';
 import { AdminAcademicsView } from '../../features/admin/components/AdminAcademicsView';
-import { AdminHeader } from '../../features/admin/components/AdminHeader';
+import { UnifiedHeader } from '../../features/shared/components/layout/UnifiedHeader';
+import { FloatingFooter } from '../../features/shared/components/layout/FloatingFooter';
+import { useDebugTab } from '../../features/shared/hooks/useDebugTab';
 import { AdminDrawer } from '../../features/admin/components/AdminDrawer';
 import { AdminPaymentSettingsView } from '../../features/admin/components/AdminPaymentSettingsView';
 import { AdminSettingsView } from '../../features/admin/components/AdminSettingsView';
@@ -86,6 +87,7 @@ export default function AdminHomeScreen() {
   };
 
   const [activeTab, setActiveTab] = useState<'dashboard' | 'institution' | 'students' | 'teachers' | 'users' | 'parents' | 'academics' | 'timetable' | 'attendance' | 'announcements' | 'payments' | 'settings' | 'profile'>('dashboard');
+  useDebugTab('admin', activeTab);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -431,12 +433,9 @@ export default function AdminHomeScreen() {
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safe}>
-        <AdminHeader
-          fullName={fullName}
-          showGreeting={activeTab === 'dashboard'}
+        <UnifiedHeader
           onMenuPress={() => setDrawerOpen(true)}
           onNotificationsPress={() => router.push('/notifications')}
-          onProfilePress={() => setActiveTab('profile')}
         />
 
         <View style={styles.content}>
@@ -600,55 +599,12 @@ export default function AdminHomeScreen() {
           )}
         </View>
 
-        {/* Floating Bottom Tab Bar */}
-        <View style={styles.tabBarBg}>
-          <View style={styles.tabBar}>
-            {TABS.map((tab) => {
-              const isCenter = tab.key === 'students';
-              const isActive = activeTab === tab.key;
-
-              if (isCenter) {
-                return (
-                  <TouchableOpacity
-                    key={tab.key}
-                    style={styles.centerBtnWrap}
-                    onPress={() => setActiveTab(tab.key)}
-                    activeOpacity={0.85}
-                  >
-                    <View style={[styles.centerBtnRing, isActive && styles.centerBtnRingActive]}>
-                      <View style={[styles.centerBtn, isActive && styles.centerBtnActive]}>
-                        <MaterialCommunityIcons
-                          name={tab.iconFilled as any}
-                          size={26}
-                          color={isActive ? '#F4C430' : '#E8E5DC'}
-                        />
-                      </View>
-                    </View>
-                    <Text style={[styles.centerLabel, isActive && styles.centerLabelActive]}>{tab.label}</Text>
-                  </TouchableOpacity>
-                );
-              }
-
-              return (
-                <TouchableOpacity
-                  key={tab.key}
-                  style={styles.tabItem}
-                  onPress={() => setActiveTab(tab.key)}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.tabIconBg, isActive && styles.tabIconBgActive]}>
-                    <MaterialCommunityIcons
-                      name={isActive ? (tab.iconFilled as any) : (tab.icon as any)}
-                      size={22}
-                      color={isActive ? '#1A1B1C' : '#9CA3AF'}
-                    />
-                  </View>
-                  <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>{tab.label}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
+        <FloatingFooter
+          tabs={TABS}
+          activeKey={activeTab}
+          onTabPress={setActiveTab}
+          centerKey="students"
+        />
       </SafeAreaView>
 
       <AdminDrawer

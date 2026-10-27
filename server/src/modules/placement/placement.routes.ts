@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { placementController } from './placement.controller.js';
-import { authenticate, requireAdmin } from '../shared/middleware/auth.js';
+import { authenticate, requireRole } from '../shared/middleware/auth.js';
 import { requirePlacementAccess, requireCollege, requirePlacementHead } from './placement.middleware.js';
 
 export async function placementRoutes(fastify: FastifyInstance) {
@@ -26,31 +26,31 @@ export async function placementRoutes(fastify: FastifyInstance) {
   // --- Student Profile Routes ---
   fastify.get(
     '/profile',
-    { preHandler: [requireCollege] },
+    { preHandler: [requireCollege, requireRole('student')] },
     placementController.getProfile.bind(placementController)
   );
 
   fastify.put(
     '/profile',
-    { preHandler: [requireCollege] },
+    { preHandler: [requireCollege, requireRole('student')] },
     placementController.updateProfile.bind(placementController)
   );
 
   fastify.get(
     '/applications',
-    { preHandler: [requireCollege] },
+    { preHandler: [requireCollege, requireRole('student')] },
     placementController.listStudentApplications.bind(placementController)
   );
 
   fastify.post(
     '/drives/:driveId/apply',
-    { preHandler: [requireCollege] },
+    { preHandler: [requireCollege, requireRole('student')] },
     placementController.applyForDrive.bind(placementController)
   );
 
   fastify.post(
     '/drives/:driveId/withdraw',
-    { preHandler: [requireCollege] },
+    { preHandler: [requireCollege, requireRole('student')] },
     placementController.withdrawApplication.bind(placementController)
   );
 

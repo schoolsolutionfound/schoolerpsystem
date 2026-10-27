@@ -107,6 +107,43 @@ async function buildClassScope(
   return base;
 }
 
+function normalizeAssignableRole(
+  rawRole: string | undefined,
+  instType: 'school' | 'college',
+  fallbackRole = 'student'
+): string {
+  const validRoles = instType === 'college' ? COLLEGE_ROLES : SCHOOL_ROLES;
+  const role = (rawRole || fallbackRole).toLowerCase().trim();
+  if (!validRoles.includes(role as any)) {
+    throw {
+      statusCode: 400,
+      code: 'INVALID_ROLE',
+      message: `"${role}" is not valid for a ${instType} institution. Allowed: ${validRoles.join(', ')}`,
+    };
+  }
+  return role;
+}
+
+function normalizeActorRole(rawRole: string | undefined): string {
+  const role = (rawRole || '').toLowerCase().trim();
+  if (role === 'institution admin') return 'admin';
+  if (role === 'developer') return 'dev';
+  return role;
+}
+
+function parseScopeValue(value: unknown): Record<string, any> {
+  if (!value) return {};
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+  return typeof value === 'object' ? (value as Record<string, any>) : {};
+}
+
 export interface SingleFeedPayload {
   firstName: string;
   lastName: string;
@@ -353,7 +390,8 @@ export class AdminService {
 
   public async updateInstitutionConfig(
     institutionCode: string,
-    payload: { departments?: string[]; academicYears?: string[]; yearsOfStudy?: string[]; courses?: string[]; sections?: string[]; classSubjects?: Record<string, string[]>; terms?: any[]; blockedDates?: any[]; defaultTempPassword?: string; maintenanceEnabled?: boolean; maintenanceMinVersion?: string }
+    payload: { departments?: string[]; academicYears?: string[]; yearsOfStudy?: string[]; courses?: string[]; sections?: string[]; classSubjects?: Record<string, string[]>; terms?: any[]; blockedDates?: any[]; defaultTempPassword?: string; maintenanceEnabled?: boolean; maintenanceMinVersion?: string },
+    actorRole?: string
   ) {
     const inst = await institutionService.getInstitutions().then((list) =>
       list.find((i) => i.institutionCode.toLowerCase() === (institutionCode || '').toLowerCase())
@@ -376,6 +414,9 @@ export class AdminService {
           if (!check.ok) {
             throw { statusCode: 400, code: 'WEAK_DEFAULT_PASSWORD', message: check.message };
           }
+        }
+        if ((actorRole || '').toLowerCase().trim() !== 'admin') {
+          throw { statusCode: 403, code: 'FORBIDDEN', message: 'Only institution admins can update the default password.' };
         }
         update.defaultTempPassword = next;
       }
@@ -1084,7 +1125,10 @@ export class AdminService {
     const inst = await institutionService.getInstitutions().then((list) =>
       list.find((i) => i.institutionCode.toLowerCase() === payload.institutionCode.toLowerCase())
     );
-    const instType: 'school' | 'college' = (payload.institutionType || inst?.institutionType || DEFAULT_INSTITUTION_TYPE) as 'school' | 'college';
+    if (!inst) {
+      throw { statusCode: 404, code: 'INSTITUTION_NOT_FOUND', message: 'Institution not found.' };
+    }
+    const instType = normalizeInstitutionType(inst.institutionType);
     const validRoles = instType === 'college' ? COLLEGE_ROLES : SCHOOL_ROLES;
 
     const normalizedRole = payload.role.toLowerCase().trim();
@@ -1224,8 +1268,8 @@ export class AdminService {
       fullName: payload.fullName,
       role: primaryRole,
       roles: assignedRoles,
-      institutionCode: payload.institutionCode,
-      institutionName: payload.institutionName || payload.institutionCode,
+      institutionCode: inst.institutionCode,
+      institutionName: inst.institutionName || inst.institutionCode,
       institutionType: instType,
       title: payload.title || '',
       rollNoOrUSN: payload.rollNoOrUSN || '',
@@ -1281,8 +1325,8 @@ export class AdminService {
       });
 
       const invite = await sendParentInvite({
-        institutionCode: payload.institutionCode,
-        institutionName: payload.institutionName || inst?.institutionName || '',
+        institutionCode: inst.institutionCode,
+        institutionName: inst.institutionName || '',
         email: payload.email,
         fullName: payload.fullName,
         tempPassword: resolved.tempPassword || resolved.password,
@@ -1365,20 +1409,57 @@ export class AdminService {
     };
   }
 
-  public async updateUser(id: string, institutionCode: string, payload: UpdateUserPayload) {
+  public async updateUser(
+    id: string,
+    institutionCode: string,
+    payload: UpdateUserPayload,
+    actorRole?: string
+  ) {
     const existing = await dbFindUserById(id);
     if (!existing) {
       throw { statusCode: 404, code: 'USER_NOT_FOUND', message: 'User not found.' };
     }
-    if (existing.institutionCode && existing.institutionCode.toLowerCase() !== institutionCode.toLowerCase()) {
+    if (!existing.institutionCode) {
+      throw { statusCode: 403, code: 'FORBIDDEN', message: 'Institution users cannot edit platform accounts.' };
+    }
+    if (existing.institutionCode.toLowerCase() !== institutionCode.toLowerCase()) {
       throw { statusCode: 403, code: 'FORBIDDEN', message: 'You cannot edit users outside your institution.' };
+    }
+    if (normalizeActorRole(existing.role) === 'dev' || (existing.roles || []).some((r) => normalizeActorRole(r) === 'dev')) {
+      throw { statusCode: 403, code: 'FORBIDDEN', message: 'Platform accounts cannot be managed here.' };
     }
 
     const inst = await institutionService.getInstitutions().then((list) =>
       list.find((i) => i.institutionCode.toLowerCase() === institutionCode.toLowerCase())
     );
-    const instType: 'school' | 'college' = (inst?.institutionType || DEFAULT_INSTITUTION_TYPE) as 'school' | 'college';
+    if (!inst) {
+      throw { statusCode: 404, code: 'INSTITUTION_NOT_FOUND', message: 'Institution not found.' };
+    }
+    const instType = normalizeInstitutionType(inst.institutionType);
     const validRoles = instType === 'college' ? COLLEGE_ROLES : SCHOOL_ROLES;
+    const isAdminActor = normalizeActorRole(actorRole) === 'admin';
+    const currentRoles = (existing.roles && existing.roles.length > 0 ? existing.roles : [existing.role])
+      .map((r) => r.toLowerCase().trim());
+
+    if (!isAdminActor) {
+      const targetIsAdmin = currentRoles.some((r) => r === 'admin');
+      if (targetIsAdmin) {
+        throw { statusCode: 403, code: 'FORBIDDEN', message: 'Only an administrator can edit an administrator account.' };
+      }
+
+      const requestedRoles = payload.roles && payload.roles.length > 0
+        ? payload.roles.map((r) => r.toLowerCase().trim())
+        : payload.role
+          ? [payload.role.toLowerCase().trim()]
+          : [];
+      const changesRole =
+        requestedRoles.length > 0 &&
+        (requestedRoles.length !== currentRoles.length ||
+          requestedRoles.some((r) => !currentRoles.includes(r)));
+      if (changesRole) {
+        throw { statusCode: 403, code: 'ROLE_CHANGE_FORBIDDEN', message: 'Only an administrator can change user roles.' };
+      }
+    }
 
     const updateFields: any = {};
     if (payload.fullName) updateFields.fullName = payload.fullName.trim();
@@ -1386,32 +1467,85 @@ export class AdminService {
     if (payload.parentPhone !== undefined) updateFields.parentPhone = payload.parentPhone;
     if (payload.title !== undefined) updateFields.title = payload.title;
     if (payload.rollNoOrUSN !== undefined) updateFields.rollNoOrUSN = payload.rollNoOrUSN;
-    if (payload.department !== undefined) updateFields.department = payload.department;
+    if (payload.department !== undefined) {
+      updateFields.scope = {
+        ...parseScopeValue(existing.scope),
+        department: payload.department,
+      };
+    }
 
-    if (payload.roles && Array.isArray(payload.roles) && payload.roles.length > 0) {
-      const cleanedRoles: string[] = [];
-      for (const r of payload.roles) {
-        const nr = r.toLowerCase().trim();
-        if (!validRoles.includes(nr as any)) {
-          throw { statusCode: 400, code: 'INVALID_ROLE', message: `"${nr}" is not a valid role.` };
+    let nextRole: string | undefined;
+    if (isAdminActor) {
+      if (payload.roles && Array.isArray(payload.roles) && payload.roles.length > 0) {
+        const cleanedRoles: string[] = [];
+        for (const r of payload.roles) {
+          const nr = r.toLowerCase().trim();
+          if (!validRoles.includes(nr as any)) {
+            throw { statusCode: 400, code: 'INVALID_ROLE', message: `"${nr}" is not a valid role.` };
+          }
+          if (!cleanedRoles.includes(nr)) cleanedRoles.push(nr);
         }
-        cleanedRoles.push(nr);
-      }
-      updateFields.roles = cleanedRoles;
-      updateFields.role = payload.role ? payload.role.toLowerCase().trim() : cleanedRoles[0];
-    } else if (payload.role) {
-      const normRole = payload.role.toLowerCase().trim();
-      if (!validRoles.includes(normRole as any)) {
-        throw { statusCode: 400, code: 'INVALID_ROLE', message: `"${normRole}" is not a valid role.` };
-      }
-      updateFields.role = normRole;
-      const currentRoles = existing.roles || [existing.role];
-      if (!currentRoles.includes(normRole)) {
-        updateFields.roles = [normRole, ...currentRoles];
+        nextRole = payload.role ? payload.role.toLowerCase().trim() : cleanedRoles[0];
+        if (!validRoles.includes(nextRole as any)) {
+          throw { statusCode: 400, code: 'INVALID_ROLE', message: `"${nextRole}" is not a valid role.` };
+        }
+        updateFields.roles = cleanedRoles;
+        updateFields.role = nextRole;
+      } else if (payload.role) {
+        nextRole = payload.role.toLowerCase().trim();
+        if (!validRoles.includes(nextRole as any)) {
+          throw { statusCode: 400, code: 'INVALID_ROLE', message: `"${nextRole}" is not a valid role.` };
+        }
+        updateFields.role = nextRole;
+        updateFields.roles = [nextRole];
       }
     }
 
-    return dbUpdateUser(id, updateFields);
+    const updated = await dbUpdateUser(id, updateFields);
+
+    if (nextRole && db) {
+      try {
+        if (nextRole === 'placement_officer') {
+          const [membership] = await db
+            .select({ id: placementMembers.id })
+            .from(placementMembers)
+            .where(
+              andSql(
+                eqSql(placementMembers.institutionCode, institutionCode),
+                eqSql(placementMembers.userId, id)
+              )
+            )
+            .limit(1);
+          if (membership) {
+            await db
+              .update(placementMembers)
+              .set({ accessLevel: 'head' })
+              .where(eqSql(placementMembers.id, membership.id));
+          } else {
+            await db.insert(placementMembers).values({
+              id: `pm_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+              institutionCode,
+              userId: id,
+              accessLevel: 'head',
+              grantedBy: 'admin',
+            });
+          }
+        } else {
+          await db
+            .delete(placementMembers)
+            .where(
+              andSql(
+                eqSql(placementMembers.institutionCode, institutionCode),
+                eqSql(placementMembers.userId, id)
+              )
+            );
+        }
+      } catch (err: any) {
+        console.warn('[Admin updateUser] placement membership sync warning:', err?.message);
+      }
+    }
+
+    return updated;
   }
 
   // --- Legacy Single Feed & Bulk Feed ---
@@ -1423,18 +1557,24 @@ export class AdminService {
     const inst = await institutionService.getInstitutions().then((list) =>
       list.find((i) => i.institutionCode.toLowerCase() === (payload.institutionCode || '').toLowerCase())
     );
+    if (!inst) {
+      throw { statusCode: 404, code: 'INSTITUTION_NOT_FOUND', message: 'Institution not found.' };
+    }
+    const instType = normalizeInstitutionType(inst.institutionType);
+    const role = normalizeAssignableRole(payload.role, instType);
     const displayName = `${payload.firstName} ${payload.lastName}`.trim();
-    const resolved = resolveProvisionPassword(payload.dummyPassword, inst?.defaultTempPassword);
+    const resolved = resolveProvisionPassword(payload.dummyPassword, inst.defaultTempPassword);
     const firebaseUid = await this.createFirebaseUser(payload.email, resolved.password, displayName);
 
     const createdUser = await this.repo.upsertUser({
       firebaseUid,
       email: payload.email,
       fullName: displayName,
-      role: payload.role || 'student',
-      institutionCode: payload.institutionCode,
-      institutionName: payload.institutionName,
-      institutionType: payload.institutionType || DEFAULT_INSTITUTION_TYPE,
+      role,
+      roles: [role],
+      institutionCode: inst.institutionCode,
+      institutionName: inst.institutionName || inst.institutionCode,
+      institutionType: instType,
       rollNoOrUSN: payload.rollNoOrUSN,
       mustChangePassword: true,
       profileCompleted: false,
@@ -1459,17 +1599,17 @@ export class AdminService {
     let emailsSent = 0;
     let emailsFailed = 0;
     const errors: string[] = [];
-    // One-time lookup: institutionCode -> admin-set default temp password.
-    const institutionDefaults = new Map<string, string>();
+    // One-time lookup: institutionCode -> institution record.
+    const institutionByCode = new Map<string, any>();
     const tempPasswords: { email: string; tempPassword: string }[] = [];
     let defaultPasswordsUsed = 0;
     try {
       const list = await institutionService.getInstitutions();
       for (const i of list) {
-        institutionDefaults.set(i.institutionCode.toLowerCase(), i.defaultTempPassword || '');
+        institutionByCode.set(i.institutionCode.toLowerCase(), i);
       }
     } catch {
-      // No institution data available — rows will fall back to random per-user temps.
+      // Rows fail individually below if their institution cannot be resolved.
     }
 
     for (const record of records) {
@@ -1480,9 +1620,15 @@ export class AdminService {
           continue;
         }
 
+        const inst = institutionByCode.get((record.institutionCode || '').toLowerCase());
+        if (!inst) {
+          throw { statusCode: 404, code: 'INSTITUTION_NOT_FOUND', message: 'Institution not found.' };
+        }
+        const instType = normalizeInstitutionType(inst.institutionType);
+        const role = normalizeAssignableRole(record.role, instType);
+
         const displayName = `${record.firstName} ${record.lastName}`.trim();
-        const instDefault = institutionDefaults.get((record.institutionCode || '').toLowerCase()) || '';
-        const resolved = resolveProvisionPassword(record.dummyPassword, instDefault);
+        const resolved = resolveProvisionPassword(record.dummyPassword, inst.defaultTempPassword || '');
 
         // Overwrite mode: reuse the existing Firebase + DB identity instead of
         // failing with EMAIL_EXISTS. Password is rotated to the resolved temp
@@ -1490,6 +1636,25 @@ export class AdminService {
         let firebaseUid: string;
         let didOverwrite = false;
         const existingDbUser = await dbFindByEmail(record.email);
+        if (options?.overwriteUsers && existingDbUser) {
+          if (
+            !existingDbUser.institutionCode ||
+            existingDbUser.institutionCode.toLowerCase() !== inst.institutionCode.toLowerCase()
+          ) {
+            throw {
+              statusCode: 403,
+              code: 'CROSS_TENANT_OVERWRITE',
+              message: `Email "${record.email}" belongs to another institution and cannot be overwritten.`,
+            };
+          }
+          if (normalizeActorRole(existingDbUser.role) === 'dev') {
+            throw {
+              statusCode: 403,
+              code: 'PLATFORM_ACCOUNT',
+              message: 'Platform developer accounts cannot be overwritten.',
+            };
+          }
+        }
         try {
           firebaseUid = await this.createFirebaseUser(record.email, resolved.password, displayName);
         } catch (createErr: any) {
@@ -1516,7 +1681,7 @@ export class AdminService {
 
         const scopeObj = JSON.stringify(
           await buildClassScope(
-            record.institutionCode,
+            inst.institutionCode,
             record.department || '',
             record.academicYear || '',
             record.section || ''
@@ -1530,10 +1695,11 @@ export class AdminService {
               firebaseUid,
               email: record.email,
               fullName: displayName,
-              role: record.role || 'student',
-              institutionCode: record.institutionCode,
-              institutionName: record.institutionName,
-              institutionType: record.institutionType || DEFAULT_INSTITUTION_TYPE,
+              role,
+              roles: [role],
+              institutionCode: inst.institutionCode,
+              institutionName: inst.institutionName || inst.institutionCode,
+              institutionType: instType,
               rollNoOrUSN: record.rollNoOrUSN,
               mustChangePassword: true,
               profileCompleted: false,
@@ -1560,7 +1726,7 @@ export class AdminService {
               const id = `sc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
               await q.insert(studentClasses).values({
                 id,
-                institutionCode: record.institutionCode,
+                institutionCode: inst.institutionCode,
                 studentId: createdUser.id,
                 classSectionId: scope.classSectionId,
                 rollNo: record.rollNoOrUSN,
@@ -1632,7 +1798,10 @@ export class AdminService {
     const inst = await institutionService.getInstitutions().then((list) =>
       list.find((i) => i.institutionCode.toLowerCase() === (institutionCode || '').toLowerCase())
     );
-    const instType: 'school' | 'college' = (inst?.institutionType || DEFAULT_INSTITUTION_TYPE) as 'school' | 'college';
+    if (!inst) {
+      throw { statusCode: 404, code: 'INSTITUTION_NOT_FOUND', message: 'Institution not found.' };
+    }
+    const instType = normalizeInstitutionType(inst.institutionType);
     const validRoles = instType === 'college' ? COLLEGE_ROLES : SCHOOL_ROLES;
     const role = (requestedRole || '').toLowerCase().trim();
     if (!validRoles.includes(role as any)) {
@@ -1734,7 +1903,7 @@ export class AdminService {
     let ready = prepared;
     if (prepared.length > 0) {
       const existingEmails = new Set(
-        (await this.findUsersByEmails(prepared.map((r) => r.email))).map((u) => (u.email || '').toLowerCase())
+        (await this.findUsersByEmails(prepared.map((r) => r.email), institutionCode)).map((u) => (u.email || '').toLowerCase())
       );
       ready = prepared.filter((r) => {
         if (existingEmails.has(r.email)) {
@@ -1873,7 +2042,9 @@ export class AdminService {
     // query, then insert links per new parent.
     if (isParent && created.length > 0) {
       const allChildEmails = [...new Set(created.flatMap((c) => c.childEmails))];
-      const childUsers = allChildEmails.length ? await this.findUsersByEmails(allChildEmails) : [];
+      const childUsers = allChildEmails.length
+        ? await this.findUsersByEmails(allChildEmails, institutionCode)
+        : [];
       const childByEmail = new Map(
         childUsers
           .filter((u) => (u.role || '').toLowerCase() === 'student')
@@ -1940,22 +2111,32 @@ export class AdminService {
 
   /** Batched email lookup (one IN query; small in-memory fallback). */
   private async findUsersByEmails(
-    emails: string[]
+    emails: string[],
+    institutionCode?: string
   ): Promise<Pick<InMemoryUser, 'id' | 'email' | 'role' | 'fullName'>[]> {
     const cleaned = [...new Set(emails.map((e) => (e || '').toLowerCase().trim()).filter(Boolean))];
     if (cleaned.length === 0) return [];
+    const tenant = (institutionCode || '').trim();
     if (!db) {
       const out: Pick<InMemoryUser, 'id' | 'email' | 'role' | 'fullName'>[] = [];
       for (const email of cleaned) {
         const found = await dbFindByEmail(email);
-        if (found) out.push({ id: found.id, email: found.email, role: found.role, fullName: found.fullName });
+        if (
+          found &&
+          (!tenant || (found.institutionCode || '').toLowerCase() === tenant.toLowerCase())
+        ) {
+          out.push({ id: found.id, email: found.email, role: found.role, fullName: found.fullName });
+        }
       }
       return out;
     }
+    const condition = tenant
+      ? andSql(inArraySql(users.email, cleaned), eqSql(users.institutionCode, tenant))
+      : inArraySql(users.email, cleaned);
     const rows = await db
       .select({ id: users.id, email: users.email, role: users.role, fullName: users.fullName })
       .from(users)
-      .where(inArraySql(users.email, cleaned));
+      .where(condition);
     return rows.map((r) => ({ id: r.id, email: r.email, role: r.role, fullName: r.fullName }));
   }
 

@@ -37,6 +37,7 @@ import { EmailSendError } from '../email.provider.js';
 
 // Deterministic secret so HMAC assertions are stable across runs.
 const PREV_SECRET = process.env.EMAIL_OTP_SECRET;
+const PREV_TEST_CODE = process.env.EMAIL_OTP_TEST_CODE;
 const SECRET = 'test-otp-secret';
 // Mirror of the service's key derivation: HMAC-SHA256 over "<email>:<code>".
 const otpHmac = (email: string, code: string) =>
@@ -66,6 +67,7 @@ function seedActiveOtp(email: string, code: string, attempts = 0) {
 describe('email verification service (OTP)', () => {
   beforeEach(() => {
     process.env.EMAIL_OTP_SECRET = SECRET;
+    delete process.env.EMAIL_OTP_TEST_CODE;
     vi.clearAllMocks();
     vi.mocked(repo.isSuppressed).mockResolvedValue(false);
     vi.mocked(repo.countRecentSends).mockResolvedValue(0);
@@ -79,6 +81,8 @@ describe('email verification service (OTP)', () => {
   afterEach(() => {
     if (PREV_SECRET === undefined) delete process.env.EMAIL_OTP_SECRET;
     else process.env.EMAIL_OTP_SECRET = PREV_SECRET;
+    if (PREV_TEST_CODE === undefined) delete process.env.EMAIL_OTP_TEST_CODE;
+    else process.env.EMAIL_OTP_TEST_CODE = PREV_TEST_CODE;
   });
 
   describe('requestVerification', () => {
@@ -140,6 +144,17 @@ describe('email verification service (OTP)', () => {
       expect((res as any).devCode).toMatch(/^\d{6}$/);
     });
 
+    it('uses the configured test OTP without sending email', async () => {
+      process.env.EMAIL_OTP_TEST_CODE = '123456';
+      const res = await requestVerification({ institutionCode: 'TST001', email: 'u1@example.com' });
+
+      expect(res).toMatchObject({ ok: true, devCode: '123456' });
+      expect(provider.sendEmail).not.toHaveBeenCalled();
+      expect(repo.insertToken).toHaveBeenCalledWith(
+        expect.objectContaining({ tokenHash: otpHmac('u1@example.com', '123456') })
+      );
+    });
+
     it('suppresses the address and fails when SES reports a permanent error', async () => {
       vi.mocked(provider.sendEmail).mockRejectedValue(new EmailSendError('Invalid recipient', 'permanent', 'SES_INVALID'));
       const res = await requestVerification({ institutionCode: 'TST001', email: 'bad@example.com' });
@@ -160,6 +175,16 @@ describe('email verification service (OTP)', () => {
   });
 
   describe('verifyOtp', () => {
+    it('accepts the configured test OTP without a stored code', async () => {
+      process.env.EMAIL_OTP_TEST_CODE = '123456';
+
+      const res = await verifyOtp('u1@example.com', '123456', 'uid-1');
+
+      expect(res).toMatchObject({ ok: true, email: 'u1@example.com' });
+      expect(repo.findActiveOtp).not.toHaveBeenCalled();
+      expect(repo.markUserEmailVerified).toHaveBeenCalledWith('uid-1');
+    });
+
     it('accepts the correct code and marks the owning user verified', async () => {
       seedActiveOtp('u1@example.com', '482913');
       vi.mocked(repo.consumeToken).mockResolvedValue({

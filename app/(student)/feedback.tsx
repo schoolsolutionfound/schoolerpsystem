@@ -164,6 +164,7 @@ export default function StudentFeedbackScreen() {
   }, [userDept, defaultSem]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadSubjects();
   }, [loadSubjects]);
 

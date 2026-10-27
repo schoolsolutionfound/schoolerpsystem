@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   Text,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { signOut } from 'firebase/auth';
@@ -32,7 +32,9 @@ import {
   deleteSchoolNoticeApi,
   updateSchoolNoticeApi,
 } from '../../api/principal';
-import { PrincipalHeader } from '../../features/principal/components/PrincipalHeader';
+import { UnifiedHeader } from '../../features/shared/components/layout/UnifiedHeader';
+import { FloatingFooter } from '../../features/shared/components/layout/FloatingFooter';
+import { useDebugTab } from '../../features/shared/hooks/useDebugTab';
 import { PrincipalDrawer } from '../../features/principal/components/PrincipalDrawer';
 import { PrincipalDashboardView } from '../../features/principal/components/PrincipalDashboardView';
 import { PrincipalFeeLedgerView } from '../../features/principal/components/PrincipalFeeLedgerView';
@@ -83,19 +85,17 @@ const BOTTOM_TABS: {
 
 export default function PrincipalHomeScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
 
   // User store selectors
   const fullName = useUserStore((state) => state.fullName) || 'Principal';
   const institutionName = useUserStore((state) => state.institutionName) || 'My Institution';
-  const institutionType = useUserStore((state) => state.institutionType) || 'school';
-  const profilePic = useUserStore((state) => state.profilePic);
   const resetUser = useUserStore((state) => state.resetUser);
   const hasModuleAccess = useUserStore((state) => state.hasModuleAccess);
   const grantModuleAccess = useUserStore((state) => state.grantModuleAccess);
 
   // Screen UI state
   const [activeTab, setActiveTab] = useState<PrincipalTab>('dashboard');
+  useDebugTab('principal', activeTab);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [tabLoading, setTabLoading] = useState(false);
@@ -290,18 +290,9 @@ export default function PrincipalHomeScreen() {
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safe} edges={['top']}>
-        {/* Principal Executive Header */}
-        <PrincipalHeader
-          fullName={fullName}
-          institutionName={institutionName}
-          institutionType={institutionType}
-          profilePic={profilePic}
-          activeTab={activeTab}
-          noticeBadgeCount={notices.filter((n) => n.priority === 'urgent' || n.priority === 'important').length}
+        <UnifiedHeader
           onMenuPress={() => setDrawerOpen(true)}
           onNotificationsPress={() => switchTab('notices')}
-          onProfilePress={() => router.push('/(principal)/profile')}
-          onBackToDashboard={() => switchTab('dashboard')}
         />
 
         {/* Active View Container */}
@@ -490,55 +481,22 @@ export default function PrincipalHomeScreen() {
           )}
         </View>
 
-        {/* Floating Oval Pill Bottom Tab Bar (True Oval Shape, Reduced sizes for high responsiveness) */}
-        <View
-          style={[
-            styles.ovalBottomBar,
-            { marginBottom: Math.max(insets.bottom, 10) },
-          ]}
-        >
-          {BOTTOM_TABS.map((tab) => {
-            const active = activeTab === tab.key;
-            return (
-              <TouchableOpacity
-                key={tab.key}
-                style={styles.tabBtn}
-                onPress={() => {
-                  if (tab.key === 'profile') {
-                    router.push('/(principal)/profile');
-                  } else {
-                    switchTab(tab.key);
-                  }
-                }}
-                activeOpacity={0.7}
-              >
-                {active ? (
-                  <View style={styles.activeIconCircle}>
-                    <MaterialCommunityIcons
-                      name={tab.iconActive}
-                      size={18}
-                      color="#000000"
-                    />
-                  </View>
-                ) : (
-                  <View style={styles.inactiveIconWrap}>
-                    <MaterialCommunityIcons
-                      name={tab.icon}
-                      size={20}
-                      color="#9CA3AF"
-                    />
-                  </View>
-                )}
-                <Text
-                  style={[styles.tabLabel, active && styles.tabLabelActive]}
-                  numberOfLines={1}
-                >
-                  {tab.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        <FloatingFooter
+          tabs={BOTTOM_TABS.map((tab) => ({
+            key: tab.key,
+            label: tab.label,
+            icon: tab.icon,
+            iconFilled: tab.iconActive,
+          }))}
+          activeKey={activeTab}
+          onTabPress={(key) => {
+            if (key === 'profile') {
+              router.push('/(principal)/profile');
+            } else {
+              switchTab(key);
+            }
+          }}
+        />
       </SafeAreaView>
 
       {/* Slide-out Drawer */}

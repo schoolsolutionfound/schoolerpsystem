@@ -203,17 +203,17 @@ export const payrollRepository = {
   },
 
   /** Payroll rows unpaid for more than the grace window flip to OVERDUE. */
-  async markOverduePast(graceDate: string) {
+  async markOverduePast(graceDate: string, institutionCode?: string) {
     const d = requireDb();
+    const conditions = [
+      isNotNull(expenseRecords.scheduleId),
+      eq(expenseRecords.status, 'pending'),
+      sql`${expenseRecords.dueDate} < ${graceDate}`,
+    ];
+    if (institutionCode) conditions.push(eq(expenseRecords.institutionCode, institutionCode));
     await d
       .update(expenseRecords)
       .set({ status: 'overdue', updatedAt: new Date() })
-      .where(
-        and(
-          isNotNull(expenseRecords.scheduleId),
-          eq(expenseRecords.status, 'pending'),
-          sql`${expenseRecords.dueDate} < ${graceDate}`,
-        ),
-      );
+      .where(and(...conditions));
   },
 };

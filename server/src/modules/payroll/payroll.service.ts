@@ -488,7 +488,7 @@ export class PayrollService {
     const grace = new Date(today);
     grace.setDate(grace.getDate() - 7);
     try {
-      await payrollRepository.markOverduePast(dateKey(grace));
+      await payrollRepository.markOverduePast(dateKey(grace), institutionCode);
     } catch {
       /* overdue flip is best-effort */
     }

@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useUserStore } from '../../../store/useUserStore';
 import { performLogout } from '../../../utils/logout';
-import { DriverHomeHeader } from './DriverHomeHeader';
+import { UnifiedHeader } from '../../shared/components/layout/UnifiedHeader';
 import { DriverDrawer } from './DriverDrawer';
 import { DriverBottomNav, DriverTab } from './DriverBottomNav';
 
@@ -44,7 +44,7 @@ export const DriverShell: React.FC<{ activeTab: DriverTab; children: React.React
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <DriverHomeHeader
+        <UnifiedHeader
           onMenuPress={() => setDrawerOpen(true)}
           onNotificationsPress={() => {}}
         />

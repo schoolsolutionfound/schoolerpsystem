@@ -289,8 +289,17 @@ export const useUserStore = create<UserState>()(
         }
         return persisted;
       },
-      onRehydrateStorage: () => (state) => {
+      onRehydrateStorage: () => (state, error) => {
         state?.setHasHydrated(true);
+        if (__DEV__) {
+          console.log('[BOOT] persisted store rehydrated', {
+            error: error ? String(error) : null,
+            userRole: state?.userRole ?? null,
+            institutionCode: state?.institutionCode ?? null,
+            profileCompleted: state?.profileCompleted ?? null,
+            mustChangePassword: state?.mustChangePassword ?? null,
+          });
+        }
       },
     }
   )

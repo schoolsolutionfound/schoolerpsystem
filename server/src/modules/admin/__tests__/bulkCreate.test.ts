@@ -117,11 +117,11 @@ describe('adminService.bulkCreateUsers — CSV bulk import', () => {
   });
 
   it('skips emails that already exist without touching Firebase for them', async () => {
-    dbFindByEmail.mockImplementation(async (email: string) =>
-      email === 'taken@school.edu'
-        ? { id: 'existing', email, role: 'student', fullName: 'Taken' }
-        : undefined
-    );
+  dbFindByEmail.mockImplementation(async (email: string) =>
+    email === 'taken@school.edu'
+      ? { id: 'existing', email, role: 'student', fullName: 'Taken', institutionCode: 'GIS001' }
+      : undefined
+  );
 
     const result = await adminService.bulkCreateUsers('GIS001', 'student', [
       rec({ email: 'taken@school.edu' }),

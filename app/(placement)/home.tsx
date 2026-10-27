@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Platform } from 'react-native';
+import { View, StyleSheet, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useUserStore } from '../../store/useUserStore';
-import { PlacementHomeHeader } from '../../features/placement/components/PlacementHomeHeader';
+import { UnifiedHeader } from '../../features/shared/components/layout/UnifiedHeader';
+import { FloatingFooter } from '../../features/shared/components/layout/FloatingFooter';
+import { useDebugTab } from '../../features/shared/hooks/useDebugTab';
 import { PlacementDrawer } from '../../features/placement/components/PlacementDrawer';
 import { PlacementDrivesView } from '../../features/placement/components/PlacementDrivesView';
 import { PlacementStudentsView } from '../../features/placement/components/PlacementStudentsView';
@@ -20,6 +21,7 @@ export default function PlacementHomeScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ tab?: string }>();
   const [activeTab, setActiveTab] = useState<Tab>((params.tab as Tab) || 'drives');
+  useDebugTab('placement', activeTab);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const fullName = useUserStore((state) => state.fullName) || 'Placement Officer';
@@ -46,6 +48,7 @@ export default function PlacementHomeScreen() {
 
   useEffect(() => {
     if (params.tab && ['drives', 'students', 'team', 'results', 'profile'].includes(params.tab)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveTab(params.tab as Tab);
     }
   }, [params.tab]);
@@ -71,15 +74,13 @@ export default function PlacementHomeScreen() {
     <View style={styles.container}>
       <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
         {/* Unified Kivquo Header with Drawer Menu */}
-        <PlacementHomeHeader
-          fullName={fullName}
+        <UnifiedHeader
+          userName={fullName}
           profilePic={profilePic}
-          institutionName={institutionName}
-          accessLevel={placementAccess}
           onMenuPress={() => setDrawerOpen(true)}
           onNotificationsPress={() => router.push('/notifications')}
           onProfilePress={() => setActiveTab('profile')}
-          showGreeting={activeTab !== 'profile'}
+          showProfile={activeTab !== 'profile'}
         />
 
         {/* Tab Content View */}
@@ -87,33 +88,11 @@ export default function PlacementHomeScreen() {
           {renderContent()}
         </View>
 
-        {/* Bottom Tab Bar with Kivquo Styling */}
-        <View style={styles.tabBarBg}>
-          <View style={styles.tabBar}>
-            {tabs.map((tab) => {
-              const isActive = activeTab === tab.key;
-              return (
-                <TouchableOpacity
-                  key={tab.key}
-                  style={styles.tabItem}
-                  onPress={() => setActiveTab(tab.key)}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.tabIconBg, isActive && styles.tabIconBgActive]}>
-                    <MaterialCommunityIcons
-                      name={isActive ? (tab.iconFilled as any) : (tab.icon as any)}
-                      size={20}
-                      color={isActive ? '#1A1B1C' : '#8A8A8A'}
-                    />
-                  </View>
-                  <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
-                    {tab.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
+        <FloatingFooter
+          tabs={tabs}
+          activeKey={activeTab}
+          onTabPress={setActiveTab}
+        />
       </SafeAreaView>
 
       {/* Side Drawer Modal: TeacherDrawer for teachers, PlacementDrawer for placement officers */}

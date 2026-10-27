@@ -1,6 +1,6 @@
 /**
  * @file AccountsTallyView.tsx
- * @description Dedicated Accounts & Financial Health page: charcoal hero balance card,
+ * @description Dedicated Accounts & Financial Health page: balance card,
  * working time-range filter, health KPIs, category breakdowns with share bars, real PDF export.
  */
 
@@ -10,6 +10,7 @@ import { useFinanceStore } from '../store/useFinanceStore';
 import { formatINR } from '../utils/financeUtils';
 import { generateIncomeExpenseStatementPdf } from '../utils/financePdfGenerator';
 import { showAlert } from '../../shared/utils/showAlert';
+import { sharedFinanceStyles } from './financeStyles';
 
 type TimeRange = 'month' | 'year' | 'all';
 
@@ -131,6 +132,11 @@ export const AccountsTallyView: React.FC = () => {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <View style={sharedFinanceStyles.pageHeader}>
+        <Text style={sharedFinanceStyles.pageTitle}>Accounts & Tally</Text>
+        <Text style={sharedFinanceStyles.pageSubtitle}>Monitor balances, ratios and audit reports.</Text>
+      </View>
+
       {/* Time filter + Export */}
       <View style={styles.topBar}>
         <View style={styles.segmented}>
@@ -177,7 +183,7 @@ export const AccountsTallyView: React.FC = () => {
             <Text style={styles.heroLegendText}>Inflow {formatINR(totalIncome)}</Text>
           </View>
           <View style={styles.heroLegendItem}>
-            <View style={[styles.legendDot, { backgroundColor: 'rgba(255,255,255,0.45)' }]} />
+            <View style={[styles.legendDot, { backgroundColor: '#1A1B1C' }]} />
             <Text style={styles.heroLegendText}>Outflow {formatINR(totalExpenses)}</Text>
           </View>
         </View>
@@ -242,8 +248,8 @@ export const AccountsTallyView: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFDF7' },
-  content: { paddingHorizontal: 16, paddingVertical: 12, gap: 12, paddingBottom: 28 },
+  container: { flex: 1, backgroundColor: 'transparent' },
+  content: { paddingHorizontal: 16, paddingVertical: 10, gap: 12, paddingBottom: 28 },
 
   topBar: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   segmented: {
@@ -252,7 +258,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E8E5DC',
-    borderRadius: 5,
+    borderRadius: 10,
     padding: 3,
     gap: 3,
   },
@@ -260,12 +266,12 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 6,
-    borderRadius: 5,
+    paddingVertical: 7,
+    borderRadius: 8,
   },
-  segBtnActive: { backgroundColor: '#171717' },
+  segBtnActive: { backgroundColor: '#F4C430' },
   segBtnText: { fontSize: 11, fontWeight: '700', color: '#6B6B6B' },
-  segBtnTextActive: { color: '#FFFFFF' },
+  segBtnTextActive: { color: '#171717' },
   exportBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -273,67 +279,67 @@ const styles = StyleSheet.create({
     backgroundColor: '#F4C430',
     paddingHorizontal: 12,
     paddingVertical: 9,
-    borderRadius: 5,
+    borderRadius: 10,
   },
   exportBtnText: { color: '#171717', fontSize: 11, fontWeight: '800' },
 
   heroCard: {
-    backgroundColor: '#171717',
-    borderRadius: 5,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#171717',
+    borderColor: '#E8E5DC',
   },
-  heroPeriod: { fontSize: 11, color: 'rgba(255,255,255,0.55)', fontWeight: '600' },
+  heroPeriod: { fontSize: 11, color: '#6B7280', fontWeight: '600' },
   heroLabel: {
     fontSize: 10,
-    color: '#F4C430',
+    color: '#B8860B',
     fontWeight: '800',
     letterSpacing: 1.2,
     marginTop: 14,
   },
-  heroAmount: { fontSize: 30, fontWeight: '900', color: '#FFFFFF', marginTop: 2, marginBottom: 14 },
+  heroAmount: { fontSize: 30, fontWeight: '900', color: '#111827', marginTop: 2, marginBottom: 14 },
   heroTrack: {
     height: 8,
     flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: '#F3F4F6',
     borderRadius: 5,
     overflow: 'hidden',
   },
   heroFillGreen: { height: '100%', backgroundColor: '#F4C430' },
-  heroFillRed: { height: '100%', backgroundColor: 'rgba(255,255,255,0.18)' },
+  heroFillRed: { height: '100%', backgroundColor: '#1A1B1C' },
   heroLegendRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
   heroLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDot: { width: 7, height: 7, borderRadius: 4 },
-  heroLegendText: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.8)' },
+  heroLegendText: { fontSize: 11, fontWeight: '700', color: '#6B7280' },
 
   kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   kpiBox: {
     width: '48.5%',
     backgroundColor: '#FFFFFF',
-    borderRadius: 5,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#E8E5DC',
-  },
-  kpiTitle: { fontSize: 11, color: '#6B6B6B', fontWeight: '600' },
-  kpiNumber: { fontSize: 17, fontWeight: '900', marginVertical: 2 },
-  kpiSub: { fontSize: 10, color: '#9A9A9A' },
-
-  sectionCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 5,
+    borderRadius: 14,
     padding: 14,
     borderWidth: 1,
     borderColor: '#E8E5DC',
   },
+  kpiTitle: { fontSize: 11, color: '#6B7280', fontWeight: '600' },
+  kpiNumber: { fontSize: 17, fontWeight: '900', marginVertical: 3 },
+  kpiSub: { fontSize: 10, color: '#9CA3AF' },
+
+  sectionCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+  },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
-  sectionTitle: { fontSize: 14, fontWeight: '800', color: '#171717', flex: 1 },
+  sectionTitle: { fontSize: 15, fontWeight: '800', color: '#111827', flex: 1 },
   sectionTotal: {
-    backgroundColor: '#F7F5EE',
+    backgroundColor: '#F9FAFB',
     paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 5,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
   sectionTotalText: { fontSize: 11, fontWeight: '800', color: '#171717' },
 

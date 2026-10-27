@@ -1,16 +1,16 @@
 import React from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, Image } from 'react-native';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
-import { FontFamily } from '../../../constants/fonts';
+import { FontFamily } from '../../../../constants/fonts';
+import { debugLog } from '../../../../utils/debugLogger';
 
-interface ParentHomeHeaderProps {
-  fullName: string;
-  profilePic?: string;
+export interface UnifiedHeaderProps {
   onMenuPress: () => void;
-  onSettingsPress?: () => void;
-  onNotificationsPress?: () => void;
-  onProfilePress: () => void;
+  onNotificationsPress: () => void;
+  onProfilePress?: () => void;
   showProfile?: boolean;
+  userName?: string;
+  profilePic?: string;
 }
 
 const getGreeting = (): string => {
@@ -20,24 +20,38 @@ const getGreeting = (): string => {
   return 'Good Evening';
 };
 
-export const ParentHomeHeader: React.FC<ParentHomeHeaderProps> = ({
-  fullName,
-  profilePic,
+export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
   onMenuPress,
-  onSettingsPress,
   onNotificationsPress,
   onProfilePress,
-  showProfile = true,
+  showProfile = false,
+  userName,
+  profilePic,
 }) => {
-  const firstName = fullName ? fullName.split(' ')[0] : 'Parent';
+  const firstName = userName ? userName.split(' ')[0] : 'User';
   const greeting = getGreeting();
+
+  const handleMenuPress = () => {
+    debugLog('UI', 'header menu pressed', { userName, showProfile });
+    onMenuPress();
+  };
+
+  const handleNotificationsPress = () => {
+    debugLog('UI', 'header notifications pressed', { userName });
+    onNotificationsPress();
+  };
+
+  const handleProfilePress = () => {
+    debugLog('UI', 'header profile pressed', { userName });
+    onProfilePress?.();
+  };
 
   return (
     <View style={styles.container}>
       <View style={styles.topHeader}>
         <TouchableOpacity
           style={styles.headerBtn}
-          onPress={onMenuPress}
+          onPress={handleMenuPress}
           activeOpacity={0.7}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
@@ -45,14 +59,14 @@ export const ParentHomeHeader: React.FC<ParentHomeHeaderProps> = ({
         </TouchableOpacity>
 
         <Image
-          source={require('../../../assets/text-logo.png')}
+          source={require('../../../../assets/text-logo.png')}
           style={styles.logoImage}
           resizeMode="contain"
         />
 
         <TouchableOpacity
           style={styles.headerBtn}
-          onPress={onNotificationsPress || onSettingsPress}
+          onPress={handleNotificationsPress}
           activeOpacity={0.7}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
@@ -61,7 +75,11 @@ export const ParentHomeHeader: React.FC<ParentHomeHeaderProps> = ({
       </View>
 
       {showProfile && (
-        <TouchableOpacity style={styles.userGreetingRow} onPress={onProfilePress} activeOpacity={0.7}>
+        <TouchableOpacity
+          style={styles.userGreetingRow}
+          onPress={handleProfilePress}
+          activeOpacity={0.7}
+        >
           <View style={styles.avatarWrap}>
             {profilePic ? (
               <Image source={{ uri: profilePic }} style={styles.avatarImage} />
@@ -143,3 +161,5 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
 });
+
+export default UnifiedHeader;

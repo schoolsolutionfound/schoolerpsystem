@@ -1,13 +1,8 @@
 import React, { useState, useMemo, useCallback, useRef } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Modal,
   Alert,
-  Pressable,
   Platform,
   useWindowDimensions,
 } from 'react-native';
@@ -45,13 +40,12 @@ import {
   useLibraryDashboard,
 } from '../../features/librarian/hooks';
 
-// Icons
-import { Feather, MaterialCommunityIcons } from '../../features/librarian/components/common/Icons';
-
 // Components
 import { LibrarianSidebar, SidebarContent } from '../../features/librarian/components/layout/LibrarianSidebar';
 import { LibrarianDrawer } from '../../features/librarian/components/layout/LibrarianDrawer';
-import { LibrarianHeader } from '../../features/librarian/components/layout/LibrarianHeader';
+import { UnifiedHeader } from '../../features/shared/components/layout/UnifiedHeader';
+import { FloatingFooter } from '../../features/shared/components/layout/FloatingFooter';
+import { useDebugTab } from '../../features/shared/hooks/useDebugTab';
 import { LibrarianDashboardView } from '../../features/librarian/components/dashboard/LibrarianDashboardView';
 import { CategoriesView } from '../../features/librarian/components/categories/CategoriesView';
 import { BooksView } from '../../features/librarian/components/books/BooksView';
@@ -92,9 +86,10 @@ export default function LibrarianHomeScreen() {
   // Navigation & Drawer State
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('dashboard');
+  useDebugTab('librarian', activeTab);
   const [circulationSubMode, setCirculationSubMode] = useState<'ISSUE' | 'RETURN' | 'ALL_LOANS' | 'OVERDUE'>('ISSUE');
   const [finesSubMode, setFinesSubMode] = useState<'OVERDUE' | 'FINES'>('OVERDUE');
-  const [searchQuery, setSearchQuery] = useState('');
+
 
   // API Hooks (PostgreSQL persistent source of truth)
   const { stats: dashboardStats, loading: dashboardLoading, refetch: refetchDashboard } = useLibraryDashboard();
@@ -329,13 +324,9 @@ export default function LibrarianHomeScreen() {
 
           {/* Main Dashboard Content Area */}
           <View style={styles.mainWorkspace}>
-            <LibrarianHeader
-              searchQuery={searchQuery}
-              onSearchChange={setSearchQuery}
+            <UnifiedHeader
               onMenuPress={() => setDrawerOpen(true)}
               onNotificationsPress={() => handleSwitchTab('notifications')}
-              onProfilePress={() => handleSwitchTab('profile')}
-              userName={userName}
             />
 
             <View style={styles.tabContentArea}>
@@ -608,40 +599,12 @@ export default function LibrarianHomeScreen() {
           </View>
         </View>
 
-        {/* Floating Bottom Navigation Bar on Mobile */}
         {!isDesktop && (
-          <View style={styles.tabBarBg}>
-            <View style={styles.tabBar}>
-              {BOTTOM_TABS.map((tab) => {
-                const isActive = activeTab === tab.key;
-                return (
-                  <TouchableOpacity
-                    key={tab.key}
-                    style={styles.tabItem}
-                    onPress={() => handleSwitchTab(tab.key)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={[styles.tabIconBg, isActive && styles.tabIconBgActive]}>
-                      {'isAccount' in tab && tab.isAccount ? (
-                        <View style={[styles.accountAvatar, isActive && styles.accountAvatarActive]}>
-                          <Text style={[styles.accountAvatarText, isActive && styles.accountAvatarTextActive]}>K</Text>
-                        </View>
-                      ) : (
-                        <MaterialCommunityIcons
-                          name={isActive ? (tab.iconFilled as any) : (tab.icon as any)}
-                          size={22}
-                          color={isActive ? '#1A1B1C' : '#9CA3AF'}
-                        />
-                      )}
-                    </View>
-                    <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
-                      {tab.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
+          <FloatingFooter
+            tabs={BOTTOM_TABS}
+            activeKey={activeTab}
+            onTabPress={handleSwitchTab}
+          />
         )}
 
         {/* Mobile Slide-out Animated Drawer matching attendance flow */}

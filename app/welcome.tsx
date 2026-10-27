@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, Animated, Image, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -8,8 +8,8 @@ import { FontFamily } from '../constants/fonts';
 export default function WelcomeScreen() {
   const router = useRouter();
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(20)).current;
+  const [fadeAnim] = useState(() => new Animated.Value(0));
+  const [slideAnim] = useState(() => new Animated.Value(20));
 
   useEffect(() => {
     Animated.parallel([
@@ -33,7 +33,10 @@ export default function WelcomeScreen() {
           <Animated.View
             style={[
               styles.inner,
-              { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
+              },
             ]}
           >
             {/* Logo */}

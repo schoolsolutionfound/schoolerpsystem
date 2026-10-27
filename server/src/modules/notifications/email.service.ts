@@ -46,6 +46,7 @@ const DEFAULT_FROM_EMAIL = process.env.EMAIL_FROM || '';
 const DEFAULT_FROM_NAME = process.env.EMAIL_FROM_NAME || 'School ERP';
 
 let warnedMissingSecret = false;
+let warnedTestOtp = false;
 
 /**
  * Key for the OTP digest. A dedicated secret keeps a database leak useless on
@@ -73,6 +74,17 @@ function otpHmac(email: string, code: string): string {
 
 function generateOtp(): string {
   return String(randomInt(0, 10 ** OTP_LENGTH)).padStart(OTP_LENGTH, '0');
+}
+
+function getTestOtpCode(): string | null {
+  if (process.env.NODE_ENV === 'production') return null;
+  const code = (process.env.EMAIL_OTP_TEST_CODE || '').trim();
+  if (!new RegExp(`^\\d{${OTP_LENGTH}}$`).test(code)) return null;
+  if (!warnedTestOtp) {
+    console.warn('[Email Verification] Test OTP is enabled. Verification codes are fixed until EMAIL_OTP_TEST_CODE is removed.');
+    warnedTestOtp = true;
+  }
+  return code;
 }
 
 function constantTimeEquals(a: string, b: string): boolean {
@@ -209,15 +221,16 @@ export async function requestVerification(input: {
     return { ok: false, code: 'RATE_LIMITED', message: 'Too many verification emails. Please wait before requesting another.' };
   }
 
-  const sender = await resolveSender(institutionCode);
-  if (!sender) {
+  const testCode = getTestOtpCode();
+  const sender = testCode ? null : await resolveSender(institutionCode);
+  if (!testCode && !sender) {
     return { ok: false, code: 'SES_NOT_CONFIGURED', message: 'Email delivery is not configured.' };
   }
 
   // Latest-code-only: kill any live code before minting the new one.
   await invalidateOtpsForEmail(normalizedEmail);
 
-  const code = generateOtp();
+  const code = testCode || generateOtp();
   const expiresAt = new Date(Date.now() + OTP_TTL_MS);
   await insertToken({
     institutionCode,
@@ -229,8 +242,11 @@ export async function requestVerification(input: {
 
   // Dev / no-SES path: skip the send entirely and surface the code so the
   // full request → enter → verify loop can be exercised locally without AWS.
-  if (!isSesConfigured()) {
+  if (testCode || !isSesConfigured()) {
     return { ok: true, devCode: code };
+  }
+  if (!sender) {
+    return { ok: false, code: 'SES_NOT_CONFIGURED', message: 'Email delivery is not configured.' };
   }
 
   const { subject, html, text } = renderOtpEmail({
@@ -277,7 +293,7 @@ export async function requestVerification(input: {
  * the code self-destructs at the cap. Success consumes the code (guarded
  * UPDATE) so it cannot be replayed, then marks the user verified.
  */
-export async function verifyOtp(email: string, code: string): Promise<VerifyResult> {
+export async function verifyOtp(email: string, code: string, firebaseUid = ''): Promise<VerifyResult> {
   const normalizedEmail = (email || '').trim().toLowerCase();
   const submitted = (code || '').trim();
 
@@ -286,6 +302,19 @@ export async function verifyOtp(email: string, code: string): Promise<VerifyResu
   }
   if (!new RegExp(`^\\d{${OTP_LENGTH}}$`).test(submitted)) {
     return { ok: false, code: 'OTP_INVALID', message: `Enter the ${OTP_LENGTH}-digit code from your email.` };
+  }
+
+  const testCode = getTestOtpCode();
+  if (testCode && constantTimeEquals(submitted, testCode)) {
+    if (!firebaseUid) {
+      return { ok: false, code: 'OTP_INVALID', message: 'No signed-in account for this code.' };
+    }
+    const owner = await findUserByUid(firebaseUid);
+    if (owner?.email && owner.email.trim().toLowerCase() !== normalizedEmail) {
+      return { ok: false, code: 'OTP_INVALID', message: 'Email does not match this account.' };
+    }
+    await markUserEmailVerified(firebaseUid);
+    return { ok: true, email: normalizedEmail, institutionCode: owner?.institutionCode || '' };
   }
 
   const record = await findActiveOtp(normalizedEmail);
@@ -317,7 +346,7 @@ export async function verifyOtp(email: string, code: string): Promise<VerifyResu
     return { ok: false, code: 'OTP_INVALID', message: 'This code was already used. Request a new one.' };
   }
 
-  const uid = record.firebaseUid || (await findUserByEmail(record.institutionCode, record.email))?.firebaseUid || '';
+  const uid = record.firebaseUid || firebaseUid || (await findUserByEmail(record.institutionCode, record.email))?.firebaseUid || '';
   if (uid) {
     await markUserEmailVerified(uid);
   }

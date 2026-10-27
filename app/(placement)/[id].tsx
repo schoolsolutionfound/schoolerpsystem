@@ -24,7 +24,7 @@ import {
   PlacementDrive,
 } from '../../api/placement';
 import { useUserStore } from '../../store/useUserStore';
-import { PlacementHomeHeader } from '../../features/placement/components/PlacementHomeHeader';
+import { UnifiedHeader } from '../../features/shared/components/layout/UnifiedHeader';
 import { FontFamily } from '../../constants/fonts';
 import { BorderRadius } from '../../constants/theme';
 import { ShimmerProvider } from '../../features/student/components/ShimmerSkeleton';
@@ -38,8 +38,6 @@ export default function PlacementAdminApplicantsScreen() {
 
   const fullName = useUserStore((state) => state.fullName) || 'Placement Officer';
   const profilePic = useUserStore((state) => state.profilePic);
-  const institutionName = useUserStore((state) => state.institutionName) || '';
-  const placementAccess = useUserStore((state) => state.placementAccess);
 
   const [drive, setDrive] = useState<PlacementDrive | null>(null);
   const [applications, setApplications] = useState<DriveApplication[]>([]);
@@ -76,6 +74,7 @@ export default function PlacementAdminApplicantsScreen() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchData();
   }, [id]);
 
@@ -285,15 +284,13 @@ export default function PlacementAdminApplicantsScreen() {
   if (loading && !refreshing) {
     return (
       <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-        <PlacementHomeHeader
-          fullName={fullName}
+        <UnifiedHeader
+          userName={fullName}
           profilePic={profilePic}
-          institutionName={institutionName}
-          accessLevel={placementAccess}
-          onBackPress={handleBack}
+          onMenuPress={handleBack}
           onNotificationsPress={() => router.push('/notifications')}
           onProfilePress={() => router.push({ pathname: '/(placement)/home', params: { tab: 'profile' } } as any)}
-          showGreeting={true}
+          showProfile
         />
         <ScrollView contentContainerStyle={styles.scroll}>
           <ShimmerProvider>
@@ -307,15 +304,13 @@ export default function PlacementAdminApplicantsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       {/* Unified Kivquo Header */}
-      <PlacementHomeHeader
-        fullName={fullName}
+      <UnifiedHeader
+        userName={fullName}
         profilePic={profilePic}
-        institutionName={institutionName}
-        accessLevel={placementAccess}
-        onBackPress={handleBack}
+        onMenuPress={handleBack}
         onNotificationsPress={() => router.push('/notifications')}
         onProfilePress={() => router.push({ pathname: '/(placement)/home', params: { tab: 'profile' } } as any)}
-        showGreeting={true}
+        showProfile
       />
 
       {/* Drive Details Bar */}

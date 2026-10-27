@@ -4,6 +4,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { FontFamily } from '../../../constants/fonts';
 import { DropdownSelect } from './DropdownSelect';
 import { BulkImportModal } from './BulkImportModal';
+import { AdminMemberDetailSheet } from './AdminMemberDetailSheet';
 import { createSubjectTeacherApi, updateClassSectionApi } from '../../../api/academics';
 import { createPayrollSchedulesApi } from '../../../api/payroll';
 
@@ -264,6 +265,7 @@ export const AdminTeachersView: React.FC<AdminTeachersViewProps> = ({
   const [deptFilter, setDeptFilter] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [detailTeacher, setDetailTeacher] = useState<TeacherItem | null>(null);
   const [editModal, setEditModal] = useState<TeacherItem | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<TeacherItem | null>(null);
 
@@ -805,6 +807,67 @@ export const AdminTeachersView: React.FC<AdminTeachersViewProps> = ({
     );
   };
 
+  const detailScope = (() => {
+    if (!detailTeacher) return {} as any;
+    try {
+      return typeof detailTeacher.scope === 'string'
+        ? JSON.parse(detailTeacher.scope || '{}')
+        : detailTeacher.scope || {};
+    } catch {
+      return {} as any;
+    }
+  })();
+
+  const detailSections = detailTeacher
+    ? [
+        {
+          title: 'Professional Info',
+          rows: [
+            { label: 'Employee ID', value: detailScope.employeeId || detailTeacher.employeeId },
+            { label: 'Designation', value: detailScope.designation || detailTeacher.title },
+            { label: 'Department', value: detailScope.department || detailTeacher.department },
+            { label: 'Employment Type', value: detailScope.employmentType },
+            { label: 'Joining Date', value: detailScope.joiningDate },
+            { label: 'Program', value: detailScope.program },
+            { label: 'Semester / Year', value: detailScope.semester },
+          ],
+        },
+        {
+          title: 'Personal Info',
+          rows: [
+            { label: 'Phone', value: detailTeacher.phone },
+            { label: 'Date of Birth', value: detailTeacher.dob },
+            { label: 'Gender', value: detailTeacher.gender },
+          ],
+        },
+      ]
+    : [];
+
+  const detailActions = detailTeacher
+    ? [
+        {
+          label: 'Edit',
+          icon: 'pencil',
+          color: '#F4C430',
+          onPress: () => {
+            const teacher = detailTeacher;
+            setDetailTeacher(null);
+            openEdit(teacher);
+          },
+        },
+        {
+          label: 'Delete',
+          icon: 'delete',
+          color: '#DC3545',
+          onPress: () => {
+            const teacher = detailTeacher;
+            setDetailTeacher(null);
+            setDeleteConfirm(teacher);
+          },
+        },
+      ]
+    : [];
+
   return (
     <View style={styles.container}>
       {/* Page Header */}
@@ -860,7 +923,12 @@ export const AdminTeachersView: React.FC<AdminTeachersViewProps> = ({
           </View>
         ) : (
           filteredTeachers.map((t) => (
-            <View key={t.id} style={styles.teacherCard}>
+            <TouchableOpacity
+              key={t.id}
+              style={styles.teacherCard}
+              onPress={() => setDetailTeacher(t)}
+              activeOpacity={0.7}
+            >
               <View style={styles.avatarCircle}>
                 <Text style={styles.avatarText}>{t.fullName.substring(0, 2).toUpperCase()}</Text>
               </View>
@@ -873,15 +941,8 @@ export const AdminTeachersView: React.FC<AdminTeachersViewProps> = ({
                   </Text>
                 )}
               </View>
-              <View style={styles.actions}>
-                <TouchableOpacity style={styles.actionBtn} onPress={() => openEdit(t)}>
-                  <MaterialCommunityIcons name="pencil" size={16} color="#6B6B6B" />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.actionBtn} onPress={() => setDeleteConfirm(t)}>
-                  <MaterialCommunityIcons name="delete-outline" size={16} color="#DC2626" />
-                </TouchableOpacity>
-              </View>
-            </View>
+              <MaterialCommunityIcons name="chevron-right" size={20} color="#C9C5B8" />
+            </TouchableOpacity>
           ))
         )}
         {hasMore && onLoadMore && (
@@ -892,6 +953,15 @@ export const AdminTeachersView: React.FC<AdminTeachersViewProps> = ({
           </TouchableOpacity>
         )}
       </ScrollView>
+
+      <AdminMemberDetailSheet
+        visible={!!detailTeacher}
+        onClose={() => setDetailTeacher(null)}
+        fullName={detailTeacher?.fullName || ''}
+        email={detailTeacher?.email || ''}
+        sections={detailSections}
+        actions={detailActions}
+      />
 
       {/* Create Modal */}
       <Modal visible={createOpen} animationType="slide" transparent>
@@ -1014,9 +1084,8 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: 16, fontFamily: FontFamily.extrabold, color: '#1A1B1C', marginTop: 10 },
   emptySub: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B6B6B', textAlign: 'center', marginTop: 4, lineHeight: 16 },
   teacherCard: {
-    backgroundColor: '#FFFFFF', borderRadius: 12, padding: 14,
+    backgroundColor: '#FFFFFF', borderRadius: 10, padding: 14,
     borderWidth: 1, borderColor: '#E8E5DC', flexDirection: 'row', alignItems: 'center', gap: 12,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
   },
   avatarCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 15, fontFamily: FontFamily.extrabold, color: '#D97706' },
@@ -1024,12 +1093,6 @@ const styles = StyleSheet.create({
   teacherName: { fontSize: 14, fontFamily: FontFamily.bold, color: '#1A1B1C' },
   teacherEmail: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B6B6B', marginTop: 1 },
   teacherMeta: { fontSize: 11, fontFamily: FontFamily.regular, color: '#9CA3AF', marginTop: 3 },
-  actions: { gap: 6 },
-  actionBtn: {
-    width: 34, height: 34, borderRadius: 10, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E8E5DC',
-    alignItems: 'center', justifyContent: 'center',
-  },
-
   // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
   modalContent: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 20, gap: 14, borderWidth: 1, borderColor: '#E8E5DC', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 8 },

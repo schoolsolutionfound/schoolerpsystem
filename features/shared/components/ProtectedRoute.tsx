@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { View, ActivityIndicator, Text, StyleSheet } from 'react-native';
-import { useRouter, usePathname } from 'expo-router';
+import { useRouter, usePathname, useSegments } from 'expo-router';
 import { useUserStore } from '../../../store/useUserStore';
 import { getHomeRouteForRole, isRouteAllowedForRole } from '../utils/routeGuards';
 
@@ -12,10 +12,12 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children, role }: ProtectedRouteProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const segments = useSegments();
   const [checking, setChecking] = useState(true);
 
   const userRole = useUserStore((state) => state.userRole);
   const isProfileSynced = useUserStore((state) => state.isProfileSynced);
+  const activeGroup = segments.find((segment) => segment.startsWith('(') && segment.endsWith(')'));
 
   useEffect(() => {
     if (!isProfileSynced || userRole === 'loading') {
@@ -24,12 +26,12 @@ export function ProtectedRoute({ children, role }: ProtectedRouteProps) {
 
     const targetRole = role || userRole;
 
-    if (!isRouteAllowedForRole(pathname, targetRole)) {
+    if (!isRouteAllowedForRole(pathname, targetRole, undefined, activeGroup)) {
       router.replace(getHomeRouteForRole(targetRole) as any);
     } else {
       setChecking(false);
     }
-  }, [isProfileSynced, userRole, pathname, role, router]);
+  }, [isProfileSynced, userRole, pathname, role, router, activeGroup]);
 
   if (checking || !isProfileSynced || userRole === 'loading') {
     return (

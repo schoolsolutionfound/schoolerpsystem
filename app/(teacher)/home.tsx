@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Text, Platform, RefreshControl } from 'react-native';
+import { View, StyleSheet, ScrollView, Text, Platform, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { MaterialCommunityIcons } from '../../features/teacher/components/common/Icons';
 import { useUserStore } from '../../store/useUserStore';
 import { fetchTeacherTimetableApi, fetchAttendanceForSlotApi } from '../../api/academics';
-import { TeacherHomeHeader } from '../../features/teacher/components/TeacherHomeHeader';
+import { UnifiedHeader } from '../../features/shared/components/layout/UnifiedHeader';
+import { FloatingFooter } from '../../features/shared/components/layout/FloatingFooter';
+import { useDebugTab } from '../../features/shared/hooks/useDebugTab';
 import { TeacherDonutCard } from '../../features/teacher/components/TeacherDonutCard';
 import { TeacherWeeklyBarCard } from '../../features/teacher/components/TeacherWeeklyBarCard';
 import { TeacherHomeAnnouncements } from '../../features/teacher/components/TeacherHomeAnnouncements';
@@ -83,6 +84,7 @@ export default function TeacherHomeScreen() {
 
   const { tab } = useLocalSearchParams<{ tab?: string }>();
   const [activeTab, setActiveTab] = useState<Tab>((tab as Tab) || 'home');
+  useDebugTab('teacher', activeTab);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeSlot, setActiveSlot] = useState<{
     slotId: string;
@@ -239,6 +241,7 @@ export default function TeacherHomeScreen() {
   }, [fetchAll]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchAll();
   }, [fetchAll]);
 
@@ -367,7 +370,7 @@ export default function TeacherHomeScreen() {
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-        <TeacherHomeHeader
+        <UnifiedHeader
           onMenuPress={() => setDrawerOpen(true)}
           onNotificationsPress={() => router.push('/notifications')}
         />
@@ -378,38 +381,16 @@ export default function TeacherHomeScreen() {
           </View>
         </TeacherShimmerProvider>
 
-        {/* Bottom Floating Pill Tab Bar matching Librarian Theme */}
-        <View style={styles.tabBarBg}>
-          <View style={styles.tabBar}>
-            {TABS.map((tab) => {
-              const isActive = activeTab === tab.key;
-              return (
-                <TouchableOpacity
-                  key={tab.key}
-                  style={styles.tabItem}
-                  onPress={() => {
-                    if (tab.key === 'attendance' || tab.key === 'schedule') {
-                      setActiveSlot(null);
-                    }
-                    setActiveTab(tab.key);
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.tabIconBg, isActive && styles.tabIconBgActive]}>
-                    <MaterialCommunityIcons
-                      name={isActive ? (tab.iconFilled as any) : (tab.icon as any)}
-                      size={20}
-                      color={isActive ? '#1A1B1C' : '#9CA3AF'}
-                    />
-                  </View>
-                  <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
-                    {tab.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
+        <FloatingFooter
+          tabs={TABS}
+          activeKey={activeTab}
+          onTabPress={(key) => {
+            if (key === 'attendance' || key === 'schedule') {
+              setActiveSlot(null);
+            }
+            setActiveTab(key);
+          }}
+        />
       </SafeAreaView>
 
       <TeacherDrawer

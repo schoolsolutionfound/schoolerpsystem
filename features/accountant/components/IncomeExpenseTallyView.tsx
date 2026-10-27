@@ -3,7 +3,7 @@
  * @description Financial balance overview for the School Finance portal.
  *
  * Shows:
- *  - Net financial balance with health indicator (Surplus / Deficit)
+ *  - Net financial balance
  *  - Income-vs-Expense ratio progress bar
  *  - Income stream breakdown bars (Student Tuition, Bus Transport, Hostel Boarding)
  *  - Detailed Expense allocation bars (Teacher Salaries, Bus Fuel, Bus Repairs, Hostel Mess, Utilities)
@@ -88,16 +88,6 @@ export const IncomeExpenseTallyView: React.FC = () => {
             <Text style={styles.netLabel}>Net Balance</Text>
             <Text style={[styles.netValue, { color: netTally >= 0 ? '#16A34A' : '#DC3545' }]}>
               {netTally < 0 ? '-' : ''}{formatINR(netTally)}
-            </Text>
-          </View>
-          <View style={[styles.badgeHealth, { backgroundColor: netTally >= 0 ? '#DCFCE7' : '#FEE2E2' }]}>
-            <MaterialCommunityIcons
-              name={netTally >= 0 ? 'shield-check' : 'alert-circle'}
-              size={16}
-              color={netTally >= 0 ? '#16A34A' : '#DC3545'}
-            />
-            <Text style={[styles.badgeHealthText, { color: netTally >= 0 ? '#16A34A' : '#DC3545' }]}>
-              {netTally >= 0 ? 'Surplus' : 'Deficit Alert'}
             </Text>
           </View>
         </View>
@@ -312,8 +302,6 @@ const styles = StyleSheet.create({
   netBalanceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: 14 },
   netLabel: { fontSize: 12, color: '#6B6B6B', fontWeight: '600' },
   netValue: { fontSize: 24, fontWeight: '800', marginTop: 2 },
-  badgeHealth: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 5, gap: 4 },
-  badgeHealthText: { fontSize: 11, fontWeight: '800' },
   progressBarBg: {
     height: 10,
     backgroundColor: '#F0EDE3',

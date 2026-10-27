@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, StyleSheet, Text, ScrollView, TouchableOpacity, RefreshControl, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useUserStore } from '../../store/useUserStore';
-import { DriverHomeHeader } from '../../features/driver/components/DriverHomeHeader';
+import { performLogout } from '../../utils/logout';
+import { UnifiedHeader } from '../../features/shared/components/layout/UnifiedHeader';
+import { FloatingFooter } from '../../features/shared/components/layout/FloatingFooter';
+import { useDebugTab } from '../../features/shared/hooks/useDebugTab';
 import { DriverDrawer } from '../../features/driver/components/DriverDrawer';
 import { DriverTripsView } from '../../features/driver/components/DriverTripsView';
 import { FontFamily } from '../../constants/fonts';
@@ -13,7 +16,7 @@ import { UserAnnouncementFeedView } from '../../features/announcements';
 type Tab = 'trips' | 'announcements' | 'profile';
 
 const TABS: { key: Tab; label: string; icon: string; iconFilled: string }[] = [
-  { key: 'trips', label: 'My Trips', icon: 'bus-clock-outline', iconFilled: 'bus-clock' },
+  { key: 'trips', label: 'My Trips', icon: 'bus', iconFilled: 'bus-clock' },
   { key: 'announcements', label: 'Announcements', icon: 'bullhorn-outline', iconFilled: 'bullhorn' },
   { key: 'profile', label: 'Profile', icon: 'account-outline', iconFilled: 'account' },
 ];
@@ -24,8 +27,27 @@ export default function DriverHomeScreen() {
   const profilePic = useUserStore((state) => state.profilePic);
   const email = useUserStore((state) => state.email) || '';
   const institutionName = useUserStore((state) => state.institutionName) || '';
+  const resetUser = useUserStore((state) => state.resetUser);
+
+  const handleLogout = () => {
+    Alert.alert('Logout', 'Are you sure you want to log out?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Logout',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await performLogout();
+          } catch {}
+          resetUser();
+          router.replace('/auth');
+        },
+      },
+    ]);
+  };
 
   const [activeTab, setActiveTab] = useState<Tab>('trips');
+  useDebugTab('driver', activeTab);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -80,7 +102,7 @@ export default function DriverHomeScreen() {
                 </View>
               ) : null}
             </View>
-            <TouchableOpacity style={styles.logoutBtn} onPress={() => router.replace('/auth')}>
+            <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
               <MaterialCommunityIcons name="logout" size={18} color="#DC3545" />
               <Text style={styles.logoutText}>Logout</Text>
             </TouchableOpacity>
@@ -94,43 +116,20 @@ export default function DriverHomeScreen() {
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safe}>
-        <DriverHomeHeader
-          fullName={fullName}
-          profilePic={profilePic}
+        <UnifiedHeader
           onMenuPress={() => setDrawerOpen(true)}
           onNotificationsPress={() => {}}
-          onProfilePress={() => setActiveTab('profile')}
         />
 
         <View style={styles.content}>
           {renderTabContent()}
         </View>
 
-        {/* Bottom Tab Bar */}
-        <View style={styles.tabBarBg}>
-          <View style={styles.tabBar}>
-            {TABS.map((tab) => {
-              const isActive = activeTab === tab.key;
-              return (
-                <TouchableOpacity
-                  key={tab.key}
-                  style={styles.tabItem}
-                  onPress={() => setActiveTab(tab.key)}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.tabIconBg, isActive && styles.tabIconBgActive]}>
-                    <MaterialCommunityIcons
-                      name={isActive ? (tab.iconFilled as any) : (tab.icon as any)}
-                      size={22}
-                      color={isActive ? '#FFFFFF' : '#9CA3AF'}
-                    />
-                  </View>
-                  <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>{tab.label}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
+        <FloatingFooter
+          tabs={TABS}
+          activeKey={activeTab}
+          onTabPress={setActiveTab}
+        />
       </SafeAreaView>
 
       <DriverDrawer
@@ -140,7 +139,7 @@ export default function DriverHomeScreen() {
         email={email}
         profilePic={profilePic}
         institutionName={institutionName}
-        onLogout={() => router.replace('/auth')}
+        onLogout={handleLogout}
       />
     </View>
   );

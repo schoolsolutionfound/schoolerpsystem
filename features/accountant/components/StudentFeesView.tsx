@@ -160,17 +160,22 @@ export const StudentFeesView: React.FC = () => {
 
   return (
     <View style={sharedFinanceStyles.container}>
+      <View style={sharedFinanceStyles.pageHeader}>
+        <Text style={sharedFinanceStyles.pageTitle}>Student Fees</Text>
+        <Text style={sharedFinanceStyles.pageSubtitle}>Collect and track student fee invoices.</Text>
+      </View>
+
       {/* KPI Banner */}
       <View style={styles.kpiBanner}>
         <View style={styles.kpiCol}>
           <Text style={styles.kpiLabel}>Collected Fees</Text>
-          <Text style={[styles.kpiVal, { color: '#F4C430' }]}>{formatINR(totalCollected)}</Text>
+          <Text style={[styles.kpiVal, { color: '#B8860B' }]}>{formatINR(totalCollected)}</Text>
           <Text style={styles.kpiSub}>{studentRecords.filter((r) => r.status === 'paid').length} Paid Invoices</Text>
         </View>
         <View style={styles.kpiDivider} />
         <View style={styles.kpiCol}>
           <Text style={styles.kpiLabel}>Unpaid / Overdue</Text>
-          <Text style={[styles.kpiVal, { color: '#FFFFFF' }]}>{formatINR(totalUnpaid)}</Text>
+          <Text style={[styles.kpiVal, { color: '#DC3545' }]}>{formatINR(totalUnpaid)}</Text>
           <Text style={styles.kpiSub}>{studentRecords.filter((r) => r.status !== 'paid').length} Students Pending</Text>
         </View>
       </View>
@@ -185,7 +190,7 @@ export const StudentFeesView: React.FC = () => {
           <MaterialCommunityIcons
             name="clock-alert-outline"
             size={15}
-            color={statusFilter === 'unpaid' ? '#FFFFFF' : '#6B6B6B'}
+            color={statusFilter === 'unpaid' ? '#171717' : '#6B6B6B'}
           />
           <Text
             numberOfLines={1}
@@ -203,7 +208,7 @@ export const StudentFeesView: React.FC = () => {
           <MaterialCommunityIcons
             name="check-circle-outline"
             size={15}
-            color={statusFilter === 'paid' ? '#FFFFFF' : '#6B6B6B'}
+            color={statusFilter === 'paid' ? '#171717' : '#6B6B6B'}
           />
           <Text
             numberOfLines={1}
@@ -221,7 +226,7 @@ export const StudentFeesView: React.FC = () => {
           <MaterialCommunityIcons
             name="format-list-bulleted"
             size={15}
-            color={statusFilter === 'all' ? '#FFFFFF' : '#6B6B6B'}
+            color={statusFilter === 'all' ? '#171717' : '#6B6B6B'}
           />
           <Text
             numberOfLines={1}
@@ -622,16 +627,18 @@ export const StudentFeesView: React.FC = () => {
 const styles = StyleSheet.create({
   kpiBanner: {
     flexDirection: 'row',
-    backgroundColor: '#171717',
-    borderRadius: 5,
-    padding: 14,
-    marginBottom: 10,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    padding: 16,
+    marginBottom: 12,
   },
   kpiCol: { flex: 1, alignItems: 'center' },
-  kpiDivider: { width: 1, backgroundColor: 'rgba(255,255,255,0.15)' },
-  kpiLabel: { fontSize: 11, color: 'rgba(255,255,255,0.55)', fontWeight: '700', textTransform: 'uppercase' },
-  kpiVal: { fontSize: 18, fontWeight: '800', marginVertical: 2 },
-  kpiSub: { fontSize: 10, color: 'rgba(255,255,255,0.5)' },
+  kpiDivider: { width: 1, backgroundColor: '#E8E5DC', marginVertical: 2 },
+  kpiLabel: { fontSize: 10, color: '#6B7280', fontWeight: '700', textTransform: 'uppercase' },
+  kpiVal: { fontSize: 18, fontWeight: '800', marginVertical: 3 },
+  kpiSub: { fontSize: 10, color: '#9CA3AF' },
 
   tabToggleRow: { flexDirection: 'row', gap: 6, marginBottom: 8 },
   tabToggleBtn: {
@@ -640,34 +647,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 8,
-    borderRadius: 5,
+    borderRadius: 10,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E8E5DC',
     gap: 4,
     overflow: 'hidden',
   },
-  tabToggleActiveUnpaid: { backgroundColor: '#DC3545', borderColor: '#DC3545' },
-  tabToggleActivePaid: { backgroundColor: '#16A34A', borderColor: '#16A34A' },
-  tabToggleActiveAll: { backgroundColor: '#171717', borderColor: '#171717' },
+  tabToggleActiveUnpaid: { backgroundColor: '#F4C430', borderColor: '#F4C430' },
+  tabToggleActivePaid: { backgroundColor: '#F4C430', borderColor: '#F4C430' },
+  tabToggleActiveAll: { backgroundColor: '#F4C430', borderColor: '#F4C430' },
   tabToggleText: {
     fontSize: 11,
     fontWeight: '800',
     color: '#6B6B6B',
     flexShrink: 1,
   },
-  tabToggleTextActive: { color: '#FFFFFF' },
+  tabToggleTextActive: { color: '#171717' },
 
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderRadius: 5,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     borderWidth: 1,
     borderColor: '#E8E5DC',
-    height: 38,
-    marginBottom: 8,
+    height: 42,
+    marginBottom: 10,
   },
   searchInput: { flex: 1, marginLeft: 6, fontSize: 12, color: '#171717' },
 
@@ -681,7 +688,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E8E5DC',
-    borderRadius: 5,
+    borderRadius: 10,
     paddingHorizontal: 12,
     height: 42,
   },
@@ -694,7 +701,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E8E5DC',
-    borderRadius: 5,
+    borderRadius: 10,
     paddingVertical: 4,
     shadowColor: '#171717',
     shadowOffset: { width: 0, height: 6 },
@@ -720,17 +727,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 5,
+    borderRadius: 8,
     gap: 4,
   },
   actionCollectBtnText: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
   reminderBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F7F5EE',
+    backgroundColor: '#F9FAFB',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 5,
+    borderRadius: 8,
     gap: 4,
   },
   reminderBtnText: { fontSize: 11, fontWeight: '700', color: '#6B6B6B' },

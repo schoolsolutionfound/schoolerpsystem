@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Platform } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { useUserStore } from '../../store/useUserStore';
-import { AdmissionHomeHeader } from '../../features/admission/components/AdmissionHomeHeader';
+import { UnifiedHeader } from '../../features/shared/components/layout/UnifiedHeader';
+import { FloatingFooter } from '../../features/shared/components/layout/FloatingFooter';
+import { useDebugTab } from '../../features/shared/hooks/useDebugTab';
 import { AdmissionDrawer } from '../../features/admission/components/AdmissionDrawer';
 import { AdmissionSeatTrackingView } from '../../features/admission/components/AdmissionSeatTrackingView';
 import { AdmissionStudentsView } from '../../features/admission/components/AdmissionStudentsView';
@@ -19,6 +21,7 @@ export default function AdmissionHomeScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ tab?: string }>();
   const [activeTab, setActiveTab] = useState<Tab>((params.tab as Tab) || 'students');
+  useDebugTab('admission', activeTab);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   // Filter pass-through from tracking tab
@@ -43,6 +46,7 @@ export default function AdmissionHomeScreen() {
 
   useEffect(() => {
     if (params.tab && ['students', 'tracking', 'profile'].includes(params.tab)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveTab(params.tab as Tab);
     }
   }, [params.tab]);
@@ -93,14 +97,13 @@ export default function AdmissionHomeScreen() {
     <View style={styles.container}>
       <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
         {/* Unified Kivquo Header with Drawer Menu */}
-        <AdmissionHomeHeader
-          fullName={fullName}
+        <UnifiedHeader
+          userName={fullName}
           profilePic={profilePic}
-          institutionName={institutionName}
           onMenuPress={() => setDrawerOpen(true)}
           onNotificationsPress={() => router.push('/notifications')}
           onProfilePress={() => setActiveTab('profile')}
-          showGreeting={activeTab !== 'profile'}
+          showProfile={activeTab !== 'profile'}
         />
 
         {/* Tab Content View */}
@@ -117,39 +120,17 @@ export default function AdmissionHomeScreen() {
           </TouchableOpacity>
         )}
 
-        {/* Bottom Tab Bar with Kivquo Styling */}
-        <View style={styles.tabBarBg}>
-          <View style={styles.tabBar}>
-            {tabs.map((tab) => {
-              const isActive = activeTab === tab.key;
-              return (
-                <TouchableOpacity
-                  key={tab.key}
-                  style={styles.tabItem}
-                  onPress={() => {
-                    if (tab.key !== 'students') {
-                      setTargetBranchId(undefined);
-                      setTargetStatus(undefined);
-                    }
-                    setActiveTab(tab.key);
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.tabIconBg, isActive && styles.tabIconBgActive]}>
-                    <MaterialCommunityIcons
-                      name={isActive ? (tab.iconFilled as any) : (tab.icon as any)}
-                      size={20}
-                      color={isActive ? '#1A1B1C' : '#8A8A8A'}
-                    />
-                  </View>
-                  <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
-                    {tab.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
+        <FloatingFooter
+          tabs={tabs}
+          activeKey={activeTab}
+          onTabPress={(key) => {
+            if (key !== 'students') {
+              setTargetBranchId(undefined);
+              setTargetStatus(undefined);
+            }
+            setActiveTab(key);
+          }}
+        />
       </SafeAreaView>
 
       {/* Side Drawer Modal */}

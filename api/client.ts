@@ -1,5 +1,6 @@
 import { auth } from '../firebaseConfig';
 import { AppError } from '../utils/errorHandler';
+import { debugLog, debugWarn } from '../utils/debugLogger';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 const getBaseUrl = (): string => {
@@ -63,6 +64,12 @@ export async function apiClient<T = any>(
 
   const baseUrl = getBaseUrl();
   const url = `${baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+  const method = (options.method || 'GET').toUpperCase();
+  const startedAt = Date.now();
+  debugLog('API', `${method} ${endpoint}`, {
+    authenticated: !!currentUser,
+    uid: currentUser?.uid ?? null,
+  });
 
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
   const timeoutMs = 8000;
@@ -87,10 +94,22 @@ export async function apiClient<T = any>(
     if (timeoutId) clearTimeout(timeoutId);
 
     const data = await response.json();
+    debugLog('API', `${method} ${endpoint} response`, {
+      status: response.status,
+      ok: response.ok,
+      durationMs: Date.now() - startedAt,
+      success: data?.success,
+    });
 
     if (!response.ok || data.success === false) {
       const msg = data?.error?.message || `HTTP Error ${response.status}`;
       const code = data?.error?.code || 'API_ERROR';
+      debugWarn('API', `${method} ${endpoint} rejected`, {
+        status: response.status,
+        code,
+        message: msg,
+        durationMs: Date.now() - startedAt,
+      });
       throw new AppError(msg, code, response.status);
     }
 
@@ -99,6 +118,12 @@ export async function apiClient<T = any>(
     if (timeoutId) clearTimeout(timeoutId);
     if (error instanceof AppError) throw error;
     const isTimeout = error.message === 'REQUEST_TIMEOUT';
+    debugWarn('API', `${method} ${endpoint} network failure`, {
+      url,
+      timeout: isTimeout,
+      message: error.message,
+      durationMs: Date.now() - startedAt,
+    });
     console.log(`[API Client Network Info] Fastify API at ${url} ${isTimeout ? 'timed out after 8s' : 'unavailable'} (${error.message}).`);
     throw new AppError(
       isTimeout

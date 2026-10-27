@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { View, StyleSheet, Text, Modal, Animated, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity, Image } from 'react-native';
+import React, { useState } from 'react';
+import { View, StyleSheet, Text, Modal, Animated, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
@@ -7,10 +7,45 @@ import { updatePassword } from 'firebase/auth';
 import { auth } from '../firebaseConfig';
 import { changePasswordApi } from '../api/auth';
 import { useUserStore } from '../store/useUserStore';
-import { BorderRadius } from '../constants/theme';
-import { FontFamily } from '../constants/fonts';
+import { FontFamily, FontSize } from '../constants/fonts';
 import { handleGlobalError } from '../utils/errorHandler';
 import { ChangePasswordForm } from '../features/auth/components/ChangePasswordForm';
+import { ShimmerProvider, ShimmerSkeleton } from '../features/student/components/ShimmerSkeleton';
+
+const PasswordFormSkeleton: React.FC = () => (
+  <ShimmerProvider>
+    <View style={styles.passwordSkeleton}>
+      <View style={styles.strengthSkeletonCard}>
+        <View style={styles.strengthSkeletonHeader}>
+          <ShimmerSkeleton width={112} height={12} borderRadius={4} />
+          <ShimmerSkeleton width={46} height={10} borderRadius={4} />
+        </View>
+        <View style={styles.strengthSkeletonBars}>
+          {[0, 1, 2, 3, 4].map((i) => (
+            <View key={i} style={styles.strengthSkeletonBar}>
+              <ShimmerSkeleton width="100%" height={6} borderRadius={3} />
+            </View>
+          ))}
+        </View>
+        <View style={styles.strengthSkeletonLabels}>
+          {[54, 60, 58, 46, 42].map((w, i) => (
+            <ShimmerSkeleton key={i} width={w} height={8} borderRadius={3} />
+          ))}
+        </View>
+      </View>
+
+      <View style={styles.formSkeleton}>
+        {[0, 1].map((i) => (
+          <View key={i} style={styles.fieldSkeleton}>
+            <ShimmerSkeleton width={i === 0 ? 96 : 118} height={11} borderRadius={4} />
+            <ShimmerSkeleton width="100%" height={52} borderRadius={12} />
+          </View>
+        ))}
+        <ShimmerSkeleton width="100%" height={52} borderRadius={14} />
+      </View>
+    </View>
+  </ShimmerProvider>
+);
 
 export default function ChangePasswordScreen() {
   const router = useRouter();
@@ -21,7 +56,7 @@ export default function ChangePasswordScreen() {
   const [showPassword1, setShowPassword1] = useState(false);
   const [showPassword2, setShowPassword2] = useState(false);
 
-  const scaleAnim = useRef(new Animated.Value(0.8)).current;
+  const [scaleAnim] = useState(() => new Animated.Value(0.8));
 
   const mustChangePassword = useUserStore((state) => state.mustChangePassword);
   const profileCompleted = useUserStore((state) => state.profileCompleted);
@@ -33,11 +68,12 @@ export default function ChangePasswordScreen() {
   const hasNumber = /[0-9]/.test(newPassword);
   const hasSpecial = /[^A-Za-z0-9]/.test(newPassword);
 
-  const passedChecksCount = [hasMinLength, hasUppercase, hasLowercase, hasNumber].filter(Boolean).length;
+  const checks = [hasMinLength, hasUppercase, hasLowercase, hasNumber, hasSpecial];
+  const passedChecksCount = checks.filter(Boolean).length;
   
   let strengthLabel = 'Weak';
   let strengthColor = '#DC2626';
-  if (passedChecksCount === 4 && hasSpecial) {
+  if (passedChecksCount === 5) {
     strengthLabel = 'Very Strong';
     strengthColor = '#16A34A';
   } else if (passedChecksCount === 4) {
@@ -124,20 +160,16 @@ export default function ChangePasswordScreen() {
           <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
             {/* Top Bar */}
             <View style={styles.topBar}>
-              {isFirstLogin ? (
-                <View style={{ width: 40 }} />
-              ) : (
-                <TouchableOpacity
-                  style={styles.backBtn}
-                  onPress={() => router.back()}
-                  activeOpacity={0.7}
-                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                >
-                  <Feather name="arrow-left" size={22} color="#F4C430" />
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity
+                style={styles.backBtn}
+                onPress={() => router.back()}
+                activeOpacity={0.7}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <Feather name="arrow-left" size={22} color="#F4C430" />
+              </TouchableOpacity>
               <Text style={styles.topBarTitle}>
-                {isFirstLogin ? 'Step 1 of 2' : 'Change Password'}
+                {isFirstLogin ? 'Step 2 of 3' : 'Change Password'}
               </Text>
               <View style={{ width: 40 }} />
             </View>
@@ -147,16 +179,13 @@ export default function ChangePasswordScreen() {
               <View style={styles.progressContainer}>
                 <Text style={styles.stepText}>Secure Your Account</Text>
                 <View style={styles.barTrack}>
-                  <View style={[styles.barFill, { width: '50%' }]} />
+                  <View style={[styles.barFill, { width: '67%' }]} />
                 </View>
               </View>
             )}
 
-            {/* Header Card - Library Style */}
+            {/* Header Card - Library Light Style */}
             <View style={styles.headerCard}>
-              <View style={styles.iconCircle}>
-                <MaterialCommunityIcons name="shield-lock-outline" size={30} color="#F4C430" />
-              </View>
               <Text style={styles.title}>
                 {isFirstLogin ? 'Set New Password' : 'Change Password'}
               </Text>
@@ -168,8 +197,12 @@ export default function ChangePasswordScreen() {
               </Text>
             </View>
 
-            {/* Strength Indicator Card */}
-            <View style={styles.strengthCard}>
+            {loading ? (
+              <PasswordFormSkeleton />
+            ) : (
+              <>
+                {/* Strength Indicator Card */}
+                <View style={styles.strengthCard}>
               <View style={styles.strengthHeader}>
                 <Text style={styles.strengthTitle}>Password Strength</Text>
                 <Text style={[styles.strengthLabel, { color: strengthColor }]}>{strengthLabel}</Text>
@@ -179,7 +212,7 @@ export default function ChangePasswordScreen() {
                   <View key={i} style={[
                     styles.strengthBar,
                     check && styles.strengthBarActive,
-                    i === 4 && styles.strengthBarSpecial
+                    check && i === 4 && styles.strengthBarSpecial
                   ]} />
                 ))}
               </View>
@@ -192,7 +225,7 @@ export default function ChangePasswordScreen() {
               </View>
             </View>
 
-            <ChangePasswordForm
+<ChangePasswordForm
               newPassword={newPassword}
               setNewPassword={setNewPassword}
               confirmPassword={confirmPassword}
@@ -209,12 +242,14 @@ export default function ChangePasswordScreen() {
               passedChecksCount={passedChecksCount}
               strengthLabel={strengthLabel}
               strengthColor={strengthColor}
-              loading={loading}
+              loading={false}
               onSubmit={handleContinue}
               submitButtonText={isFirstLogin ? 'Continue to Profile' : 'Update Password'}
-              theme="dark"
+              theme="light"
               hideStrengthMeter
             />
+              </>
+            )}
 
             {/* Footer Hint */}
             <Text style={styles.footerHint}>
@@ -238,7 +273,7 @@ export default function ChangePasswordScreen() {
             </Text>
             <Text style={styles.modalSub}>
               {isFirstLogin
-                ? 'Your password has been secured. Proceeding to profile setup...'
+                ? 'Your password has been secured. Proceeding to the final profile step...'
                 : 'Your password has been updated successfully.'}
             </Text>
           </Animated.View>
@@ -249,7 +284,7 @@ export default function ChangePasswordScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#1A1B1C' },
+  container: { flex: 1, backgroundColor: '#F9FAFB' },
   safe: { flex: 1 },
   flex: { flex: 1 },
   topBar: {
@@ -259,8 +294,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(244,196,48,0.15)',
-    backgroundColor: '#1A1B1C',
+    borderBottomColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
   },
   backBtn: {
     width: 40,
@@ -268,62 +303,63 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(244,196,48,0.10)',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   topBarTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    fontFamily: FontFamily.bold,
-    color: '#F4C430',
+    fontSize: FontSize.screenTitle,
+    fontWeight: '800',
+    fontFamily: FontFamily.extrabold,
+    color: '#111827',
   },
   scroll: { paddingHorizontal: 20, paddingVertical: 14, gap: 20 },
   progressContainer: { gap: 8, marginBottom: 4, paddingHorizontal: 4 },
-  stepText: { fontSize: 12, fontWeight: '700', fontFamily: FontFamily.bold, color: '#F4C430' },
-  barTrack: { height: 5, backgroundColor: 'rgba(244,196,48,0.2)', borderRadius: 2.5, overflow: 'hidden' },
+  stepText: { fontSize: FontSize.caption, fontWeight: '700', fontFamily: FontFamily.bold, color: '#1A1B1C' },
+  barTrack: { height: 5, backgroundColor: '#FDE68A', borderRadius: 2.5, overflow: 'hidden' },
   barFill: { height: '100%', backgroundColor: '#F4C430', borderRadius: 2.5 },
   headerCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#1F1F1F',
-    borderRadius: BorderRadius.card,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
     padding: 20,
     borderWidth: 1,
-    borderColor: 'rgba(244,196,48,0.15)',
-    gap: 16,
+    borderColor: '#E8E5DC',
     shadowColor: '#000',
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 2,
   },
-  iconCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#1A1B1C',
-    borderWidth: 2,
-    borderColor: 'rgba(244,196,48,0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexShrink: 0,
+  title: { fontSize: FontSize.cardTitle, fontWeight: '800', fontFamily: FontFamily.extrabold, color: '#111827' },
+  subtitle: { fontSize: FontSize.sub, color: '#6B7280', lineHeight: 19, marginTop: 2, fontFamily: FontFamily.regular },
+footerHint: {
+    fontSize: FontSize.caption,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    lineHeight: 18,
+    marginTop: 4,
+    paddingHorizontal: 8,
   },
-  title: { fontSize: 22, fontWeight: '800', fontFamily: FontFamily.extrabold, color: '#F4C430' },
-  subtitle: { fontSize: 13, color: '#9CA3AF', lineHeight: 19, marginTop: 2 },
   strengthCard: {
-    backgroundColor: '#1F1F1F',
-    borderRadius: BorderRadius.card,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
     padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(244,196,48,0.10)',
+    borderColor: '#E8E5DC',
     gap: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 2,
   },
   strengthHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  strengthTitle: { fontSize: 13, fontWeight: '700', fontFamily: FontFamily.bold, color: '#E5E7EB' },
-  strengthLabel: { fontSize: 12, fontWeight: '700', fontFamily: FontFamily.bold },
+  strengthTitle: { fontSize: FontSize.sub, fontWeight: '700', fontFamily: FontFamily.bold, color: '#111827' },
+  strengthLabel: { fontSize: FontSize.caption, fontWeight: '600', fontFamily: FontFamily.semibold },
   strengthBars: {
     flexDirection: 'row',
     gap: 6,
@@ -333,36 +369,48 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 6,
     borderRadius: 3,
-    backgroundColor: 'rgba(244,196,48,0.15)',
+    backgroundColor: '#F3F4F6',
   },
   strengthBarActive: { backgroundColor: '#F4C430' },
-  strengthBarSpecial: { backgroundColor: '#16A34A' },
+  strengthBarSpecial: { backgroundColor: '#F4C430' },
   strengthLabels: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 8,
   },
-  strengthBarLabel: { fontSize: 9, color: '#6B6B6B', fontFamily: FontFamily.medium, textAlign: 'center', flex: 1 },
-  footerHint: {
-    fontSize: 12,
-    color: '#6B6B6B',
-    textAlign: 'center',
-    lineHeight: 18,
-    marginTop: 4,
-    paddingHorizontal: 8,
+  strengthBarLabel: { fontSize: 9, color: '#9CA3AF', fontFamily: FontFamily.medium, textAlign: 'center', flex: 1 },
+  passwordSkeleton: { gap: 20 },
+  strengthSkeletonCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    gap: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 2,
   },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.6)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  strengthSkeletonHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  strengthSkeletonBars: { flexDirection: 'row', gap: 6, marginTop: 4 },
+  strengthSkeletonBar: { flex: 1 },
+  strengthSkeletonLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
+  formSkeleton: { gap: 16 },
+  fieldSkeleton: { gap: 6 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 },
   modalCard: { 
-    backgroundColor: '#1F1F1F', 
-    borderRadius: BorderRadius.modal, 
+    backgroundColor: '#FFFFFF', 
+    borderRadius: 14, 
     padding: 28, 
     alignItems: 'center', 
     width: '100%', 
     gap: 14,
     borderWidth: 1,
-    borderColor: 'rgba(244,196,48,0.2)',
+    borderColor: '#E8E5DC',
     shadowColor: '#000',
-    shadowOpacity: 0.5,
+    shadowOpacity: 0.2,
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 8 },
     elevation: 8,
@@ -375,11 +423,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center', 
     alignItems: 'center',
     shadowColor: '#F4C430',
-    shadowOpacity: 0.5,
+    shadowOpacity: 0.3,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 4 },
     elevation: 5,
   },
-  modalTitle: { fontSize: 22, fontWeight: '800', fontFamily: FontFamily.extrabold, color: '#F4C430' },
-  modalSub: { fontSize: 13, color: '#9CA3AF', textAlign: 'center', lineHeight: 20 },
+  modalTitle: { fontSize: FontSize.headerTitle, fontWeight: '800', fontFamily: FontFamily.extrabold, color: '#111827' },
+  modalSub: { fontSize: FontSize.sub, color: '#6B7280', textAlign: 'center', lineHeight: 20, fontFamily: FontFamily.regular },
 });

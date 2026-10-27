@@ -4,7 +4,6 @@ import {
   formatINR,
   getInstitutionName,
   formatGeneratedDate,
-  baseReportCss,
   buildHtmlDocument,
   sharePdf,
 } from '../../shared/utils/pdf/pdfShared';
@@ -252,131 +251,314 @@ export async function generateIncomeExpenseStatementPdf(data: StatementInput): P
 
   const generatedDate = formatGeneratedDate();
 
+  const auditCss = `
+    @page { size: A4 portrait; margin: 12mm; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      color: #111827;
+      background: #FFFFFF;
+      font-size: 11px;
+      line-height: 1.45;
+      margin: 0;
+      padding: 0;
+    }
+    .statement-box {
+      border: 2px solid #E5E7EB;
+      border-radius: 8px;
+      padding: 22px;
+    }
+    .header {
+      text-align: center;
+      border-bottom: 2px solid #FDC836;
+      padding-bottom: 14px;
+      margin-bottom: 16px;
+    }
+    .institution-name {
+      font-size: 22px;
+      font-weight: 800;
+      color: #111827;
+    }
+    .statement-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #111827;
+      background: #FDC836;
+      display: inline-block;
+      padding: 4px 14px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 8px;
+    }
+    .meta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      background: #F9FAFB;
+      border-radius: 6px;
+      padding: 10px 14px;
+      margin-bottom: 16px;
+    }
+    .meta-label {
+      color: #6B7280;
+      font-weight: 600;
+      font-size: 9px;
+      text-transform: uppercase;
+    }
+    .meta-val {
+      font-weight: 700;
+      color: #111827;
+      font-size: 11px;
+      margin-top: 2px;
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    .summary-card {
+      background: #FFFDF0;
+      border: 1px solid #FDE68A;
+      border-radius: 6px;
+      padding: 10px 12px;
+    }
+    .summary-card.expense {
+      background: #FAF8F5;
+      border-color: #E5E7EB;
+    }
+    .summary-card.net {
+      background: #1A1B1C;
+      border-color: #1A1B1C;
+    }
+    .summary-label {
+      font-size: 8px;
+      font-weight: 700;
+      color: #6B7280;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .summary-val {
+      font-size: 15px;
+      font-weight: 800;
+      color: #111827;
+      margin-top: 4px;
+    }
+    .summary-card.net .summary-label,
+    .summary-card.net .summary-val {
+      color: #F4C430;
+    }
+    .section-title {
+      font-size: 12px;
+      font-weight: 800;
+      color: #111827;
+      margin-top: 16px;
+      margin-bottom: 8px;
+      border-left: 4px solid #FDC836;
+      padding-left: 8px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 14px;
+    }
+    thead {
+      display: table-header-group;
+    }
+    th {
+      background: #F3F4F6;
+      color: #111827;
+      font-weight: 700;
+      text-align: left;
+      padding: 8px;
+      border-bottom: 2px solid #E5E7EB;
+      font-size: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    td {
+      padding: 8px;
+      border-bottom: 1px solid #E5E7EB;
+      font-size: 10px;
+      word-break: break-word;
+    }
+    tbody tr:nth-child(even) td {
+      background: #FAFAFA;
+    }
+    tr {
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .sub {
+      color: #6B7280;
+      font-size: 9px;
+    }
+    .amount-income {
+      color: #166534;
+      font-weight: 800;
+    }
+    .amount-expense {
+      color: #B91C1C;
+      font-weight: 800;
+    }
+    .empty-row {
+      text-align: center;
+      color: #6B7280;
+      padding: 12px;
+    }
+    .footer {
+      text-align: center;
+      margin-top: 18px;
+      border-top: 1px solid #E5E7EB;
+      padding-top: 14px;
+      font-size: 9px;
+      color: #6B7280;
+      line-height: 1.6;
+    }
+    .verified-badge {
+      display: inline-block;
+      background: #DCFCE7;
+      color: #166534;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      margin-bottom: 8px;
+    }
+  `;
+
   const html = buildHtmlDocument({
-    title: 'Income & Expense Statement',
-    css: baseReportCss('#10B981'),
+    title: 'Income & Expense Audit Statement',
+    css: auditCss,
     content: `
-  <div class="header">
-    <div>
-      <div class="brand">${escapeHtml(institutionName)}</div>
-      <div class="title">Income & Expense Tally Statement</div>
+  <div class="statement-box">
+    <div class="header">
+      <div class="institution-name">${escapeHtml(institutionName)}</div>
+      <div class="statement-title">Income &amp; Expense Audit Statement</div>
     </div>
-    <div class="meta">
-      <div>Academic Term Financial Summary (Total Displayed Records)</div>
-      <div>Generated: <strong>${escapeHtml(generatedDate)}</strong></div>
-    </div>
-  </div>
 
-  <div class="kpi-grid">
-    <div class="kpi-card" style="background: #F0FDF4; border-color: #BBF7D0;">
-      <div class="kpi-label" style="color: #166534;">Total Displayed Income</div>
-      <div class="kpi-val" style="color: #14532D;">${formatINR(totalIncome)}</div>
+    <div class="meta-grid">
+      <div class="meta-item">
+        <div class="meta-label">Audit Scope</div>
+        <div class="meta-val">All displayed income &amp; expense records</div>
+      </div>
+      <div class="meta-item">
+        <div class="meta-label">Generated On</div>
+        <div class="meta-val">${escapeHtml(generatedDate)}</div>
+      </div>
     </div>
-    <div class="kpi-card" style="background: #FEF2F2; border-color: #FECACA;">
-      <div class="kpi-label" style="color: #991B1B;">Total Displayed Expenditure</div>
-      <div class="kpi-val" style="color: #7F1D1D;">${formatINR(totalExpense)}</div>
-    </div>
-    <div class="kpi-card" style="background: ${netTally >= 0 ? '#EFF6FF' : '#FEF2F2'}; border-color: ${netTally >= 0 ? '#BFDBFE' : '#FECACA'};">
-      <div class="kpi-label" style="color: ${netTally >= 0 ? '#1E40AF' : '#991B1B'};">Net Balance Surplus / (Deficit)</div>
-      <div class="kpi-val" style="color: ${netTally >= 0 ? '#1E3A8A' : '#7F1D1D'};">${formatINR(netTally)}</div>
-    </div>
-  </div>
 
-  <div class="section-title">Income Collections Summary (${incomeRecords.length} Records)</div>
-  <table>
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>Date</th>
-        <th>Particulars / Title</th>
-        <th>Category</th>
-        <th>Payment Mode</th>
-        <th style="text-align: right;">Amount</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${
-        incomeRecords.length === 0
-          ? `<tr><td colspan="6" style="text-align: center; color: #6B7280; padding: 12px;">No income records registered for this period.</td></tr>`
-          : incomeRecords
-              .map(
-                (inc, idx) => {
-                  // B10: Safe null / undefined category check
-                  const categoryDisplay = inc.category
-                    ? String(inc.category).replace(/_/g, ' ').toUpperCase()
-                    : '—';
-                  const dateDisplay = inc.paymentDate || inc.dueDate || '—';
-                  const titleDisplay = inc.title || 'Income Record';
-                  const payerDisplay = inc.payerName || '—';
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="summary-label">Total Income</div>
+        <div class="summary-val">${formatINR(totalIncome)}</div>
+      </div>
+      <div class="summary-card expense">
+        <div class="summary-label">Total Expenditure</div>
+        <div class="summary-val">${formatINR(totalExpense)}</div>
+      </div>
+      <div class="summary-card net">
+        <div class="summary-label">Net Balance</div>
+        <div class="summary-val">${formatINR(netTally)}</div>
+      </div>
+    </div>
 
-                  return `
+    <div class="section-title">Income Collections Summary (${incomeRecords.length} Records)</div>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Date</th>
+          <th>Particulars / Title</th>
+          <th>Category</th>
+          <th>Payment Mode</th>
+          <th style="text-align: right;">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${
+          incomeRecords.length === 0
+            ? `<tr><td colspan="6" class="empty-row">No income records registered for this period.</td></tr>`
+            : incomeRecords
+                .map(
+                  (inc, idx) => {
+                    // B10: Safe null / undefined category check
+                    const categoryDisplay = inc.category
+                      ? String(inc.category).replace(/_/g, ' ').toUpperCase()
+                      : '—';
+                    const dateDisplay = inc.paymentDate || inc.dueDate || '—';
+                    const titleDisplay = inc.title || 'Income Record';
+                    const payerDisplay = inc.payerName || '—';
+
+                    return `
           <tr>
             <td>${idx + 1}</td>
             <td>${escapeHtml(dateDisplay)}</td>
-            <td><strong>${escapeHtml(titleDisplay)}</strong><br/><small>${escapeHtml(payerDisplay)}</small></td>
+            <td><strong>${escapeHtml(titleDisplay)}</strong><br/><small class="sub">${escapeHtml(payerDisplay)}</small></td>
             <td>${escapeHtml(categoryDisplay)}</td>
             <td>${escapeHtml((inc.paymentMethod || 'CASH').toUpperCase())}</td>
-            <td style="text-align: right; font-weight: 700; color: #059669;">${formatINR(inc.amount)}</td>
+            <td style="text-align: right;" class="amount-income">${formatINR(inc.amount)}</td>
           </tr>
         `;
-                }
-              )
-              .join('')
-      }
-    </tbody>
-  </table>
+                  }
+                )
+                .join('')
+        }
+      </tbody>
+    </table>
 
-  <div class="section-title" style="margin-top: 20px;">Expenses & Disbursements Summary (${expenseRecords.length} Records)</div>
-  <table>
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>Date</th>
-        <th>Title / Vendor</th>
-        <th>Category</th>
-        <th>Mode</th>
-        <th style="text-align: right;">Amount</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${
-        expenseRecords.length === 0
-          ? `<tr><td colspan="6" style="text-align: center; color: #6B7280; padding: 12px;">No expense records registered for this period.</td></tr>`
-          : expenseRecords
-              .map(
-                (exp, idx) => {
-                  // B10: Safe null / undefined category check
-                  const categoryDisplay = exp.category
-                    ? String(exp.category).replace(/_/g, ' ').toUpperCase()
-                    : '—';
-                  const dateDisplay = exp.paymentDate || exp.dueDate || '—';
-                  const titleDisplay = exp.title || 'Expense Record';
-                  const payeeDisplay = exp.payeeName || 'N/A';
+    <div class="section-title">Expenses &amp; Disbursements Summary (${expenseRecords.length} Records)</div>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Date</th>
+          <th>Title / Vendor</th>
+          <th>Category</th>
+          <th>Mode</th>
+          <th style="text-align: right;">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${
+          expenseRecords.length === 0
+            ? `<tr><td colspan="6" class="empty-row">No expense records registered for this period.</td></tr>`
+            : expenseRecords
+                .map(
+                  (exp, idx) => {
+                    // B10: Safe null / undefined category check
+                    const categoryDisplay = exp.category
+                      ? String(exp.category).replace(/_/g, ' ').toUpperCase()
+                      : '—';
+                    const dateDisplay = exp.paymentDate || exp.dueDate || '—';
+                    const titleDisplay = exp.title || 'Expense Record';
+                    const payeeDisplay = exp.payeeName || 'N/A';
 
-                  return `
+                    return `
           <tr>
             <td>${idx + 1}</td>
             <td>${escapeHtml(dateDisplay)}</td>
-            <td><strong>${escapeHtml(titleDisplay)}</strong><br/><small>${escapeHtml(payeeDisplay)}</small></td>
+            <td><strong>${escapeHtml(titleDisplay)}</strong><br/><small class="sub">${escapeHtml(payeeDisplay)}</small></td>
             <td>${escapeHtml(categoryDisplay)}</td>
             <td>${escapeHtml((exp.paymentMethod || 'BANK').toUpperCase())}</td>
-            <td style="text-align: right; font-weight: 700; color: #DC2626;">${formatINR(exp.amount)}</td>
+            <td style="text-align: right;" class="amount-expense">${formatINR(exp.amount)}</td>
           </tr>
         `;
-                }
-              )
-              .join('')
-      }
-    </tbody>
-  </table>
+                  }
+                )
+                .join('')
+        }
+      </tbody>
+    </table>
 
-  <div class="footer">
-    <div>${escapeHtml(institutionName)} • Financial Ledger Statement</div>
-    <div>Confidential — For Internal Financial Audit Use Only</div>
+    <div class="footer">
+      <div class="verified-badge">&#10003; Digitally Verified &amp; Audited</div>
+      <div>${escapeHtml(institutionName)} &bull; Official Income &amp; Expense Statement</div>
+      <div>Generated on ${escapeHtml(generatedDate)} &bull; For internal financial audit use</div>
+    </div>
   </div>
     `,
   });
 
-  await sharePdf(html, 'Download Financial Tally Statement');
+  await sharePdf(html, 'Download Audit Statement');
 }
 

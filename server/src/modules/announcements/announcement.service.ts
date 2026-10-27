@@ -39,6 +39,28 @@ export function isAnnouncementManager(role: string | undefined): boolean {
   return MANAGER_ROLES.has(normalizeAnnouncementRole(role));
 }
 
+function targetsIncludeViewer(
+  targets: Array<{ targetType?: string | null; targetRole?: string | null; classId?: string | null; sectionId?: string | null }>,
+  role: string,
+  classSectionIds: string[]
+): boolean {
+  if (targets.length === 0) return true;
+  const normalizedRole = normalizeAnnouncementRole(role);
+  return targets.some((t) => {
+    if (t.targetType === 'all') return true;
+    if (t.targetType === 'role' || t.targetRole) {
+      const targetRole = (t.targetRole || '').toLowerCase().trim();
+      if (targetRole === 'all' || targetRole === normalizedRole) return true;
+      if (targetRole === 'staff' && ['admin', 'teacher', 'hod', 'principal', 'librarian', 'accountant', 'staff'].includes(normalizedRole)) return true;
+    }
+    if (t.targetType === 'class' || t.targetType === 'section' || t.classId || t.sectionId) {
+      const targetClass = t.classId || t.sectionId;
+      if (targetClass && classSectionIds.includes(targetClass)) return true;
+    }
+    return false;
+  });
+}
+
 export class AnnouncementService {
   /**
    * Helper date validation.
@@ -364,6 +386,15 @@ export class AnnouncementService {
     const isOwn = !!userId && item.createdBy === userId;
     if (item.status !== 'PUBLISHED' && !isAnnouncementManager(role) && !isOwn) {
       throw new AppError('Announcement not found', 'NOT_FOUND', 404);
+    }
+
+    if (item.status === 'PUBLISHED' && !isAnnouncementManager(role) && !isOwn) {
+      const classSectionIds = userId
+        ? await this.resolveViewerClassSections(institutionCode, userId, role || 'student')
+        : [];
+      if (!targetsIncludeViewer(item.targets || [], role || '', classSectionIds)) {
+        throw new AppError('Announcement not found', 'NOT_FOUND', 404);
+      }
     }
 
     return item;

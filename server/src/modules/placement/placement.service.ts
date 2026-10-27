@@ -17,7 +17,9 @@ import {
   ApplyDriveInput,
   UpdateApplicationStatusInput,
 } from './placement.schema.js';
-import { AuthenticatedUser } from '../shared/middleware/auth.js';
+import { AuthenticatedUser, normalizeRole } from '../shared/middleware/auth.js';
+
+const PLACEMENT_ELIGIBLE_ROLES = new Set(['teacher', 'hod', 'admin', 'placement_officer']);
 
 function validateFirebaseStorageUrl(url: string) {
   if (!url) return;
@@ -44,6 +46,9 @@ export class PlacementService {
     const targetUser = await dbFindUserByIdOrUid(payload.userId);
     if (!targetUser || targetUser.institutionCode !== currentUser.institutionCode) {
       throw { statusCode: 404, code: 'NOT_FOUND', message: 'User not found in this institution' };
+    }
+    if (!PLACEMENT_ELIGIBLE_ROLES.has(normalizeRole(targetUser.role))) {
+      throw { statusCode: 400, code: 'INVALID_MEMBER_ROLE', message: 'Only teaching or administrative staff can join the placement cell' };
     }
 
     const existing = await db.query.placementMembers.findFirst({

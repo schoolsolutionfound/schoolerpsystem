@@ -321,6 +321,11 @@ export const ExpenseManagementView: React.FC = () => {
 
   return (
     <View style={sharedFinanceStyles.container}>
+      <View style={sharedFinanceStyles.pageHeader}>
+        <Text style={sharedFinanceStyles.pageTitle}>Expense Ledger</Text>
+        <Text style={sharedFinanceStyles.pageSubtitle}>Record and track school expenses.</Text>
+      </View>
+
       {/* Summary Strip */}
       <View style={styles.summaryCard}>
         <View style={styles.summaryCell}>
@@ -1156,11 +1161,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 5,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: '#E8E5DC',
-    paddingVertical: 12,
-    marginBottom: 10,
+    paddingVertical: 14,
+    marginBottom: 12,
   },
   summaryCell: { flex: 1, alignItems: 'center', paddingHorizontal: 4 },
   summaryNum: { fontSize: 14, fontWeight: '800', color: '#171717' },
@@ -1183,7 +1188,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E8E5DC',
-    borderRadius: 5,
+    borderRadius: 10,
     paddingHorizontal: 12,
     height: 42,
   },
@@ -1196,7 +1201,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E8E5DC',
-    borderRadius: 5,
+    borderRadius: 10,
     paddingVertical: 4,
     shadowColor: '#171717',
     shadowOffset: { width: 0, height: 6 },
@@ -1331,9 +1336,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E8E5DC',
   },
-  dayChipActive: { backgroundColor: '#171717', borderColor: '#171717' },
+  dayChipActive: { backgroundColor: '#F4C430', borderColor: '#F4C430' },
   dayChipText: { fontSize: 12, fontWeight: '700', color: '#171717' },
-  dayChipTextActive: { color: '#FFFFFF' },
+  dayChipTextActive: { color: '#171717' },
   hintText: {
     fontSize: 11,
     color: '#6B6B6B',

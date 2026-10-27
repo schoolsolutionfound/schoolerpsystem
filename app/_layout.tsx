@@ -11,7 +11,7 @@ import {
 } from '@expo-google-fonts/montserrat';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, Platform, LogBox } from 'react-native';
+import { View, Text, StyleSheet, Platform, LogBox, AppState } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 
@@ -28,6 +28,26 @@ import { usePushNotifications } from '../features/shared/hooks/usePushNotificati
 import { useAppSync } from '../features/shared/hooks/useAppSync';
 import { FontFamily } from '../constants/fonts';
 import { fetchInstitutionConfigApi } from '../api/admin';
+import { debugLog } from '../utils/debugLogger';
+import { getApiBaseUrl } from '../api/client';
+
+const DEBUG_APP = __DEV__;
+
+let institutionConfigRequest: Promise<any> | null = null;
+
+function getInstitutionConfigRequest() {
+  if (institutionConfigRequest) return institutionConfigRequest;
+
+  const request = fetchInstitutionConfigApi();
+  institutionConfigRequest = request;
+  const clear = () => {
+    if (institutionConfigRequest === request) {
+      institutionConfigRequest = null;
+    }
+  };
+  request.then(clear, clear);
+  return request;
+}
 
 const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
@@ -102,11 +122,101 @@ const AppLayout = function Layout() {
   const minVersion = configMaintenance.minVersion;
   const [isMCheckLoading, setIsMCheckLoading] = useState(true);
   const isSplashHidden = useRef(false);
+  const appStateRef = useRef(AppState.currentState);
   const institutionCode = useUserStore((state) => state.institutionCode);
   const setMaintenance = useConfigStore((state) => state.setMaintenance);
   const maintenanceConfigFetchedRef = useRef(false);
 
   const CURRENT_APP_VERSION = Constants.expoConfig?.version || '1.0.0';
+
+  useEffect(() => {
+    if (!DEBUG_APP) return;
+    debugLog('APP', 'layout mounted', {
+      platform: Platform.OS,
+      appVersion: CURRENT_APP_VERSION,
+      expoVersion: Constants.expoConfig?.sdkVersion ?? null,
+      executionEnvironment: Constants.executionEnvironment,
+      apiBaseUrl: getApiBaseUrl(),
+      initialAppState: AppState.currentState,
+    });
+
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      const previousState = appStateRef.current;
+      appStateRef.current = nextState;
+      debugLog('APP', 'state changed', {
+        from: previousState,
+        to: nextState,
+        userRole: useUserStore.getState().userRole,
+      });
+    });
+
+    return () => subscription.remove();
+  }, [CURRENT_APP_VERSION]);
+
+  useEffect(() => {
+    if (!DEBUG_APP) return;
+    const errorUtils = (global as any).ErrorUtils;
+    if (!errorUtils?.setGlobalHandler) return;
+
+    const previousHandler = errorUtils.getGlobalHandler?.();
+    errorUtils.setGlobalHandler((error: any, isFatal?: boolean) => {
+      try {
+        debugLog('ERROR', 'global JS error', {
+          isFatal: !!isFatal,
+          message: error?.message ?? String(error),
+          stack: error?.stack ?? null,
+        });
+      } finally {
+        previousHandler?.(error, isFatal);
+      }
+    });
+
+    return () => {
+      if (previousHandler) errorUtils.setGlobalHandler(previousHandler);
+    };
+  }, []);
+
+  const routeDebugKey = segments.join('/');
+  useEffect(() => {
+    if (!DEBUG_APP) return;
+    debugLog('NAV', 'route changed', {
+      pathname,
+      segments: routeDebugKey,
+      activeGroup: activeGroup ?? null,
+      userRole,
+      profileSynced: isProfileSynced,
+      uid: userSession?.uid ?? null,
+    });
+  }, [pathname, routeDebugKey, activeGroup, userRole, isProfileSynced, userSession?.uid]);
+
+  useEffect(() => {
+    if (!DEBUG_APP) return;
+    const unsubscribe = useUserStore.subscribe((state, previousState) => {
+      const changes: Record<string, unknown> = {};
+      const keys: (keyof typeof state)[] = [
+        'userRole',
+        'isProfileSynced',
+        'profileExists',
+        'profileCompleted',
+        'mustChangePassword',
+        'isEmailVerified',
+        'institutionCode',
+        'institutionName',
+        'institutionType',
+        'placementAccess',
+        'fullName',
+      ];
+      for (const key of keys) {
+        if (state[key] !== previousState[key]) {
+          changes[key] = { from: previousState[key], to: state[key] };
+        }
+      }
+      if (Object.keys(changes).length > 0) {
+        debugLog('STORE', 'profile state changed', changes);
+      }
+    });
+    return unsubscribe;
+  }, []);
 
   const validateAndRedirect = useCallback((data: any) => {
     if (!data?.screen) return;
@@ -163,41 +273,37 @@ const AppLayout = function Layout() {
   usePushNotifications();
   useAppSync(userSession);
 
-  useAuthGuard({
-    userSession,
-    userRole,
-    pathname,
-    activeGroup,
-    authLoading,
-    _hasHydrated,
-    isProfileSynced,
-  });
-
   useEffect(() => {
     let cancelled = false;
 
     const applyMaintenanceConfig = async () => {
       if (!institutionCode) {
+        if (__DEV__) console.log('[BOOT] maintenance skipped: no institutionCode');
         if (!cancelled) setIsMCheckLoading(false);
         return;
       }
       if (maintenanceConfigFetchedRef.current) {
+        if (__DEV__) console.log('[BOOT] maintenance already fetched, unblocking');
         if (!cancelled) setIsMCheckLoading(false);
         return;
       }
       maintenanceConfigFetchedRef.current = true;
+      if (__DEV__) console.log('[BOOT] maintenance fetch start', { institutionCode });
       try {
-        const res = await fetchInstitutionConfigApi();
+        const res = await getInstitutionConfigRequest();
         const data = res?.data;
+        if (__DEV__) console.log('[BOOT] maintenance fetch success', { enabled: data?.maintenanceEnabled, minVersion: data?.maintenanceMinVersion });
         if (!cancelled && data) {
           setMaintenance(
             data.maintenanceEnabled ?? false,
             data.maintenanceMinVersion || '0.0.0'
           );
         }
-      } catch {
+      } catch (error) {
+        if (__DEV__) console.warn('[BOOT] maintenance fetch failed, continuing', error);
         // Ignore maintenance config fetch failures — app continues with local defaults.
       } finally {
+        if (__DEV__) console.log('[BOOT] maintenance check finished, unblocking');
         if (!cancelled) setIsMCheckLoading(false);
       }
     };
@@ -210,6 +316,7 @@ const AppLayout = function Layout() {
     }, Platform.OS === 'web' ? 5000 : 8000);
 
     const unsubAuth = onAuthStateChanged(auth, (user) => {
+      if (__DEV__) console.log('[BOOT] firebase auth resolved', { authenticated: !!user, uid: user?.uid ?? null });
       setUserSession(user);
       if (!user) {
         setIsProfileSynced(false);
@@ -267,6 +374,50 @@ const AppLayout = function Layout() {
   });
 
   const needsUpdate = compareVersions(CURRENT_APP_VERSION, minVersion) === -1;
+  const isBootReady = (loaded || !!fontError) && !isMCheckLoading && _hasHydrated && !authLoading;
+
+  useAuthGuard({
+    userSession,
+    userRole,
+    pathname,
+    activeGroup,
+    authLoading,
+    _hasHydrated,
+    isProfileSynced,
+    isBootReady,
+  });
+
+  const bootGateLogRef = useRef('');
+  useEffect(() => {
+    if (!__DEV__) return;
+
+    const snapshot = {
+      pathname,
+      fontsLoaded: loaded,
+      fontError: fontError ? String(fontError) : null,
+      maintenanceCheckLoading: isMCheckLoading,
+      hydrated: _hasHydrated,
+      authLoading,
+      profileSynced: isProfileSynced,
+      userRole,
+      uid: userSession?.uid ?? null,
+      isMaintenance,
+      needsUpdate,
+    };
+    const key = JSON.stringify(snapshot);
+    if (bootGateLogRef.current !== key) {
+      bootGateLogRef.current = key;
+      console.log('[BOOT] gate state', snapshot);
+    }
+
+    const isGated = (!loaded && !fontError) || isMCheckLoading || !_hasHydrated || authLoading;
+    if (!isGated) return;
+
+    const interval = setInterval(() => {
+      console.warn('[BOOT] still waiting on startup gates', snapshot);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [pathname, loaded, fontError, isMCheckLoading, _hasHydrated, authLoading, isProfileSynced, userRole, userSession?.uid, isMaintenance, needsUpdate]);
 
   const onLayoutRootView = useCallback(async () => {
     if (isSplashHidden.current) return;

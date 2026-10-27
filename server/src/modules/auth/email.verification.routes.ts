@@ -2,7 +2,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { authenticate } from '../shared/middleware/auth.js';
 import { emailVerificationService } from '../notifications/email.service.js';
-import { findUserByUid, findUserByEmail, markUserEmailVerified } from '../notifications/email.repository.js';
+import { findUserByUid, findUserByEmail } from '../notifications/email.repository.js';
 
 // ============================================================================
 // Email Verification Routes (Phase 2 — OTP)
@@ -17,7 +17,6 @@ import { findUserByUid, findUserByEmail, markUserEmailVerified } from '../notifi
 // ============================================================================
 
 const VerifySchema = z.object({ code: z.string().min(1) });
-const ResendSchema = z.object({ email: z.string().email().optional() });
 
 export async function emailVerificationRoutes(fastify: FastifyInstance) {
   // Authenticated: submit the 6-digit OTP.
@@ -42,14 +41,7 @@ export async function emailVerificationRoutes(fastify: FastifyInstance) {
       return reply.status(400).send({ success: false, error: { message: 'No email address on file.', code: 'NO_EMAIL' } });
     }
 
-    // TEMPORARY bypass: 123456 always verifies, no emailed code required.
-    // The real OTP flow below is untouched — remove this block before launch.
-    if (parsed.data.code === '123456') {
-      await markUserEmailVerified(user.uid);
-      return reply.send({ success: true, data: { verified: true, email: targetEmail } });
-    }
-
-    const result = await emailVerificationService.verifyOtp(targetEmail, parsed.data.code);
+    const result = await emailVerificationService.verifyOtp(targetEmail, parsed.data.code, user.uid);
 
     if (!result.ok) {
       // LOCKED/EXPIRED are terminal for this code; INVALID is retryable.
@@ -63,25 +55,22 @@ export async function emailVerificationRoutes(fastify: FastifyInstance) {
     return reply.send({ success: true, data: { verified: true, email: result.email } });
   });
 
-  // Authenticated: resend to the signed-in account (or a supplied address).
+  // Authenticated: resend to the signed-in account. The address is always
+  // derived server-side, so this endpoint cannot be used to mail arbitrary
+  // addresses through the institution's SES identity.
   fastify.post('/verify-email/resend', { preHandler: [authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const user = request.user;
     if (!user) {
       return reply.status(401).send({ success: false, error: { message: 'Unauthorized', code: 'UNAUTHORIZED' } });
     }
 
-    const parsed = ResendSchema.safeParse(request.body || {});
-    if (!parsed.success) {
-      return reply.status(400).send({ success: false, error: { message: 'Invalid request body', code: 'INVALID_REQUEST' } });
-    }
-
-    const targetEmail = (parsed.data.email || user.email || '').trim().toLowerCase();
+    const dbUser = await findUserByUid(user.uid);
+    const targetEmail = (dbUser?.email || user.email || '').trim().toLowerCase();
     if (!targetEmail) {
       return reply.status(400).send({ success: false, error: { message: 'No email address on file.', code: 'NO_EMAIL' } });
     }
 
     // Resolve institution + name for branding; fall back to the session tenant.
-    const dbUser = await findUserByUid(user.uid);
     const institutionCode = dbUser?.institutionCode || user.institutionCode || '';
     const institutionName = dbUser?.institutionName || '';
 

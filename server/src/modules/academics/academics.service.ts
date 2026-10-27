@@ -1193,7 +1193,7 @@ export class AcademicsService {
 
   public async getClassSectionStudents(institutionCode: string, classSectionId: string) {
     const classSection = await academicsRepository.getClassSectionById(classSectionId);
-    if (!classSection) {
+    if (!classSection || classSection.institutionCode.toLowerCase() !== institutionCode.toLowerCase()) {
       throw { statusCode: 404, code: 'CLASS_SECTION_NOT_FOUND', message: 'Class section not found' };
     }
 

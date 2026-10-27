@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   ScrollView,
   Animated,
-  Dimensions,
   Easing,
   Image,
   useWindowDimensions,
@@ -41,7 +40,7 @@ const PRIMARY = [
   { key: 'feedback', label: 'Teacher Feedback', icon: 'star-box-outline', iconFilled: 'star-box', tab: 'feedback' as const },
   { key: 'schedule', label: 'Schedule', icon: 'calendar-outline', iconFilled: 'calendar', tab: 'schedule' as const },
   { key: 'library', label: 'Library', icon: 'book-open-page-variant-outline', iconFilled: 'book-open-page-variant', tab: 'library' as const },
-  { key: 'feedback', label: 'Feedback', icon: 'message-draw', route: '/(student)/feedback' },
+  { key: 'feedback-page', label: 'Feedback', icon: 'message-draw', route: '/(student)/feedback' },
 ];
 
 const SECONDARY = [

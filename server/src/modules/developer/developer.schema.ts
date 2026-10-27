@@ -11,6 +11,7 @@ export const ADMIN_ROLES = [
   'librarian',
   'driver',
   'admission_officer',
+  'placement_officer',
 ] as const;
 
 export const adminRoleEnum = z.enum(ADMIN_ROLES);

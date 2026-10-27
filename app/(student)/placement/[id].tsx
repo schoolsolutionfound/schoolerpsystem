@@ -44,7 +44,10 @@ export default function DriveDetailsScreen() {
   };
 
   useEffect(() => {
-    if (id) fetchData();
+    if (id) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      fetchData();
+    }
   }, [id]);
 
   if (loading) {

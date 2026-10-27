@@ -6,6 +6,7 @@ import { BorderRadius } from '../../../constants/theme';
 import { resetUserPasswordApi, fetchFeesApi } from '../../../api/admin';
 import { DropdownSelect } from './DropdownSelect';
 import { BulkImportModal } from './BulkImportModal';
+import { AdminMemberDetailSheet } from './AdminMemberDetailSheet';
 import { SCHOOL_ROLE_OPTIONS, COLLEGE_ROLE_OPTIONS } from '../../shared/academicStructure';
 
 // Roles with their own dedicated workspace (Add Student / Add Teacher / Add
@@ -79,6 +80,7 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [modalOpen, setModalOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [detailUser, setDetailUser] = useState<UserItem | null>(null);
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -91,7 +93,6 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
   const [feeStructures, setFeeStructures] = useState<FeeStructureItem[]>([]);
   const [selectedFeeIds, setSelectedFeeIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  const [resettingId, setResettingId] = useState<string | null>(null);
 
   const roleOptions = institutionType === 'college' ? COLLEGE_ROLE_OPTIONS : SCHOOL_ROLE_OPTIONS;
   const isOfficer = role === 'admission_officer';
@@ -206,7 +207,6 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
           text: 'Reset',
           style: 'destructive',
           onPress: async () => {
-            setResettingId(u.id);
             try {
               const res: any = await resetUserPasswordApi(u.id);
               const message = res?.tempPassword
@@ -217,14 +217,46 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
               Alert.alert('Password Reset', message);
             } catch (err: any) {
               Alert.alert('Error', err.message || 'Failed to reset password');
-            } finally {
-              setResettingId(null);
             }
           },
         },
       ]
     );
   };
+
+  const detailRole = detailUser?.role
+    ? detailUser.role.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
+    : '';
+
+  const detailSections = detailUser
+    ? [
+        {
+          title: 'Account Info',
+          rows: [
+            { label: 'Role', value: detailRole },
+            { label: 'Title', value: detailUser.title },
+            { label: 'Roll No / USN', value: detailUser.rollNoOrUSN },
+            { label: 'Department', value: detailUser.department },
+            { label: 'Scope', value: detailUser.scope },
+          ],
+        },
+      ]
+    : [];
+
+  const detailActions = detailUser
+    ? [
+        {
+          label: 'Reset Password',
+          icon: 'key-variant',
+          color: '#D97706',
+          onPress: () => {
+            const user = detailUser;
+            setDetailUser(null);
+            handleResetPassword(user);
+          },
+        },
+      ]
+    : [];
 
   return (
     <View style={styles.container}>
@@ -294,7 +326,12 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
               u.department,
             ].filter(Boolean);
             return (
-              <View key={u.id} style={styles.userCard}>
+              <TouchableOpacity
+                key={u.id}
+                style={styles.userCard}
+                onPress={() => setDetailUser(u)}
+                activeOpacity={0.7}
+              >
                 <View style={styles.avatarCircle}>
                   <Text style={styles.avatarText}>{u.fullName.substring(0, 2).toUpperCase()}</Text>
                 </View>
@@ -303,19 +340,8 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
                   <Text style={styles.userEmail}>{u.email}</Text>
                   {userMeta.length > 0 && <Text style={styles.userMeta}>{userMeta.join('  ·  ')}</Text>}
                 </View>
-                <TouchableOpacity
-                  style={styles.resetPwdBtn}
-                  onPress={() => handleResetPassword(u)}
-                  disabled={resettingId === u.id}
-                  accessibilityLabel={`Reset password for ${u.fullName}`}
-                >
-                  <MaterialCommunityIcons
-                    name={resettingId === u.id ? 'loading' : 'key-variant'}
-                    size={18}
-                    color="#6B6B6B"
-                  />
-                </TouchableOpacity>
-              </View>
+                <MaterialCommunityIcons name="chevron-right" size={20} color="#C9C5B8" />
+              </TouchableOpacity>
             );
           })
         )}
@@ -327,6 +353,15 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
           </TouchableOpacity>
         )}
       </ScrollView>
+
+      <AdminMemberDetailSheet
+        visible={!!detailUser}
+        onClose={() => setDetailUser(null)}
+        fullName={detailUser?.fullName || ''}
+        email={detailUser?.email || ''}
+        sections={detailSections}
+        actions={detailActions}
+      />
 
       <Modal visible={modalOpen} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
@@ -549,14 +584,13 @@ const styles = StyleSheet.create({
   emptySub: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B6B6B', textAlign: 'center', marginTop: 4, lineHeight: 16 },
   userCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 10,
     padding: 14,
     borderWidth: 1,
     borderColor: '#E8E5DC',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
   },
   avatarCircle: {
     width: 44,
@@ -571,16 +605,7 @@ const styles = StyleSheet.create({
   userName: { fontSize: 14, fontWeight: '700', fontFamily: FontFamily.bold, color: '#1A1B1C' },
   userEmail: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B6B6B', marginTop: 1 },
   userMeta: { fontSize: 11, fontFamily: FontFamily.regular, color: '#9CA3AF', marginTop: 3 },
-  resetPwdBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E8E5DC',
-  },
+
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
   modalContent: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 20, gap: 14, borderWidth: 1, borderColor: '#E8E5DC', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 8 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

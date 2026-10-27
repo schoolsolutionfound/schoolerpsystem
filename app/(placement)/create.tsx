@@ -24,7 +24,7 @@ export default function CreatePlacementDriveScreen() {
   const navigation = useNavigation();
   const [loading, setLoading] = useState(false);
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(() => ({
     companyName: '',
     title: '',
     description: '',
@@ -34,7 +34,7 @@ export default function CreatePlacementDriveScreen() {
     minCgpa: '',
     maxBacklogs: '0',
     applyDeadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-  });
+  }));
 
   const [rounds, setRounds] = useState<{ name: string; description: string }[]>([
     { name: 'Online Assessment', description: 'Aptitude & Coding Test' },

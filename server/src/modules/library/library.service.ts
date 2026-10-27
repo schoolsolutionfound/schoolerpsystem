@@ -596,6 +596,25 @@ export class LibraryService {
     let copy = null;
     if (input.bookCopyId) {
       copy = await libraryRepository.getCopyById(input.bookCopyId);
+      if (!copy || copy.institutionCode.toLowerCase() !== institutionCode.toLowerCase()) {
+        throw { statusCode: 404, code: 'COPY_NOT_FOUND', message: 'Physical copy record not found' };
+      }
+    }
+
+    if (input.loanId) {
+      const loan = await libraryRepository.getLoanById(input.loanId);
+      if (!loan || loan.institutionCode.toLowerCase() !== institutionCode.toLowerCase()) {
+        throw { statusCode: 404, code: 'LOAN_NOT_FOUND', message: 'Loan record not found' };
+      }
+      if (loan.studentId !== input.studentId || (input.bookCopyId && loan.copyId !== input.bookCopyId)) {
+        throw { statusCode: 400, code: 'LOAN_MISMATCH', message: 'Loan does not match the selected member or copy' };
+      }
+      if (!copy) {
+        copy = await libraryRepository.getCopyById(loan.copyId);
+        if (!copy || copy.institutionCode.toLowerCase() !== institutionCode.toLowerCase()) {
+          throw { statusCode: 404, code: 'COPY_NOT_FOUND', message: 'Physical copy record not found' };
+        }
+      }
     }
 
     const isPaid = input.isPaid === true;
@@ -613,7 +632,7 @@ export class LibraryService {
         {
           institutionCode,
           studentId: input.studentId,
-          bookCopyId: input.bookCopyId || null,
+          bookCopyId: copy?.id || null,
           loanId: input.loanId || null,
           fineType,
           damageType: input.damageType,

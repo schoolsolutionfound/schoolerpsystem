@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Alert } from 'react-native';
+import { View, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -9,6 +9,10 @@ import { DeveloperDashboardContent } from '../../features/developer/components/D
 import { InstitutionListScreen } from '../../features/developer/screens/InstitutionListScreen';
 import { DeveloperAdminsContent } from '../../features/developer/components/DeveloperAdminsContent';
 import { DeveloperProfileContent } from '../../features/developer/components/DeveloperProfileContent';
+import { DeveloperMenuDrawer } from '../../features/developer/components/DeveloperMenuDrawer';
+import { UnifiedHeader } from '../../features/shared/components/layout/UnifiedHeader';
+import { FloatingFooter } from '../../features/shared/components/layout/FloatingFooter';
+import { useDebugTab } from '../../features/shared/hooks/useDebugTab';
 import { updateMyProfileApi } from '../../api/users';
 
 type DevTab = 'home' | 'institutions' | 'admins' | 'profile';
@@ -23,6 +27,8 @@ const TABS: { key: DevTab; label: string; icon: React.ComponentProps<typeof Mate
 export default function DeveloperHomeScreen() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<DevTab>('home');
+  useDebugTab('developer', activeTab);
+  const [menuOpen, setMenuOpen] = useState(false);
   const fullName = useUserStore((state) => state.fullName) || 'Super Admin';
   const email = useUserStore((state) => state.email) || '';
   const phone = useUserStore((state) => state.phone) || '';
@@ -67,6 +73,11 @@ export default function DeveloperHomeScreen() {
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safe}>
+        <UnifiedHeader
+          onMenuPress={() => setMenuOpen(true)}
+          onNotificationsPress={() => router.push('/notifications')}
+        />
+
         <View style={{ flex: 1 }}>
           {activeTab === 'home' && <DeveloperDashboardContent />}
           {activeTab === 'institutions' && <InstitutionListScreen />}
@@ -83,22 +94,22 @@ export default function DeveloperHomeScreen() {
           )}
         </View>
 
-        <View style={styles.tabBar}>
-          {TABS.map((tab) => {
-            const isActive = activeTab === tab.key;
-            return (
-              <TouchableOpacity key={tab.key} style={styles.tabItem} onPress={() => setActiveTab(tab.key)}>
-                <MaterialCommunityIcons
-                  name={tab.icon}
-                  size={22}
-                  color={isActive ? '#F4C430' : '#6B6B6B'}
-                />
-                <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>{tab.label}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        <FloatingFooter
+          tabs={TABS}
+          activeKey={activeTab}
+          onTabPress={setActiveTab}
+        />
       </SafeAreaView>
+
+      <DeveloperMenuDrawer
+        visible={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        activeTab={activeTab}
+        onNavigate={(tab) => setActiveTab(tab as DevTab)}
+        fullName={fullName}
+        email={email}
+        onLogout={handleLogout}
+      />
     </View>
   );
 }

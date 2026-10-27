@@ -4,7 +4,10 @@ import { StartTripSchema, UpdateLocationSchema } from './transport.schema.js';
 
 function getInstCode(req: FastifyRequest): string {
   const user = req.user;
-  return user?.institutionCode || 'TST001';
+  if (!user?.institutionCode) {
+    throw { statusCode: 403, code: 'TENANT_REQUIRED', message: 'No institution is assigned to this account.' };
+  }
+  return user.institutionCode;
 }
 
 function getUserId(req: FastifyRequest): string {

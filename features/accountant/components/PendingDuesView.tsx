@@ -20,6 +20,7 @@ import { useFinanceStore } from '../store/useFinanceStore';
 import { IncomeRecord, ExpenseRecord, PaymentMethod } from '../types/finance';
 import { formatINR } from '../utils/financeUtils';
 import { showAlert } from '../../shared/utils/showAlert';
+import { sharedFinanceStyles } from './financeStyles';
 
 export const PendingDuesView: React.FC = () => {
   const [subTab, setSubTab] = useState<'student_fees' | 'pending_salaries'>('student_fees');
@@ -93,6 +94,11 @@ export const PendingDuesView: React.FC = () => {
 
   return (
     <View style={styles.container}>
+      <View style={sharedFinanceStyles.pageHeader}>
+        <Text style={sharedFinanceStyles.pageTitle}>Pending Dues</Text>
+        <Text style={sharedFinanceStyles.pageSubtitle}>Track outstanding receivables and payroll.</Text>
+      </View>
+
       {/* Sub-tab Pill Switcher */}
       <View style={styles.subTabRow}>
         <TouchableOpacity
@@ -102,7 +108,7 @@ export const PendingDuesView: React.FC = () => {
           <MaterialCommunityIcons
             name="account-clock-outline"
             size={18}
-            color={subTab === 'student_fees' ? '#FFFFFF' : '#6B6B6B'}
+            color={subTab === 'student_fees' ? '#171717' : '#6B6B6B'}
           />
           <Text style={[styles.subTabBtnText, subTab === 'student_fees' && styles.subTabBtnTextActiveFee]}>
             Pending Fees ({pendingFees.length})
@@ -116,7 +122,7 @@ export const PendingDuesView: React.FC = () => {
           <MaterialCommunityIcons
             name="cash-clock"
             size={18}
-            color={subTab === 'pending_salaries' ? '#FFFFFF' : '#6B6B6B'}
+            color={subTab === 'pending_salaries' ? '#171717' : '#6B6B6B'}
           />
           <Text style={[styles.subTabBtnText, subTab === 'pending_salaries' && styles.subTabBtnTextActiveSal]}>
             Pending Salaries ({pendingSalaries.length})
@@ -134,11 +140,9 @@ export const PendingDuesView: React.FC = () => {
             {formatINR(subTab === 'student_fees' ? totalPendingFees : totalPendingSalaries)}
           </Text>
         </View>
-        <View style={styles.bannerBadge}>
-          <Text style={styles.bannerBadgeText}>
-            {subTab === 'student_fees' ? `${pendingFees.length} Students Due` : `${pendingSalaries.length} Staff Pending`}
-          </Text>
-        </View>
+        <Text style={styles.bannerCount}>
+          {subTab === 'student_fees' ? `${pendingFees.length} students due` : `${pendingSalaries.length} staff pending`}
+        </Text>
       </View>
 
       {/* Search Bar */}
@@ -413,11 +417,11 @@ export const PendingDuesView: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 16, paddingTop: 6 },
+  container: { flex: 1, paddingHorizontal: 16, paddingTop: 10 },
   subTabRow: {
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
-    borderRadius: 5,
+    borderRadius: 10,
     padding: 4,
     borderWidth: 1,
     borderColor: '#E8E5DC',
@@ -430,29 +434,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 8,
-    borderRadius: 5,
+    borderRadius: 8,
     gap: 6,
   },
-  subTabBtnActiveFee: { backgroundColor: '#171717' },
-  subTabBtnActiveSal: { backgroundColor: '#171717' },
+  subTabBtnActiveFee: { backgroundColor: '#F4C430' },
+  subTabBtnActiveSal: { backgroundColor: '#F4C430' },
   subTabBtnText: { fontSize: 13, fontWeight: '600', color: '#6B6B6B' },
-  subTabBtnTextActiveFee: { color: '#FFFFFF', fontWeight: '800' },
-  subTabBtnTextActiveSal: { color: '#FFFFFF', fontWeight: '800' },
+  subTabBtnTextActiveFee: { color: '#171717', fontWeight: '800' },
+  subTabBtnTextActiveSal: { color: '#171717', fontWeight: '800' },
 
   summaryBanner: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 14,
-    borderRadius: 5,
-    marginBottom: 10,
-    backgroundColor: '#171717',
+    padding: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    marginBottom: 12,
+    backgroundColor: '#FFFFFF',
   },
   bannerInfo: { flex: 1 },
-  bannerSubtitle: { fontSize: 12, color: 'rgba(255,255,255,0.6)', fontWeight: '600' },
-  bannerAmount: { fontSize: 22, fontWeight: '800', marginTop: 2, color: '#F4C430' },
-  bannerBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 5, backgroundColor: '#FFF4C7' },
-  bannerBadgeText: { fontSize: 11, fontWeight: '800', color: '#171717' },
+  bannerSubtitle: { fontSize: 12, color: '#6B7280', fontWeight: '600' },
+  bannerAmount: { fontSize: 22, fontWeight: '800', marginTop: 2, color: '#111827' },
+  bannerCount: { fontSize: 11, fontWeight: '700', color: '#6B7280' },
 
   searchBox: {
     flexDirection: 'row',
@@ -471,10 +476,10 @@ const styles = StyleSheet.create({
   listContainer: { flex: 1 },
   duesCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 5,
+    borderRadius: 14,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#E8E5DC',
+    borderColor: '#E5E7EB',
     marginBottom: 10,
   },
   cardAccentGold: { borderLeftWidth: 3, borderLeftColor: '#F4C430' },
@@ -483,7 +488,7 @@ const styles = StyleSheet.create({
   studentAvatar: {
     width: 38,
     height: 38,
-    borderRadius: 5,
+    borderRadius: 10,
     backgroundColor: '#FFF4C7',
     justifyContent: 'center',
     alignItems: 'center',
@@ -520,10 +525,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#F7F5EE',
-    padding: 6,
-    borderRadius: 5,
-    marginTop: 6,
+    backgroundColor: '#F9FAFB',
+    padding: 8,
+    borderRadius: 8,
+    marginTop: 8,
   },
   notesText: { fontSize: 11, color: '#6B6B6B', flex: 1 },
 
@@ -533,9 +538,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F7F5EE',
-    paddingVertical: 8,
-    borderRadius: 5,
+    backgroundColor: '#F9FAFB',
+    paddingVertical: 9,
+    borderRadius: 10,
     gap: 6,
   },
   reminderBtnText: { fontSize: 12, fontWeight: '700', color: '#171717' },
@@ -544,9 +549,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#171717',
-    paddingVertical: 8,
-    borderRadius: 5,
+    backgroundColor: '#1A1B1C',
+    paddingVertical: 9,
+    borderRadius: 10,
     gap: 6,
   },
   collectBtnText: { fontSize: 12, fontWeight: '700', color: '#FFFFFF' },
@@ -556,7 +561,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 40,
     backgroundColor: '#FFFFFF',
-    borderRadius: 5,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: '#E8E5DC',
   },
@@ -574,7 +579,7 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 420,
     backgroundColor: '#FFFFFF',
-    borderRadius: 5,
+    borderRadius: 16,
     padding: 20,
   },
   modalHeader: {

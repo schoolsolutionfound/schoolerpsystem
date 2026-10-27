@@ -314,18 +314,21 @@ export class HODService {
     recordId: string,
     status: string,
     note?: string,
-    approvedBy?: string
+    approvedBy?: string,
+    department?: string
   ): Promise<ExamEligibilityEntity> {
     const database = getDb();
+    const conditions = [
+      eq(examEligibility.id, recordId),
+      eq(examEligibility.institutionCode, institutionCode),
+    ];
+    if (department && department.trim() !== '') {
+      conditions.push(eq(examEligibility.department, department));
+    }
     const [record] = await database
       .select()
       .from(examEligibility)
-      .where(
-        and(
-          eq(examEligibility.id, recordId),
-          eq(examEligibility.institutionCode, institutionCode)
-        )
-      );
+      .where(and(...conditions));
 
     if (!record) {
       const err: any = new Error('Exam eligibility record not found');
@@ -358,12 +361,7 @@ export class HODService {
         approvalDate: new Date().toISOString().split('T')[0],
         updatedAt: new Date(),
       })
-      .where(
-        and(
-          eq(examEligibility.id, recordId),
-          eq(examEligibility.institutionCode, institutionCode)
-        )
-      )
+      .where(and(...conditions))
       .returning();
 
     return updated;

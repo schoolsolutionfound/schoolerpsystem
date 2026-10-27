@@ -36,10 +36,6 @@ export default function PlacementProfileScreen() {
   const [githubUrl, setGithubUrl] = useState('');
   const [leetcodeUrl, setLeetcodeUrl] = useState('');
 
-  useEffect(() => {
-    fetchProfile();
-  }, []);
-
   const fetchProfile = async () => {
     try {
       const data = await getPlacementProfile();
@@ -59,6 +55,11 @@ export default function PlacementProfileScreen() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchProfile();
+  }, []);
 
   const handleSave = async () => {
     try {

@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   Text,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { signOut } from 'firebase/auth';
@@ -35,7 +35,9 @@ import {
   fetchPrincipalHomeroomsApi,
   assignHomeroomTeacherApi,
 } from '../../api/principal';
-import { HODHeader } from '../../features/hod/components/HODHeader';
+import { UnifiedHeader } from '../../features/shared/components/layout/UnifiedHeader';
+import { FloatingFooter } from '../../features/shared/components/layout/FloatingFooter';
+import { useDebugTab } from '../../features/shared/hooks/useDebugTab';
 import { HODDrawer } from '../../features/hod/components/HODDrawer';
 import { HODDashboardView } from '../../features/hod/components/HODDashboardView';
 import { PrincipalStaffDirectoryView } from '../../features/principal/components/PrincipalStaffDirectoryView';
@@ -110,7 +112,6 @@ function toDepartmentAudience(
 
 export default function HODHomeScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
 
   // User store
   const rawFullName = useUserStore((state) => state.fullName);
@@ -126,13 +127,13 @@ export default function HODHomeScreen() {
   const institutionName = rawInstName?.trim() && rawInstName !== 'Institution not set'
     ? rawInstName.trim()
     : 'Institution';
-  const profilePic = useUserStore((state) => state.profilePic);
   const resetUser = useUserStore((state) => state.resetUser);
   const hasModuleAccess = useUserStore((state) => state.hasModuleAccess);
   const grantModuleAccess = useUserStore((state) => state.grantModuleAccess);
 
   // Tab & drawer navigation
   const [activeTab, setActiveTab] = useState<HODTab>('dashboard');
+  useDebugTab('hod', activeTab);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [tabLoading, setTabLoading] = useState(false);
@@ -444,25 +445,12 @@ export default function HODHomeScreen() {
     );
   }
 
-  const unreadNoticeCount = notices.filter(
-    (n) => n.priority === 'urgent' || n.priority === 'important'
-  ).length;
-
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safe} edges={['top']}>
-        {/* Header */}
-        <HODHeader
-          fullName={fullName}
-          department={departmentLabel}
-          institutionName={institutionName}
-          profilePic={profilePic}
-          activeTab={activeTab}
-          noticeBadgeCount={unreadNoticeCount}
+        <UnifiedHeader
           onMenuPress={() => setDrawerOpen(true)}
           onNotificationsPress={() => switchTab('notices')}
-          onProfilePress={() => router.push('/(hod)/profile')}
-          onBackToDashboard={() => switchTab('dashboard')}
         />
 
         {/* View Switcher or Error Screen */}
@@ -638,58 +626,22 @@ export default function HODHomeScreen() {
           </View>
         )}
 
-        {/* Floating Oval Pill Bottom Tab Bar (matching Principal) */}
-        <View
-          style={[
-            styles.ovalBottomBar,
-            { marginBottom: Math.max(insets.bottom, 10) },
-          ]}
-        >
-          {BOTTOM_TABS.map((tab) => {
-            const active = activeTab === tab.key;
-            return (
-              <TouchableOpacity
-                key={tab.key}
-                style={styles.tabBtn}
-                onPress={() => {
-                  if (tab.key === 'profile') {
-                    router.push('/(hod)/profile');
-                  } else {
-                    switchTab(tab.key);
-                  }
-                }}
-                activeOpacity={0.7}
-              >
-                {active ? (
-                  <View style={styles.activeIconCircle}>
-                    <MaterialCommunityIcons
-                      name={tab.iconActive}
-                      size={20}
-                      color="#000000"
-                    />
-                  </View>
-                ) : (
-                  <View style={styles.inactiveIconWrap}>
-                    <MaterialCommunityIcons
-                      name={tab.icon}
-                      size={20}
-                      color="#9CA3AF"
-                    />
-                  </View>
-                )}
-                <Text
-                  style={[
-                    styles.tabLabel,
-                    active && styles.tabLabelActive,
-                  ]}
-                  numberOfLines={1}
-                >
-                  {tab.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        <FloatingFooter
+          tabs={BOTTOM_TABS.map((tab) => ({
+            key: tab.key,
+            label: tab.label,
+            icon: tab.icon,
+            iconFilled: tab.iconActive,
+          }))}
+          activeKey={activeTab}
+          onTabPress={(key) => {
+            if (key === 'profile') {
+              router.push('/(hod)/profile');
+            } else {
+              switchTab(key);
+            }
+          }}
+        />
 
         {/* Drawer */}
         <HODDrawer

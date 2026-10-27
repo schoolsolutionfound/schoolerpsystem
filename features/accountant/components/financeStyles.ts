@@ -11,7 +11,10 @@ import { FontFamily } from '../../../constants/fonts';
 
 export const sharedFinanceStyles = StyleSheet.create({
   // ── Layout ──────────────────────────────────────────────────────────────────
-  container: { flex: 1, paddingHorizontal: 16, paddingTop: 8 },
+  container: { flex: 1, paddingHorizontal: 16, paddingTop: 10 },
+  pageHeader: { marginBottom: 12 },
+  pageTitle: { fontSize: 20, fontFamily: FontFamily.extrabold, color: '#111827', letterSpacing: -0.2 },
+  pageSubtitle: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B7280', marginTop: 2 },
 
   // ── Top Actions Bar (search + CTA button) ───────────────────────────────────
   actionsBar: { flexDirection: 'row', gap: 8, marginBottom: 10, alignItems: 'center' },
@@ -60,11 +63,11 @@ export const sharedFinanceStyles = StyleSheet.create({
   // ── Record Card (Modern multi-tier layout - zero overlap) ────────────────────
   cardItem: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 5,
+    borderRadius: 14,
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#E8E5DC',
+    borderColor: '#E5E7EB',
   },
   cardHeaderRow: {
     flexDirection: 'row',
@@ -81,7 +84,7 @@ export const sharedFinanceStyles = StyleSheet.create({
   iconBox: {
     width: 32,
     height: 32,
-    borderRadius: 5,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -130,12 +133,12 @@ export const sharedFinanceStyles = StyleSheet.create({
   actionIconBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F7F5EE',
+    backgroundColor: '#F9FAFB',
     borderWidth: 1,
     borderColor: '#E8E5DC',
     paddingHorizontal: 8,
     paddingVertical: 5,
-    borderRadius: 5,
+    borderRadius: 8,
     gap: 4,
   },
   actionIconBtnText: { fontSize: 11, fontWeight: '700', color: '#6B6B6B', fontFamily: FontFamily.bold },
@@ -152,7 +155,7 @@ export const sharedFinanceStyles = StyleSheet.create({
     width: Platform.OS === 'web' ? 520 : '100%',
     maxHeight: '88%',
     backgroundColor: '#FFFFFF',
-    borderRadius: 5,
+    borderRadius: 16,
     padding: 20,
   },
   modalHeader: {
@@ -214,7 +217,7 @@ export const sharedFinanceStyles = StyleSheet.create({
   documentContent: {
     width: Platform.OS === 'web' ? 400 : '90%',
     backgroundColor: '#FFFFFF',
-    borderRadius: 5,
+    borderRadius: 16,
     padding: 20,
   },
   documentHeader: { alignItems: 'center' },

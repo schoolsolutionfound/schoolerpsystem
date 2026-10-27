@@ -1493,15 +1493,14 @@ const styles = StyleSheet.create({
   selectCancel: { paddingLeft: 8 },
   selectCancelText: { fontSize: 12, fontFamily: FontFamily.semibold, color: '#6B6B6B' },
 
-  listContainer: { gap: 8, paddingBottom: 40 },
+  listContainer: { gap: 10, paddingBottom: 40 },
   emptyCard: { backgroundColor: '#FFFFFF', borderRadius: 12, padding: 28, alignItems: 'center', borderWidth: 1, borderColor: '#E8E5DC', marginTop: 20 },
   emptyTitle: { fontSize: 16, fontFamily: FontFamily.extrabold, color: '#1A1B1C', marginTop: 10 },
   emptySub: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B6B6B', textAlign: 'center', marginTop: 4, lineHeight: 16 },
 
   studentCard: {
-    backgroundColor: '#FFFFFF', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#E8E5DC',
+    backgroundColor: '#FFFFFF', borderRadius: 10, padding: 14, borderWidth: 1, borderColor: '#E8E5DC',
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
   },
   studentCardSelected: { borderColor: '#F4C430', backgroundColor: '#FFFDF7' },
   checkbox: { width: 22, height: 22, borderRadius: 4, borderWidth: 2, borderColor: '#E8E5DC', alignItems: 'center', justifyContent: 'center' },

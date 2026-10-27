@@ -246,8 +246,9 @@ export const OnlinePaymentsView: React.FC = () => {
   return (
     <View style={styles.container}>
       <Text style={styles.headerTitle}>Online Payments</Text>
+      <Text style={styles.headerSub}>Razorpay orders, settlements and refunds.</Text>
 
-      {/* Charcoal summary hero */}
+      {/* Summary card */}
       <View style={styles.heroCard}>
         <Text style={styles.heroLabel}>TOTAL COLLECTED</Text>
         <Text style={styles.heroAmount}>{formatINR(paidTotal / 100)}</Text>
@@ -332,35 +333,46 @@ export const OnlinePaymentsView: React.FC = () => {
 const styles = StyleSheet.create({
   container: { paddingHorizontal: 16, paddingTop: 6 },
   headerTitle: {
-    fontSize: 15,
+    fontSize: 20,
     fontWeight: '800',
-    color: '#171717',
+    color: '#111827',
     fontFamily: FontFamily.extrabold,
-    marginBottom: 10,
+    letterSpacing: -0.2,
+  },
+  headerSub: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontFamily: FontFamily.regular,
+    marginTop: 2,
+    marginBottom: 12,
   },
   heroCard: {
-    backgroundColor: '#171717',
-    borderRadius: 5,
-    padding: 14,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    padding: 16,
     marginBottom: 12,
   },
   heroLabel: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#F4C430',
+    color: '#B8860B',
     letterSpacing: 1.2,
   },
-  heroAmount: { fontSize: 26, fontWeight: '900', color: '#FFFFFF', marginTop: 3 },
+  heroAmount: { fontSize: 26, fontWeight: '900', color: '#111827', marginTop: 3 },
   heroStatsRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
   heroStatBox: {
     flex: 1,
-    backgroundColor: '#232425',
-    borderRadius: 5,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
     paddingVertical: 8,
     alignItems: 'center',
   },
-  heroStatValue: { fontSize: 15, fontWeight: '800', color: '#FFFFFF' },
-  heroStatLabel: { fontSize: 9, color: 'rgba(255,255,255,0.55)', marginTop: 1 },
+  heroStatValue: { fontSize: 15, fontWeight: '800', color: '#111827' },
+  heroStatLabel: { fontSize: 9, color: '#6B7280', marginTop: 2 },
   chipRow: { flexGrow: 0, marginBottom: 10 },
   chip: {
     backgroundColor: '#FFFFFF',
@@ -371,9 +383,9 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     marginRight: 8,
   },
-  chipActive: { backgroundColor: '#171717', borderColor: '#171717' },
+  chipActive: { backgroundColor: '#F4C430', borderColor: '#F4C430' },
   chipText: { fontSize: 12, fontWeight: '700', color: '#6B6B6B', fontFamily: FontFamily.bold },
-  chipTextActive: { color: '#FFFFFF' },
+  chipTextActive: { color: '#171717' },
   centerBox: { alignItems: 'center', paddingVertical: 40, gap: 8 },
   centerText: {
     fontSize: 12.5,
@@ -389,10 +401,10 @@ const styles = StyleSheet.create({
   countText: { fontSize: 11, color: '#6B6B6B', fontFamily: FontFamily.regular },
   row: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 5,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E8E5DC',
-    padding: 12,
+    borderColor: '#E5E7EB',
+    padding: 14,
   },
   rowLeft: { gap: 4 },
   rowTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 },
@@ -420,8 +432,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
     borderWidth: 1,
     borderColor: '#171717',
-    backgroundColor: '#F7F5EE',
-    borderRadius: 5,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 10,
     paddingVertical: 8,
     alignSelf: 'flex-start',
     paddingHorizontal: 14,
@@ -431,8 +443,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E8E5DC',
-    borderRadius: 5,
-    paddingVertical: 11,
+    borderRadius: 10,
+    paddingVertical: 12,
     alignItems: 'center',
     marginTop: 4,
   },

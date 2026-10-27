@@ -36,7 +36,7 @@ export class AdmissionsService {
         .select()
         .from(schema.admissions)
         .where(
-          or(
+          and(
             eq(schema.admissions.parentId, filter.parentId),
             inArray(schema.admissions.schoolId, schoolIdsToMatch)
           )
@@ -76,21 +76,20 @@ export class AdmissionsService {
     // Fetch school name and canonical institutionCode if not provided
     let schoolName = data.schoolId;
     let targetSchoolId = data.schoolId;
-    try {
-      const inst = await db
-        .select()
-        .from(schema.institutions)
-        .where(
-          or(
-            eq(schema.institutions.id, data.schoolId),
-            eq(schema.institutions.institutionCode, data.schoolId)
-          )
-        );
-      if (inst.length > 0) {
-        schoolName = inst[0].institutionName;
-        targetSchoolId = inst[0].institutionCode;
-      }
-    } catch {}
+    const inst = await db
+      .select()
+      .from(schema.institutions)
+      .where(
+        or(
+          eq(schema.institutions.id, data.schoolId),
+          eq(schema.institutions.institutionCode, data.schoolId)
+        )
+      );
+    if (inst.length === 0) {
+      throw { statusCode: 404, code: 'INSTITUTION_NOT_FOUND', message: 'Institution not found.' };
+    }
+    schoolName = inst[0].institutionName;
+    targetSchoolId = inst[0].institutionCode;
 
     const id = newAdmId();
     const [created] = await db
@@ -122,9 +121,23 @@ export class AdmissionsService {
       entranceTestDate?: string | Date | null;
       entranceTestVenue?: string;
       entranceTestInstructions?: string;
-    }
+    },
+    scope?: { parentId?: string; schoolId?: string }
   ) {
     if (!db) throw new Error('Database not connected');
+
+    const conditions = [eq(schema.admissions.id, id)];
+    if (scope?.parentId) conditions.push(eq(schema.admissions.parentId, scope.parentId));
+    if (scope?.schoolId) conditions.push(eq(schema.admissions.schoolId, scope.schoolId));
+
+    const [existing] = await db
+      .select()
+      .from(schema.admissions)
+      .where(and(...conditions))
+      .limit(1);
+    if (!existing) {
+      throw { statusCode: 404, code: 'ADMISSION_NOT_FOUND', message: 'Admission application not found.' };
+    }
 
     const updateData: any = {
       status,
@@ -144,7 +157,7 @@ export class AdmissionsService {
     const [updated] = await db
       .update(schema.admissions)
       .set(updateData)
-      .where(eq(schema.admissions.id, id))
+      .where(and(...conditions))
       .returning();
 
     if (status === 'accepted' && updated) {
@@ -166,9 +179,12 @@ export class AdmissionsService {
         .select()
         .from(schema.users)
         .where(
-          or(
-            eq(schema.users.rollNoOrUSN, studentUSN),
-            eq(schema.users.fullName, adm.childFullName)
+          and(
+            eq(schema.users.institutionCode, adm.schoolId),
+            or(
+              eq(schema.users.rollNoOrUSN, studentUSN),
+              eq(schema.users.fullName, adm.childFullName)
+            )
           )
         );
 
@@ -202,8 +218,7 @@ export class AdmissionsService {
         .where(
           or(
             eq(schema.users.id, adm.parentId),
-            eq(schema.users.firebaseUid, adm.parentId),
-            adm.parentEmail ? eq(schema.users.email, adm.parentEmail) : eq(schema.users.id, adm.parentId)
+            eq(schema.users.firebaseUid, adm.parentId)
           )
         );
 
@@ -269,10 +284,7 @@ export class AdmissionsService {
           .from(schema.admissions)
           .where(
             and(
-              or(
-                eq(schema.admissions.parentId, adm.parentId),
-                adm.parentEmail ? eq(schema.admissions.parentEmail, adm.parentEmail) : eq(schema.admissions.parentId, adm.parentId)
-              ),
+              eq(schema.admissions.parentId, adm.parentId),
               eq(schema.admissions.childFullName, adm.childFullName),
               ne(schema.admissions.id, adm.id)
             )

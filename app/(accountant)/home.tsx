@@ -1,10 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, ScrollView, Platform, RefreshControl } from 'react-native';
+import { View, StyleSheet, Text, ScrollView, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useUserStore } from '../../store/useUserStore';
-import { AccountantHeader } from '../../features/accountant/components/AccountantHeader';
+import { UnifiedHeader } from '../../features/shared/components/layout/UnifiedHeader';
+import { FloatingFooter } from '../../features/shared/components/layout/FloatingFooter';
+import { useDebugTab } from '../../features/shared/hooks/useDebugTab';
 import { AccountantDrawer } from '../../features/accountant/components/AccountantDrawer';
 import { AccountantHomeOverview } from '../../features/accountant/components/AccountantHomeOverview';
 import { StudentFeesView } from '../../features/accountant/components/StudentFeesView';
@@ -49,6 +51,7 @@ export default function AccountantHomeScreen() {
   const [activeTab, setActiveTab] = useState<FinanceTab>(
     TAB_VALUES.includes(paramTab) ? paramTab : 'overview',
   );
+  useDebugTab('accountant', activeTab);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const loadFees = useFinanceStore((s) => s.loadFees);
@@ -73,7 +76,7 @@ export default function AccountantHomeScreen() {
   const renderTabContent = () => {
     switch (activeTab) {
       case 'overview':
-        return <AccountantHomeOverview onNavigateTab={setActiveTab} />;
+        return <AccountantHomeOverview onNavigateTab={setActiveTab} userName={fullName} />;
       case 'fees':
         return <StudentFeesView />;
       case 'dues':
@@ -96,13 +99,9 @@ export default function AccountantHomeScreen() {
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safe}>
-        <AccountantHeader
-          fullName={fullName}
-          profilePic={profilePic}
-          showGreeting={activeTab === 'overview'}
+        <UnifiedHeader
           onMenuPress={() => setDrawerOpen(true)}
           onNotificationsPress={() => router.push('/notifications')}
-          onProfilePress={() => router.push('/(accountant)/profile')}
         />
 
         <ScrollView
@@ -132,55 +131,11 @@ export default function AccountantHomeScreen() {
           {renderTabContent()}
         </ScrollView>
 
-        {/* Bottom Tab Bar (mirrors student portal) */}
-        <View style={styles.tabBarBg}>
-          <View style={styles.tabBar}>
-            {BOTTOM_TABS.map((tab) => {
-              const isCenter = tab.key === 'income';
-              const isActive = activeTab === tab.key;
-
-              if (isCenter) {
-                return (
-                  <TouchableOpacity
-                    key={tab.key}
-                    style={styles.centerBtnWrap}
-                    onPress={() => setActiveTab(tab.key)}
-                    activeOpacity={0.85}
-                  >
-                    <View style={[styles.centerBtnRing, isActive && styles.centerBtnRingActive]}>
-                      <View style={[styles.centerBtn, isActive && styles.centerBtnActive]}>
-                        <MaterialCommunityIcons
-                          name={tab.iconFilled as any}
-                          size={26}
-                          color={isActive ? '#F4C430' : '#E8E5DC'}
-                        />
-                      </View>
-                    </View>
-                    <Text style={[styles.centerLabel, isActive && styles.centerLabelActive]}>{tab.label}</Text>
-                  </TouchableOpacity>
-                );
-              }
-
-              return (
-                <TouchableOpacity
-                  key={tab.key}
-                  style={styles.tabItem}
-                  onPress={() => setActiveTab(tab.key)}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.tabIconBg, isActive && styles.tabIconBgActive]}>
-                    <MaterialCommunityIcons
-                      name={isActive ? (tab.iconFilled as any) : (tab.icon as any)}
-                      size={22}
-                      color={isActive ? '#171717' : '#9CA3AF'}
-                    />
-                  </View>
-                  <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>{tab.label}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
+        <FloatingFooter
+          tabs={BOTTOM_TABS}
+          activeKey={activeTab}
+          onTabPress={setActiveTab}
+        />
       </SafeAreaView>
 
       <AccountantDrawer
@@ -197,10 +152,10 @@ export default function AccountantHomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFDF7' },
+  container: { flex: 1, backgroundColor: '#F9FAFB' },
   safe: { flex: 1 },
   contentScroll: { flex: 1 },
-  content: { paddingBottom: 24 },
+  content: { paddingBottom: 16 },
 
   errorBanner: {
     flexDirection: 'row',
@@ -221,98 +176,62 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.regular,
   },
 
-  // ── Bottom Tab Bar (student-portal mirror) ────────────────────────────────
+  // ── Floating Bottom Tab Bar (Librarian-portal mirror) ─────────────────────
   tabBarBg: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 5,
-    marginHorizontal: 16,
-    marginBottom: Platform.OS === 'ios' ? 16 : 8,
-    paddingTop: 8,
-    paddingBottom: Platform.OS === 'ios' ? 16 : 8,
-    shadowColor: '#171717',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 12,
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    paddingTop: 4,
+    paddingBottom: 6,
   },
   tabBar: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    paddingHorizontal: 6,
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 30,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    marginHorizontal: 16,
+    width: '94%',
+    maxWidth: 420,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
   },
   tabItem: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingBottom: 2,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    minWidth: 54,
   },
   tabIconBg: {
-    width: 44,
-    height: 34,
-    borderRadius: 17,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
   tabIconBgActive: {
     backgroundColor: '#F4C430',
+    shadowColor: '#171717',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   tabLabel: {
     fontSize: 10,
     fontFamily: FontFamily.medium,
     color: '#9CA3AF',
-    marginTop: 4,
+    marginTop: 2,
   },
   tabLabelActive: {
-    color: '#171717',
-    fontFamily: FontFamily.bold,
-  },
-
-  // Center floating button (Income)
-  centerBtnWrap: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingBottom: 2,
-    marginTop: -28,
-  },
-  centerBtnRing: {
-    width: 66,
-    height: 66,
-    borderRadius: 33,
-    borderWidth: 3,
-    borderColor: '#E8E5DC',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#171717',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  centerBtnRingActive: {
-    borderColor: '#F4C430',
-    shadowColor: '#F4C430',
-    shadowOpacity: 0.35,
-  },
-  centerBtn: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#171717',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  centerBtnActive: {
-    backgroundColor: '#171717',
-  },
-  centerLabel: {
-    fontSize: 10,
-    fontFamily: FontFamily.medium,
-    color: '#9CA3AF',
-    marginTop: 5,
-  },
-  centerLabelActive: {
-    color: '#F4C430',
+    color: '#1A1B1C',
     fontFamily: FontFamily.bold,
   },
 });

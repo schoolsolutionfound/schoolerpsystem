@@ -10,13 +10,22 @@ export async function requireCollege(request: FastifyRequest, reply: FastifyRepl
   if (reply.sent) return;
 
   const user = request.user;
-  if (!user || !user.institutionCode) return;
+  if (!user || !user.institutionCode) {
+    return reply.status(401).send({
+      success: false,
+      error: { message: 'Unauthorized: User authentication required', code: 'UNAUTHORIZED' },
+    });
+  }
 
   if (user.role === 'dev') return;
 
-  // We need to check if the institution is a college
   try {
-    if (!db) return;
+    if (!db) {
+      return reply.status(503).send({
+        success: false,
+        error: { message: 'Placement service unavailable', code: 'SERVICE_UNAVAILABLE' },
+      });
+    }
     const inst = await db.query.institutions.findFirst({
       where: eq(institutions.institutionCode, user.institutionCode)
     });
@@ -28,6 +37,10 @@ export async function requireCollege(request: FastifyRequest, reply: FastifyRepl
     }
   } catch (error) {
     console.warn('[Placement Middleware] Failed to check institution type:', error);
+    return reply.status(503).send({
+      success: false,
+      error: { message: 'Placement service unavailable', code: 'SERVICE_UNAVAILABLE' },
+    });
   }
 }
 

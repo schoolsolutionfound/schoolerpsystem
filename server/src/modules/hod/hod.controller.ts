@@ -140,7 +140,7 @@ export async function getExamEligibilityHandler(request: FastifyRequest, reply: 
 
 export async function updateHallTicketStatusHandler(request: FastifyRequest, reply: FastifyReply) {
   try {
-    const { instCode } = getTenantAndDept(request);
+    const { instCode, department } = getTenantAndDept(request);
     const { id } = request.params as { id: string };
     const body = request.body as any;
     const user = (request as any).user;
@@ -160,7 +160,8 @@ export async function updateHallTicketStatusHandler(request: FastifyRequest, rep
       id,
       status,
       note,
-      user?.name || 'Head of Department'
+      user?.name || 'Head of Department',
+      department
     );
 
     return reply.send({ success: true, data: updated, record: updated });

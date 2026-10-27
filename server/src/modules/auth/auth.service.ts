@@ -196,6 +196,14 @@ export class AuthService {
     // (lockout, disabled accounts, password correctness) match sign-in exactly.
     // Nothing is stored client- or server-side beyond the request itself, and a
     // wrong password returns INVALID_CREDENTIAL before any write happens.
+    if (!currentUser.mustChangePassword && !currentPassword) {
+      throw {
+        statusCode: 400,
+        code: 'CURRENT_PASSWORD_REQUIRED',
+        message: 'Current password is required.',
+      };
+    }
+
     if (currentPassword) {
       if (!isFirebaseAdminInitialized) {
         throw {

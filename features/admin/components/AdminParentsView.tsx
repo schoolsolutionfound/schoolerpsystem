@@ -4,6 +4,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { FontFamily } from '../../../constants/fonts';
 import { DropdownSelect } from './DropdownSelect';
 import { BulkImportModal } from './BulkImportModal';
+import { AdminMemberDetailSheet } from './AdminMemberDetailSheet';
 import { fetchStudentsApi, resetUserPasswordApi } from '../../../api/admin';
 import { BorderRadius } from '../../../constants/theme';
 
@@ -86,7 +87,7 @@ export const AdminParentsView: React.FC<AdminParentsViewProps> = ({
   const [search, setSearch] = useState('');
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
-  const [resettingId, setResettingId] = useState<string | null>(null);
+  const [detailParent, setDetailParent] = useState<ParentItem | null>(null);
 
   // Create form — Personal / Account
   const [fullName, setFullName] = useState('');
@@ -276,7 +277,6 @@ export const AdminParentsView: React.FC<AdminParentsViewProps> = ({
           text: 'Reset',
           style: 'destructive',
           onPress: async () => {
-            setResettingId(p.id);
             try {
               const res: any = await resetUserPasswordApi(p.id);
               const message = res?.tempPassword
@@ -287,8 +287,6 @@ export const AdminParentsView: React.FC<AdminParentsViewProps> = ({
               Alert.alert('Password Reset', message);
             } catch (err: any) {
               Alert.alert('Error', err.message || 'Failed to reset password');
-            } finally {
-              setResettingId(null);
             }
           },
         },
@@ -306,6 +304,60 @@ export const AdminParentsView: React.FC<AdminParentsViewProps> = ({
       childNames.includes(q)
     );
   });
+
+  const detailChildren = detailParent?.children || [];
+  const detailRelationship = detailChildren[0]?.relationship || 'Parent';
+
+  const detailSections = detailParent
+    ? [
+        {
+          title: 'Contact Info',
+          rows: [
+            { label: 'Phone', value: detailParent.phone },
+            { label: 'Relationship', value: detailRelationship },
+          ],
+        },
+        {
+          title: 'Linked Students',
+          rows: detailChildren.length > 0
+            ? detailChildren.map((child, index) => ({
+                label: `Student ${index + 1}`,
+                value: [child.name, child.relationship].filter(Boolean).join(' · '),
+              }))
+            : [{ label: 'Students', value: 'No students linked' }],
+        },
+        {
+          title: 'Account Info',
+          rows: [
+            { label: 'Role', value: detailParent.role },
+            {
+              label: 'Profile',
+              value: detailParent.profileCompleted ? 'Complete' : 'Pending',
+              valueColor: detailParent.profileCompleted ? '#16A34A' : '#D97706',
+            },
+            {
+              label: 'Created',
+              value: detailParent.createdAt ? new Date(detailParent.createdAt).toLocaleDateString() : '',
+            },
+          ],
+        },
+      ]
+    : [];
+
+  const detailActions = detailParent
+    ? [
+        {
+          label: 'Reset Password',
+          icon: 'key-variant',
+          color: '#D97706',
+          onPress: () => {
+            const parent = detailParent;
+            setDetailParent(null);
+            handleResetPassword(parent);
+          },
+        },
+      ]
+    : [];
 
   return (
     <View style={styles.container}>
@@ -360,7 +412,12 @@ export const AdminParentsView: React.FC<AdminParentsViewProps> = ({
               .filter(Boolean)
               .join('  ·  ');
             return (
-              <View key={p.id} style={styles.parentCard}>
+              <TouchableOpacity
+                key={p.id}
+                style={styles.parentCard}
+                onPress={() => setDetailParent(p)}
+                activeOpacity={0.7}
+              >
                 <View style={styles.avatarCircle}>
                   <Text style={styles.avatarText}>{(p.fullName || '?').substring(0, 2).toUpperCase()}</Text>
                 </View>
@@ -369,23 +426,21 @@ export const AdminParentsView: React.FC<AdminParentsViewProps> = ({
                   <Text style={styles.parentEmail} numberOfLines={1}>{p.email}</Text>
                   <Text style={styles.parentMeta} numberOfLines={1}>{meta}</Text>
                 </View>
-                <TouchableOpacity
-                  style={styles.resetIconBtn}
-                  onPress={() => handleResetPassword(p)}
-                  disabled={resettingId === p.id}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  {resettingId === p.id ? (
-                    <MaterialCommunityIcons name="loading" size={18} color="#6B6B6B" />
-                  ) : (
-                    <MaterialCommunityIcons name="key-variant" size={18} color="#6B6B6B" />
-                  )}
-                </TouchableOpacity>
-              </View>
+                <MaterialCommunityIcons name="chevron-right" size={20} color="#C9C5B8" />
+              </TouchableOpacity>
             );
           })
         )}
       </ScrollView>
+
+      <AdminMemberDetailSheet
+        visible={!!detailParent}
+        onClose={() => setDetailParent(null)}
+        fullName={detailParent?.fullName || ''}
+        email={detailParent?.email || ''}
+        sections={detailSections}
+        actions={detailActions}
+      />
 
       {/* ─── Add Parent Modal ─── */}
       <Modal visible={createModalOpen} animationType="slide" transparent>
@@ -667,9 +722,8 @@ const styles = StyleSheet.create({
   emptySub: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B6B6B', textAlign: 'center', marginTop: 4, lineHeight: 16 },
 
   parentCard: {
-    backgroundColor: '#FFFFFF', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#E8E5DC',
+    backgroundColor: '#FFFFFF', borderRadius: 10, padding: 14, borderWidth: 1, borderColor: '#E8E5DC',
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
   },
   avatarCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 15, fontFamily: FontFamily.extrabold, color: '#D97706' },
@@ -677,7 +731,6 @@ const styles = StyleSheet.create({
   parentName: { fontSize: 14, fontWeight: '700', fontFamily: FontFamily.bold, color: '#1A1B1C' },
   parentEmail: { fontSize: 12, fontFamily: FontFamily.regular, color: '#6B6B6B', marginTop: 1 },
   parentMeta: { fontSize: 11, fontFamily: FontFamily.regular, color: '#9CA3AF', marginTop: 3 },
-  resetIconBtn: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, borderColor: '#E8E5DC', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
 
   // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },

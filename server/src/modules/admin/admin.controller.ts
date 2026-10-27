@@ -51,7 +51,8 @@ export async function updateInstitutionConfigHandler(request: FastifyRequest, re
   try {
     const instCode = extractInstCode(request);
     const body = request.body as any;
-    const data = await adminService.updateInstitutionConfig(instCode, body);
+    const actorRole = (request.user as any)?.role || '';
+    const data = await adminService.updateInstitutionConfig(instCode, body, actorRole);
     return reply.send({ success: true, data });
   } catch (err: any) {
     return reply.status(err.statusCode || 400).send({
@@ -463,7 +464,7 @@ export async function updateUserHandler(request: FastifyRequest, reply: FastifyR
     const instCode = extractInstCode(request);
     const { id } = request.params as { id: string };
     const body = request.body as any;
-    const data = await adminService.updateUser(id, instCode, body);
+    const data = await adminService.updateUser(id, instCode, body, request.user?.role);
     return reply.send({ success: true, data });
   } catch (err: any) {
     return reply.status(err.statusCode || 400).send({

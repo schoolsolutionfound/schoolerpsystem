@@ -1,13 +1,13 @@
 export default {
   "expo": {
-    "name": "School ERP",
+    "name": "KIVQUO",
     "slug": "school-erp",
     "version": "1.0.0",
     "runtimeVersion": {
       "policy": "appVersion"
     },
     "orientation": "default",
-    "icon": "./assets/app-icon.png",
+    "icon": "./assets/kivquo-logo-transparent.png",
     "scheme": "schooerp",
     "userInterfaceStyle": "light",
     "newArchEnabled": false,
@@ -28,8 +28,8 @@ export default {
       "versionCode": 1,
       "package": "com.schooerp.app",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/logo-transparent.png",
-        "backgroundColor": "#171717"
+        "foregroundImage": "./assets/kivquo-logo-transparent.png",
+        "backgroundColor": "#F4C430"
       },
       "edgeToEdgeEnabled": true,
       "permissions": [
@@ -64,8 +64,8 @@ export default {
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#FFFEFE",
-          "image": "./assets/logo-transparent.png",
+          "backgroundColor": "#F4C430",
+          "image": "./assets/kivquo-logo-transparent.png",
           "imageWidth": 200,
           "resizeMode": "contain"
         }
