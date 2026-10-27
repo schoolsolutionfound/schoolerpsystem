@@ -105,9 +105,9 @@ export default {
     "extra": {
       "router": {},
       "eas": {
-        "projectId": ""
+        "projectId": "49525e1b-2eec-4315-a68d-f83d351f0ea0"
       }
     },
-    "owner": "school-erp"
+    "owner": "kivquo"
   }
 };
