@@ -7,8 +7,8 @@ export default {
       "policy": "appVersion"
     },
     "orientation": "default",
-    "icon": "./assets/kivquo-logo-transparent.png",
-    "scheme": "schooerp",
+    "icon": "./assets/app-icon.png",
+    "scheme": "kivquo",
     "userInterfaceStyle": "light",
     "newArchEnabled": false,
     "ios": {
@@ -28,7 +28,7 @@ export default {
       "versionCode": 1,
       "package": "com.schooerp.app",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/kivquo-logo-transparent.png",
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#F4C430"
       },
       "edgeToEdgeEnabled": true,
@@ -65,7 +65,7 @@ export default {
         "expo-splash-screen",
         {
           "backgroundColor": "#F4C430",
-          "image": "./assets/kivquo-logo-transparent.png",
+          "image": "./assets/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain"
         }
