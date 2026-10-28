@@ -1,7 +1,8 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { admin, isFirebaseAdminInitialized } from '../config/firebase.js';
+import { isFirebaseAdminInitialized } from '../config/firebase.js';
 import { dbFindByUid } from '../db/index.js';
 import { getCachedAuth, setCachedAuth } from './authCache.js';
+import { verifyIdTokenWithCachedRevocation } from './verifiedTokenCache.js';
 
 export interface AuthenticatedUser {
   uid: string;
@@ -89,9 +90,10 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
 
   if (isFirebaseAdminInitialized) {
     try {
-      // Check revocation so logout, password reset, and password change end
-      // sessions immediately instead of waiting for the ID token to expire.
-      const decodedToken = await admin.auth().verifyIdToken(token, true);
+      // Revocation is checked on first use and cached briefly so we do not
+      // call Firebase on every authenticated request. Logout and password
+      // changes invalidate the cache for the affected user.
+      const decodedToken = await verifyIdTokenWithCachedRevocation(token);
       firebaseUid = decodedToken.uid;
       email = decodedToken.email || '';
     } catch (error: any) {

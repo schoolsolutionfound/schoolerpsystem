@@ -3,8 +3,17 @@ import { institutionService } from '../institutions/institution.service.js';
 import { adaptLegacySchoolClassSection } from '../shared/academicStructure.js';
 import { db, withTransaction, dbFindUsersByInstitution, dbFindUserByIdOrUid, dbFindStudentByUsnInInstitution, dbFindStudentsByClassScope, dbCountStudentsByClassScope } from '../shared/db/index.js';
 import { getPrimaryParentChild } from '../users/parent-links.js';
-import { eq as eqSql, and as andSql, sql as sqlDrizzle } from 'drizzle-orm';
-import { studentClasses, users as usersTable, subjectTeachers } from '../shared/db/schema.js';
+import { eq as eqSql, and as andSql, sql as sqlDrizzle, inArray as inArraySql } from 'drizzle-orm';
+import {
+  studentClasses,
+  users as usersTable,
+  subjectTeachers,
+  attendanceEntries,
+  attendanceRecords,
+  timetableSlots,
+  feeStructures,
+  feePayments,
+} from '../shared/db/schema.js';
 import {
   CreateClassSectionInput,
   UpdateClassSectionInput,
@@ -124,10 +133,28 @@ export class AcademicsService {
           teachers.forEach((t) => teacherNameMap.set(t.id, t.fullName));
         }
 
-        sections = sections.map((s, idx) => {
+        const attendanceRows = await db
+          .select({
+            classSectionId: timetableSlots.classSectionId,
+            total: sqlDrizzle<number>`count(distinct ${attendanceEntries.studentId})`,
+            present: sqlDrizzle<number>`count(distinct ${attendanceEntries.studentId}) filter (where ${attendanceEntries.attendanceStatus} = 'present')`,
+          })
+          .from(attendanceEntries)
+          .innerJoin(attendanceRecords, eqSql(attendanceEntries.attendanceRecordId, attendanceRecords.id))
+          .innerJoin(timetableSlots, eqSql(attendanceRecords.timetableSlotId, timetableSlots.id))
+          .where(eqSql(timetableSlots.institutionCode, institutionCode))
+          .groupBy(timetableSlots.classSectionId);
+
+        const attendanceMap = new Map<string, { present: number; total: number }>();
+        attendanceRows.forEach((r) => attendanceMap.set(r.classSectionId, { present: Number(r.present), total: Number(r.total) }));
+
+        sections = sections.map((s) => {
           const studentCount = countMap.get(s.id) || 0;
-          const attendanceRate = studentCount > 0 ? (90 + ((idx * 7) % 8)) : 0;
-          const presentCount = Math.round(studentCount * (attendanceRate / 100));
+          const attendance = attendanceMap.get(s.id);
+          const presentCount = attendance?.present ?? 0;
+          const attendanceRate = attendance && attendance.total > 0
+            ? Math.round((presentCount / attendance.total) * 100)
+            : 0;
           return {
             ...s,
             studentCount,
@@ -1244,70 +1271,99 @@ export class AcademicsService {
       }
     }
 
-    // If still empty, generate realistic cohort students (so zero blank states)
-    if (studentRows.length === 0) {
-      const firstNames = ['Aarav', 'Rohan', 'Priya', 'Ananya', 'Vikram', 'Sneha', 'Rahul', 'Aditi', 'Varun', 'Neha', 'Kabir', 'Ishita', 'Arjun', 'Pooja', 'Tanmay', 'Divya', 'Karan', 'Meera', 'Gaurav', 'Riya', 'Sameer', 'Shreya', 'Siddharth', 'Kavya'];
-      const lastNames = ['Sharma', 'Verma', 'Gupta', 'Patil', 'Iyer', 'Deshmukh', 'Singh', 'Reddy', 'Mehta', 'Nair', 'Kulkarni', 'Joshi', 'Chopra', 'Malhotra', 'Bose', 'Chatterjee', 'Sen', 'Pillai', 'Rao', 'Shetty'];
-      const deptCode = (classSection.department || 'ENG').replace(/[^a-zA-Z]/g, '').slice(0, 3).toUpperCase() || 'CSE';
-      const yearPrefix = (classSection.academicYear || '1').replace(/[^0-9]/g, '') || '1';
+    const studentIds = studentRows.map((s) => s.id);
 
-      for (let i = 0; i < 28; i++) {
-        const fn = firstNames[i % firstNames.length];
-        const ln = lastNames[(i * 3 + 2) % lastNames.length];
-        const numStr = (i + 1).toString().padStart(3, '0');
-        const usn = `1VM26${deptCode}${numStr}`;
-        studentRows.push({
-          id: `stu_gen_${classSectionId}_${i + 1}`,
-          fullName: `${fn} ${ln}`,
-          email: `${fn.toLowerCase()}.${ln.toLowerCase()}@student.vmhs.edu`,
-          phone: `+91 98${(76543210 + i * 137).toString().slice(0, 8)}`,
-          parentPhone: `+91 97${(65432109 + i * 211).toString().slice(0, 8)}`,
-          rollNoOrUSN: usn,
-          tenthPercentage: `${(85 + (i * 3) % 13)}.5%`,
-          twelfthPercentage: `${(82 + (i * 4) % 15)}.0%`,
-          profilePicUrl: '',
-          scope: {
-            gender: i % 2 === 0 ? 'Male' : 'Female',
-            bloodGroup: ['O+', 'A+', 'B+', 'AB+', 'O-'][i % 5],
-            dob: `2004-0${(i % 9) + 1}-15`,
-            address: `Flat ${101 + i * 2}, Campus Enclave, Bengaluru, Karnataka`,
-            admissionDate: '2024-08-01',
-          },
-          createdAt: new Date('2024-08-01'),
-        });
+    const attendanceByStudent = new Map<string, {
+      rate: number;
+      presentDays: number;
+      absentDays: number;
+      totalDays: number;
+      status: 'good' | 'normal' | 'at_risk';
+    }>();
+
+    if (studentIds.length > 0) {
+      try {
+        const aggregates = await academicsRepository.getClassAttendanceAggregates(
+          classSectionId,
+          '1970-01-01',
+          '2999-12-31'
+        );
+        for (const stat of aggregates.studentStats) {
+          const totalDays = Number(stat.total) || 0;
+          const presentDays = Number(stat.present) || 0;
+          const absentDays = Number(stat.absent) || 0;
+          const rate = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 0;
+          attendanceByStudent.set(stat.studentId, {
+            rate,
+            presentDays,
+            absentDays,
+            totalDays,
+            status: rate >= 90 ? 'good' : rate >= 75 ? 'normal' : 'at_risk',
+          });
+        }
+      } catch (err: any) {
+        console.warn('[getClassSectionStudents] attendance query failed:', err.message);
       }
     }
 
-    // Enrich every student with attendance, fees, and academic records
-    const enrichedStudents = studentRows.map((s, idx) => {
-      const sc = typeof s.scope === 'string' ? JSON.parse(s.scope || '{}') : (s.scope || {});
-      // Realistic attendance: 3-tier distribution
-      const attRate = idx % 9 === 0 ? (68 + (idx % 6)) : idx % 4 === 0 ? (82 + (idx % 7)) : (91 + (idx % 8));
-      const totalDays = 96;
-      const presentDays = Math.round((totalDays * attRate) / 100);
-      const absentDays = totalDays - presentDays;
-      const attStatus: 'good' | 'normal' | 'at_risk' = attRate >= 90 ? 'good' : attRate >= 75 ? 'normal' : 'at_risk';
+    let feeStructuresForClass: any[] = [];
+    const paymentsByStudent = new Map<string, any[]>();
+    if (db && studentIds.length > 0) {
+      try {
+        const structures = await db
+          .select()
+          .from(feeStructures)
+          .where(andSql(eqSql(feeStructures.institutionCode, institutionCode), eqSql(feeStructures.status, 'active')));
+        feeStructuresForClass = structures.filter((s) => !s.classSectionId || s.classSectionId === classSectionId);
 
-      // Fees: Tuition & Semester fee
-      const totalFee = 75000;
-      const feeScenario = idx % 5;
-      let paidFee = totalFee;
-      let feeStatus: 'paid' | 'partial' | 'pending' | 'overdue' = 'paid';
-      if (feeScenario === 1) {
-        paidFee = 50000;
-        feeStatus = 'partial';
-      } else if (feeScenario === 2) {
-        paidFee = 25000;
-        feeStatus = 'partial';
-      } else if (feeScenario === 3) {
-        paidFee = 0;
-        feeStatus = 'overdue';
+        const payments = await db
+          .select()
+          .from(feePayments)
+          .where(andSql(eqSql(feePayments.institutionCode, institutionCode), inArraySql(feePayments.studentId, studentIds)));
+        for (const payment of payments) {
+          const list = paymentsByStudent.get(payment.studentId) || [];
+          list.push(payment);
+          paymentsByStudent.set(payment.studentId, list);
+        }
+      } catch (err: any) {
+        console.warn('[getClassSectionStudents] fee query failed:', err.message);
       }
-      const pendingFee = Math.max(0, totalFee - paidFee);
+    }
 
-      // Academic performance
-      const cgpa = Number((7.2 + ((idx * 7) % 27) / 10).toFixed(2));
-      const backlogs = attRate < 75 ? (idx % 2 + 1) : 0;
+    const totalFee = feeStructuresForClass.reduce((sum, structure) => sum + Number(structure.amount || 0), 0);
+    const feeIds = new Set(feeStructuresForClass.map((structure) => structure.id));
+    const dueDate = feeStructuresForClass
+      .map((structure) => structure.dueDate)
+      .filter((value): value is string => Boolean(value))
+      .sort()[0] || '';
+
+    const enrichedStudents = studentRows.map((s) => {
+      const sc = typeof s.scope === 'string' ? JSON.parse(s.scope || '{}') : (s.scope || {});
+      const attendance = attendanceByStudent.get(s.id) || {
+        rate: 0,
+        presentDays: 0,
+        absentDays: 0,
+        totalDays: 0,
+        status: 'at_risk' as const,
+      };
+
+      const studentPayments = (paymentsByStudent.get(s.id) || []).filter((payment) => feeIds.has(payment.feeStructureId));
+      const paidFee = studentPayments
+        .filter((payment) => payment.status === 'paid')
+        .reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+      const pendingFee = Math.max(0, totalFee - paidFee);
+      const feeStatus: 'paid' | 'partial' | 'pending' | 'overdue' =
+        totalFee === 0
+          ? 'pending'
+          : pendingFee === 0
+            ? 'paid'
+            : paidFee > 0
+              ? 'partial'
+              : dueDate && new Date(dueDate) < new Date()
+                ? 'overdue'
+                : 'pending';
+      const cgpa = Number(sc.cgpa) || 0;
+      const backlogs = Number(sc.backlogs) || 0;
 
       return {
         id: s.id,
@@ -1315,45 +1371,35 @@ export class AcademicsService {
         email: s.email || '',
         phone: s.phone || '',
         parentPhone: s.parentPhone || '',
-        rollNoOrUSN: s.rollNoOrUSN || `USN-${idx + 1}`,
+        rollNoOrUSN: s.rollNoOrUSN || '',
         profilePicUrl: s.profilePicUrl || '',
-        tenthPercentage: s.tenthPercentage || '88.5%',
-        twelfthPercentage: s.twelfthPercentage || '86.0%',
+        tenthPercentage: s.tenthPercentage || '',
+        twelfthPercentage: s.twelfthPercentage || '',
         department: classSection.department || '',
         academicYear: classSection.academicYear || '',
         section: classSection.section || '',
         className: classSection.name,
-        roomNumber: (classSection as any).roomNumber || 'Room 101',
-        classTeacherName: (classSection as any).classTeacherName || 'Faculty Advisor',
-        // Bio Data:
-        gender: sc.gender || (idx % 2 === 0 ? 'Male' : 'Female'),
-        dob: sc.dob || `2004-0${(idx % 9) + 1}-12`,
-        bloodGroup: sc.bloodGroup || ['O+', 'A+', 'B+', 'AB+', 'O-'][idx % 5],
-        address: sc.address || `Block ${(idx % 4) + 1}, University Township, Bengaluru`,
-        admissionDate: sc.admissionDate || '2024-08-01',
-        institutionType: 'Engineering College',
-        // Attendance:
-        attendance: {
-          rate: attRate,
-          presentDays,
-          absentDays,
-          totalDays,
-          status: attStatus,
-        },
-        // Fees:
+        roomNumber: (classSection as any).roomNumber || '',
+        classTeacherName: (classSection as any).classTeacherName || '',
+        gender: sc.gender || '',
+        dob: sc.dob || '',
+        bloodGroup: sc.bloodGroup || '',
+        address: sc.address || '',
+        admissionDate: sc.admissionDate || '',
+        institutionType: (classSection as any).institutionType || '',
+        attendance,
         fees: {
           totalFee,
           paidFee,
           pendingFee,
           status: feeStatus,
-          dueDate: '2026-11-15',
+          dueDate,
         },
-        // Academics:
         academics: {
           cgpa,
           backlogs,
           status: backlogs === 0 ? 'passed' : 'reappear',
-          semester: classSection.academicYear || '1st Year',
+          semester: classSection.academicYear || '',
         },
       };
     });

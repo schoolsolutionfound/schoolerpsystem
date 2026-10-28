@@ -49,6 +49,7 @@ import { counselingRoutes } from './modules/counseling/counseling.routes.js';
 import { hodRoutes } from './modules/hod/hod.routes.js';
 import { placementRoutes } from './modules/placement/placement.routes.js';
 import { admissionRoutes } from './modules/admission/admission.routes.js';
+import { startDbKeepAlive, stopDbKeepAlive } from './modules/shared/db/keepAlive.js';
 
 const port = Number(process.env.PORT) || 5000;
 const host = process.env.HOST || '0.0.0.0';
@@ -279,12 +280,14 @@ async function main() {
     });
 
     fastify.addHook('onClose', async () => {
+      stopDbKeepAlive();
       stopAnnouncementScheduler();
       stopPaymentOrderSweeper();
       stopPayrollScheduler();
     });
 
     await fastify.listen({ port, host });
+    startDbKeepAlive();
     startAnnouncementScheduler();
     startPaymentOrderSweeper();
     startPayrollScheduler();

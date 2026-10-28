@@ -25,6 +25,7 @@ import {
 import { studentClasses, users, studentDocuments, feeStructures, feePayments, expenseRecords, placementMembers } from '../shared/db/schema.js';
 import { and as andSql, eq as eqSql, desc as descSql, inArray as inArraySql } from 'drizzle-orm';
 import { admin, isFirebaseAdminInitialized } from '../shared/config/firebase.js';
+import { invalidateVerifiedTokensForUid } from '../shared/middleware/verifiedTokenCache.js';
 import { resolveProvisionPassword, validatePasswordStrength } from '../shared/utils/password.js';
 import { upsertPreferences } from '../notifications/notification.repository.js';
 import { sendParentInvite, sendLoginCredentialsInvite } from '../notifications/email.service.js';
@@ -1395,6 +1396,7 @@ export class AdminService {
     } catch (err: any) {
       console.warn('[resetUserPassword] Token revocation failed:', err.message);
     }
+    invalidateVerifiedTokensForUid(existing.firebaseUid);
 
     // dbUpdateUser invalidates the auth cache, so the gate re-arms immediately.
     await dbUpdateUser(id, { mustChangePassword: true });
