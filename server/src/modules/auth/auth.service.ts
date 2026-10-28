@@ -2,6 +2,7 @@ import { authRepository, IAuthRepository } from './auth.repository.js';
 import { admin, isFirebaseAdminInitialized } from '../shared/config/firebase.js';
 import { AuthenticatedUser } from '../shared/middleware/auth.js';
 import { setCachedAuth } from '../shared/middleware/authCache.js';
+import { invalidateVerifiedTokensForUid } from '../shared/middleware/verifiedTokenCache.js';
 import { institutionService } from '../institutions/institution.service.js';
 import { dbFindUserById, db } from '../shared/db/index.js';
 import { getPrimaryParentChild } from '../users/parent-links.js';
@@ -144,6 +145,10 @@ export class AuthService {
       }
     }
 
+    if (currentUser.uid) {
+      invalidateVerifiedTokensForUid(currentUser.uid);
+    }
+
     return { message: 'Logged out successfully' };
   }
 
@@ -238,6 +243,8 @@ export class AuthService {
       email: currentUser.email,
       mustChangePassword: false,
     });
+
+    invalidateVerifiedTokensForUid(currentUser.uid);
 
     return {
       message: 'Password changed successfully',
