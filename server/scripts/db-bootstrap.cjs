@@ -9,6 +9,7 @@ const baselinePath = path.join(__dirname, '..', 'drizzle', '0000_full_schema.sql
 const EXPECTED_TABLES = 68;
 const EXPECTED_FKS = 81;
 const EXPECTED_UNIQUE_INDEXES = 60;
+const EXPECTED_USER_JSONB_COLUMNS = 3;
 
 async function main() {
   if (!process.env.DATABASE_URL) {
@@ -74,19 +75,30 @@ async function main() {
         and i.indisunique
         and con.oid is null
     `);
+    const userJsonbColumns = await client.query(`
+      select count(*)::int as n
+      from information_schema.columns
+      where table_schema = 'public'
+        and table_name = 'users'
+        and column_name in ('scope', 'permissions', 'roles')
+        and data_type = 'jsonb'
+    `);
 
     const tableCount = tables.rows[0].n;
     const fkCount = fks.rows[0].n;
     const uniqueIndexCount = uniqueIndexes.rows[0].n;
+    const userJsonbColumnCount = userJsonbColumns.rows[0].n;
 
     if (
       tableCount !== EXPECTED_TABLES ||
       fkCount !== EXPECTED_FKS ||
-      uniqueIndexCount !== EXPECTED_UNIQUE_INDEXES
+      uniqueIndexCount !== EXPECTED_UNIQUE_INDEXES ||
+      userJsonbColumnCount !== EXPECTED_USER_JSONB_COLUMNS
     ) {
       throw new Error(
         `Baseline verification failed: tables=${tableCount}/${EXPECTED_TABLES}, ` +
-          `fks=${fkCount}/${EXPECTED_FKS}, uniqueIndexes=${uniqueIndexCount}/${EXPECTED_UNIQUE_INDEXES}`
+          `fks=${fkCount}/${EXPECTED_FKS}, uniqueIndexes=${uniqueIndexCount}/${EXPECTED_UNIQUE_INDEXES}, ` +
+          `userJsonbColumns=${userJsonbColumnCount}/${EXPECTED_USER_JSONB_COLUMNS}`
       );
     }
 

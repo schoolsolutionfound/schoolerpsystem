@@ -31,6 +31,15 @@ describe('fresh database baseline', () => {
     expect(sql).not.toMatch(/CREATE INDEX "/);
   });
 
+  it('stores user scope, roles, and permissions as jsonb', () => {
+    const usersDdl = sql.match(/CREATE TABLE IF NOT EXISTS "users" \([\s\S]*?\n\);/)?.[0] ?? '';
+    expect(usersDdl).toMatch(/"scope" jsonb DEFAULT '\{\}'::jsonb/);
+    expect(usersDdl).toMatch(/"permissions" jsonb DEFAULT '\[\]'::jsonb/);
+    expect(usersDdl).toMatch(/"roles" jsonb DEFAULT '\[\]'::jsonb/);
+    expect(usersDdl).not.toMatch(/"scope" text/);
+    expect(usersDdl).not.toMatch(/"permissions" text/);
+  });
+
   it('has a single, consistent Drizzle migration entry', () => {
     expect(journal.entries).toHaveLength(1);
     expect(journal.entries[0]).toMatchObject({ idx: 0, tag: '0000_full_schema' });
