@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean, varchar, jsonb, integer, numeric, bigint, date, index, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, boolean, varchar, jsonb, integer, numeric, bigint, date, index, uniqueIndex, foreignKey } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
 export const institutions = pgTable('institutions', {
@@ -85,6 +85,9 @@ export const users = pgTable('users', {
   institutionRoleIdx: index('idx_users_institution_role').on(table.institutionCode, table.role),
   // Covers non-scoped role lookups (e.g. platform-wide admin counts) without a full scan.
   adminRoleIdx: index('idx_users_admin_role').on(table.role).where(sql`role = 'admin'`),
+  // Composite keys used by tenant-scoped foreign keys.
+  instIdUnique: uniqueIndex('uq_users_inst_id').on(table.institutionCode, table.id),
+  instUidUnique: uniqueIndex('uq_users_inst_uid').on(table.institutionCode, table.firebaseUid),
 }));
 
 export type UserRecord = typeof users.$inferSelect;
@@ -159,6 +162,7 @@ export const classSections = pgTable('class_sections', {
   instCodeIdx: index('idx_class_sections_inst').on(table.institutionCode),
   teacherIdx: index('idx_class_sections_teacher').on(table.classTeacherId),
   nameUnique: uniqueIndex('uq_class_sections_inst_name').on(table.institutionCode, table.name),
+  instIdUnique: uniqueIndex('uq_class_sections_inst_id').on(table.institutionCode, table.id),
 }));
 
 export type ClassSectionRecord = typeof classSections.$inferSelect;
@@ -174,6 +178,7 @@ export const subjects = pgTable('subjects', {
 }, (table) => ({
   instCodeIdx: index('idx_subjects_inst').on(table.institutionCode),
   nameUnique: uniqueIndex('uq_subjects_inst_name').on(table.institutionCode, table.name),
+  instIdUnique: uniqueIndex('uq_subjects_inst_id').on(table.institutionCode, table.id),
 }));
 
 export type SubjectRecord = typeof subjects.$inferSelect;
@@ -192,6 +197,16 @@ export const subjectTeachers = pgTable('subject_teachers', {
   classIdx: index('idx_subject_teachers_class').on(table.classSectionId),
   teacherIdx: index('idx_subject_teachers_teacher').on(table.teacherId),
   classSubjectUnique: uniqueIndex('uq_subject_teachers_class_subject').on(table.classSectionId, table.subjectId),
+  classFk: foreignKey({
+    columns: [table.institutionCode, table.classSectionId],
+    foreignColumns: [classSections.institutionCode, classSections.id],
+    name: 'fk_subject_teachers_class',
+  }).onDelete('cascade'),
+  subjectFk: foreignKey({
+    columns: [table.institutionCode, table.subjectId],
+    foreignColumns: [subjects.institutionCode, subjects.id],
+    name: 'fk_subject_teachers_subject',
+  }).onDelete('cascade'),
 }));
 
 export type SubjectTeacherRecord = typeof subjectTeachers.$inferSelect;
@@ -208,6 +223,7 @@ export const periods = pgTable('periods', {
   updatedAt: timestamp('updated_at').defaultNow(),
 }, (table) => ({
   instCodeIdx: index('idx_periods_inst').on(table.institutionCode),
+  instIdUnique: uniqueIndex('uq_periods_inst_id').on(table.institutionCode, table.id),
 }));
 
 export type PeriodRecord = typeof periods.$inferSelect;
@@ -229,6 +245,17 @@ export const timetables = pgTable('timetables', {
   instCodeIdx: index('idx_timetables_inst').on(table.institutionCode),
   classIdx: index('idx_timetables_class').on(table.classSectionId),
   classVersionUnique: uniqueIndex('uq_timetables_class_version').on(table.classSectionId, table.version),
+  instIdUnique: uniqueIndex('uq_timetables_inst_id').on(table.institutionCode, table.id),
+  classFk: foreignKey({
+    columns: [table.institutionCode, table.classSectionId],
+    foreignColumns: [classSections.institutionCode, classSections.id],
+    name: 'fk_timetables_class',
+  }).onDelete('restrict'),
+  creatorFk: foreignKey({
+    columns: [table.institutionCode, table.createdBy],
+    foreignColumns: [users.institutionCode, users.firebaseUid],
+    name: 'fk_timetables_creator',
+  }).onDelete('restrict'),
 }));
 
 export type TimetableRecord = typeof timetables.$inferSelect;
@@ -251,6 +278,27 @@ export const timetableSlots = pgTable('timetable_slots', {
   teacherIdx: index('idx_timetable_slots_teacher').on(table.teacherId),
   classIdx: index('idx_timetable_slots_class').on(table.classSectionId),
   slotUnique: uniqueIndex('uq_timetable_slots_tt_day_period').on(table.timetableId, table.dayOfWeek, table.periodId),
+  instIdUnique: uniqueIndex('uq_timetable_slots_inst_id').on(table.institutionCode, table.id),
+  timetableFk: foreignKey({
+    columns: [table.institutionCode, table.timetableId],
+    foreignColumns: [timetables.institutionCode, timetables.id],
+    name: 'fk_timetable_slots_timetable',
+  }).onDelete('cascade'),
+  classFk: foreignKey({
+    columns: [table.institutionCode, table.classSectionId],
+    foreignColumns: [classSections.institutionCode, classSections.id],
+    name: 'fk_timetable_slots_class',
+  }).onDelete('restrict'),
+  subjectFk: foreignKey({
+    columns: [table.institutionCode, table.subjectId],
+    foreignColumns: [subjects.institutionCode, subjects.id],
+    name: 'fk_timetable_slots_subject',
+  }).onDelete('restrict'),
+  periodFk: foreignKey({
+    columns: [table.institutionCode, table.periodId],
+    foreignColumns: [periods.institutionCode, periods.id],
+    name: 'fk_timetable_slots_period',
+  }).onDelete('restrict'),
 }));
 
 export type TimetableSlotRecord = typeof timetableSlots.$inferSelect;
@@ -273,6 +321,17 @@ export const attendanceRecords = pgTable('attendance_records', {
   teacherIdx: index('idx_attendance_records_teacher').on(table.takenByTeacherId),
   dateIdx: index('idx_attendance_records_date').on(table.date),
   slotDateUnique: uniqueIndex('uq_attendance_records_slot_date').on(table.timetableSlotId, table.date),
+  instIdUnique: uniqueIndex('uq_attendance_records_inst_id').on(table.institutionCode, table.id),
+  slotFk: foreignKey({
+    columns: [table.institutionCode, table.timetableSlotId],
+    foreignColumns: [timetableSlots.institutionCode, timetableSlots.id],
+    name: 'fk_attendance_records_slot',
+  }).onDelete('cascade'),
+  teacherFk: foreignKey({
+    columns: [table.institutionCode, table.takenByTeacherId],
+    foreignColumns: [users.institutionCode, users.id],
+    name: 'fk_attendance_records_teacher',
+  }).onDelete('restrict'),
 }));
 
 export type AttendanceRecordRecord = typeof attendanceRecords.$inferSelect;
@@ -290,6 +349,16 @@ export const attendanceEntries = pgTable('attendance_entries', {
   recordIdx: index('idx_attendance_entries_record').on(table.attendanceRecordId),
   studentIdx: index('idx_attendance_entries_student').on(table.studentId),
   recordStudentUnique: uniqueIndex('uq_attendance_entries_record_student').on(table.attendanceRecordId, table.studentId),
+  recordFk: foreignKey({
+    columns: [table.attendanceRecordId],
+    foreignColumns: [attendanceRecords.id],
+    name: 'fk_attendance_entries_record',
+  }).onDelete('cascade'),
+  studentFk: foreignKey({
+    columns: [table.studentId],
+    foreignColumns: [users.id],
+    name: 'fk_attendance_entries_student',
+  }).onDelete('cascade'),
 }));
 
 export type AttendanceEntryRecord = typeof attendanceEntries.$inferSelect;
@@ -323,6 +392,16 @@ export const studentClasses = pgTable('student_classes', {
     table.studentId,
     table.academicYear
   ),
+  studentFk: foreignKey({
+    columns: [table.institutionCode, table.studentId],
+    foreignColumns: [users.institutionCode, users.id],
+    name: 'fk_student_classes_student',
+  }).onDelete('cascade'),
+  classFk: foreignKey({
+    columns: [table.institutionCode, table.classSectionId],
+    foreignColumns: [classSections.institutionCode, classSections.id],
+    name: 'fk_student_classes_class',
+  }).onDelete('cascade'),
 }));
 
 export type StudentClassRecord = typeof studentClasses.$inferSelect;
@@ -350,6 +429,16 @@ export const parentLinks = pgTable('parent_links', {
   studentIdx: index('idx_parent_links_student').on(table.studentId),
   instIdx: index('idx_parent_links_inst').on(table.institutionCode),
   pairUnique: uniqueIndex('uq_parent_links_parent_student').on(table.parentId, table.studentId),
+  parentFk: foreignKey({
+    columns: [table.institutionCode, table.parentId],
+    foreignColumns: [users.institutionCode, users.id],
+    name: 'fk_parent_links_parent',
+  }).onDelete('cascade'),
+  studentFk: foreignKey({
+    columns: [table.institutionCode, table.studentId],
+    foreignColumns: [users.institutionCode, users.id],
+    name: 'fk_parent_links_student',
+  }).onDelete('cascade'),
 }));
 
 export type ParentLinkRecord = typeof parentLinks.$inferSelect;
@@ -378,6 +467,12 @@ export const exams = pgTable('exams', {
 }, (table) => ({
   instCodeIdx: index('idx_exams_inst').on(table.institutionCode),
   statusIdx: index('idx_exams_status').on(table.status),
+  instIdUnique: uniqueIndex('uq_exams_inst_id').on(table.institutionCode, table.id),
+  creatorFk: foreignKey({
+    columns: [table.institutionCode, table.createdBy],
+    foreignColumns: [users.institutionCode, users.firebaseUid],
+    name: 'fk_exams_creator',
+  }).onDelete('restrict'),
 }));
 
 export type ExamRecord = typeof exams.$inferSelect;
@@ -394,6 +489,17 @@ export const examSubjects = pgTable('exam_subjects', {
 }, (table) => ({
   examIdx: index('idx_exam_subjects_exam').on(table.examId),
   examSubjectUnique: uniqueIndex('uq_exam_subjects_exam_subject').on(table.examId, table.subjectId),
+  instIdUnique: uniqueIndex('uq_exam_subjects_inst_id').on(table.institutionCode, table.id),
+  examFk: foreignKey({
+    columns: [table.institutionCode, table.examId],
+    foreignColumns: [exams.institutionCode, exams.id],
+    name: 'fk_exam_subjects_exam',
+  }).onDelete('cascade'),
+  subjectFk: foreignKey({
+    columns: [table.institutionCode, table.subjectId],
+    foreignColumns: [subjects.institutionCode, subjects.id],
+    name: 'fk_exam_subjects_subject',
+  }).onDelete('restrict'),
 }));
 
 export type ExamSubjectRecord = typeof examSubjects.$inferSelect;
@@ -421,6 +527,36 @@ export const marks = pgTable('marks', {
     table.examSubjectId,
     table.studentId
   ),
+  examFk: foreignKey({
+    columns: [table.institutionCode, table.examId],
+    foreignColumns: [exams.institutionCode, exams.id],
+    name: 'fk_marks_exam',
+  }).onDelete('restrict'),
+  examSubjectFk: foreignKey({
+    columns: [table.institutionCode, table.examSubjectId],
+    foreignColumns: [examSubjects.institutionCode, examSubjects.id],
+    name: 'fk_marks_exam_subject',
+  }).onDelete('restrict'),
+  studentFk: foreignKey({
+    columns: [table.institutionCode, table.studentId],
+    foreignColumns: [users.institutionCode, users.id],
+    name: 'fk_marks_student',
+  }).onDelete('restrict'),
+  classFk: foreignKey({
+    columns: [table.institutionCode, table.classSectionId],
+    foreignColumns: [classSections.institutionCode, classSections.id],
+    name: 'fk_marks_class',
+  }).onDelete('restrict'),
+  subjectFk: foreignKey({
+    columns: [table.institutionCode, table.subjectId],
+    foreignColumns: [subjects.institutionCode, subjects.id],
+    name: 'fk_marks_subject',
+  }).onDelete('restrict'),
+  enteredByFk: foreignKey({
+    columns: [table.institutionCode, table.enteredBy],
+    foreignColumns: [users.institutionCode, users.firebaseUid],
+    name: 'fk_marks_entered_by',
+  }).onDelete('restrict'),
 }));
 
 export type MarkRecord = typeof marks.$inferSelect;
@@ -448,6 +584,26 @@ export const homework = pgTable('homework', {
   teacherIdx: index('idx_homework_teacher').on(table.teacherId),
   subjectIdx: index('idx_homework_subject').on(table.subjectId),
   dueDateIdx: index('idx_homework_due_date').on(table.dueDate),
+  classFk: foreignKey({
+    columns: [table.institutionCode, table.classSectionId],
+    foreignColumns: [classSections.institutionCode, classSections.id],
+    name: 'fk_homework_class',
+  }).onDelete('restrict'),
+  subjectFk: foreignKey({
+    columns: [table.institutionCode, table.subjectId],
+    foreignColumns: [subjects.institutionCode, subjects.id],
+    name: 'fk_homework_subject',
+  }).onDelete('restrict'),
+  teacherFk: foreignKey({
+    columns: [table.institutionCode, table.teacherId],
+    foreignColumns: [users.institutionCode, users.firebaseUid],
+    name: 'fk_homework_teacher',
+  }).onDelete('restrict'),
+  creatorFk: foreignKey({
+    columns: [table.institutionCode, table.createdBy],
+    foreignColumns: [users.institutionCode, users.firebaseUid],
+    name: 'fk_homework_creator',
+  }).onDelete('restrict'),
 }));
 
 export type HomeworkRecord = typeof homework.$inferSelect;
@@ -464,6 +620,11 @@ export const studentDocuments = pgTable('student_documents', {
 }, (table) => ({
   instCodeIdx: index('idx_student_documents_inst').on(table.institutionCode),
   studentIdx: index('idx_student_documents_student').on(table.studentId),
+  studentFk: foreignKey({
+    columns: [table.institutionCode, table.studentId],
+    foreignColumns: [users.institutionCode, users.id],
+    name: 'fk_student_documents_student',
+  }).onDelete('cascade'),
 }));
 
 export type StudentDocumentRecord = typeof studentDocuments.$inferSelect;
@@ -487,6 +648,12 @@ export const feeStructures = pgTable('fee_structures', {
   instCodeIdx: index('idx_fee_structures_inst').on(table.institutionCode),
   classIdx: index('idx_fee_structures_class').on(table.classSectionId),
   categoryIdx: index('idx_fee_structures_category').on(table.category),
+  instIdUnique: uniqueIndex('uq_fee_structures_inst_id').on(table.institutionCode, table.id),
+  classFk: foreignKey({
+    columns: [table.institutionCode, table.classSectionId],
+    foreignColumns: [classSections.institutionCode, classSections.id],
+    name: 'fk_fee_structures_class',
+  }).onDelete('restrict'),
 }));
 
 export type FeeStructureRecord = typeof feeStructures.$inferSelect;
@@ -515,6 +682,16 @@ export const feePayments = pgTable('fee_payments', {
   feeStructureIdx: index('idx_fee_payments_fee_structure').on(table.feeStructureId),
   statusIdx: index('idx_fee_payments_status').on(table.status),
   paymentOrderIdx: index('idx_fee_payments_payment_order').on(table.paymentOrderId),
+  feeStructureFk: foreignKey({
+    columns: [table.institutionCode, table.feeStructureId],
+    foreignColumns: [feeStructures.institutionCode, feeStructures.id],
+    name: 'fk_fee_payments_structure',
+  }).onDelete('restrict'),
+  studentFk: foreignKey({
+    columns: [table.institutionCode, table.studentId],
+    foreignColumns: [users.institutionCode, users.id],
+    name: 'fk_fee_payments_student',
+  }).onDelete('restrict'),
 }));
 
 export type FeePaymentRecord = typeof feePayments.$inferSelect;
@@ -568,6 +745,11 @@ export const paymentOrders = pgTable('payment_orders', {
   feeStructureIds: jsonb('fee_structure_ids').$type<{ id: string; amountPaise: number }[]>().notNull().default([]),
   expiresAt: timestamp('expires_at').notNull(),
   paidAt: timestamp('paid_at'),
+  // Cumulative amount refunded, in paise. Monotonically increases across
+  // partial refunds so two 50% refunds finalize the order; never decremented.
+  // The refund.processed webhook accumulates here, and `refunded` is decided
+  // from the running total — never from a single event's amount.
+  refundedPaise: bigint('refunded_paise', { mode: 'number' }).notNull().default(0),
   webhookEventId: text('webhook_event_id'),
   failureReason: text('failure_reason'),
   // PII-minimised gateway payload subset for audit (no contact/email/card data).
@@ -585,6 +767,17 @@ export const paymentOrders = pgTable('payment_orders', {
   openOrderUq: uniqueIndex('uq_payment_orders_open_per_student')
     .on(table.institutionCode, table.studentId)
     .where(sql`status IN ('created', 'authorized')`),
+  instIdUnique: uniqueIndex('uq_payment_orders_inst_id').on(table.institutionCode, table.id),
+  studentFk: foreignKey({
+    columns: [table.institutionCode, table.studentId],
+    foreignColumns: [users.institutionCode, users.id],
+    name: 'fk_payment_orders_student',
+  }).onDelete('restrict'),
+  payerFk: foreignKey({
+    columns: [table.institutionCode, table.payerUid],
+    foreignColumns: [users.institutionCode, users.firebaseUid],
+    name: 'fk_payment_orders_payer',
+  }).onDelete('restrict'),
 }));
 
 export type PaymentOrderRecord = typeof paymentOrders.$inferSelect;
@@ -597,6 +790,9 @@ export const paymentTransactions = pgTable('payment_transactions', {
   paymentOrderId: text('payment_order_id').notNull(),
   gateway: varchar('gateway', { length: 30 }).notNull().default('razorpay'),
   gatewayPaymentId: text('gateway_payment_id'),
+  // Gateway refund id (Razorpay `rfnd_...`). Set on refund rows so a replayed
+  // refund.processed webhook is recognised and cannot double-accumulate.
+  gatewayRefundId: text('gateway_refund_id'),
   amountPaise: bigint('amount_paise', { mode: 'number' }).notNull(),
   method: varchar('method', { length: 30 }),
   status: varchar('status', { length: 30 }).notNull().default('initiated'),
@@ -607,6 +803,17 @@ export const paymentTransactions = pgTable('payment_transactions', {
   instCodeIdx: index('idx_payment_transactions_inst').on(table.institutionCode),
   orderIdx: index('idx_payment_transactions_order').on(table.paymentOrderId),
   gatewayPaymentIdx: index('idx_payment_transactions_gateway_payment').on(table.gatewayPaymentId),
+  // One row per gateway refund per tenant. NULLs are distinct in Postgres, so
+  // non-refund transactions are unaffected.
+  gatewayRefundUq: uniqueIndex('uq_payment_transactions_gateway_refund').on(
+    table.institutionCode,
+    table.gatewayRefundId
+  ),
+  orderFk: foreignKey({
+    columns: [table.institutionCode, table.paymentOrderId],
+    foreignColumns: [paymentOrders.institutionCode, paymentOrders.id],
+    name: 'fk_payment_transactions_order',
+  }).onDelete('cascade'),
 }));
 
 export type PaymentTransactionRecord = typeof paymentTransactions.$inferSelect;
@@ -660,6 +867,11 @@ export const expenseRecords = pgTable('expense_records', {
   scheduleIdx: index('idx_expense_records_schedule').on(table.scheduleId).where(sql`schedule_id is not null`),
   uqPeriodKeyIdx: uniqueIndex('uq_expense_period_key').on(table.scheduleId, table.periodKey)
     .where(sql`schedule_id is not null and period_key is not null`),
+  userFk: foreignKey({
+    columns: [table.institutionCode, table.userId],
+    foreignColumns: [users.institutionCode, users.id],
+    name: 'fk_expense_records_user',
+  }).onDelete('restrict'),
 }));
 
 export type ExpenseRecordRow = typeof expenseRecords.$inferSelect;
@@ -694,6 +906,11 @@ export const payrollSchedules = pgTable('payroll_schedules', {
   uqActiveUserIdx: uniqueIndex('uq_payroll_schedules_active_user')
     .on(table.institutionCode, table.userId)
     .where(sql`active`),
+  userFk: foreignKey({
+    columns: [table.institutionCode, table.userId],
+    foreignColumns: [users.institutionCode, users.id],
+    name: 'fk_payroll_schedules_user',
+  }).onDelete('restrict'),
 }));
 
 export type PayrollScheduleRow = typeof payrollSchedules.$inferSelect;
@@ -724,6 +941,11 @@ export const notifications = pgTable('notifications', {
   statusIdx: index('idx_notifications_status').on(table.status, table.createdAt),
   pendingIdx: index('idx_notifications_pending').on(table.status).where(sql`status = 'pending'`),
   typeIdx: index('idx_notifications_type').on(table.type),
+  recipientFk: foreignKey({
+    columns: [table.institutionCode, table.recipientId],
+    foreignColumns: [users.institutionCode, users.firebaseUid],
+    name: 'fk_notifications_recipient',
+  }).onDelete('cascade'),
 }));
 
 export type NotificationRecord = typeof notifications.$inferSelect;
@@ -743,6 +965,11 @@ export const pushTokens = pgTable('push_tokens', {
   userIdx: index('idx_push_tokens_user').on(table.userId, table.isActive),
   institutionIdx: index('idx_push_tokens_institution').on(table.institutionCode),
   tokenUnique: uniqueIndex('uq_push_tokens_token').on(table.token),
+  userFk: foreignKey({
+    columns: [table.institutionCode, table.userId],
+    foreignColumns: [users.institutionCode, users.firebaseUid],
+    name: 'fk_push_tokens_user',
+  }).onDelete('cascade'),
 }));
 
 export type PushTokenRecord = typeof pushTokens.$inferSelect;
@@ -787,6 +1014,11 @@ export const notificationCampaigns = pgTable('notification_campaigns', {
 }, (table) => ({
   institutionIdx: index('idx_notification_campaigns_inst').on(table.institutionCode, table.createdAt),
   statusIdx: index('idx_notification_campaigns_status').on(table.status),
+  creatorFk: foreignKey({
+    columns: [table.institutionCode, table.createdBy],
+    foreignColumns: [users.institutionCode, users.firebaseUid],
+    name: 'fk_notification_campaigns_creator',
+  }).onDelete('restrict'),
 }));
 
 export type NotificationCampaignRecord = typeof notificationCampaigns.$inferSelect;
@@ -805,6 +1037,21 @@ export const notificationAuditLog = pgTable('notification_audit_log', {
   institutionIdx: index('idx_notification_audit_inst').on(table.institutionCode, table.createdAt),
   actionIdx: index('idx_notification_audit_action').on(table.action),
   notificationIdx: index('idx_notification_audit_notification').on(table.notificationId),
+  notificationFk: foreignKey({
+    columns: [table.notificationId],
+    foreignColumns: [notifications.id],
+    name: 'fk_notification_audit_notification',
+  }).onDelete('set null'),
+  campaignFk: foreignKey({
+    columns: [table.campaignId],
+    foreignColumns: [notificationCampaigns.id],
+    name: 'fk_notification_audit_campaign',
+  }).onDelete('set null'),
+  userFk: foreignKey({
+    columns: [table.institutionCode, table.userId],
+    foreignColumns: [users.institutionCode, users.firebaseUid],
+    name: 'fk_notification_audit_user',
+  }).onDelete('restrict'),
 }));
 
 export type NotificationAuditLogRecord = typeof notificationAuditLog.$inferSelect;
@@ -821,6 +1068,11 @@ export const notificationPreferences = pgTable('notification_preferences', {
 }, (table) => ({
   userIdx: index('idx_notification_preferences_user').on(table.userId),
   userUnique: uniqueIndex('uq_notification_preferences_user').on(table.userId),
+  userFk: foreignKey({
+    columns: [table.institutionCode, table.userId],
+    foreignColumns: [users.institutionCode, users.firebaseUid],
+    name: 'fk_notification_preferences_user',
+  }).onDelete('cascade'),
 }));
 
 export type NotificationPreferenceRecord = typeof notificationPreferences.$inferSelect;
@@ -841,6 +1093,7 @@ export const libraryCategories = pgTable('library_categories', {
 }, (table) => ({
   instCodeIdx: index('idx_lib_categories_inst').on(table.institutionCode),
   nameUnique: uniqueIndex('uq_lib_categories_inst_name').on(table.institutionCode, table.name),
+  instIdUnique: uniqueIndex('uq_lib_categories_inst_id').on(table.institutionCode, table.id),
 }));
 
 export type LibraryCategoryRecord = typeof libraryCategories.$inferSelect;
@@ -885,6 +1138,12 @@ export const libraryBooks = pgTable('library_books', {
   categoryIdx: index('idx_lib_books_category').on(table.categoryId),
   isbnIdx: index('idx_lib_books_isbn').on(table.isbn),
   isbnUnique: uniqueIndex('uq_lib_books_inst_isbn').on(table.institutionCode, table.isbn),
+  instIdUnique: uniqueIndex('uq_lib_books_inst_id').on(table.institutionCode, table.id),
+  categoryFk: foreignKey({
+    columns: [table.institutionCode, table.categoryId],
+    foreignColumns: [libraryCategories.institutionCode, libraryCategories.id],
+    name: 'fk_lib_books_category',
+  }).onDelete('restrict'),
 }));
 
 export type LibraryBookRecord = typeof libraryBooks.$inferSelect;
@@ -909,6 +1168,12 @@ export const libraryBookCopies = pgTable('library_book_copies', {
   statusIdx: index('idx_lib_copies_status').on(table.status),
   accessionUnique: uniqueIndex('uq_lib_copies_inst_accession').on(table.institutionCode, table.accessionNumber),
   barcodeUnique: uniqueIndex('uq_lib_copies_inst_barcode').on(table.institutionCode, table.barcode),
+  instIdUnique: uniqueIndex('uq_lib_copies_inst_id').on(table.institutionCode, table.id),
+  bookFk: foreignKey({
+    columns: [table.institutionCode, table.bookId],
+    foreignColumns: [libraryBooks.institutionCode, libraryBooks.id],
+    name: 'fk_lib_copies_book',
+  }).onDelete('cascade'),
 }));
 
 export type LibraryBookCopyRecord = typeof libraryBookCopies.$inferSelect;
@@ -937,6 +1202,22 @@ export const libraryLoans = pgTable('library_loans', {
   activeCopyLoanUnique: uniqueIndex('uq_lib_loans_active_copy')
     .on(table.copyId)
     .where(sql`status IN ('ACTIVE', 'OVERDUE')`),
+  instIdUnique: uniqueIndex('uq_lib_loans_inst_id').on(table.institutionCode, table.id),
+  copyFk: foreignKey({
+    columns: [table.institutionCode, table.copyId],
+    foreignColumns: [libraryBookCopies.institutionCode, libraryBookCopies.id],
+    name: 'fk_lib_loans_copy',
+  }).onDelete('restrict'),
+  bookFk: foreignKey({
+    columns: [table.institutionCode, table.bookId],
+    foreignColumns: [libraryBooks.institutionCode, libraryBooks.id],
+    name: 'fk_lib_loans_book',
+  }).onDelete('restrict'),
+  studentFk: foreignKey({
+    columns: [table.institutionCode, table.studentId],
+    foreignColumns: [users.institutionCode, users.id],
+    name: 'fk_lib_loans_student',
+  }).onDelete('restrict'),
 }));
 
 export type LibraryLoanRecord = typeof libraryLoans.$inferSelect;
@@ -957,6 +1238,16 @@ export const libraryReservations = pgTable('library_reservations', {
   bookIdx: index('idx_lib_res_book').on(table.bookId),
   studentIdx: index('idx_lib_res_student').on(table.studentId),
   statusIdx: index('idx_lib_res_status').on(table.status),
+  bookFk: foreignKey({
+    columns: [table.institutionCode, table.bookId],
+    foreignColumns: [libraryBooks.institutionCode, libraryBooks.id],
+    name: 'fk_lib_res_book',
+  }).onDelete('restrict'),
+  studentFk: foreignKey({
+    columns: [table.institutionCode, table.studentId],
+    foreignColumns: [users.institutionCode, users.id],
+    name: 'fk_lib_res_student',
+  }).onDelete('restrict'),
 }));
 
 export type LibraryReservationRecord = typeof libraryReservations.$inferSelect;
@@ -983,6 +1274,22 @@ export const libraryFines = pgTable('library_fines', {
   studentIdx: index('idx_lib_fines_student').on(table.studentId),
   loanIdx: index('idx_lib_fines_loan').on(table.loanId),
   statusIdx: index('idx_lib_fines_status').on(table.status),
+  instIdUnique: uniqueIndex('uq_lib_fines_inst_id').on(table.institutionCode, table.id),
+  loanFk: foreignKey({
+    columns: [table.institutionCode, table.loanId],
+    foreignColumns: [libraryLoans.institutionCode, libraryLoans.id],
+    name: 'fk_lib_fines_loan',
+  }).onDelete('restrict'),
+  copyFk: foreignKey({
+    columns: [table.institutionCode, table.bookCopyId],
+    foreignColumns: [libraryBookCopies.institutionCode, libraryBookCopies.id],
+    name: 'fk_lib_fines_copy',
+  }).onDelete('restrict'),
+  studentFk: foreignKey({
+    columns: [table.institutionCode, table.studentId],
+    foreignColumns: [users.institutionCode, users.id],
+    name: 'fk_lib_fines_student',
+  }).onDelete('restrict'),
 }));
 
 export type LibraryFineRecord = typeof libraryFines.$inferSelect;
@@ -1006,6 +1313,11 @@ export const libraryPaymentTransactions = pgTable('library_payment_transactions'
   instCodeIdx: index('idx_lib_txns_inst').on(table.institutionCode),
   fineIdx: index('idx_lib_txns_fine').on(table.fineId),
   receiptUnique: uniqueIndex('uq_lib_txns_receipt').on(table.institutionCode, table.receiptNo),
+  fineFk: foreignKey({
+    columns: [table.institutionCode, table.fineId],
+    foreignColumns: [libraryFines.institutionCode, libraryFines.id],
+    name: 'fk_lib_txns_fine',
+  }).onDelete('restrict'),
 }));
 
 export type LibraryPaymentTransactionRecord = typeof libraryPaymentTransactions.$inferSelect;
@@ -1091,6 +1403,11 @@ export const announcements = pgTable('announcements', {
   createdByIdx: index('idx_announcements_created_by').on(table.createdBy),
   publishAtIdx: index('idx_announcements_publish_at').on(table.publishAt),
   expiresAtIdx: index('idx_announcements_expires_at').on(table.expiresAt),
+  creatorFk: foreignKey({
+    columns: [table.institutionCode, table.createdBy],
+    foreignColumns: [users.institutionCode, users.firebaseUid],
+    name: 'fk_announcements_creator',
+  }).onDelete('restrict'),
 }));
 
 export type AnnouncementRecord = typeof announcements.$inferSelect;
@@ -1109,6 +1426,11 @@ export const announcementTargets = pgTable('announcement_targets', {
   targetRoleIdx: index('idx_announcement_targets_target_role').on(table.targetRole),
   classIdx: index('idx_announcement_targets_class_id').on(table.classId),
   sectionIdx: index('idx_announcement_targets_section_id').on(table.sectionId),
+  announcementFk: foreignKey({
+    columns: [table.announcementId],
+    foreignColumns: [announcements.id],
+    name: 'fk_announcement_targets_announcement',
+  }).onDelete('cascade'),
 }));
 
 export type AnnouncementTargetRecord = typeof announcementTargets.$inferSelect;
@@ -1123,6 +1445,16 @@ export const announcementReads = pgTable('announcement_reads', {
   announcementIdx: index('idx_announcement_reads_announcement_id').on(table.announcementId),
   userIdx: index('idx_announcement_reads_user_id').on(table.userId),
   annUserUnique: uniqueIndex('uq_announcement_reads_ann_user').on(table.announcementId, table.userId),
+  announcementFk: foreignKey({
+    columns: [table.announcementId],
+    foreignColumns: [announcements.id],
+    name: 'fk_announcement_reads_announcement',
+  }).onDelete('cascade'),
+  userFk: foreignKey({
+    columns: [table.userId],
+    foreignColumns: [users.firebaseUid],
+    name: 'fk_announcement_reads_user',
+  }).onDelete('cascade'),
 }));
 
 export type AnnouncementReadRecord = typeof announcementReads.$inferSelect;
@@ -1151,6 +1483,11 @@ export const admissions = pgTable('admissions', {
   parentIdx: index('idx_admissions_parent').on(table.parentId),
   schoolIdx: index('idx_admissions_school').on(table.schoolId),
   statusIdx: index('idx_admissions_status').on(table.status),
+  schoolFk: foreignKey({
+    columns: [table.schoolId],
+    foreignColumns: [institutions.institutionCode],
+    name: 'fk_admissions_school',
+  }).onDelete('restrict'),
 }));
 
 export type AdmissionRecord = typeof admissions.$inferSelect;
@@ -1255,6 +1592,7 @@ export const busVehicles = pgTable('bus_vehicles', {
   updatedAt: timestamp('updated_at').defaultNow(),
 }, (table) => ({
   instRegUnique: uniqueIndex('uq_bus_vehicles_inst_reg').on(table.institutionCode, table.registrationNo),
+  instIdUnique: uniqueIndex('uq_bus_vehicles_inst_id').on(table.institutionCode, table.id),
 }));
 
 export type BusVehicleRecord = typeof busVehicles.$inferSelect;
@@ -1270,6 +1608,12 @@ export const busRoutes = pgTable('bus_routes', {
   updatedAt: timestamp('updated_at').defaultNow(),
 }, (table) => ({
   driverIdx: index('idx_bus_routes_driver').on(table.driverId),
+  instIdUnique: uniqueIndex('uq_bus_routes_inst_id').on(table.institutionCode, table.id),
+  vehicleFk: foreignKey({
+    columns: [table.institutionCode, table.vehicleId],
+    foreignColumns: [busVehicles.institutionCode, busVehicles.id],
+    name: 'fk_bus_routes_vehicle',
+  }).onDelete('restrict'),
 }));
 
 export type BusRouteRecord = typeof busRoutes.$inferSelect;
@@ -1286,6 +1630,12 @@ export const busStops = pgTable('bus_stops', {
   createdAt: timestamp('created_at').defaultNow(),
 }, (table) => ({
   routeSeqIdx: index('idx_bus_stops_route_seq').on(table.routeId, table.sequence),
+  instIdUnique: uniqueIndex('uq_bus_stops_inst_id').on(table.institutionCode, table.id),
+  routeFk: foreignKey({
+    columns: [table.institutionCode, table.routeId],
+    foreignColumns: [busRoutes.institutionCode, busRoutes.id],
+    name: 'fk_bus_stops_route',
+  }).onDelete('cascade'),
 }));
 
 export type BusStopRecord = typeof busStops.$inferSelect;
@@ -1303,6 +1653,21 @@ export const studentTransport = pgTable('student_transport', {
 }, (table) => ({
   routeIdx: index('idx_student_transport_route').on(table.routeId),
   studentRouteUnique: uniqueIndex('uq_student_transport_student_route').on(table.studentId, table.routeId),
+  studentFk: foreignKey({
+    columns: [table.institutionCode, table.studentId],
+    foreignColumns: [users.institutionCode, users.id],
+    name: 'fk_student_transport_student',
+  }).onDelete('cascade'),
+  routeFk: foreignKey({
+    columns: [table.institutionCode, table.routeId],
+    foreignColumns: [busRoutes.institutionCode, busRoutes.id],
+    name: 'fk_student_transport_route',
+  }).onDelete('restrict'),
+  stopFk: foreignKey({
+    columns: [table.institutionCode, table.stopId],
+    foreignColumns: [busStops.institutionCode, busStops.id],
+    name: 'fk_student_transport_stop',
+  }).onDelete('restrict'),
 }));
 
 export type StudentTransportRecord = typeof studentTransport.$inferSelect;
@@ -1324,6 +1689,11 @@ export const busTrips = pgTable('bus_trips', {
   liveRouteIdx: index('idx_bus_trips_live_route')
     .on(table.routeId)
     .where(sql`status = 'live'`),
+  routeFk: foreignKey({
+    columns: [table.institutionCode, table.routeId],
+    foreignColumns: [busRoutes.institutionCode, busRoutes.id],
+    name: 'fk_bus_trips_route',
+  }).onDelete('restrict'),
 }));
 
 export type BusTripRecord = typeof busTrips.$inferSelect;
@@ -1336,7 +1706,13 @@ export const busLocations = pgTable('bus_locations', {
   speed: numeric('speed', { precision: 5, scale: 2 }),
   heading: numeric('heading', { precision: 5, scale: 2 }),
   updatedAt: timestamp('updated_at').defaultNow(),
-});
+}, (table) => ({
+  tripFk: foreignKey({
+    columns: [table.tripId],
+    foreignColumns: [busTrips.id],
+    name: 'fk_bus_locations_trip',
+  }).onDelete('cascade'),
+}));
 
 export type BusLocationRecord = typeof busLocations.$inferSelect;
 export type NewBusLocationRecord = typeof busLocations.$inferInsert;
@@ -1359,6 +1735,11 @@ export const schoolNotices = pgTable('school_notices', {
   deptIdx: index('idx_school_notices_dept').on(table.department),
   audienceIdx: index('idx_school_notices_audience').on(table.targetAudience),
   createdIdx: index('idx_school_notices_created').on(table.createdAt),
+  authorFk: foreignKey({
+    columns: [table.institutionCode, table.authorId],
+    foreignColumns: [users.institutionCode, users.firebaseUid],
+    name: 'fk_school_notices_author',
+  }).onDelete('restrict'),
 }));
 
 export type SchoolNoticeRecord = typeof schoolNotices.$inferSelect;
@@ -1386,6 +1767,16 @@ export const counselingRecords = pgTable('counseling_records', {
   studentIdx: index('idx_counseling_student').on(table.studentId),
   counselorIdx: index('idx_counseling_counselor').on(table.counselorId),
   statusIdx: index('idx_counseling_status').on(table.status),
+  studentFk: foreignKey({
+    columns: [table.institutionCode, table.studentId],
+    foreignColumns: [users.institutionCode, users.id],
+    name: 'fk_counseling_student',
+  }).onDelete('restrict'),
+  counselorFk: foreignKey({
+    columns: [table.institutionCode, table.counselorId],
+    foreignColumns: [users.institutionCode, users.firebaseUid],
+    name: 'fk_counseling_counselor',
+  }).onDelete('restrict'),
 }));
 
 export type CounselingRecordEntity = typeof counselingRecords.$inferSelect;
@@ -1442,6 +1833,11 @@ export const examEligibility = pgTable('exam_eligibility', {
   instDeptIdx: index('idx_exam_eligibility_inst_dept').on(table.institutionCode, table.department),
   studentIdx: index('idx_exam_eligibility_student').on(table.studentId),
   statusIdx: index('idx_exam_eligibility_status').on(table.hallTicketStatus),
+  studentFk: foreignKey({
+    columns: [table.institutionCode, table.studentId],
+    foreignColumns: [users.institutionCode, users.id],
+    name: 'fk_exam_eligibility_student',
+  }).onDelete('restrict'),
 }));
 
 export type ExamEligibilityEntity = typeof examEligibility.$inferSelect;
@@ -1462,6 +1858,11 @@ export const placementMembers = pgTable('placement_members', {
   instCodeIdx: index('idx_placement_members_inst').on(table.institutionCode),
   userIdx: index('idx_placement_members_user').on(table.userId),
   userInstUnique: uniqueIndex('uq_placement_members_inst_user').on(table.institutionCode, table.userId),
+  userFk: foreignKey({
+    columns: [table.institutionCode, table.userId],
+    foreignColumns: [users.institutionCode, users.id],
+    name: 'fk_placement_members_user',
+  }).onDelete('restrict'),
 }));
 
 export type PlacementMemberRecord = typeof placementMembers.$inferSelect;
@@ -1485,7 +1886,13 @@ export const studentPlacementProfiles = pgTable('student_placement_profiles', {
   leetcodeUrl: text('leetcode_url').default(''),
   otherLinks: jsonb('other_links').$type<{ name: string; url: string }[]>().default([]),
   updatedAt: timestamp('updated_at').defaultNow(),
-});
+}, (table) => ({
+  userFk: foreignKey({
+    columns: [table.userId],
+    foreignColumns: [users.id],
+    name: 'fk_student_placement_profiles_user',
+  }).onDelete('cascade'),
+}));
 
 export type StudentPlacementProfileRecord = typeof studentPlacementProfiles.$inferSelect;
 export type NewStudentPlacementProfileRecord = typeof studentPlacementProfiles.$inferInsert;
@@ -1514,6 +1921,12 @@ export const placementDrives = pgTable('placement_drives', {
 }, (table) => ({
   instCodeIdx: index('idx_placement_drives_inst').on(table.institutionCode),
   statusIdx: index('idx_placement_drives_status').on(table.status),
+  instIdUnique: uniqueIndex('uq_placement_drives_inst_id').on(table.institutionCode, table.id),
+  creatorFk: foreignKey({
+    columns: [table.institutionCode, table.createdBy],
+    foreignColumns: [users.institutionCode, users.firebaseUid],
+    name: 'fk_placement_drives_creator',
+  }).onDelete('restrict'),
 }));
 
 export type PlacementDriveRecord = typeof placementDrives.$inferSelect;
@@ -1535,6 +1948,16 @@ export const placementAnnouncements = pgTable('placement_announcements', {
 }, (table) => ({
   instCodeIdx: index('idx_placement_announcements_inst').on(table.institutionCode),
   driveIdx: index('idx_placement_announcements_drive').on(table.driveId),
+  driveFk: foreignKey({
+    columns: [table.institutionCode, table.driveId],
+    foreignColumns: [placementDrives.institutionCode, placementDrives.id],
+    name: 'fk_placement_announcements_drive',
+  }).onDelete('restrict'),
+  posterFk: foreignKey({
+    columns: [table.institutionCode, table.postedBy],
+    foreignColumns: [users.institutionCode, users.firebaseUid],
+    name: 'fk_placement_announcements_poster',
+  }).onDelete('restrict'),
 }));
 
 export type PlacementAnnouncementRecord = typeof placementAnnouncements.$inferSelect;
@@ -1556,6 +1979,16 @@ export const driveApplications = pgTable('drive_applications', {
   studentIdx: index('idx_drive_applications_student').on(table.studentId),
   statusIdx: index('idx_drive_applications_status').on(table.status),
   driveStudentUnique: uniqueIndex('uq_drive_applications_drive_student').on(table.driveId, table.studentId),
+  driveFk: foreignKey({
+    columns: [table.driveId],
+    foreignColumns: [placementDrives.id],
+    name: 'fk_drive_applications_drive',
+  }).onDelete('cascade'),
+  studentFk: foreignKey({
+    columns: [table.studentId],
+    foreignColumns: [users.id],
+    name: 'fk_drive_applications_student',
+  }).onDelete('restrict'),
 }));
 
 export type DriveApplicationRecord = typeof driveApplications.$inferSelect;
@@ -1580,6 +2013,7 @@ export const admissionCourses = pgTable('admission_courses', {
 }, (table) => ({
   instCodeIdx: index('idx_admission_courses_inst').on(table.institutionCode),
   instYearCodeUnique: uniqueIndex('uq_admission_courses_inst_year_code').on(table.institutionCode, table.academicYear, table.courseCode),
+  instIdUnique: uniqueIndex('uq_admission_courses_inst_id').on(table.institutionCode, table.id),
 }));
 
 export type AdmissionCourseRecord = typeof admissionCourses.$inferSelect;
@@ -1618,6 +2052,16 @@ export const admissionApplications = pgTable('admission_applications', {
   statusIdx: index('idx_admission_apps_status').on(table.status),
   batchIdx: index('idx_admission_apps_batch').on(table.academicYear),
   appNoUnique: uniqueIndex('uq_admission_apps_inst_no').on(table.institutionCode, table.applicationNumber),
+  preferredCourseFk: foreignKey({
+    columns: [table.institutionCode, table.preferredCourseId],
+    foreignColumns: [admissionCourses.institutionCode, admissionCourses.id],
+    name: 'fk_admission_apps_preferred_course',
+  }).onDelete('restrict'),
+  allocatedCourseFk: foreignKey({
+    columns: [table.institutionCode, table.allocatedCourseId],
+    foreignColumns: [admissionCourses.institutionCode, admissionCourses.id],
+    name: 'fk_admission_apps_allocated_course',
+  }).onDelete('restrict'),
 }));
 
 export type AdmissionApplicationRecord = typeof admissionApplications.$inferSelect;

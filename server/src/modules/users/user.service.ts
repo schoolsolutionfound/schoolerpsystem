@@ -172,6 +172,7 @@ export class UserService {
 
     let linkStudentId: string | undefined;
     let linkInstitutionCode = '';
+    let hasTableLink = false;
 
     const existing = await this.repo.findByUid(currentUser.uid);
     const existingScope = parseScope(existing?.scope);
@@ -180,6 +181,21 @@ export class UserService {
       const institutionCode = (currentUser.institutionCode || existing?.institutionCode || '').trim();
       if (!institutionCode) {
         throw { statusCode: 403, code: 'NO_INSTITUTION', message: 'No institution assigned to this user.' };
+      }
+
+      const currentLinks = existing ? await getParentLinks(existing.id) : [];
+      const legacyUsn = String(existingScope.linkedStudentUSN || '').trim();
+      hasTableLink = currentLinks.length > 0;
+
+      // Self-service may never create a parent–child link. Only an
+      // administrator can establish guardianship. Reject before looking up
+      // the USN so unlinked parents cannot probe whether a student exists.
+      if (!hasTableLink && !legacyUsn) {
+        throw {
+          statusCode: 403,
+          code: 'LINK_REQUIRES_ADMIN',
+          message: 'Parent–student links must be approved by an administrator. Contact your institution office.',
+        };
       }
 
       const student = await dbFindStudentByUsnInInstitution(institutionCode, requestedUsn);
@@ -191,24 +207,30 @@ export class UserService {
         };
       }
 
-      // Once linked, the child cannot be re-pointed through self-service —
-      // that is the account-linking forgery vector. Admins change it server-side.
-      const currentLinks = existing ? await getParentLinks(existing.id) : [];
-      const legacyUsn = String(existingScope.linkedStudentUSN || '').trim();
+      // Already-linked parents can re-submit their own child's USN (e.g.
+      // retrying profile setup), but cannot re-point the account to another
+      // student. Table rows are authoritative; the legacy scope value is only
+      // accepted when no table row exists yet.
       const isSameChild =
-        (currentLinks.length > 0 && currentLinks[0].studentId === student.id) ||
-        (currentLinks.length === 0 &&
+        currentLinks.some((link) => link.studentId === student.id) ||
+        (!hasTableLink &&
           legacyUsn !== '' &&
           legacyUsn.toLowerCase() === requestedUsn.toLowerCase());
-      if ((currentLinks.length > 0 || legacyUsn) && !isSameChild) {
+      if (!isSameChild) {
         throw {
           statusCode: 403,
           code: 'LINK_CHANGE_FORBIDDEN',
           message: 'This account is already linked to a student. Contact your administrator to change the link.',
         };
       }
-      linkStudentId = student.id;
-      linkInstitutionCode = institutionCode;
+
+      // Legacy-only accounts: materialise the pre-existing relationship into
+      // parent_links. This does not grant a new link — the USN must already
+      // match the value stored on the account.
+      if (!hasTableLink) {
+        linkStudentId = student.id;
+        linkInstitutionCode = institutionCode;
+      }
     }
 
     // Settings → Form Fields: validate the role's configured fields (required
@@ -241,9 +263,12 @@ export class UserService {
         validatedCustomFields
       );
     }
-    // Linking lives in parent_links now — keep scope free of the legacy key
-    // for accounts we touch (legacy readers fall back only when rows are absent).
-    delete scopeObj.linkedStudentUSN;
+    // Table-backed links are authoritative, so the legacy key can be removed
+    // once a row exists (or has just been materialised). Keep the legacy value
+    // for accounts that still have no parent_links row.
+    if (hasTableLink || linkStudentId) {
+      delete scopeObj.linkedStudentUSN;
+    }
 
     const updatedUser = await this.repo.upsertUser({
       firebaseUid: currentUser.uid,

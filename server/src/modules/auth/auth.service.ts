@@ -169,7 +169,8 @@ export class AuthService {
       const projectId = process.env.FIREBASE_PROJECT_ID || admin.app().options.projectId;
       if (!projectId || !email) return false;
 
-      const accessToken = await admin.credential.applicationDefault().getAccessToken();
+      const credential = admin.app().options.credential ?? admin.credential.applicationDefault();
+      const accessToken = await credential.getAccessToken();
       const res = await fetch(
         `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${process.env.FIREBASE_WEB_API_KEY || ''}`,
         {
@@ -201,6 +202,14 @@ export class AuthService {
     // (lockout, disabled accounts, password correctness) match sign-in exactly.
     // Nothing is stored client- or server-side beyond the request itself, and a
     // wrong password returns INVALID_CREDENTIAL before any write happens.
+    if (!isFirebaseAdminInitialized) {
+      throw {
+        statusCode: 503,
+        code: 'PASSWORD_CHANGE_UNAVAILABLE',
+        message: 'Password changes are unavailable. Please try again later.',
+      };
+    }
+
     if (!currentUser.mustChangePassword && !currentPassword) {
       throw {
         statusCode: 400,
@@ -210,13 +219,6 @@ export class AuthService {
     }
 
     if (currentPassword) {
-      if (!isFirebaseAdminInitialized) {
-        throw {
-          statusCode: 503,
-          code: 'PASSWORD_VERIFY_UNAVAILABLE',
-          message: 'Password verification is unavailable. Please try again later.',
-        };
-      }
       const ok = await this.verifyCurrentPassword(currentUser.email, currentPassword);
       if (!ok) {
         throw { statusCode: 400, code: 'INVALID_CURRENT_PASSWORD', message: 'Current password is incorrect.' };
@@ -228,14 +230,12 @@ export class AuthService {
       throw { statusCode: 400, code: 'INVALID_PASSWORD', message: check.message };
     }
 
-    if (isFirebaseAdminInitialized) {
-      try {
-        await admin.auth().updateUser(currentUser.uid, {
-          password: newPassword,
-        });
-      } catch (err: any) {
-        throw { statusCode: 400, code: 'FIREBASE_AUTH_ERROR', message: `Failed to update password: ${err.message}` };
-      }
+    try {
+      await admin.auth().updateUser(currentUser.uid, {
+        password: newPassword,
+      });
+    } catch (err: any) {
+      throw { statusCode: 400, code: 'FIREBASE_AUTH_ERROR', message: `Failed to update password: ${err.message}` };
     }
 
     await this.repo.upsertUser({
@@ -243,6 +243,17 @@ export class AuthService {
       email: currentUser.email,
       mustChangePassword: false,
     });
+
+    // Invalidate every existing session so a stolen refresh token cannot
+    // outlive the password change. ID tokens already issued remain valid
+    // until they expire; revocation stops all future refreshes.
+    if (isFirebaseAdminInitialized) {
+      try {
+        await admin.auth().revokeRefreshTokens(currentUser.uid);
+      } catch (err: any) {
+        console.warn('[Auth Service] Refresh token revocation after password change failed:', err.message);
+      }
+    }
 
     invalidateVerifiedTokensForUid(currentUser.uid);
 
