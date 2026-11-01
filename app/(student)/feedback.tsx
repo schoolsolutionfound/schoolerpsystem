@@ -45,67 +45,13 @@ const CRITERIA = [
 
 const SEMESTERS = ['Semester 1', 'Semester 2'];
 
-const INITIAL_SUBJECTS: SubjectItem[] = [
-  {
-    id: 'sub-math',
-    name: 'Mathematics',
-    classSection: 'Class 10 A',
-    teacherName: 'Mr. Rahul Sharma',
-    submitted: false,
-    semester: 'Semester 1',
-    ratings: {},
-    description: '',
-  },
-  {
-    id: 'sub-phy',
-    name: 'Physics',
-    classSection: 'Class 10 A',
-    teacherName: 'Mrs. Neha Verma',
-    submitted: false,
-    semester: 'Semester 1',
-    ratings: {},
-    description: '',
-  },
-  {
-    id: 'sub-chem',
-    name: 'Chemistry',
-    classSection: 'Class 10 A',
-    teacherName: 'Mr. Arjun Nair',
-    submitted: false,
-    semester: 'Semester 1',
-    ratings: {},
-    description: '',
-  },
-  {
-    id: 'sub-eng',
-    name: 'English',
-    classSection: 'Class 10 A',
-    teacherName: 'Ms. Priya Menon',
-    submitted: false,
-    semester: 'Semester 1',
-    ratings: {},
-    description: '',
-  },
-  {
-    id: 'sub-cs',
-    name: 'Computer Science',
-    classSection: 'Class 10 A',
-    teacherName: 'Mr. Adil Khan',
-    submitted: false,
-    semester: 'Semester 1',
-    ratings: {},
-    description: '',
-  },
-];
-
 export default function StudentFeedbackScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  // Navigation state between Subject Selection (Image 1) and Feedback Form (Image 2)
   const [currentScreen, setCurrentScreen] = useState<'select' | 'form'>('select');
-  const [subjects, setSubjects] = useState<SubjectItem[]>(INITIAL_SUBJECTS);
-  const [selectedSubjectId, setSelectedSubjectId] = useState<string>('sub-math');
+  const [subjects, setSubjects] = useState<SubjectItem[]>([]);
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string>('');
 
   // Dynamic semester based on academic calendar
   const currentMonth = new Date().getMonth();
@@ -126,7 +72,7 @@ export default function StudentFeedbackScreen() {
       const today = new Date().toISOString().slice(0, 10);
       const res = await fetchMyTimetableApi(today);
       const slots = res?.slots || [];
-      const className = res?.classSection?.name || userDept || 'Class 10 A';
+      const className = res?.classSection?.name || userDept || '';
 
       if (slots.length > 0) {
         const subjectMap = new Map<string, SubjectItem>();
@@ -134,12 +80,12 @@ export default function StudentFeedbackScreen() {
           if (s.subject?.name && !subjectMap.has(s.subject.name)) {
             const teacher = s.teacher
               ? `${s.teacher.firstName || ''} ${s.teacher.lastName || ''}`.trim()
-              : 'Faculty Member';
+              : '';
             subjectMap.set(s.subject.name, {
               id: `sub-${s.subject.id || s.subject.name.toLowerCase().replace(/\s+/g, '-')}`,
               name: s.subject.name,
               classSection: className,
-              teacherName: teacher || 'Faculty Member',
+              teacherName: teacher,
               submitted: false,
               semester: defaultSem,
               ratings: {},
@@ -188,7 +134,7 @@ export default function StudentFeedbackScreen() {
 
   // Set star rating for a specific criterion
   const handleRateCriterion = (criterionId: string, starVal: number) => {
-    if (activeSubject.submitted) return; // Locked: no modification after submission
+    if (!activeSubject || activeSubject?.submitted) return; // Locked: no modification after submission
     setCurrentRatings((prev) => ({
       ...prev,
       [criterionId]: starVal,
@@ -197,69 +143,19 @@ export default function StudentFeedbackScreen() {
 
   // Handle Submit Feedback
   const handleSubmitFeedback = () => {
-    if (activeSubject.submitted) {
-      Alert.alert('Locked', 'This feedback has already been submitted and cannot be modified.');
+    if (!activeSubject) {
+      Alert.alert('No Subject Selected', 'Select a subject before submitting feedback.');
       return;
     }
-
-    // Check if at least some criteria are rated
-    const ratedCount = Object.keys(currentRatings).filter((k) => currentRatings[k] > 0).length;
-    if (ratedCount === 0) {
-      Alert.alert('Ratings Required', 'Please provide ratings for the criteria before submitting.');
-      return;
-    }
-
     Alert.alert(
-      'Submit Feedback',
-      `Once submitted, feedback for ${activeSubject.name} cannot be modified or edited. Are you sure you want to proceed?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Confirm & Submit',
-          onPress: () => {
-            const todayStr = new Date().toLocaleDateString('en-GB', {
-              day: '2-digit',
-              month: 'short',
-              year: 'numeric',
-            });
-
-            // Update subject as submitted with no further modifications allowed
-            setSubjects((prev) =>
-              prev.map((s) => {
-                if (s.id === activeSubject.id) {
-                  return {
-                    ...s,
-                    submitted: true,
-                    submittedAt: todayStr,
-                    semester,
-                    ratings: currentRatings,
-                    description: description.trim(),
-                  };
-                }
-                return s;
-              })
-            );
-
-            Alert.alert(
-              'Feedback Submitted!',
-              `Your feedback for ${activeSubject.name} has been recorded successfully. No further modifications are permitted.`,
-              [
-                {
-                  text: 'Back to Subjects',
-                  onPress: () => setCurrentScreen('select'),
-                },
-                { text: 'View Form' },
-              ]
-            );
-          },
-        },
-      ]
+      'Submission Unavailable',
+      'Student feedback submission is not enabled for this institution yet.'
     );
   };
 
   return (
     <View style={styles.container}>
-      {/* ─── Top Header Bar ─────────────────────────────────────────────── */}
+      {/* â”€â”€â”€ Top Header Bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity
           style={styles.backBtn}
@@ -297,9 +193,9 @@ export default function StudentFeedbackScreen() {
             />
           }
         >
-          {/* ══════════════════════════════════════════════════════════════════
+          {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
               SCREEN 1: SELECT SUBJECT (Matching Image 1)
-              ══════════════════════════════════════════════════════════════════ */}
+              â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
           {currentScreen === 'select' ? (
             <View style={styles.screenWrapper}>
               {/* Select Subject Header Card */}
@@ -363,48 +259,48 @@ export default function StudentFeedbackScreen() {
               <TouchableOpacity
                 style={styles.continueBtn}
                 activeOpacity={0.85}
-                onPress={() => openSubjectForm(activeSubject)}
+                onPress={() => activeSubject && openSubjectForm(activeSubject)}
               >
                 <Text style={styles.continueBtnText}>Continue</Text>
               </TouchableOpacity>
             </View>
           ) : (
-            /* ══════════════════════════════════════════════════════════════════
+            /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
                 SCREEN 2: FEEDBACK FORM (Matching Image 2)
-                ══════════════════════════════════════════════════════════════════ */
+                â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
             <View style={styles.screenWrapper}>
               {/* Subject Info Card */}
               <View style={styles.subjectInfoCard}>
                 <View style={styles.subjectTitleRow}>
-                  <Text style={styles.formSubjectName}>{activeSubject.name}</Text>
-                  {activeSubject.submitted && (
+                  <Text style={styles.formSubjectName}>{activeSubject?.name || ''}</Text>
+                  {activeSubject?.submitted && (
                     <View style={styles.submittedPill}>
                       <Text style={styles.submittedPillText}>Submitted (Locked)</Text>
                     </View>
                   )}
                 </View>
-                <Text style={styles.formClassSection}>{activeSubject.classSection}</Text>
+                <Text style={styles.formClassSection}>{activeSubject?.classSection || ''}</Text>
 
                 {/* Semester Dropdown */}
                 <TouchableOpacity
                   style={[
                     styles.semesterDropdown,
-                    activeSubject.submitted && styles.semesterDropdownDisabled,
+                    activeSubject?.submitted && styles.semesterDropdownDisabled,
                   ]}
-                  activeOpacity={activeSubject.submitted ? 1 : 0.8}
+                  activeOpacity={activeSubject?.submitted ? 1 : 0.8}
                   onPress={() => {
-                    if (!activeSubject.submitted) setShowSemesterModal(true);
+                    if (!activeSubject?.submitted) setShowSemesterModal(true);
                   }}
                 >
                   <Text style={styles.semesterDropdownText}>{semester}</Text>
-                  {!activeSubject.submitted && (
+                  {!activeSubject?.submitted && (
                     <Feather name="chevron-down" size={18} color="#111827" />
                   )}
                 </TouchableOpacity>
               </View>
 
               {/* Already Submitted Locked Warning Banner */}
-              {activeSubject.submitted && (
+              {activeSubject?.submitted && (
                 <View style={styles.lockedInfoBanner}>
                   <MaterialCommunityIcons name="lock-outline" size={18} color="#B45309" />
                   <Text style={styles.lockedInfoBannerText}>
@@ -436,9 +332,9 @@ export default function StudentFeedbackScreen() {
                           return (
                             <TouchableOpacity
                               key={starVal}
-                              activeOpacity={activeSubject.submitted ? 1 : 0.7}
+                              activeOpacity={activeSubject?.submitted ? 1 : 0.7}
                               onPress={() => handleRateCriterion(crit.id, starVal)}
-                              disabled={activeSubject.submitted}
+                              disabled={activeSubject?.submitted}
                               style={styles.starBtn}
                             >
                               <MaterialCommunityIcons
@@ -461,7 +357,7 @@ export default function StudentFeedbackScreen() {
                 <TextInput
                   style={[
                     styles.descriptionInput,
-                    activeSubject.submitted && styles.descriptionInputDisabled,
+                    activeSubject?.submitted && styles.descriptionInputDisabled,
                   ]}
                   placeholder="Share your overall feedback or suggestions here..."
                   placeholderTextColor="#9CA3AF"
@@ -469,17 +365,17 @@ export default function StudentFeedbackScreen() {
                   numberOfLines={4}
                   maxLength={500}
                   textAlignVertical="top"
-                  value={activeSubject.submitted ? activeSubject.description : description}
+                  value={activeSubject?.submitted ? activeSubject?.description || '' : description}
                   onChangeText={setDescription}
-                  editable={!activeSubject.submitted}
+                  editable={!activeSubject?.submitted}
                 />
                 <Text style={styles.charCounterText}>
-                  {(activeSubject.submitted ? activeSubject.description : description).length}/500
+                  {(activeSubject?.submitted ? activeSubject?.description || '' : description).length}/500
                 </Text>
               </View>
 
               {/* Bottom Action Button */}
-              {activeSubject.submitted ? (
+              {activeSubject?.submitted ? (
                 <View style={styles.submittedLockedBtn}>
                   <MaterialCommunityIcons name="check-circle" size={18} color="#15803D" />
                   <Text style={styles.submittedLockedBtnText}>Feedback Submitted</Text>
@@ -498,7 +394,7 @@ export default function StudentFeedbackScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* ─── Semester Selection Modal ─────────────────────────────────────── */}
+      {/* â”€â”€â”€ Semester Selection Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <Modal
         visible={showSemesterModal}
         transparent
@@ -564,7 +460,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
 
-  /* ─── Screen 1: Select Subject Styles ────────────────────────────── */
+  /* â”€â”€â”€ Screen 1: Select Subject Styles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   selectHeaderCard: {
     backgroundColor: '#FFFDF0',
     borderRadius: 5,
@@ -670,7 +566,7 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
 
-  /* ─── Screen 2: Feedback Form Styles ─────────────────────────────── */
+  /* â”€â”€â”€ Screen 2: Feedback Form Styles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   subjectInfoCard: {
     backgroundColor: '#FFFDF0',
     borderRadius: 5,
@@ -827,7 +723,7 @@ const styles = StyleSheet.create({
     color: '#15803D',
   },
 
-  /* ─── Modal ──────────────────────────────────────────────────────── */
+  /* â”€â”€â”€ Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',

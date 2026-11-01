@@ -241,7 +241,7 @@ export const TeacherProfileView: React.FC<TeacherProfileViewProps> = ({ showBack
 
           <Text style={styles.name}>{name}</Text>
           <Text style={styles.title}>
-            {designation || 'Faculty Member'}
+            {designation || ''}
           </Text>
 
 
@@ -415,13 +415,13 @@ export const TeacherProfileView: React.FC<TeacherProfileViewProps> = ({ showBack
             <Text style={styles.sectionHeader}>Professional Details</Text>
             <View style={styles.infoCard}>
               {[
-                { id: 'email', icon: 'email-outline', label: 'OFFICIAL EMAIL', value: storedEmail || 'teacher@school.com' },
-                { id: 'phone', icon: 'phone-outline', label: 'CONTACT PHONE', value: phone || '—' },
-                { id: 'employeeId', icon: 'badge-account-outline', label: 'EMPLOYEE ID', value: employeeId || '—' },
-                { id: 'department', icon: 'school-outline', label: 'DEPARTMENT', value: department || '—' },
-                { id: 'designation', icon: 'briefcase-outline', label: 'DESIGNATION', value: designation || '—' },
-                { id: 'qualification', icon: 'certificate-outline', label: 'DEGREE / QUALIFICATION', value: qualification || '—' },
-                { id: 'experience', icon: 'clock-outline', label: 'EXPERIENCE', value: experience ? `${experience} years` : '—' },
+                { id: 'email', icon: 'email-outline', label: 'OFFICIAL EMAIL', value: storedEmail || '' },
+                { id: 'phone', icon: 'phone-outline', label: 'CONTACT PHONE', value: phone || 'â€”' },
+                { id: 'employeeId', icon: 'badge-account-outline', label: 'EMPLOYEE ID', value: employeeId || 'â€”' },
+                { id: 'department', icon: 'school-outline', label: 'DEPARTMENT', value: department || 'â€”' },
+                { id: 'designation', icon: 'briefcase-outline', label: 'DESIGNATION', value: designation || 'â€”' },
+                { id: 'qualification', icon: 'certificate-outline', label: 'DEGREE / QUALIFICATION', value: qualification || 'â€”' },
+                { id: 'experience', icon: 'clock-outline', label: 'EXPERIENCE', value: experience ? `${experience} years` : 'â€”' },
               ].map((item, index, arr) => {
                 const isLast = index === arr.length - 1;
                 return (
@@ -454,13 +454,13 @@ export const TeacherProfileView: React.FC<TeacherProfileViewProps> = ({ showBack
                   id: 'inst-name',
                   icon: 'office-building',
                   label: 'INSTITUTION NAME',
-                  value: storedInstitutionName || storedInstitutionCode || '—',
+                  value: storedInstitutionName || storedInstitutionCode || 'â€”',
                 },
                 {
                   id: 'inst-code',
                   icon: 'barcode',
                   label: 'INSTITUTION CODE',
-                  value: storedInstitutionCode || '—',
+                  value: storedInstitutionCode || 'â€”',
                 },
                 {
                   id: 'inst-type',

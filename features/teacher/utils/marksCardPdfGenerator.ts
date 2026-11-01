@@ -51,7 +51,7 @@ export function calculateGrade(marks: number, maxMarks: number): { grade: string
 
 export async function generateStudentMarksCardPdf(data: StudentMarksCardPdfInput): Promise<void> {
   const userStore = useUserStore.getState();
-  const institutionName = userStore.institutionName || userStore.schoolName || 'Kivquo Academy of Excellence';
+  const institutionName = userStore.institutionName || userStore.schoolName || '';
 
   const totalMax = data.subjects.reduce((sum, s) => sum + (s.maxMarks || 100), 0);
   const totalObtained = data.subjects.reduce((sum, s) => sum + (s.marksObtained || 0), 0);
@@ -65,10 +65,10 @@ export async function generateStudentMarksCardPdf(data: StudentMarksCardPdfInput
     year: 'numeric',
   });
 
-  const academicYear = data.academicYear || '2025 - 2026';
-  const attendancePct = data.attendancePercentage ?? 94.5;
-  const daysPresent = data.attendanceDaysPresent ?? 142;
-  const totalDays = data.attendanceTotalDays ?? 150;
+  const academicYear = data.academicYear || '';
+  const attendancePct = data.attendancePercentage;
+  const daysPresent = data.attendanceDaysPresent;
+  const totalDays = data.attendanceTotalDays;
 
   const html = `
 <!DOCTYPE html>
@@ -403,18 +403,15 @@ export async function generateStudentMarksCardPdf(data: StudentMarksCardPdfInput
       <div class="remarks-card">
         <div class="remarks-title">Class Teacher's Observations</div>
         <div class="remarks-text">
-          ${escapeHtml(
-            data.teacherRemarks ||
-              `${data.studentName} has demonstrated exceptional dedication and consistent academic prowess throughout this examination period. Well done!`
-          )}
+          ${escapeHtml(data.teacherRemarks || '-')}
         </div>
       </div>
       <div class="remarks-card" style="flex: 0.85;">
         <div class="remarks-title">Term Attendance Summary</div>
         <div class="remarks-text">
-          Total Working Days: <strong>${totalDays}</strong><br/>
-          Days Present: <strong>${daysPresent}</strong> (${attendancePct}%)<br/>
-          Status: <strong style="color: ${attendancePct >= 75 ? '#059669' : '#DC2626'};">${attendancePct >= 75 ? 'Satisfactory Regularity' : 'Attendance Warning'}</strong>
+          Total Working Days: <strong>${totalDays ?? ""}</strong><br/>
+          Days Present: <strong>${daysPresent ?? ""}</strong> (${attendancePct != null ? attendancePct + "%" : ""})<br/>
+          Status: <strong style="color: ${attendancePct == null ? "" : attendancePct >= 75 ? "#059669" : "#DC2626"};">${attendancePct == null ? "" : attendancePct >= 75 ? "Satisfactory Regularity" : "Attendance Warning"}</strong>
         </div>
       </div>
     </div>
@@ -487,8 +484,8 @@ export interface ClassMarksLedgerPdfInput {
 
 export async function generateClassMarksLedgerPdf(data: ClassMarksLedgerPdfInput): Promise<void> {
   const userStore = useUserStore.getState();
-  const institutionName = userStore.institutionName || userStore.schoolName || 'Kivquo Academy of Excellence';
-  const academicYear = data.academicYear || '2025 - 2026';
+  const institutionName = userStore.institutionName || userStore.schoolName || '';
+  const academicYear = data.academicYear || '';
 
   const totalStudents = data.students.length;
   const subjectsList = data.students[0]?.subjects || [];

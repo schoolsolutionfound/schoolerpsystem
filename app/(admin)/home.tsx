@@ -51,12 +51,14 @@ import { AdminDrawer } from '../../features/admin/components/AdminDrawer';
 import { AdminPaymentSettingsView } from '../../features/admin/components/AdminPaymentSettingsView';
 import { AdminSettingsView } from '../../features/admin/components/AdminSettingsView';
 import { AdminAnnouncementsView } from '../../features/announcements';
+import { TransportManagementView } from '../../features/shared/transport/TransportManagementView';
 
-const TABS: { key: 'dashboard' | 'institution' | 'students' | 'teachers' | 'profile'; label: string; icon: string; iconFilled: string }[] = [
+const TABS: { key: 'dashboard' | 'institution' | 'students' | 'teachers' | 'transport' | 'profile'; label: string; icon: string; iconFilled: string }[] = [
   { key: 'dashboard', label: 'Dashboard', icon: 'view-dashboard-outline', iconFilled: 'view-dashboard' },
   { key: 'institution', label: 'Institution', icon: 'office-building', iconFilled: 'office-building' },
   { key: 'students', label: 'Students', icon: 'account-school-outline', iconFilled: 'account-school' },
   { key: 'teachers', label: 'Teachers', icon: 'human-male-board', iconFilled: 'human-male-board' },
+  { key: 'transport', label: 'Transport', icon: 'bus-outline', iconFilled: 'bus' },
   { key: 'profile', label: 'Profile', icon: 'account-circle-outline', iconFilled: 'account-circle' },
 ];
 
@@ -86,7 +88,7 @@ export default function AdminHomeScreen() {
     };
   };
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'institution' | 'students' | 'teachers' | 'users' | 'parents' | 'academics' | 'timetable' | 'attendance' | 'announcements' | 'payments' | 'settings' | 'profile'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'institution' | 'students' | 'teachers' | 'users' | 'parents' | 'academics' | 'timetable' | 'attendance' | 'announcements' | 'payments' | 'transport' | 'settings' | 'profile'>('dashboard');
   useDebugTab('admin', activeTab);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
@@ -96,7 +98,7 @@ export default function AdminHomeScreen() {
   useEffect(() => {
     if (searchParams.tab) {
       const tab = searchParams.tab as any;
-      if (['dashboard', 'institution', 'students', 'teachers', 'users', 'parents', 'academics', 'timetable', 'attendance', 'announcements', 'payments', 'settings', 'profile'].includes(tab)) {
+      if (['dashboard', 'institution', 'students', 'teachers', 'users', 'parents', 'academics', 'timetable', 'attendance', 'announcements', 'payments', 'transport', 'settings', 'profile'].includes(tab)) {
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setActiveTab(tab);
       }
@@ -415,17 +417,19 @@ export default function AdminHomeScreen() {
     return res;
   };
 
+  const logoutNow = async () => {
+    await performLogout();
+    resetUser();
+    router.replace('/auth');
+  };
+
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to log out?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Logout',
         style: 'destructive',
-        onPress: async () => {
-          await performLogout();
-          resetUser();
-          router.replace('/auth');
-        },
+        onPress: logoutNow,
       },
     ]);
   };
@@ -577,6 +581,10 @@ export default function AdminHomeScreen() {
                 <AdminPaymentSettingsView refreshing={refreshing} onRefresh={handleRefresh} />
               )}
 
+              {activeTab === 'transport' && (
+                <TransportManagementView roleLabel="Institution transport manager" />
+              )}
+
               {activeTab === 'settings' && <AdminSettingsView />}
 
               {activeTab === 'profile' && (
@@ -611,7 +619,7 @@ export default function AdminHomeScreen() {
         visible={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         onNavigate={(tab) => setActiveTab(tab)}
-        onLogout={handleLogout}
+        onLogout={logoutNow}
         router={router}
       />
     </View>

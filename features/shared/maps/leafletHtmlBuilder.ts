@@ -1,5 +1,5 @@
 import { BusStop } from '../../../api/transport';
-import { MapBusLocation } from './types';
+import { MapBusLocation, MapStop } from './types';
 
 export const TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 export const TILE_ATTRIBUTION =
@@ -331,6 +331,127 @@ export function buildLeafletMapHtml({
     document.addEventListener('message', function(event) {
       window.processIncomingMessage(event.data);
     });
+
+    window.onload = initMap;
+  </script>
+</body>
+</html>
+  `;
+}
+
+export interface LeafletPickerOptions {
+  stops: MapStop[];
+  initialCenter?: { latitude: number; longitude: number } | null;
+}
+
+/**
+ * Standalone Leaflet page used by the admin/admission route planner.
+ * Tapping the map posts a MAP_PICK message with the tapped coordinates.
+ */
+export function buildLeafletPickerHtml({ stops, initialCenter = null }: LeafletPickerOptions): string {
+  const stopsJson = JSON.stringify(stops || []);
+  const centerJson = JSON.stringify(
+    initialCenter || {
+      latitude: stops?.[0]?.latitude ?? 12.9716,
+      longitude: stops?.[0]?.longitude ?? 77.5946,
+    }
+  );
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #E5E7EB; touch-action: manipulation; }
+    #map { width: 100%; height: 100%; }
+    .stop-marker-pin {
+      display: flex; align-items: center; justify-content: center;
+      width: 24px; height: 24px; border-radius: 12px;
+      background-color: #F4C430; color: #1A1B1C; font-size: 10px; font-weight: 900;
+      border: 2px solid #1A1B1C; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    .leaflet-popup-content-wrapper { background: #1A1B1C; color: #FFFFFF; border-radius: 8px; padding: 2px; }
+    .leaflet-popup-content { margin: 8px 12px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+    .leaflet-popup-tip { background: #1A1B1C; }
+    .popup-title { font-size: 12px; font-weight: 800; color: #FFFFFF; }
+    .popup-sub { font-size: 10px; color: #9CA3AF; margin-top: 2px; }
+    .pick-hint {
+      position: absolute; z-index: 500; left: 12px; bottom: 12px;
+      background: rgba(26,27,28,0.88); color: #FFFFFF; padding: 7px 11px; border-radius: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 11px; font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div class="pick-hint">Tap the map to add a bus stop</div>
+  <script>
+    let map;
+    let stopMarkers = [];
+    let polyline = null;
+    const initialStops = ${stopsJson};
+    const initialCenter = ${centerJson};
+
+    function post(message) {
+      if (window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(JSON.stringify(message));
+      }
+    }
+
+    function renderStops(stops) {
+      stopMarkers.forEach(function(m) { map.removeLayer(m); });
+      stopMarkers = [];
+      if (polyline) { map.removeLayer(polyline); polyline = null; }
+
+      const latlngs = [];
+      stops.forEach(function(s) {
+        const latlng = [Number(s.latitude), Number(s.longitude)];
+        latlngs.push(latlng);
+        const icon = L.divIcon({
+          html: '<div class="stop-marker-pin">' + s.sequence + '</div>',
+          className: '',
+          iconSize: [24, 24],
+          iconAnchor: [12, 12]
+        });
+        const marker = L.marker(latlng, { icon: icon })
+          .bindPopup('<div class="popup-title">' + s.name + '</div><div class="popup-sub">Stop #' + s.sequence + '</div>')
+          .addTo(map);
+        stopMarkers.push(marker);
+      });
+
+      if (latlngs.length > 1) {
+        polyline = L.polyline(latlngs, { color: '#1A1B1C', weight: 4, opacity: 0.85, lineJoin: 'round' }).addTo(map);
+      }
+    }
+
+    function initMap() {
+      map = L.map('map', { zoomControl: false, attributionControl: true })
+        .setView([initialCenter.latitude, initialCenter.longitude], initialStops.length ? 12 : 13);
+
+      L.tileLayer('${TILE_URL}', { maxZoom: 19, attribution: '${TILE_ATTRIBUTION}' }).addTo(map);
+
+      map.on('click', function(e) {
+        post({ type: 'MAP_PICK', latitude: e.latlng.lat, longitude: e.latlng.lng });
+      });
+
+      renderStops(initialStops);
+
+      if (stopMarkers.length > 0) {
+        const bounds = stopMarkers.map(function(m) { return m.getLatLng(); });
+        map.fitBounds(bounds, { padding: [35, 35] });
+      }
+
+      post({ type: 'MAP_READY' });
+    }
+
+    window.updateStops = function(stops) {
+      try { renderStops(stops || []); } catch (err) { post({ type: 'JS_ERROR', error: String(err) }); }
+    };
 
     window.onload = initMap;
   </script>

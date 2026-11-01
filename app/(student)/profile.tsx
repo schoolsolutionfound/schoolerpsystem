@@ -23,13 +23,13 @@ export default function StudentProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const fullName = useUserStore((s) => s.fullName) || 'Safwan Haneef';
-  const email = useUserStore((s) => s.email) || 'safwanhaneef786@gmail.com';
-  const rollNoOrUSN = useUserStore((s) => s.rollNoOrUSN) || 'C6A-001';
-  const institutionName = useUserStore((s) => s.institutionName) || 'Test School';
-  const institutionCode = useUserStore((s) => s.institutionCode) || 'TST001';
-  const phone = useUserStore((s) => s.phone) || '7892104273';
-  const parentPhone = useUserStore((s) => s.parentPhone) || '7892104273';
+  const fullName = useUserStore((s) => s.fullName) || '';
+  const email = useUserStore((s) => s.email) || '';
+  const rollNoOrUSN = useUserStore((s) => s.rollNoOrUSN) || '';
+  const institutionName = useUserStore((s) => s.institutionName) || '';
+  const institutionCode = useUserStore((s) => s.institutionCode) || '';
+  const phone = useUserStore((s) => s.phone) || '';
+  const parentPhone = useUserStore((s) => s.parentPhone) || '';
   const tenthPercentage = useUserStore((s) => s.tenthPercentage) || '';
   const profilePic = useUserStore((s) => s.profilePic) || '';
 
@@ -152,12 +152,12 @@ export default function StudentProfileScreen() {
         {/* USN & Code Card */}
         <View style={styles.statsCard}>
           <View style={styles.statsCol}>
-            <Text style={styles.statsVal}>{rollNoOrUSN || 'C6A-001'}</Text>
+            <Text style={styles.statsVal}>{rollNoOrUSN || '—'}</Text>
             <Text style={styles.statsLabel}>USN / ROLL NO</Text>
           </View>
           <View style={styles.statsDivider} />
           <View style={styles.statsCol}>
-            <Text style={styles.statsVal}>{institutionCode || 'TST001'}</Text>
+            <Text style={styles.statsVal}>{institutionCode || '—'}</Text>
             <Text style={styles.statsLabel}>CODE</Text>
           </View>
         </View>
@@ -172,12 +172,12 @@ export default function StudentProfileScreen() {
           <View style={styles.gridRow}>
             <View style={styles.gridCell}>
               <Text style={styles.infoLabel}>USN / ROLL NO</Text>
-              <Text style={styles.infoValue}>{rollNoOrUSN || 'C6A-001'}</Text>
+              <Text style={styles.infoValue}>{rollNoOrUSN || '—'}</Text>
             </View>
             <View style={styles.cellDivider} />
             <View style={styles.gridCell}>
               <Text style={styles.infoLabel}>PHONE</Text>
-              <Text style={styles.infoValue}>{phone || '7892104273'}</Text>
+              <Text style={styles.infoValue}>{phone || '—'}</Text>
             </View>
           </View>
 
@@ -187,13 +187,13 @@ export default function StudentProfileScreen() {
           <View style={styles.gridRow}>
             <View style={styles.gridCell}>
               <Text style={styles.infoLabel}>PARENT PHONE</Text>
-              <Text style={styles.infoValue}>{parentPhone || '7892104273'}</Text>
+              <Text style={styles.infoValue}>{parentPhone || '—'}</Text>
             </View>
             <View style={styles.cellDivider} />
             <View style={styles.gridCell}>
               <Text style={styles.infoLabel}>10TH %</Text>
               <View style={styles.pctPill}>
-                <Text style={styles.pctPillText}>{tenthPercentage ? `${tenthPercentage}%` : '–'}</Text>
+                <Text style={styles.pctPillText}>{tenthPercentage ? `${tenthPercentage}%` : 'â€“'}</Text>
               </View>
             </View>
           </View>
@@ -206,7 +206,7 @@ export default function StudentProfileScreen() {
         </View>
         <View style={styles.card}>
           <Text style={styles.infoLabel}>NAME</Text>
-          <Text style={styles.infoValue}>{institutionName || 'Test School'}</Text>
+          <Text style={styles.infoValue}>{institutionName || '—'}</Text>
         </View>
 
         {/* Section 3: Account */}
@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
 
-  /* ─── User Info Header ────────────────────────────────────────────── */
+  /* â”€â”€â”€ User Info Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   userHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -346,7 +346,7 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
 
-  /* ─── USN & Code Card ────────────────────────────────────────────── */
+  /* â”€â”€â”€ USN & Code Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   statsCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#EFE7D8',
   },
 
-  /* ─── Section Header ─────────────────────────────────────────────── */
+  /* â”€â”€â”€ Section Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -406,7 +406,7 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
 
-  /* ─── Generic White Card ─────────────────────────────────────────── */
+  /* â”€â”€â”€ Generic White Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 5,
@@ -465,7 +465,7 @@ const styles = StyleSheet.create({
     color: '#D97706',
   },
 
-  /* ─── Account Actions ────────────────────────────────────────────── */
+  /* â”€â”€â”€ Account Actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   actionRow: {
     flexDirection: 'row',
     alignItems: 'center',

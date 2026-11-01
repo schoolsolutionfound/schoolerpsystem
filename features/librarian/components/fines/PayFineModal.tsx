@@ -74,10 +74,10 @@ export const PayFineModal = ({
   if (!fine) return null;
 
   const handleTriggerScanner = () => {
-    const mockPayload = `PAY-UPI-${Math.floor(100000 + Math.random() * 900000)}-KIVQUO`;
-    setScannedPayload(mockPayload);
-    setRefNotes(`Ref: ${mockPayload}`);
-    Alert.alert('Scanner Active', `QR code scanned successfully!\nCaptured Payload: ${mockPayload}`);
+    Alert.alert(
+      'Scanner Unavailable',
+      'Camera-based QR scanning is not configured on this device. Enter the transaction reference manually.'
+    );
   };
 
   const handleProcessPayment = () => {

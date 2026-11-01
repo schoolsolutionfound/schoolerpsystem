@@ -1318,7 +1318,7 @@ export class AdminService {
           permissions: c.permissions,
         }))
       );
-      await upsertPreferences(createdUser.id, payload.institutionCode, {
+      await upsertPreferences(createdUser.firebaseUid || firebaseUid, payload.institutionCode, {
         pushEnabled: payload.notificationPrefs?.pushEnabled !== false,
         disabledTypes: Array.isArray(payload.notificationPrefs?.disabledTypes)
           ? payload.notificationPrefs!.disabledTypes
@@ -1941,6 +1941,7 @@ export class AdminService {
       row: number;
       email: string;
       id: string;
+      firebaseUid: string;
       scopeObj: Record<string, any>;
       classSectionId?: string;
       relation?: string;
@@ -2009,6 +2010,7 @@ export class AdminService {
             row: r.row,
             email: r.email,
             id: createdUser.id,
+            firebaseUid: createdUser.firebaseUid || firebaseUid,
             scopeObj,
             classSectionId,
             relation: r.relation,
@@ -2079,7 +2081,7 @@ export class AdminService {
         }
         try {
           await insertParentLinks(institutionCode, c.id, links);
-          await upsertPreferences(c.id, institutionCode, { pushEnabled: true, disabledTypes: [] });
+          await upsertPreferences(c.firebaseUid, institutionCode, { pushEnabled: true, disabledTypes: [] });
         } catch (err: any) {
           errors.push({ row: c.row, message: `Parent created but linking children failed: ${err?.message || err}` });
         }

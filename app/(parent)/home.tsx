@@ -204,7 +204,7 @@ export default function HomeScreen() {
       case 'attendance':
         return <ParentAttendanceView />;
       case 'marks':
-        return <ParentMarksView onBack={() => setActiveTab('home')} />;
+        return <ParentMarksView />;
       case 'homework':
         return <ParentHomeworkView />;
       case 'bus':
@@ -219,7 +219,7 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safe}>
-        {activeTab !== 'marks' && activeTab !== 'fees' && (
+        {activeTab !== 'fees' && (
           <UnifiedHeader
             userName={fullName}
             profilePic={profilePic}

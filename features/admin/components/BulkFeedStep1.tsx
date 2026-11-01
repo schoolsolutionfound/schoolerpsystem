@@ -215,18 +215,6 @@ export const BulkFeedStep1: React.FC<BulkFeedStep1Props> = ({
             </View>
           </View>
 
-          <TouchableOpacity
-            style={styles.seedBtn}
-            onPress={() => {
-              setFirstName('Aarav');
-              setLastName('Sharma');
-              setEmail('aarav.sharma@college.edu');
-              setRollNoOrUSN('101');
-            }}
-          >
-            <MaterialCommunityIcons name="lightning-bolt" size={16} color="#F4C430" />
-            <Text style={styles.seedBtnText}>Auto-Fill Demo Student Record</Text>
-          </TouchableOpacity>
 
           <TouchableOpacity style={styles.primaryActionBtn} onPress={onNextStep}>
             <Text style={styles.primaryActionText}>Preview Data</Text>

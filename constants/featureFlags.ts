@@ -5,11 +5,12 @@
 export const USE_NATIVE_MAP = true;
 
 /**
- * Phase 2B: Android-only Leaflet / OpenStreetMap fallback.
- * Uses free OpenStreetMap tiles inside WebView on Android so no Google Maps API keys are needed.
- * iOS continues to use native Apple Maps (BusMapView) without change.
+ * Legacy Android-only Leaflet / OpenStreetMap fallback.
+ * Disabled: Android now uses native react-native-maps with Google Maps
+ * (EXPO_PUBLIC_GOOGLE_MAPS_API_KEY). iOS uses Google Maps when a key is
+ * configured, otherwise native Apple Maps.
  */
-export const USE_LEAFLET_ANDROID_FALLBACK = true;
+export const USE_LEAFLET_ANDROID_FALLBACK = false;
 
 /**
  * Phase 3: Real driver GPS broadcast via expo-location.

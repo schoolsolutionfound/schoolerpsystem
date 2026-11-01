@@ -51,105 +51,6 @@ interface TeacherClassCard {
   studentCount?: number;
 }
 
-const DEFAULT_TEACHER_CLASSES: TeacherClassCard[] = [
-  { id: 'tc-1', className: 'Class 8', sectionName: 'A', subjectName: 'Mathematics', studentCount: 32 },
-  { id: 'tc-2', className: 'Class 9', sectionName: 'B', subjectName: 'Algebra', studentCount: 30 },
-  { id: 'tc-3', className: 'Class 9', sectionName: 'C', subjectName: 'Algebra', studentCount: 28 },
-  { id: 'tc-4', className: 'Class 10', sectionName: 'A', subjectName: 'Mathematics', studentCount: 34 },
-  { id: 'tc-5', className: 'Class 10', sectionName: 'B', subjectName: 'Geometry', studentCount: 31 },
-  { id: 'tc-6', className: 'Class 11', sectionName: 'B', subjectName: 'Physics', studentCount: 29 },
-  { id: 'tc-7', className: 'Class 12', sectionName: 'A', subjectName: 'Chemistry', studentCount: 27 },
-];
-
-const DEFAULT_CLASSES = [
-  'Class 6',
-  'Class 7',
-  'Class 8',
-  'Class 9',
-  'Class 10',
-  'Class 11',
-  'Class 12',
-];
-
-const DEFAULT_SECTIONS = ['A', 'B', 'C', 'D'];
-
-const DEFAULT_SUBJECTS = [
-  'Mathematics',
-  'Science',
-  'English',
-  'Social Science',
-  'Hindi',
-  'Computer Science',
-];
-
-const DEFAULT_EXAMS = [
-  'Unit Test 1',
-  'Unit Test 2',
-  'Mid Term Exam',
-  'Final Exam',
-];
-
-const DEFAULT_EVAL_LIST = [
-  'Test',
-  'Project 1',
-  'Project 2',
-];
-
-
-// Mock 32 students list matching user reference screenshot
-const INITIAL_STUDENTS_CLASS_8A: StudentMarkRecord[] = [
-  { id: 'st-01', rollNo: '08A01', studentName: 'Ayesha Khan', marksObtained: 42 },
-  { id: 'st-02', rollNo: '08A02', studentName: 'Mohammed Rafi', marksObtained: 0 },
-  { id: 'st-03', rollNo: '08A03', studentName: 'Sana Fatima', marksObtained: 38 },
-  { id: 'st-04', rollNo: '08A04', studentName: 'Fahad Ali', marksObtained: 0 },
-  { id: 'st-05', rollNo: '08A05', studentName: 'Zara Begum', marksObtained: 46 },
-  { id: 'st-06', rollNo: '08A06', studentName: 'Irshad Ahmed', marksObtained: 29 },
-  { id: 'st-07', rollNo: '08A07', studentName: 'Nida Rahman', marksObtained: 33 },
-  { id: 'st-08', rollNo: '08A08', studentName: 'Adnan Shaikh', marksObtained: 0 },
-  { id: 'st-09', rollNo: '08A09', studentName: 'Kavya Menon', marksObtained: 47 },
-  { id: 'st-10', rollNo: '08A10', studentName: 'Arjun Reddy', marksObtained: 21 },
-  { id: 'st-11', rollNo: '08A11', studentName: 'Bilal Siddiqui', marksObtained: 35 },
-  { id: 'st-12', rollNo: '08A12', studentName: 'Chhavi Sharma', marksObtained: 44 },
-  { id: 'st-13', rollNo: '08A13', studentName: 'Devika Pillai', marksObtained: 39 },
-  { id: 'st-14', rollNo: '08A14', studentName: 'Faizan Qureshi', marksObtained: 18 },
-  { id: 'st-15', rollNo: '08A15', studentName: 'Gaurav Joshi', marksObtained: 48 },
-  { id: 'st-16', rollNo: '08A16', studentName: 'Hafsa Mariam', marksObtained: 31 },
-  { id: 'st-17', rollNo: '08A17', studentName: 'Imran Hashmi', marksObtained: 26 },
-  { id: 'st-18', rollNo: '08A18', studentName: 'Juhi Chawla', marksObtained: 41 },
-  { id: 'st-19', rollNo: '08A19', studentName: 'Karan Mehra', marksObtained: 37 },
-  { id: 'st-20', rollNo: '08A20', studentName: 'Laila Majnu', marksObtained: 14 },
-  { id: 'st-21', rollNo: '08A21', studentName: 'Manish Malhotra', marksObtained: 45 },
-  { id: 'st-22', rollNo: '08A22', studentName: 'Nusrat Jahan', marksObtained: 32 },
-  { id: 'st-23', rollNo: '08A23', studentName: 'Omer Farooq', marksObtained: 28 },
-  { id: 'st-24', rollNo: '08A24', studentName: 'Pooja Bhatt', marksObtained: 43 },
-  { id: 'st-25', rollNo: '08A25', studentName: 'Rohan Sethi', marksObtained: 36 },
-  { id: 'st-26', rollNo: '08A26', studentName: 'Sameera Reddy', marksObtained: 50 },
-  { id: 'st-27', rollNo: '08A27', studentName: 'Tariq Mansoor', marksObtained: 22 },
-  { id: 'st-28', rollNo: '08A28', studentName: 'Uzma Parveen', marksObtained: 40 },
-  { id: 'st-29', rollNo: '08A29', studentName: 'Varun Grover', marksObtained: 34 },
-  { id: 'st-30', rollNo: '08A30', studentName: 'Wasim Akram', marksObtained: 19 },
-  { id: 'st-31', rollNo: '08A31', studentName: 'Yasmin Bano', marksObtained: 46 },
-  { id: 'st-32', rollNo: '08A32', studentName: 'Zainab Qazi', marksObtained: 41 },
-];
-
-function generateStudentsForClass(className: string, sectionName: string): StudentMarkRecord[] {
-  if (className === 'Class 8' && sectionName === 'A') {
-    return INITIAL_STUDENTS_CLASS_8A;
-  }
-  const cleanCls = className.replace(/[^0-9]/g, '') || '09';
-  const paddedCls = cleanCls.padStart(2, '0');
-  const count = 30;
-  return Array.from({ length: count }, (_, i) => {
-    const rollNo = `${paddedCls}${sectionName}${String(i + 1).padStart(2, '0')}`;
-    const baseStudent = INITIAL_STUDENTS_CLASS_8A[i % INITIAL_STUDENTS_CLASS_8A.length];
-    return {
-      id: `st-${cleanCls}-${sectionName}-${i + 1}`,
-      rollNo,
-      studentName: baseStudent.studentName,
-      marksObtained: (baseStudent.marksObtained + (i % 7) * 3) % 51,
-    };
-  });
-}
 
 export const TeacherMarksView: React.FC = () => {
   // Step 1 Selection State: which class card is selected.
@@ -157,25 +58,25 @@ export const TeacherMarksView: React.FC = () => {
   const [selectedClassCard, setSelectedClassCard] = useState<TeacherClassCard | null>(null);
 
   // Teacher Assigned Classes
-  const [teacherClasses, setTeacherClasses] = useState<TeacherClassCard[]>(DEFAULT_TEACHER_CLASSES);
+  const [teacherClasses, setTeacherClasses] = useState<TeacherClassCard[]>([]);
   const [classSearchQuery, setClassSearchQuery] = useState('');
 
   // Top Filter Selections (Class, Section, Exam, List)
-  const [selectedClass, setSelectedClass] = useState('Class 8');
-  const [selectedSection, setSelectedSection] = useState('A');
-  const [selectedSubject, setSelectedSubject] = useState('Mathematics');
-  const [selectedExam, setSelectedExam] = useState('Unit Test 2');
-  const [selectedList, setSelectedList] = useState('Test');
+  const [selectedClass, setSelectedClass] = useState('');
+  const [selectedSection, setSelectedSection] = useState('');
+  const [selectedSubject, setSelectedSubject] = useState('');
+  const [selectedExam, setSelectedExam] = useState('');
+  const [selectedList, setSelectedList] = useState('');
 
   // Search in student roster
   const [searchQuery, setSearchQuery] = useState('');
 
   // Dropdown options
-  const [classesList, setClassesList] = useState<string[]>(DEFAULT_CLASSES);
-  const [sectionsList, setSectionsList] = useState<string[]>(DEFAULT_SECTIONS);
-  const [subjectsList, setSubjectsList] = useState<string[]>(DEFAULT_SUBJECTS);
-  const [examsList, setExamsList] = useState<string[]>(DEFAULT_EXAMS);
-  const [evalList, setEvalList] = useState<string[]>(DEFAULT_EVAL_LIST);
+  const [classesList, setClassesList] = useState<string[]>([]);
+  const [sectionsList, setSectionsList] = useState<string[]>([]);
+  const [subjectsList, setSubjectsList] = useState<string[]>([]);
+  const [examsList, setExamsList] = useState<string[]>([]);
+  const [evalList, setEvalList] = useState<string[]>([]);
 
   // Sync with Teacher Settings (Exam Types & List Types)
   const storeExamTypes = useTeacherSettingsStore((s) => s.examTypes);
@@ -232,11 +133,7 @@ export const TeacherMarksView: React.FC = () => {
   };
 
   // Set tracking entered combinations
-  const [enteredKeys, setEnteredKeys] = useState<Set<string>>(() => {
-    const s = new Set<string>();
-    s.add('Class 8_A_Mathematics_Unit Test 2_Test');
-    return s;
-  });
+  const [enteredKeys, setEnteredKeys] = useState<Set<string>>(new Set());
 
   const isEntered = enteredKeys.has(currentKey);
 
@@ -252,18 +149,10 @@ export const TeacherMarksView: React.FC = () => {
     return 50;
   }, [selectedExam, storeExamTypes]);
 
-  const [marksDatabase, setMarksDatabase] = useState<Record<string, Record<string, number>>>(() => {
-    const initialMap: Record<string, number> = {};
-    INITIAL_STUDENTS_CLASS_8A.forEach((s) => {
-      initialMap[s.id] = s.marksObtained;
-    });
-    return {
-      'Class 8_A_Mathematics_Unit Test 2_Test': initialMap,
-    };
-  });
+  const [marksDatabase, setMarksDatabase] = useState<Record<string, Record<string, number>>>({});
 
   // Current students list
-  const [students, setStudents] = useState<StudentMarkRecord[]>(INITIAL_STUDENTS_CLASS_8A);
+  const [students, setStudents] = useState<StudentMarkRecord[]>([]);
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -278,8 +167,8 @@ export const TeacherMarksView: React.FC = () => {
         fetchTeacherTimetableApi().catch(() => null),
       ]);
       if (Array.isArray(csRes) && csRes.length > 0) {
-        const cSet = new Set<string>(DEFAULT_CLASSES);
-        const sSet = new Set<string>(DEFAULT_SECTIONS);
+        const cSet = new Set<string>();
+        const sSet = new Set<string>();
         csRes.forEach((cs: any) => {
           if (cs.name) {
             const parts = cs.name.split('-');
@@ -293,11 +182,11 @@ export const TeacherMarksView: React.FC = () => {
       }
       if (Array.isArray(subRes) && subRes.length > 0) {
         const subNames = subRes.map((s: any) => s.name || s.subjectName).filter(Boolean);
-        if (subNames.length) setSubjectsList(Array.from(new Set([...subNames, ...DEFAULT_SUBJECTS])));
+        if (subNames.length) setSubjectsList(Array.from(new Set(subNames)));
       }
       if (Array.isArray(exRes) && exRes.length > 0) {
         const exNames = exRes.map((e: any) => e.name).filter(Boolean);
-        if (exNames.length) setExamsList(Array.from(new Set([...exNames, ...DEFAULT_EXAMS])));
+        if (exNames.length) setExamsList(Array.from(new Set(exNames)));
       }
       // Populate teacher's dynamic classes from timetable
       if (ttRes?.periods && Array.isArray(ttRes.periods) && ttRes.periods.length > 0) {
@@ -308,16 +197,16 @@ export const TeacherMarksView: React.FC = () => {
           if (rawName) {
             const parts = rawName.split('-');
             const cName = parts[0]?.trim() || rawName;
-            const sName = parts[1]?.trim() || 'A';
+            const sName = parts[1]?.trim() || '';
             const fullCls = cName.toLowerCase().startsWith('class') ? cName : `Class ${cName}`;
             const key = `${fullCls}_${sName}`;
             if (!cardMap.has(key)) {
               cardMap.set(key, {
-                id: `tc-dyn-${idx}`,
+                id: p.id || `tc-dyn-${idx}`,
                 className: fullCls,
                 sectionName: sName,
-                subjectName: sub || 'Mathematics',
-                studentCount: 30 + ((idx * 3) % 6),
+                subjectName: sub,
+                studentCount: p.studentCount || 0,
               });
             }
           }
@@ -343,22 +232,10 @@ export const TeacherMarksView: React.FC = () => {
     setRefreshing(false);
   }, [loadInitialData]);
 
-  // Sync students and marks when class or section changes
   useEffect(() => {
     setEditingStudentIds(new Set());
     setIsAllEditing(false);
-    const classStudents = generateStudentsForClass(selectedClass, selectedSection);
-    setStudents(classStudents);
-
-    // If no marks exist for this combination, generate initial marks
-    setMarksDatabase((prev) => {
-      if (prev[currentKey]) return prev;
-      const newMap: Record<string, number> = {};
-      classStudents.forEach((st) => {
-        newMap[st.id] = st.marksObtained;
-      });
-      return { ...prev, [currentKey]: newMap };
-    });
+    setStudents([]);
   }, [selectedClass, selectedSection, currentKey]);
 
   // Current marks map for active key
@@ -775,7 +652,7 @@ export const TeacherMarksView: React.FC = () => {
                       </View>
                       {/* Subject Display */}
                       <View style={styles.cardSubjectRow}>
-                        <Text style={styles.cardSubjectText}>{item.subjectName || 'Mathematics'}</Text>
+                        <Text style={styles.cardSubjectText}>{item.subjectName || '—'}</Text>
                       </View>
                     </View>
                   </View>

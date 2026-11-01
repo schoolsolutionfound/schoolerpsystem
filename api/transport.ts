@@ -57,6 +57,144 @@ export interface MyBusData {
   location: BusLocation | null;
 }
 
+export interface TransportDriver {
+  id: string;
+  fullName: string;
+  email: string | null;
+  phone: string | null;
+  rollNoOrUSN?: string | null;
+}
+
+export interface TransportStudent {
+  id: string;
+  fullName: string;
+  email: string | null;
+  phone: string | null;
+  rollNoOrUSN: string | null;
+}
+
+export interface StudentTransportAssignment {
+  id: string;
+  routeId: string;
+  stopId: string;
+  studentId: string;
+  studentName: string | null;
+  rollNo: string | null;
+}
+
+export interface AdminBusRoute {
+  id: string;
+  name: string;
+  vehicleId: string | null;
+  driverId: string | null;
+  vehicle: BusVehicle | null;
+  driver: TransportDriver | null;
+  stops: BusStop[];
+  assignments: StudentTransportAssignment[];
+}
+
+export interface TransportOverview {
+  routes: AdminBusRoute[];
+  vehicles: BusVehicle[];
+  drivers: TransportDriver[];
+}
+
+export async function getTransportOverviewApi(): Promise<TransportOverview> {
+  return apiClient<TransportOverview>('/transport/admin/overview');
+}
+
+export async function createTransportRouteApi(input: {
+  name: string;
+  vehicleId?: string | null;
+  driverId?: string | null;
+}): Promise<AdminBusRoute> {
+  return apiClient<AdminBusRoute>('/transport/admin/routes', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateTransportRouteApi(
+  routeId: string,
+  input: { name?: string; vehicleId?: string | null; driverId?: string | null }
+): Promise<{ id: string; name: string }> {
+  return apiClient(`/transport/admin/routes/${routeId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function deleteTransportRouteApi(routeId: string): Promise<{ id: string; deleted: boolean }> {
+  return apiClient(`/transport/admin/routes/${routeId}`, { method: 'DELETE' });
+}
+
+export async function addTransportStopApi(
+  routeId: string,
+  input: { name: string; latitude: number; longitude: number; sequence?: number }
+): Promise<BusStop> {
+  return apiClient<BusStop>(`/transport/admin/routes/${routeId}/stops`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateTransportStopApi(
+  stopId: string,
+  input: { name?: string; latitude?: number; longitude?: number; sequence?: number }
+): Promise<BusStop> {
+  return apiClient<BusStop>(`/transport/admin/stops/${stopId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function deleteTransportStopApi(stopId: string): Promise<{ id: string; deleted: boolean }> {
+  return apiClient(`/transport/admin/stops/${stopId}`, { method: 'DELETE' });
+}
+
+export async function createTransportVehicleApi(input: {
+  registrationNo: string;
+  capacity?: number;
+  status?: string;
+}): Promise<BusVehicle> {
+  return apiClient<BusVehicle>('/transport/admin/vehicles', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateTransportVehicleApi(
+  vehicleId: string,
+  input: { registrationNo?: string; capacity?: number; status?: string }
+): Promise<BusVehicle> {
+  return apiClient<BusVehicle>(`/transport/admin/vehicles/${vehicleId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function searchTransportStudentsApi(search: string): Promise<TransportStudent[]> {
+  const qs = search ? `?search=${encodeURIComponent(search)}` : '';
+  return apiClient<TransportStudent[]>(`/transport/admin/students${qs}`);
+}
+
+export async function assignStudentTransportApi(input: {
+  studentId: string;
+  routeId: string;
+  stopId: string;
+}): Promise<{ id: string; studentId: string; routeId: string; stopId: string }> {
+  return apiClient('/transport/admin/assignments', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function removeStudentTransportApi(
+  assignmentId: string
+): Promise<{ id: string; removed: boolean }> {
+  return apiClient(`/transport/admin/assignments/${assignmentId}`, { method: 'DELETE' });
+}
+
 /**
  * Fetch assigned route, vehicle, stops, and live trip status for the authenticated driver.
  */

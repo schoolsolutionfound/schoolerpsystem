@@ -52,120 +52,20 @@ export interface LibraryFineItem {
   paymentMode?: string;
 }
 
-const INITIAL_RECEIVED_BOOKS: ReceivedBookItem[] = [
-  {
-    id: 'rec-1',
-    accessionNo: 'ACC-84920',
-    title: 'Advanced Engineering Mathematics',
-    author: 'Erwin Kreyszig',
-    category: 'Mathematics',
-    isbn: '978-0470458365',
-    shelfLocation: 'Rack M-12 · Shelf 3',
-    issuedDate: '05 Oct 2026',
-    dueDate: '05 Nov 2026',
-    status: 'IN_HAND',
-    renewCount: 0,
-    maxRenewals: 2,
-  },
-  {
-    id: 'rec-2',
-    accessionNo: 'ACC-12048',
-    title: 'NCERT Exemplar Problems - Class 10 Maths',
-    author: 'NCERT Editorial Team',
-    category: 'Academics',
-    isbn: '978-9350071922',
-    shelfLocation: 'Rack E-01 · Shelf 2',
-    issuedDate: '22 Sep 2026',
-    dueDate: '24 Oct 2026',
-    status: 'DUE_SOON',
-    renewCount: 1,
-    maxRenewals: 2,
-  },
-  {
-    id: 'rec-3',
-    accessionNo: 'ACC-33190',
-    title: 'Concepts of Physics (Vol 1 & 2)',
-    author: 'H.C. Verma',
-    category: 'Science',
-    isbn: '978-8177091878',
-    shelfLocation: 'Rack P-04 · Shelf 1',
-    issuedDate: '15 Sep 2026',
-    dueDate: '15 Oct 2026',
-    status: 'OVERDUE',
-    renewCount: 2,
-    maxRenewals: 2,
-  },
-  {
-    id: 'rec-4',
-    accessionNo: 'ACC-67124',
-    title: 'Higher Algebra: Classical & Abstract',
-    author: 'Hall & Knight',
-    category: 'Mathematics',
-    isbn: '978-9351762560',
-    shelfLocation: 'Rack M-08 · Shelf 2',
-    issuedDate: '01 Aug 2026',
-    dueDate: '01 Sep 2026',
-    returnedDate: '28 Aug 2026',
-    status: 'RETURNED',
-    renewCount: 0,
-    maxRenewals: 2,
-  },
-  {
-    id: 'rec-5',
-    accessionNo: 'ACC-90214',
-    title: 'Teaching Pedagogy & Modern Education',
-    author: 'Dr. Anita Woolfolk',
-    category: 'Pedagogy',
-    isbn: '978-0134013527',
-    shelfLocation: 'Rack T-03 · Shelf 1',
-    issuedDate: '10 Jul 2026',
-    dueDate: '10 Aug 2026',
-    returnedDate: '08 Aug 2026',
-    status: 'RETURNED',
-    renewCount: 0,
-    maxRenewals: 2,
-  },
-];
-
-const INITIAL_FINES: LibraryFineItem[] = [
-  {
-    id: 'fin-1',
-    fineId: 'FIN-2026-104',
-    bookTitle: 'Concepts of Physics (Vol 1 & 2)',
-    accessionNo: 'ACC-33190',
-    reason: 'Overdue penalty (7 days overdue @ ₹10/day)',
-    amount: 70,
-    status: 'UNPAID',
-    assessedDate: '22 Oct 2026',
-  },
-  {
-    id: 'fin-3',
-    fineId: 'FIN-2026-039',
-    bookTitle: 'Higher Algebra: Classical & Abstract',
-    accessionNo: 'ACC-67124',
-    reason: 'Damaged barcode sticker re-issuance fee',
-    amount: 30,
-    status: 'PAID',
-    assessedDate: '28 Aug 2026',
-    paidDate: '28 Aug 2026',
-    receiptNo: 'REC-LIB-55421',
-    paymentMode: 'UPI Digital Pay',
-  },
-];
 
 export const StudentLibraryView: React.FC<StudentLibraryViewProps> = ({ onBack }) => {
-  const studentName = useUserStore((s) => s.fullName) || 'Student';
-  const rollNoOrUSN = useUserStore((s) => s.rollNoOrUSN) || 'C6A-001';
+  const studentName = useUserStore((s) => s.fullName) || '';
+  const rollNoOrUSN = useUserStore((s) => s.rollNoOrUSN) || '';
 
   const [activeBlock, setActiveBlock] = useState<LibraryBlock>('received');
   const [refreshing, setRefreshing] = useState(false);
 
   // Received Books State
-  const [receivedBooks, setReceivedBooks] = useState<ReceivedBookItem[]>(INITIAL_RECEIVED_BOOKS);
+  const [receivedBooks, setReceivedBooks] = useState<ReceivedBookItem[]>([]);
   const [bookSearch, setBookSearch] = useState('');
 
   // Fines State
-  const [fines, setFines] = useState<LibraryFineItem[]>(INITIAL_FINES);
+  const [fines, setFines] = useState<LibraryFineItem[]>([]);
   const [fineFilter, setFineFilter] = useState<'ALL' | 'UNPAID' | 'PAID'>('ALL');
 
   // Payment & Receipt Modals

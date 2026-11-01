@@ -30,7 +30,7 @@ export const LibrarianSidebar: React.FC<LibrarianSidebarProps> = ({
   activeTab,
   onNavigate,
   onLogout,
-  userName = 'Amina Rahman',
+  userName = '',
 }) => {
   const insets = useSafeAreaInsets();
   const safeTopPadding = Platform.OS === 'ios' ? Math.max(insets.top + 6, 44) : Math.max(insets.top + 6, 20);

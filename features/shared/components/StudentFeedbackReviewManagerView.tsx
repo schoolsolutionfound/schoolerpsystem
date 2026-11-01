@@ -57,23 +57,7 @@ const INSTITUTION_DEPARTMENTS = [
   'Applied Sciences',
 ];
 
-const SAMPLE_FACULTY_MEMBERS = [
-  { id: 'fac-1', name: 'Dr. Linus Torvalds', department: 'Computer Science & Engineering', subject: 'Operating Systems & System Programming' },
-  { id: 'fac-2', name: 'Prof. Dennis Ritchie', department: 'Computer Science & Engineering', subject: 'Database Management Systems & SQL' },
-  { id: 'fac-3', name: 'Dr. Donald Knuth', department: 'Computer Science & Engineering', subject: 'Algorithm Analysis & TeX' },
-  { id: 'fac-4', name: 'Prof. Ada Lovelace', department: 'Computer Science & Engineering', subject: 'Computational Logic & Databases' },
-  { id: 'fac-5', name: 'Dr. Tim Berners-Lee', department: 'Computer Science & Engineering', subject: 'Distributed Systems & WWW' },
-  { id: 'fac-6', name: 'Dr. Bjarne Stroustrup', department: 'Computer Science & Engineering', subject: 'C++ & Object Oriented Design' },
-  { id: 'fac-hinton', name: 'Dr. Geoffrey Hinton', department: 'Artificial Intelligence & Machine Learning', subject: 'Deep Learning & Neural Networks' },
-  { id: 'fac-lecun', name: 'Prof. Yann LeCun', department: 'Artificial Intelligence & Machine Learning', subject: 'Computer Vision & Convolutional Nets' },
-  { id: 'fac-bengio', name: 'Dr. Yoshua Bengio', department: 'Artificial Intelligence & Machine Learning', subject: 'Natural Language Processing & LLMs' },
-  { id: 'fac-01', name: 'Dr. Rajesh Iyer', department: 'Mathematics & Science', subject: 'Mathematics' },
-  { id: 'fac-01', name: 'Dr. Rajesh Iyer', department: 'Humanities & Languages', subject: 'English' },
-  { id: 'fac-02', name: 'Prof. Sneha Sharma', department: 'Applied Sciences', subject: 'Physics' },
-  { id: 'fac-03', name: 'Dr. Anand Rao', department: 'Computer Science', subject: 'Computer Science' },
-  { id: 'fac-04', name: 'Dr. Ramesh Kumar', department: 'Electronics & Comm', subject: 'Digital Signal Processing' },
-  { id: 'fac-05', name: 'Prof. Vikram Hegde', department: 'Mechanical Eng', subject: 'Thermodynamics & Heat Transfer' },
-];
+const SAMPLE_FACULTY_MEMBERS: Array<{ id: string; name: string; department: string; subject: string }> = [];
 
 export function getRatingLabel(score: number): string {
   const rounded = Math.round(score);
@@ -109,9 +93,9 @@ interface StudentFeedbackReviewManagerViewProps {
 
 export const StudentFeedbackReviewManagerView: React.FC<StudentFeedbackReviewManagerViewProps> = ({
   userRole = 'student',
-  currentUserId = 'user-01',
-  currentUserName = 'Rahul Verma',
-  userDepartment = 'Computer Science',
+  currentUserId = '',
+  currentUserName = '',
+  userDepartment = '',
 }) => {
   const { width: windowWidth } = useWindowDimensions();
   const isDesktop = windowWidth >= 768;
@@ -215,7 +199,7 @@ export const StudentFeedbackReviewManagerView: React.FC<StudentFeedbackReviewMan
   const [newCycleDesc, setNewCycleDesc] = useState('');
 
   // Form State: Rate Faculty (Student)
-  const [selectedFaculty, setSelectedFaculty] = useState(SAMPLE_FACULTY_MEMBERS[0]);
+  const [selectedFaculty, setSelectedFaculty] = useState<any>(null);
   const [facIsAnonymous, setFacIsAnonymous] = useState(true);
   const [facRatings, setFacRatings] = useState<FacultyRatingParameters>({
     subjectKnowledge: 5,
@@ -586,6 +570,10 @@ export const StudentFeedbackReviewManagerView: React.FC<StudentFeedbackReviewMan
     const activeCycle = cycles.find((c) => c.status === 'active') || cycles[0];
     if (!activeCycle) {
       Alert.alert('Notice', 'No active survey campaign found.');
+      return;
+    }
+    if (!selectedFaculty) {
+      Alert.alert('Notice', 'Select a faculty member before submitting.');
       return;
     }
     try {

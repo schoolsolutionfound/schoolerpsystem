@@ -12,6 +12,8 @@
  * exported for unit tests.
  */
 
+import { and, eq, ne, sql } from 'drizzle-orm';
+import { withTransaction } from '../shared/db/index.js';
 import { payrollRepository } from './payroll.repository.js';
 import {
   CreatePayrollScheduleInput,
@@ -19,7 +21,7 @@ import {
   PayScheduleInput,
   AddBonusInput,
 } from './payroll.schema.js';
-import { PayrollScheduleRow } from '../shared/db/schema.js';
+import { expenseRecords, payrollSchedules, ExpenseRecordRow, PayrollScheduleRow } from '../shared/db/schema.js';
 
 export type PayrollFrequency = 'monthly' | 'weekly' | 'daily' | 'days_of_month';
 
@@ -378,29 +380,47 @@ export class PayrollService {
   }
 
   async pay(institutionCode: string, id: string, input: PayScheduleInput) {
-    const schedule = await payrollRepository.getSchedule(id, institutionCode);
-    if (!schedule) throw err(404, 'NOT_FOUND', 'Payroll schedule not found.');
+    // Lock the schedule row so concurrent payments for the same payroll are
+    // serialized. Without this, two requests read the same paid_amount and the
+    // last write wins, losing part of a payment (or over-allocating it).
+    return withTransaction(async (tx) => {
+      const [schedule] = await tx
+        .select()
+        .from(payrollSchedules)
+        .where(and(eq(payrollSchedules.id, id), eq(payrollSchedules.institutionCode, institutionCode)))
+        .for('update');
+      if (!schedule) throw err(404, 'NOT_FOUND', 'Payroll schedule not found.');
 
-    const pendingRows = await payrollRepository.listPendingRowsForSchedule(id);
-    const { allocations, applied, unallocated } = allocatePayment(pendingRows, input.amount);
-    if (applied <= 0) throw err(400, 'NOTHING_DUE', 'No pending amount available to pay.');
+      const pendingRows = await tx
+        .select()
+        .from(expenseRecords)
+        .where(and(eq(expenseRecords.scheduleId, id), ne(expenseRecords.status, 'paid')))
+        .orderBy(sql`${expenseRecords.dueDate} asc nulls last`, sql`${expenseRecords.createdAt} asc`)
+        .for('update');
 
-    const todayK = dateKey(new Date());
-    for (const a of allocations) {
-      const row = pendingRows.find((r) => r.id === a.id);
-      const notes = input.reference
-        ? `${row?.notes ? `${row.notes} · ` : ''}${input.reference}`
-        : row?.notes ?? null;
-      await payrollRepository.updateExpenseRow(a.id, {
-        paidAmount: String(a.newPaid),
-        status: a.complete ? 'paid' : 'pending',
-        paymentMethod: input.paymentMethod,
-        paymentDate: todayK,
-        notes,
-        updatedAt: new Date(),
-      });
-    }
-    return { applied, unallocated, updatedRows: allocations.length };
+      const { allocations, applied, unallocated } = allocatePayment(pendingRows, input.amount);
+      if (applied <= 0) throw err(400, 'NOTHING_DUE', 'No pending amount available to pay.');
+
+      const todayK = dateKey(new Date());
+      for (const a of allocations) {
+        const row = pendingRows.find((r: ExpenseRecordRow) => r.id === a.id);
+        const notes = input.reference
+          ? `${row?.notes ? `${row.notes} · ` : ''}${input.reference}`
+          : row?.notes ?? null;
+        await tx
+          .update(expenseRecords)
+          .set({
+            paidAmount: String(a.newPaid),
+            status: a.complete ? 'paid' : 'pending',
+            paymentMethod: input.paymentMethod,
+            paymentDate: todayK,
+            notes,
+            updatedAt: new Date(),
+          })
+          .where(eq(expenseRecords.id, a.id));
+      }
+      return { applied, unallocated, updatedRows: allocations.length };
+    });
   }
 
   async addBonus(institutionCode: string, id: string, input: AddBonusInput, createdBy?: string) {

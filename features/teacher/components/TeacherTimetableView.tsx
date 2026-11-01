@@ -29,38 +29,6 @@ const TIME_SLOTS = [
   '4:00 PM',
 ];
 
-const DEFAULT_TODAY_PERIODS = [
-  {
-    id: 'demo-slot-1',
-    period: { label: '1st Period', startTime: '08:30 AM', endTime: '09:20 AM' },
-    subject: { name: 'Maths' },
-    classSectionName: 'Class 10-A',
-  },
-  {
-    id: 'demo-slot-2',
-    period: { label: '2nd Period', startTime: '09:30 AM', endTime: '10:20 AM' },
-    subject: { name: 'Physics' },
-    classSectionName: 'Class 11-B',
-  },
-  {
-    id: 'demo-slot-3',
-    period: { label: '3rd Period', startTime: '10:45 AM', endTime: '11:35 AM' },
-    subject: { name: 'Algebra' },
-    classSectionName: 'Class 9-C',
-  },
-  {
-    id: 'demo-slot-4',
-    period: { label: '4th Period', startTime: '11:45 AM', endTime: '12:35 PM' },
-    subject: { name: 'Pract. Geom' },
-    classSectionName: 'Class 10-B',
-  },
-  {
-    id: 'demo-slot-5',
-    period: { label: '5th Period', startTime: '01:30 PM', endTime: '02:20 PM' },
-    subject: { name: 'Chem' },
-    classSectionName: 'Class 12-A',
-  },
-];
 
 interface TeacherTimetableViewProps {
   onOpenAttendance?: (slotOrId: any, subjectName?: string, className?: string) => void;
@@ -219,11 +187,10 @@ export const TeacherTimetableView: React.FC<TeacherTimetableViewProps> = ({ onOp
       if (res?.periods && Array.isArray(res.periods) && res.periods.length > 0) {
         setData(res);
       } else {
-        // Guarantee today's timetable is displayed
-        setData({ periods: DEFAULT_TODAY_PERIODS });
+        setData({ periods: [] });
       }
     } catch {
-      setData({ periods: DEFAULT_TODAY_PERIODS });
+      setData({ periods: [] });
     } finally {
       setLoading(false);
     }
@@ -241,7 +208,7 @@ export const TeacherTimetableView: React.FC<TeacherTimetableViewProps> = ({ onOp
         const pList =
           r?.periods && Array.isArray(r.periods) && r.periods.length > 0
             ? r.periods
-            : DEFAULT_TODAY_PERIODS;
+            : [];
         map[dow] = pList;
       });
       setWeekMap(map);
@@ -287,7 +254,7 @@ export const TeacherTimetableView: React.FC<TeacherTimetableViewProps> = ({ onOp
     setView(v);
   };
 
-  const basePeriods = (data?.periods && data.periods.length > 0) ? data.periods : DEFAULT_TODAY_PERIODS;
+  const basePeriods = data?.periods || [];
 
   const periods = useMemo(() => {
     // Append any accepted incoming transfers for the selected date
@@ -500,7 +467,7 @@ export const TeacherTimetableView: React.FC<TeacherTimetableViewProps> = ({ onOp
             const subject = getSubjectShortcut(rawSubject);
             const cls = p.classSectionName || p.classSection?.name || 'Class 10-A';
 
-            const periodId = p.id || `demo-slot-${i + 1}`;
+            const periodId = p.id || `period-${i + 1}`;
             const periodLabel = p.period?.label || `${num} Period`;
             const transfer = getTransferForPeriod(periodId, selectedDate, periodLabel);
 

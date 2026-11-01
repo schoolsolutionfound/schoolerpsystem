@@ -13,7 +13,7 @@ function escapeCsvField(val: string | number | undefined | null): string {
 export function generateFeeCsvString(
   type: 'dues' | 'collected',
   records: StudentFeeRecord[],
-  institutionName: string = 'KIVQUO Institute of Technology'
+  institutionName: string = ''
 ): string {
   const isDues = type === 'dues';
   const title = isDues ? 'Fee Dues (Outstanding Balances) Report' : 'Fee Collection Audit Report';
@@ -75,7 +75,7 @@ export function generateFeeCsvString(
 export async function exportFeeListCSV(
   type: 'dues' | 'collected',
   records: StudentFeeRecord[],
-  institutionName: string = 'KIVQUO Institute of Technology'
+  institutionName: string = ''
 ): Promise<void> {
   try {
     if (!records || records.length === 0) {
@@ -123,7 +123,7 @@ export async function exportFeeListCSV(
 export function buildFeeReportHtml(
   type: 'dues' | 'collected',
   records: StudentFeeRecord[],
-  institutionName: string = 'KIVQUO Institute of Technology'
+  institutionName: string = ''
 ): string {
   const isDues = type === 'dues';
   const reportTitle = isDues
@@ -247,7 +247,7 @@ export function buildFeeReportHtml(
 export async function exportFeeListPDF(
   type: 'dues' | 'collected',
   records: StudentFeeRecord[],
-  institutionName: string = 'KIVQUO Institute of Technology'
+  institutionName: string = ''
 ): Promise<void> {
   try {
     if (!records || records.length === 0) {
@@ -280,7 +280,7 @@ export async function exportFeeListPDF(
 export function promptFeeExport(
   type: 'dues' | 'collected',
   records: StudentFeeRecord[],
-  institutionName: string = 'KIVQUO Institute of Technology'
+  institutionName: string = ''
 ): void {
   const isDues = type === 'dues';
   const label = isDues ? 'Outstanding Due Fees' : 'Collected Fees';

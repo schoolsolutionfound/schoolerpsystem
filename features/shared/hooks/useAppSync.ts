@@ -31,6 +31,7 @@ export function useAppSync(userSession: User | null) {
   const setUserProfile = useUserStore((state) => state.setUserProfile);
   const setProfileExists = useUserStore((state) => state.setProfileExists);
   const setIsProfileSynced = useUserStore((state) => state.setIsProfileSynced);
+  const setAccessBlocked = useUserStore((state) => state.setAccessBlocked);
   const _hasHydrated = useUserStore((state) => state._hasHydrated);
 
   const unsubProfileRef = useRef<(() => void) | null>(null);
@@ -112,6 +113,7 @@ export function useAppSync(userSession: User | null) {
       });
 
       setProfileExists(true);
+      setAccessBlocked(false);
       setIsProfileSynced(true);
       if (__DEV__) {
         console.log('[BOOT] backend profile applied', {
@@ -207,13 +209,23 @@ export function useAppSync(userSession: User | null) {
       } catch (err: any) {
         if (__DEV__) console.warn('[BOOT] /auth/login-sync failed', { code: err?.code, message: err?.message });
         if (err?.code === 'EMAIL_NOT_VERIFIED') {
-          console.warn('[useAppSync] Email not verified — skipping Firestore fallback, auth guard will redirect.');
+          console.warn('[useAppSync] Email not verified �?" skipping Firestore fallback, auth guard will redirect.');
           setIsProfileSynced(true);
           if (__DEV__) console.log('[BOOT] profile marked synced after EMAIL_NOT_VERIFIED');
           return;
         }
+        if (err?.code === 'NO_ROLE_ASSIGNED' || err?.code === 'NO_ACCOUNT') {
+          console.warn('[useAppSync] Account is not provisioned; blocking access:', err?.message);
+          setProfileExists(false);
+          setAccessBlocked(
+            true,
+            err?.message || 'No account is provisioned for this email. Contact your institution administrator.'
+          );
+          setIsProfileSynced(true);
+          return;
+        }
         // Only fall back when the backend is actually unreachable. 4xx/5xx
-        // (incl. 429 RATE_LIMITED) mean the backend responded — falling back
+        // (incl. 429 RATE_LIMITED) mean the backend responded �?" falling back
         // to Firestore there only piles on a second failure (its rules often
         // deny the read, spamming permission warnings).
         if (err?.code === 'NETWORK_ERROR') {
@@ -305,5 +317,5 @@ export function useAppSync(userSession: User | null) {
         unsubProfileRef.current = null;
       }
     };
-  }, [userSession?.uid, _hasHydrated, setUserProfile, setProfileExists, setIsProfileSynced]);
+  }, [userSession?.uid, _hasHydrated, setUserProfile, setProfileExists, setIsProfileSynced, setAccessBlocked]);
 }

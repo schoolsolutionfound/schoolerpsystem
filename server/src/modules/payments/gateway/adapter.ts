@@ -55,6 +55,9 @@ export interface GatewayPaymentEvent {
   notesOrderId: string | null;
   /** refund events only */
   refundAmountPaise: number | null;
+  /** refund events only — the gateway's refund id (`rfnd_...`), used for
+   *  idempotency so a replayed refund webhook cannot double-accumulate. */
+  refundId: string | null;
 }
 
 export interface PaymentGateway {

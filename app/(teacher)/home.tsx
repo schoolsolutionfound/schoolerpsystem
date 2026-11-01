@@ -168,60 +168,10 @@ export default function TeacherHomeScreen() {
         setCompletedCount((prev) => Math.max(prev, markedCount));
         setWeekData(wData);
       } else {
-        // Fallback demo schedule so dashboard is dynamic and interactive
-        const fallback = [
-          {
-            id: 'demo-slot-1',
-            dayOfWeek: utcDay || 1,
-            period: { label: '1st Period', startTime: '08:30 AM', endTime: '09:20 AM' },
-            subject: { name: 'Maths' },
-            classSectionName: 'Class 10-A',
-            room: '204',
-          },
-          {
-            id: 'demo-slot-2',
-            dayOfWeek: utcDay || 1,
-            period: { label: '2nd Period', startTime: '09:30 AM', endTime: '10:20 AM' },
-            subject: { name: 'Physics' },
-            classSectionName: 'Class 11-B',
-            room: 'Lab 1',
-          },
-          {
-            id: 'demo-slot-3',
-            dayOfWeek: utcDay || 1,
-            period: { label: '3rd Period', startTime: '10:45 AM', endTime: '11:35 AM' },
-            subject: { name: 'Algebra' },
-            classSectionName: 'Class 9-C',
-            room: '105',
-          },
-          {
-            id: 'demo-slot-4',
-            dayOfWeek: utcDay || 1,
-            period: { label: '4th Period', startTime: '11:45 AM', endTime: '12:35 PM' },
-            subject: { name: 'Geometry' },
-            classSectionName: 'Class 10-B',
-            room: 'Hall B',
-          },
-          {
-            id: 'demo-slot-5',
-            dayOfWeek: utcDay || 1,
-            period: { label: '5th Period', startTime: '01:30 PM', endTime: '02:20 PM' },
-            subject: { name: 'Chemistry' },
-            classSectionName: 'Class 12-A',
-            room: '302',
-          },
-        ];
-
-        const fallbackMarked = fallback.filter((s: any) =>
-          useAttendanceStore
-            .getState()
-            .isPeriodMarked(s.id, today, s.classSectionName, s.subject?.name)
-        ).length;
-
-        setTodaySlots(fallback);
-        setTodayCount(fallback.length);
-        setCompletedCount(fallbackMarked);
-        setWeekData([5, 4, 6, 5, 4]);
+        setTodaySlots([]);
+        setTodayCount(0);
+        setCompletedCount(0);
+        setWeekData([0, 0, 0, 0, 0]);
       }
     } catch (err: any) {
       console.warn('[Teacher Home] Could not load schedule:', err.message);
@@ -249,23 +199,23 @@ export default function TeacherHomeScreen() {
 
   const openSlot = (slotOrId: any, subjectName?: string, className?: string) => {
     if (typeof slotOrId === 'object' && slotOrId !== null) {
-      const sId = slotOrId.id || 'demo-slot';
+      const sId = slotOrId.id || '';
       const rawSubject =
         slotOrId.subject?.name ||
         slotOrId.subject?.shortName ||
         slotOrId.subjectName ||
         subjectName ||
-        'Subject';
+        '';
       const cls =
         slotOrId.classSectionName ||
         slotOrId.classSection?.name ||
         className ||
-        'Class 10-A';
+        '';
       setActiveSlot({ slotId: sId, subjectName: rawSubject, className: cls });
     } else {
       setActiveSlot({
         slotId: String(slotOrId),
-        subjectName: subjectName || 'Subject',
+        subjectName: subjectName || '',
         className,
       });
     }

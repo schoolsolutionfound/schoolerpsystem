@@ -55,17 +55,19 @@ export default function DeveloperHomeScreen() {
     }
   };
 
+  const logoutNow = async () => {
+    await performLogout();
+    resetUser();
+    router.replace('/auth');
+  };
+
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to log out of Developer Panel?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Logout',
         style: 'destructive',
-        onPress: async () => {
-          await performLogout();
-          resetUser();
-          router.replace('/auth');
-        },
+        onPress: logoutNow,
       },
     ]);
   };
@@ -108,7 +110,7 @@ export default function DeveloperHomeScreen() {
         onNavigate={(tab) => setActiveTab(tab as DevTab)}
         fullName={fullName}
         email={email}
-        onLogout={handleLogout}
+        onLogout={logoutNow}
       />
     </View>
   );

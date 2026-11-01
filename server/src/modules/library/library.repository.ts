@@ -383,6 +383,11 @@ export class LibraryRepository {
     return Number(res?.cnt || 0);
   }
 
+  public async countFinesByCopyId(copyId: string): Promise<number> {
+    const [res] = await this.getDb().select({ cnt: count() }).from(libraryFines).where(eq(libraryFines.bookCopyId, copyId));
+    return Number(res?.cnt || 0);
+  }
+
   public async getLoanById(id: string): Promise<LibraryLoanRecord | undefined> {
     const [res] = await this.getDb().select().from(libraryLoans).where(eq(libraryLoans.id, id));
     return res;

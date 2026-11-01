@@ -12,27 +12,11 @@ interface Message {
   time: string;
 }
 
-const MOCK_PARENTS = [
-  { id: '1', name: 'Priya Sharma', child: 'Aarav Sharma (1VM26CS001)', subject: 'Applied Mathematics' },
-  { id: '2', name: 'Rajesh Kumar', child: 'Diya Kumar (1VM26CS002)', subject: 'Data Structures' },
-  { id: '3', name: 'Anita Reddy', child: 'Vivaan Reddy (1VM26EC003)', subject: 'Digital Electronics' },
-];
-
-const MOCK_MESSAGES: Record<string, Message[]> = {
-  '1': [
-    { id: 'm1', sender: 'parent', senderName: 'Priya Sharma', text: 'Good morning, I wanted to discuss Aarav\'s performance in Applied Mathematics.', time: '9:15 AM' },
-    { id: 'm2', sender: 'teacher', senderName: 'You', text: 'Good morning! Aarav has been doing well. His mid-term score was 85%.', time: '9:20 AM' },
-    { id: 'm3', sender: 'parent', senderName: 'Priya Sharma', text: 'That\'s great to hear! He has been practicing the assignments regularly.', time: '9:22 AM' },
-  ],
-  '2': [
-    { id: 'm4', sender: 'parent', senderName: 'Rajesh Kumar', text: 'Hello Professor, are there review sessions scheduled for Data Structures?', time: '10:00 AM' },
-  ],
-  '3': [],
-};
+const PARENTS: { id: string; name: string; child: string; subject: string }[] = [];
 
 export const TeacherChatView: React.FC = () => {
   const [selectedParent, setSelectedParent] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Record<string, Message[]>>(MOCK_MESSAGES);
+  const [messages, setMessages] = useState<Record<string, Message[]>>({});
   const [inputText, setInputText] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -60,7 +44,7 @@ export const TeacherChatView: React.FC = () => {
   };
 
   if (selectedParent) {
-    const parent = MOCK_PARENTS.find((p) => p.id === selectedParent);
+    const parent = PARENTS.find((p) => p.id === selectedParent);
     const chatMsgs = messages[selectedParent] || [];
 
     return (
@@ -121,7 +105,7 @@ export const TeacherChatView: React.FC = () => {
       <View style={styles.header}>
         <Text style={styles.title}>Parent Chat</Text>
         <View style={styles.countBadge}>
-          <Text style={styles.countText}>{MOCK_PARENTS.length}</Text>
+          <Text style={styles.countText}>{PARENTS.length}</Text>
         </View>
       </View>
 
@@ -139,8 +123,13 @@ export const TeacherChatView: React.FC = () => {
       >
         {refreshing ? (
           <TeacherChatSkeleton />
+        ) : PARENTS.length === 0 ? (
+          <View style={styles.chatEmpty}>
+            <MaterialCommunityIcons name="message-outline" size={38} color="#9CA3AF" />
+            <Text style={styles.chatEmptyText}>No parent conversations available.</Text>
+          </View>
         ) : (
-          MOCK_PARENTS.map((parent) => {
+          PARENTS.map((parent) => {
             const lastMsg = messages[parent.id]?.slice(-1)[0];
             return (
               <TouchableOpacity

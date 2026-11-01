@@ -92,73 +92,7 @@ export const FinesView: React.FC<FinesViewProps> = ({
       .filter((item) => item.isOverdue)
       .sort((a, b) => b.diffDays - a.diffDays);
 
-    if (mapped.length > 0) return mapped;
-
-    // High fidelity fallback overdue records so librarian always has records to track
-    return [
-      {
-        id: 'fb-od-1',
-        loan: {
-          id: 'loan-fb-1',
-          studentId: 'st-001',
-          bookId: 'bk-001',
-          copyId: 'cp-001',
-          issueDate: '01 Oct 2026',
-          dueDate: '15 Oct 2026',
-          status: 'ACTIVE',
-        } as Loan,
-        student: {
-          id: 'st-001',
-          fullName: 'Safwan Khan',
-          admissionNo: '2024CS001',
-          classSection: 'Class 12-A',
-        } as StudentProfile,
-        copy: {
-          id: 'cp-001',
-          accessionNumber: 'ACC-625527',
-          barcode: 'BAR-625527',
-        } as BookCopy,
-        book: {
-          id: 'bk-001',
-          title: 'Safwan (Advanced Principles)',
-          isbn: 'B007',
-        } as Book,
-        diffDays: 3,
-        isOverdue: true,
-        estFine: 3.0,
-      },
-      {
-        id: 'fb-od-2',
-        loan: {
-          id: 'loan-fb-2',
-          studentId: 'st-002',
-          bookId: 'bk-002',
-          copyId: 'cp-002',
-          issueDate: '28 Sep 2026',
-          dueDate: '12 Oct 2026',
-          status: 'ACTIVE',
-        } as Loan,
-        student: {
-          id: 'st-002',
-          fullName: 'Grift Wilson',
-          admissionNo: '2024IS019',
-          classSection: 'Class 11-B',
-        } as StudentProfile,
-        copy: {
-          id: 'cp-002',
-          accessionNumber: 'ACC-356461',
-          barcode: 'BAR-356461',
-        } as BookCopy,
-        book: {
-          id: 'bk-002',
-          title: 'Grift (Computer Networks)',
-          isbn: '35646',
-        } as Book,
-        diffDays: 6,
-        isOverdue: true,
-        estFine: 6.0,
-      },
-    ];
+    return mapped;
   }, [loans, students, copies, books]);
 
   const filteredOverdueItems = useMemo(() => {

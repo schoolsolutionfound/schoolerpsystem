@@ -21,18 +21,6 @@ import {
   PrincipalStaffMember,
 } from '../../principal/types/principal.types';
 
-// Department Academic Performance / Syllabus Stats
-const DEPT_ACADEMIC_STATS_TERM = [
-  { label: 'SEM 1', fullName: '1st Semester', completed: 0, inProgress: 0 },
-  { label: 'SEM 3', fullName: '3rd Semester', completed: 0, inProgress: 0 },
-  { label: 'SEM 5', fullName: '5th Semester', completed: 0, inProgress: 0 },
-  { label: 'SEM 7', fullName: '7th Semester', completed: 0, inProgress: 0 },
-  { label: 'LABS', fullName: 'Practical Labs', completed: 0, inProgress: 0 },
-  { label: 'ELECT', fullName: 'Elective Tracks', completed: 0, inProgress: 0 },
-];
-
-const DEPT_ACADEMIC_STATS_ANNUAL = DEPT_ACADEMIC_STATS_TERM;
-
 interface HODDashboardViewProps {
   fullName?: string;
   department?: string;
@@ -75,8 +63,8 @@ const formatUpcomingEventDate = (startDate: string, endDate?: string): string =>
 };
 
 export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
-  fullName = 'Muhammad Samran',
-  department = 'Computer Science & Engineering',
+  fullName = '',
+  department = '',
   kpis,
   homerooms,
   staffList,
@@ -129,7 +117,7 @@ export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
   // Dynamic Academic Syllabus Progress per semester calculated from actual department courses
   const dynamicDeptAcademicStats = useMemo(() => {
     if (!courses || courses.length === 0) {
-      return { term: DEPT_ACADEMIC_STATS_TERM, annual: DEPT_ACADEMIC_STATS_ANNUAL };
+      return { term: [], annual: [] };
     }
     const calcAvg = (crList: DepartmentCourse[]) => {
       if (crList.length === 0) return 0;

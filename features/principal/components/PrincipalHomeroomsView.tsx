@@ -21,7 +21,6 @@ import {
   fetchClassSectionStudentsApi,
   StudentDetailDossier,
 } from '../../../api/principal';
-import { DEFAULT_INSTITUTION_CLASSES } from '../constants/defaultClasses';
 import { useUserStore } from '../../../store/useUserStore';
 import { generateStudentAcademicReportPDF } from '../utils/generateAcademicReportPDF';
 
@@ -31,96 +30,6 @@ interface PrincipalHomeroomsViewProps {
   onRefresh: () => void;
   onAssignTeacher: (section: HomeroomSection) => void;
   title?: string;
-}
-
-// Deterministic generator helper to ensure 100% rich, interactive experience
-function generateMockStudentsForClass(sec: HomeroomSection): StudentDetailDossier[] {
-  const firstNames = [
-    'Aarav', 'Rohan', 'Priya', 'Ananya', 'Vikram', 'Sneha', 'Rahul', 'Aditi',
-    'Varun', 'Neha', 'Kabir', 'Ishita', 'Arjun', 'Pooja', 'Tanmay', 'Divya',
-    'Karan', 'Meera', 'Gaurav', 'Riya', 'Sameer', 'Shreya', 'Siddharth', 'Kavya'
-  ];
-  const lastNames = [
-    'Sharma', 'Verma', 'Gupta', 'Patil', 'Iyer', 'Deshmukh', 'Singh', 'Reddy',
-    'Mehta', 'Nair', 'Kulkarni', 'Joshi', 'Chopra', 'Malhotra', 'Bose', 'Chatterjee',
-    'Sen', 'Pillai', 'Rao', 'Shetty'
-  ];
-  const deptCode = (sec.department || 'ENG').replace(/[^a-zA-Z]/g, '').slice(0, 3).toUpperCase() || 'CSE';
-  const count = sec.studentCount || 28;
-
-  return Array.from({ length: Math.min(count, 30) }, (_, i) => {
-    const fn = firstNames[i % firstNames.length];
-    const ln = lastNames[(i * 3 + 2) % lastNames.length];
-    const numStr = (i + 1).toString().padStart(3, '0');
-    const usn = `1VM26${deptCode}${numStr}`;
-
-    const attRate = i % 9 === 0 ? (68 + (i % 6)) : i % 4 === 0 ? (82 + (i % 7)) : (91 + (i % 8));
-    const totalDays = 96;
-    const presentDays = Math.round((totalDays * attRate) / 100);
-    const absentDays = totalDays - presentDays;
-    const attStatus: 'good' | 'normal' | 'at_risk' = attRate >= 90 ? 'good' : attRate >= 75 ? 'normal' : 'at_risk';
-
-    const totalFee = 75000;
-    const feeScenario = i % 5;
-    let paidFee = totalFee;
-    let feeStatus: 'paid' | 'partial' | 'pending' | 'overdue' = 'paid';
-    if (feeScenario === 1) {
-      paidFee = 50000;
-      feeStatus = 'partial';
-    } else if (feeScenario === 2) {
-      paidFee = 25000;
-      feeStatus = 'partial';
-    } else if (feeScenario === 3) {
-      paidFee = 0;
-      feeStatus = 'overdue';
-    }
-    const pendingFee = Math.max(0, totalFee - paidFee);
-    const cgpa = Number((7.2 + ((i * 7) % 27) / 10).toFixed(2));
-    const backlogs = attRate < 75 ? (i % 2 + 1) : 0;
-
-    return {
-      id: `stu_${sec.id}_${i + 1}`,
-      fullName: `${fn} ${ln}`,
-      email: `${fn.toLowerCase()}.${ln.toLowerCase()}@student.vmhs.edu`,
-      phone: `+91 98${(76543210 + i * 137).toString().slice(0, 8)}`,
-      parentPhone: `+91 97${(65432109 + i * 211).toString().slice(0, 8)}`,
-      rollNoOrUSN: usn,
-      tenthPercentage: `${(85 + (i * 3) % 13)}.5%`,
-      twelfthPercentage: `${(82 + (i * 4) % 15)}.0%`,
-      department: sec.department || 'Engineering',
-      academicYear: sec.grade || '1st Year',
-      section: sec.section || 'A',
-      className: sec.name,
-      roomNumber: '',
-      classTeacherName: sec.homeroomTeacherName || 'Faculty Advisor',
-      gender: i % 2 === 0 ? 'Male' : 'Female',
-      dob: `2004-0${(i % 9) + 1}-15`,
-      bloodGroup: ['O+', 'A+', 'B+', 'AB+', 'O-'][i % 5],
-      address: `Flat ${101 + i * 2}, Campus Enclave, Bengaluru, Karnataka`,
-      admissionDate: '2024-08-01',
-      institutionType: 'Engineering College',
-      attendance: {
-        rate: attRate,
-        presentDays,
-        absentDays,
-        totalDays,
-        status: attStatus,
-      },
-      fees: {
-        totalFee,
-        paidFee,
-        pendingFee,
-        status: feeStatus,
-        dueDate: '2026-11-15',
-      },
-      academics: {
-        cgpa,
-        backlogs,
-        status: backlogs === 0 ? 'passed' : 'reappear',
-        semester: sec.grade || '1st Year',
-      },
-    };
-  });
 }
 
 function detectClassDepartment(sec: HomeroomSection): string {
@@ -246,16 +155,12 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
     fetchClassSectionStudentsApi(selectedClass.id)
       .then((res) => {
         if (!isCurrent) return;
-        if (res?.students && res.students.length > 0) {
-          setClassStudents(res.students);
-        } else {
-          setClassStudents(generateMockStudentsForClass(selectedClass));
-        }
+        setClassStudents(res?.students || []);
       })
       .catch((err) => {
         if (!isCurrent) return;
-        console.warn('Class students API error, using deterministic generator:', err);
-        setClassStudents(generateMockStudentsForClass(selectedClass));
+        console.warn('Class students API error:', err);
+        setClassStudents([]);
       })
       .finally(() => {
         if (isCurrent) setLoadingClassStudents(false);
@@ -266,32 +171,24 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
     };
   }, [selectedClass]);
 
-  // Reliable effective homerooms (uses live homerooms if available, otherwise defaults to complete 46 institution classes)
   const effectiveHomerooms = useMemo(() => {
-    return homerooms && homerooms.length > 0 ? homerooms : DEFAULT_INSTITUTION_CLASSES;
+    return homerooms || [];
   }, [homerooms]);
 
-  // Matching students based on search query (lazily generated only when user searches with 2+ characters)
   const matchingStudents = useMemo(() => {
     const q = classSearch.trim().toLowerCase();
     if (q.length < 2) return [];
 
-    const list: StudentDetailDossier[] = [];
-    for (const sec of effectiveHomerooms) {
-      const students = generateMockStudentsForClass(sec);
-      for (const stu of students) {
+    return classStudents
+      .filter((stu) => {
         const matchesName = stu.fullName.toLowerCase().includes(q);
         const matchesUSN = stu.rollNoOrUSN.toLowerCase().includes(q);
         const matchesDept = (stu.department || '').toLowerCase().includes(q);
         const matchesEmail = stu.email.toLowerCase().includes(q);
-        if (matchesName || matchesUSN || matchesDept || matchesEmail) {
-          list.push(stu);
-          if (list.length >= 18) return list;
-        }
-      }
-    }
-    return list;
-  }, [effectiveHomerooms, classSearch]);
+        return matchesName || matchesUSN || matchesDept || matchesEmail;
+      })
+      .slice(0, 18);
+  }, [classStudents, classSearch]);
 
   // Derived Department List for filter modal
   const availableDepartments = useMemo(() => {
@@ -344,7 +241,7 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
     return Array.from(map.entries()).map(([deptName, classes]) => ({
       department: deptName,
       classes,
-      totalStudents: classes.reduce((sum, c) => sum + (c.studentCount || 40), 0),
+      totalStudents: classes.reduce((sum, c) => sum + (c.studentCount || 0), 0),
     }));
   }, [filteredClasses]);
 
@@ -369,7 +266,7 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
 
   // Global aggregate metrics for Level 1 header
   const totalStudentsCount = useMemo(() => {
-    return effectiveHomerooms.reduce((acc, h) => acc + (h.studentCount || 40), 0);
+    return effectiveHomerooms.reduce((acc, h) => acc + (h.studentCount || 0), 0);
   }, [effectiveHomerooms]);
 
   // Single pass calculation of student filter counts
@@ -1077,7 +974,7 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
 
                     <View style={[(isDesktop || isTablet) ? styles.dossierItemHalf : styles.dossierRow]}>
                       <Text style={styles.dossierLabel}>Class / Homeroom Teacher</Text>
-                      <Text style={styles.dossierVal}>{selectedStudent.classTeacherName || 'Dr. Emily Watson'}</Text>
+                      <Text style={styles.dossierVal}>{selectedStudent.classTeacherName || '—'}</Text>
                     </View>
 
                     <View style={[(isDesktop || isTablet) ? styles.dossierItemHalf : styles.dossierRow]}>
@@ -1481,7 +1378,7 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
                   {/* Class Stats Line */}
                   <View style={styles.classCardFooter}>
                     <View style={styles.classBadge}>
-                      <Text style={styles.classBadgeText}>{sec.studentCount || 40} Students</Text>
+                      <Text style={styles.classBadgeText}>{sec.studentCount || 0} Students</Text>
                     </View>
 
                     <View style={[styles.classBadge, styles.badgeSuccess]}>

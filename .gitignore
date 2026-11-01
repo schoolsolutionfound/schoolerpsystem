@@ -40,6 +40,17 @@ yarn-error.*
 /safwan-fix.sql
 /*.sql
 
+# local auth/token helper scripts and captured credentials
+/firebase-login.ps1
+/login.json
+/login.ps1
+/test-*-login.ps1
+/gen-token.js
+/server/gen-token.js
+/server/gen-token-*.js
+/server/gen-token-*.ps1
+/neon.ts
+
 # typescript
 *.tsbuildinfo
 

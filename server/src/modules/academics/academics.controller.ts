@@ -394,12 +394,14 @@ export async function markAttendanceHandler(request: FastifyRequest, reply: Fast
     const body = MarkAttendanceSchema.parse(request.body);
     const instCode = getInstCode(request);
     const data = await academicsService.markAttendance(instCode, getUserId(request), body);
-    notifyAttendanceForSlot({
-      institutionCode: instCode,
-      timetableSlotId: body.timetableSlotId,
-      date: body.date,
-      entries: body.entries,
-    });
+    if (data.changedEntries.length > 0) {
+      notifyAttendanceForSlot({
+        institutionCode: instCode,
+        timetableSlotId: body.timetableSlotId,
+        date: body.date,
+        entries: data.changedEntries,
+      });
+    }
     return reply.send({ success: true, data });
   } catch (err: any) {
     return sendError(reply, err, 'Failed to mark attendance');

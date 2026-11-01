@@ -17,7 +17,6 @@ import {
   SchoolNotice,
   PrincipalStaffMember,
 } from '../types/principal.types';
-import { generateAllInstitutionalStudentFees } from '../constants/feeLedgerData';
 
 interface PrincipalDashboardViewProps {
   fullName?: string;
@@ -75,7 +74,7 @@ const formatUpcomingEventDate = (startDate: string, endDate?: string): string =>
 
 
 export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
-  fullName = 'Muhammad Samran',
+  fullName = '',
   kpis,
   homerooms,
   staffList,
@@ -128,42 +127,11 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
     return kpis.studentAttendancePct || 0;
   }, [dynamicTotalEnrolled, dynamicTotalPresent, kpis.studentAttendancePct]);
 
-  // Dynamic Department-wise Fees Paid vs Unpaid Analytics from active institutional students
-  const dynamicDeptFeeAnalytics = useMemo(() => {
-    try {
-      const allFees = generateAllInstitutionalStudentFees(rawHomerooms);
-      const deptMap: Record<string, { label: string; fullName: string; paid: number; unpaid: number }> = {
-        'Computer Science': { label: 'CSE', fullName: 'Computer Science', paid: 0, unpaid: 0 },
-        'Electronics & Comm': { label: 'ECE', fullName: 'Electronics & Comm', paid: 0, unpaid: 0 },
-        'Mechanical Eng': { label: 'MECH', fullName: 'Mechanical Eng', paid: 0, unpaid: 0 },
-        'Civil Eng': { label: 'CIVIL', fullName: 'Civil Eng', paid: 0, unpaid: 0 },
-        'AIML': { label: 'AIML', fullName: 'AI & Data Science', paid: 0, unpaid: 0 },
-        'Applied Sciences': { label: 'APS', fullName: 'Applied Sciences', paid: 0, unpaid: 0 },
-      };
-
-      allFees.forEach((fee) => {
-        let dept = fee.department || 'Computer Science';
-        if (dept.toLowerCase().includes('comp') || dept.toLowerCase().includes('cse')) dept = 'Computer Science';
-        else if (dept.toLowerCase().includes('elec') || dept.toLowerCase().includes('ece')) dept = 'Electronics & Comm';
-        else if (dept.toLowerCase().includes('mech')) dept = 'Mechanical Eng';
-        else if (dept.toLowerCase().includes('civil')) dept = 'Civil Eng';
-        else if (dept.toLowerCase().includes('ai')) dept = 'AIML';
-        else if (dept.toLowerCase().includes('math') || dept.toLowerCase().includes('sci')) dept = 'Applied Sciences';
-        else dept = 'Computer Science';
-
-        if (!deptMap[dept]) {
-          deptMap[dept] = { label: dept.slice(0, 4).toUpperCase(), fullName: dept, paid: 0, unpaid: 0 };
-        }
-        deptMap[dept].paid += (fee.paidAmount || 0);
-        deptMap[dept].unpaid += (fee.dueAmount || 0);
-      });
-
-      const term = Object.values(deptMap);
-      return { term, annual: term };
-    } catch {
-      return { term: [], annual: [] };
-    }
-  }, [rawHomerooms]);
+  type DeptFeePoint = { label: string; paid: number; unpaid: number };
+  const dynamicDeptFeeAnalytics = useMemo<{
+    term: DeptFeePoint[];
+    annual: DeptFeePoint[];
+  }>(() => ({ term: [], annual: [] }), []);
 
   // Department-wise Fees Paid vs Unpaid Analytics State
   const [chartPeriod, setChartPeriod] = useState<'term' | 'annual'>('term');

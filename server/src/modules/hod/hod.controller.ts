@@ -75,15 +75,17 @@ export async function createCourseHandler(request: FastifyRequest, reply: Fastif
   try {
     const { instCode, department } = getTenantAndDept(request);
     const body = request.body as any;
-    if (!body?.code || !body?.name) {
+    const semester = body?.semester == null ? '' : String(body.semester).trim();
+    if (!body?.code || !body?.name || !semester) {
       return reply.status(400).send({
         success: false,
-        error: { message: 'Course code and name are required' },
+        error: { message: 'Course code, name, and semester are required' },
       });
     }
 
     const created = await hodService.createCourse(instCode, {
       ...body,
+      semester,
       department: body.department || department || 'General Engineering',
     });
     return reply.status(201).send({ success: true, data: created });

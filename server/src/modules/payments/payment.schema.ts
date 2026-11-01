@@ -23,9 +23,17 @@ export const UpdatePaymentConfigSchema = z.object({
 
 export type UpdatePaymentConfigInput = z.infer<typeof UpdatePaymentConfigSchema>;
 
-/** Full-amount refund of a captured order (partial refunds deferred). */
+/** Refund of a captured order. Omit `amountPaise` to refund the remaining
+ *  refundable balance in full; supply it for a partial refund. The service
+ *  validates it against the order total minus everything already refunded, so
+ *  partial refunds accumulate and can never exceed the captured amount. */
 export const RefundOrderSchema = z.object({
   reason: z.string().max(255).optional(),
+  amountPaise: z
+    .number()
+    .int('Refund amount must be a whole number of paise.')
+    .positive('Refund amount must be greater than zero.')
+    .optional(),
 });
 
 export type RefundOrderInput = z.infer<typeof RefundOrderSchema>;

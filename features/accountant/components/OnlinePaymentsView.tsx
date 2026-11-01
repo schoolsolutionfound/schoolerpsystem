@@ -246,7 +246,6 @@ export const OnlinePaymentsView: React.FC = () => {
   return (
     <View style={styles.container}>
       <Text style={styles.headerTitle}>Online Payments</Text>
-      <Text style={styles.headerSub}>Razorpay orders, settlements and refunds.</Text>
 
       {/* Summary card */}
       <View style={styles.heroCard}>

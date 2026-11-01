@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { View, StyleSheet, Text, KeyboardAvoidingView, Platform, ScrollView, Alert, Animated, Image, Dimensions } from 'react-native';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { View, StyleSheet, Text, KeyboardAvoidingView, Platform, ScrollView, Alert, Animated, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { auth } from '../firebaseConfig';
@@ -15,33 +15,43 @@ export default function AuthScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const fadeAnim = useRef(new Animated.Value(0));
-  const slideAnim = useRef(new Animated.Value(24));
-  const logoScale = useRef(new Animated.Value(0.8));
+  const [fadeAnim] = useState(() => new Animated.Value(0));
+  const [slideAnim] = useState(() => new Animated.Value(24));
+  const [logoScale] = useState(() => new Animated.Value(0.8));
+  const submittingRef = useRef(false);
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(fadeAnim.current, { toValue: 1, duration: 600, useNativeDriver: Platform.OS !== 'web' }),
-      Animated.timing(slideAnim.current, { toValue: 0, duration: 600, useNativeDriver: Platform.OS !== 'web' }),
-      Animated.spring(logoScale.current, { toValue: 1, tension: 50, friction: 7, useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 600, useNativeDriver: Platform.OS !== 'web' }),
+      Animated.spring(logoScale, { toValue: 1, tension: 50, friction: 7, useNativeDriver: Platform.OS !== 'web' }),
     ]).start();
-  }, []);
+  }, [fadeAnim, logoScale, slideAnim]);
 
-  const handleAuth = async () => {
+  const handleAuth = useCallback(async () => {
+    if (submittingRef.current) return;
+
+    const normalizedEmail = email.trim();
     setErrorMessage(null);
-    if (!email.trim() || !password) {
+    if (!normalizedEmail || !password) {
       const msg = 'Please fill in all required fields.';
       setErrorMessage(msg);
       Alert.alert('Missing Fields', msg);
       return;
     }
 
+    submittingRef.current = true;
     setLoading(true);
-    debugLog('AUTH', 'sign-in attempt', { emailLength: email.trim().length, hasPassword: !!password });
+    debugLog('AUTH', 'sign-in attempt', { emailLength: normalizedEmail.length, hasPassword: !!password });
     try {
-      const credential = await signInWithEmailAndPassword(auth, email.trim(), password);
+      const credential = await signInWithEmailAndPassword(auth, normalizedEmail, password);
       debugLog('AUTH', 'sign-in success', { uid: credential.user.uid });
+      // Keep the form locked while login-sync resolves the role and the auth
+      // guard redirects. Clearing loading here allows a duplicate sign-in while
+      // the destination portal is still being resolved.
     } catch (e: any) {
+      submittingRef.current = false;
+      setLoading(false);
       const code = e?.code || '';
       debugWarn('AUTH', 'sign-in failed', { code, message: e?.message ?? null });
       const msg = code === 'auth/user-not-found'
@@ -55,18 +65,15 @@ export default function AuthScreen() {
               : e?.message || 'Authentication failed. Please try again.';
       setErrorMessage(msg);
       Alert.alert('Sign In Failed', msg);
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [email, password]);
 
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
           <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            {/* eslint-disable-next-line react-hooks/refs */}
-            <Animated.View style={[styles.inner, { opacity: fadeAnim.current, transform: [{ translateY: slideAnim.current }] }]}>
+          <Animated.View style={[styles.inner, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
 
               {/* Top Brand Section */}
               <View style={styles.brandSection}>
@@ -76,8 +83,7 @@ export default function AuthScreen() {
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                 >
-                  {/* eslint-disable-next-line react-hooks/refs */}
-                  <Animated.View style={[styles.logoWrap, { transform: [{ scale: logoScale.current }] }]}>
+                  <Animated.View style={[styles.logoWrap, { transform: [{ scale: logoScale }] }]}>
                     <View style={styles.logoCircle}>
                       <Image source={require('../assets/logo-transparent.png')} style={styles.logoImage} resizeMode="contain" />
                     </View>

@@ -13,9 +13,10 @@ import { AdmissionStudentsView } from '../../features/admission/components/Admis
 import { AdmissionProfileView } from '../../features/admission/components/AdmissionProfileView';
 import { AdmissionStudentFormModal } from '../../features/admission/components/AdmissionStudentFormModal';
 import { AdmissionCourse, getAdmissionCourses } from '../../api/admission';
+import { TransportManagementView } from '../../features/shared/transport/TransportManagementView';
 import { FontFamily } from '../../constants/fonts';
 
-type Tab = 'students' | 'tracking' | 'profile';
+type Tab = 'students' | 'tracking' | 'transport' | 'profile';
 
 export default function AdmissionHomeScreen() {
   const router = useRouter();
@@ -41,11 +42,12 @@ export default function AdmissionHomeScreen() {
   const tabs = [
     { key: 'students' as Tab, label: 'Registry', icon: 'account-group-outline', iconFilled: 'account-group' },
     { key: 'tracking' as Tab, label: 'Tracking', icon: 'view-dashboard-outline', iconFilled: 'view-dashboard' },
+    { key: 'transport' as Tab, label: 'Transport', icon: 'bus-outline', iconFilled: 'bus' },
     { key: 'profile' as Tab, label: 'Profile', icon: 'account-circle-outline', iconFilled: 'account-circle' },
   ];
 
   useEffect(() => {
-    if (params.tab && ['students', 'tracking', 'profile'].includes(params.tab)) {
+    if (params.tab && ['students', 'tracking', 'transport', 'profile'].includes(params.tab)) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveTab(params.tab as Tab);
     }
@@ -80,6 +82,8 @@ export default function AdmissionHomeScreen() {
             onNavigateToStudents={handleNavigateToStudents}
           />
         );
+      case 'transport':
+        return <TransportManagementView roleLabel="Admissions transport desk" />;
       case 'profile':
         return <AdmissionProfileView />;
       default:

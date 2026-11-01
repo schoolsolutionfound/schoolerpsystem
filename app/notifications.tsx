@@ -43,69 +43,13 @@ function formatNotifTime(isoString?: string): string {
   return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
 }
 
-const DEFAULT_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: 'notif_1',
-    title: 'Daily Attendance Pending',
-    message: 'Morning attendance for Class 10th-A has not been marked. Please submit records before 11:30 AM.',
-    category: 'attendance',
-    timestamp: '15 min ago',
-    isRead: false,
-    priority: 'high',
-  },
-  {
-    id: 'notif_2',
-    title: 'Mid-Term Marks Entry Open',
-    message: 'Mathematics and Science marks entry for Term 1 examination is now active on your faculty portal.',
-    category: 'academics',
-    timestamp: '1 hour ago',
-    isRead: false,
-    priority: 'high',
-  },
-  {
-    id: 'notif_3',
-    title: 'Homework Submissions Received',
-    message: '24 students from Class 9th-B have submitted their Algebra assignment for review.',
-    category: 'academics',
-    timestamp: '3 hours ago',
-    isRead: false,
-    priority: 'normal',
-  },
-  {
-    id: 'notif_4',
-    title: 'Academic Staff Meeting',
-    message: 'Monthly faculty meeting scheduled for tomorrow at 3:30 PM in the Principal Conference Hall.',
-    category: 'announcements',
-    timestamp: 'Yesterday',
-    isRead: true,
-    priority: 'normal',
-  },
-  {
-    id: 'notif_5',
-    title: 'Timetable Adjustment Notice',
-    message: 'Thursday Period 3 has been rescheduled to Science Laboratory 2 due to practical demonstrations.',
-    category: 'academics',
-    timestamp: '2 days ago',
-    isRead: true,
-    priority: 'normal',
-  },
-  {
-    id: 'notif_6',
-    title: 'Account Security Verification',
-    message: 'Your account login credentials and security parameters were verified successfully.',
-    category: 'system',
-    timestamp: '3 days ago',
-    isRead: true,
-    priority: 'low',
-  },
-];
 
 export default function NotificationsScreen() {
   const router = useRouter();
   const [selectedCategory, setSelectedCategory] = useState<NotificationCategory>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
-  const [readIds, setReadIds] = useState<Set<string>>(new Set(['notif_4', 'notif_5', 'notif_6']));
+  const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
 
   const { requests: transferRequests, respondToRequest } = useClassTransferStore();
@@ -201,9 +145,6 @@ export default function NotificationsScreen() {
         });
       });
     }
-
-    // Append defaults
-    list.push(...DEFAULT_NOTIFICATIONS);
 
     // Apply read and deleted overrides
     return list

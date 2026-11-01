@@ -127,6 +127,7 @@ export class RazorpayGateway implements PaymentGateway {
       callback: redactCallback(event, paymentEntity || refundEntity || {}),
       notesOrderId: typeof notes.orderId === 'string' ? notes.orderId : null,
       refundAmountPaise: null,
+      refundId: null,
     };
 
     if (event === 'payment.authorized' || event === 'payment.captured' || event === 'payment.failed') {
@@ -155,6 +156,7 @@ export class RazorpayGateway implements PaymentGateway {
         currency: refundEntity?.currency ? String(refundEntity.currency) : null,
         callback: redactCallback(event, refundEntity || paymentEntity || {}),
         refundAmountPaise: toPaise(refundEntity?.amount),
+        refundId: refundEntity?.id ? String(refundEntity.id) : null,
       };
     }
 

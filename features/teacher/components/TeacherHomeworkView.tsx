@@ -58,30 +58,14 @@ const MONTH_SHORT = [
 
 const WEEK_DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
-const FALLBACK_CLASSES = [
-  { id: 'cls-6a', name: 'Class 6-A' },
-  { id: 'cls-7a', name: 'Class 7-A' },
-  { id: 'cls-8a', name: 'Class 8-A' },
-  { id: 'cls-9a', name: 'Class 9-A' },
-  { id: 'cls-10a', name: 'Class 10-A' },
-];
-
-const FALLBACK_SUBJECTS = [
-  { id: 'sub-math', name: 'Mathematics' },
-  { id: 'sub-sci', name: 'Science' },
-  { id: 'sub-eng', name: 'English' },
-  { id: 'sub-soc', name: 'Social Science' },
-  { id: 'sub-cs', name: 'Computer Science' },
-];
-
 export const TeacherHomeworkView: React.FC = () => {
   const [homework, setHomework] = useState<HomeworkItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
 
-  const [classes, setClasses] = useState<any[]>(FALLBACK_CLASSES);
-  const [subjects, setSubjects] = useState<any[]>(FALLBACK_SUBJECTS);
+  const [classes, setClasses] = useState<any[]>([]);
+  const [subjects, setSubjects] = useState<any[]>([]);
 
   // Create/Edit modal state
   const [editingHomeworkId, setEditingHomeworkId] = useState<string | null>(null);
@@ -196,10 +180,10 @@ export const TeacherHomeworkView: React.FC = () => {
       if (Array.isArray(res) && res.length > 0) {
         setSubjects(res);
       } else {
-        setSubjects(FALLBACK_SUBJECTS);
+        setSubjects([]);
       }
     } catch {
-      setSubjects(FALLBACK_SUBJECTS);
+      setSubjects([]);
     }
   };
 

@@ -39,122 +39,6 @@ export interface StudentRosterItem {
   teacherRemarks: string;
 }
 
-const DEFAULT_EXAMS = [
-  'Overall',
-  'Unit Test 1',
-  'Unit Test 2',
-  'Mid-Term Exam',
-  'Final Exam',
-];
-
-
-const BASE_STUDENTS = [
-  { rollNo: '08A01', name: 'Ayesha Khan', base: 92, remarks: 'Outstanding academic dedication and brilliant grasp of analytical concepts.' },
-  { rollNo: '08A02', name: 'Mohammed Rafi', base: 78, remarks: 'Good grasp of fundamentals, encourage more practice in Mathematics.' },
-  { rollNo: '08A03', name: 'Sana Fatima', base: 85, remarks: 'Very attentive and consistent across all theoretical and practical subjects.' },
-  { rollNo: '08A04', name: 'Fahad Ali', base: 64, remarks: 'Shows genuine interest. Advised to focus on written examination clarity.' },
-  { rollNo: '08A05', name: 'Zara Begum', base: 95, remarks: 'Exemplary performance. Demonstrates true leadership and intellectual curiosity.' },
-  { rollNo: '08A06', name: 'Irshad Ahmed', base: 71, remarks: 'Good improvement observed in science and language subjects this term.' },
-  { rollNo: '08A07', name: 'Nida Rahman', base: 82, remarks: 'Hardworking student with keen eye for detail. Excellent homework submission.' },
-  { rollNo: '08A08', name: 'Adnan Shaikh', base: 58, remarks: 'Capable of higher marks with structured revision and extra attention in core subjects.' },
-  { rollNo: '08A09', name: 'Kavya Menon', base: 94, remarks: 'Exceptional creative reasoning and consistently tops class discussions.' },
-  { rollNo: '08A10', name: 'Arjun Reddy', base: 68, remarks: 'Active classroom participation. Needs regular revision in science formulas.' },
-  { rollNo: '08A11', name: 'Bilal Siddiqui', base: 79, remarks: 'Consistently completes coursework with diligence and neat presentation.' },
-  { rollNo: '08A12', name: 'Chhavi Sharma', base: 91, remarks: 'Remarkable consistency and excellent analytical skills in problem solving.' },
-  { rollNo: '08A13', name: 'Devika Pillai', base: 86, remarks: 'Very disciplined, polite, and scores high marks in all language assessments.' },
-  { rollNo: '08A14', name: 'Faizan Qureshi', base: 55, remarks: 'Needs to maintain regular attendance and focus on core examination modules.' },
-  { rollNo: '08A15', name: 'Gaurav Joshi', base: 96, remarks: 'Top-tier analytical aptitude. Outstanding scores across all subjects.' },
-  { rollNo: '08A16', name: 'Hafsa Mariam', base: 77, remarks: 'Well-mannered and sincere student. Good progress this term.' },
-  { rollNo: '08A17', name: 'Imran Hashmi', base: 69, remarks: 'Regular student. Advised to spend additional time on structured mock tests.' },
-  { rollNo: '08A18', name: 'Juhi Chawla', base: 88, remarks: 'Brilliant comprehension and articulate expression in assignments.' },
-  { rollNo: '08A19', name: 'Karan Mehra', base: 83, remarks: 'Very energetic and enthusiastic learner. Great performance in science.' },
-  { rollNo: '08A20', name: 'Laila Majnu', base: 52, remarks: 'Special remedial tutoring recommended in mathematics and science.' },
-  { rollNo: '08A21', name: 'Manish Malhotra', base: 93, remarks: 'Exemplary project work and superb score in computer science & math.' },
-  { rollNo: '08A22', name: 'Nusrat Jahan', base: 76, remarks: 'Diligent learner with steady progress throughout the semester.' },
-  { rollNo: '08A23', name: 'Omer Farooq', base: 72, remarks: 'Shows great enthusiasm in practical labs. Maintain this momentum.' },
-  { rollNo: '08A24', name: 'Pooja Bhatt', base: 89, remarks: 'Strong conceptual clarity and very neat handwriting in all subjects.' },
-  { rollNo: '08A25', name: 'Rohan Sethi', base: 81, remarks: 'Good analytical skills and reliable team member in group activities.' },
-  { rollNo: '08A26', name: 'Sameera Reddy', base: 98, remarks: 'Academic topper with near flawless scores in all major subject papers!' },
-  { rollNo: '08A27', name: 'Tariq Mansoor', base: 66, remarks: 'Encouraging progress. Should practice time management during examinations.' },
-  { rollNo: '08A28', name: 'Uzma Parveen', base: 87, remarks: 'Extremely polite and sincere. High standard maintained in all subjects.' },
-  { rollNo: '08A29', name: 'Varun Grover', base: 80, remarks: 'Creative thinker with strong vocabulary and consistent exam marks.' },
-  { rollNo: '08A30', name: 'Wasim Akram', base: 60, remarks: 'Needs to prioritize regular study habits and clarify doubt topics early.' },
-  { rollNo: '08A31', name: 'Yasmin Bano', base: 94, remarks: 'Superior mastery in science and language subjects. Outstanding effort!' },
-  { rollNo: '08A32', name: 'Zainab Qazi', base: 88, remarks: 'Hardworking, proactive, and demonstrates high academic integrity.' },
-];
-
-function buildClassData(className: string, sectionName: string, examName: string): StudentRosterItem[] {
-  const isUnitTest = examName.toLowerCase().includes('unit');
-  const maxPerSubject = isUnitTest ? 50 : 100;
-  const passMarks = isUnitTest ? 18 : 35;
-  const factor = isUnitTest ? 0.5 : 1.0;
-
-  const subjectsList = [
-    'Mathematics',
-    'Science',
-    'English',
-    'Social Science',
-    'Hindi',
-    'Computer Science',
-  ];
-
-  const cleanSec = sectionName.replace('Section ', '').trim() || 'A';
-  const cleanCls = className.replace(/[^0-9]/g, '') || '08';
-
-  const studentsUnranked = BASE_STUDENTS.map((item, index) => {
-    const offsets = [3, -2, 4, -3, 2, 5];
-    const subjects: SubjectMarksRecord[] = subjectsList.map((subName, sIdx) => {
-      const raw = Math.round(item.base * factor + (offsets[(index + sIdx) % offsets.length] * factor));
-      const marksObtained = Math.max(isUnitTest ? 14 : 32, Math.min(maxPerSubject, raw));
-      const g = calculateGrade(marksObtained, maxPerSubject);
-      return {
-        subjectName: subName,
-        maxMarks: maxPerSubject,
-        passMarks,
-        marksObtained,
-        grade: g.grade,
-        remarks: g.text,
-      };
-    });
-
-    const totalMarks = subjects.reduce((s, sub) => s + sub.marksObtained, 0);
-    const maxMarks = subjects.length * maxPerSubject;
-    const percentage = Number(((totalMarks / maxMarks) * 100).toFixed(1));
-    const gradeInfo = calculateGrade(totalMarks, maxMarks);
-    const isPassed = subjects.every((s) => s.marksObtained >= passMarks);
-
-    const totalDays = 150;
-    const daysOffset = (index * 7) % 18;
-    const daysPresent = Math.min(totalDays, Math.max(110, totalDays - daysOffset));
-    const attendancePct = Number(((daysPresent / totalDays) * 100).toFixed(1));
-    const rollNo = `${cleanCls.padStart(2, '0')}${cleanSec}${String(index + 1).padStart(2, '0')}`;
-
-    return {
-      id: `std-${className}-${cleanSec}-${index + 1}`,
-      rollNo,
-      name: item.name,
-      subjects,
-      totalMarks,
-      maxMarks,
-      percentage,
-      grade: gradeInfo.grade,
-      gradeText: gradeInfo.text,
-      rank: 1,
-      isPassed,
-      attendancePct,
-      attendancePresent: daysPresent,
-      attendanceTotal: totalDays,
-      teacherRemarks: item.remarks,
-    };
-  });
-
-  studentsUnranked.sort((a, b) => b.totalMarks - a.totalMarks);
-  studentsUnranked.forEach((st, idx) => {
-    st.rank = idx + 1;
-  });
-
-  return studentsUnranked;
-}
 
 export interface StudentMarksCardReportProps {
   initialClass?: string;
@@ -162,11 +46,11 @@ export interface StudentMarksCardReportProps {
 }
 
 export const StudentMarksCardReport: React.FC<StudentMarksCardReportProps> = ({
-  initialClass = 'Class 8',
-  initialSection = 'Section A',
+  initialClass = '',
+  initialSection = '',
 }) => {
   const userStore = useUserStore();
-  const institutionName = userStore.institutionName || userStore.schoolName || 'Kivquo Academy of Excellence';
+  const institutionName = userStore.institutionName || userStore.schoolName || '';
 
   // Fixed class and section from screen 1
   const [selectedClass, setSelectedClass] = useState(() => initialClass);
@@ -177,7 +61,7 @@ export const StudentMarksCardReport: React.FC<StudentMarksCardReportProps> = ({
   });
 
   // Dropdown State: Exam filter matching TeacherMarksView
-  const [selectedExam, setSelectedExam] = useState('Unit Test 2');
+  const [selectedExam, setSelectedExam] = useState('');
   const [isExamOpen, setIsExamOpen] = useState(false);
 
   // Search Bar States
@@ -210,10 +94,7 @@ export const StudentMarksCardReport: React.FC<StudentMarksCardReportProps> = ({
     }
   }, [initialSection]);
 
-  // Computed students roster
-  const allStudents = useMemo(() => {
-    return buildClassData(selectedClass, selectedSection, selectedExam);
-  }, [selectedClass, selectedSection, selectedExam]);
+  const allStudents: StudentRosterItem[] = [];
 
   // Filtered students displayed in the main list based on search query
   const filteredStudents = useMemo(() => {
@@ -344,17 +225,7 @@ export const StudentMarksCardReport: React.FC<StudentMarksCardReportProps> = ({
             <InlineSearchDropdown
               placeholder="Search exam..."
               selectedValue={selectedExam}
-              options={DEFAULT_EXAMS.map((e) => {
-                const isOverall = e.toLowerCase().includes('overall');
-                const isTerm = e.toLowerCase().includes('term') || e.toLowerCase().includes('final');
-                return {
-                  label: e,
-                  value: e,
-                  subtext: isOverall ? 'Overall Cumulative Assessment' : isTerm ? 'Term Examination' : 'Periodic Assessment',
-                  badge: isOverall ? 'Overall' : isTerm ? 'Max 100' : 'Max 50',
-                  badgeColor: isOverall ? '#171717' : '#047857',
-                };
-              })}
+              options={[]}
               isOpen={true}
               menuOnly={true}
               onToggle={() => setIsExamOpen(false)}

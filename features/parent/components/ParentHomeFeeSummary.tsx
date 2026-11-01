@@ -4,7 +4,7 @@
  * Designed matching the student feature theme and overall experience.
  */
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -21,7 +21,7 @@ import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { FontFamily } from '../../../constants/fonts';
 import { useUserStore } from '../../../store/useUserStore';
 import { generateParentFeeReceiptPdf } from '../utils/receiptPdfGenerator';
-import { useFinanceStore } from '../../accountant/store/useFinanceStore';
+import { fetchParentFeesApi } from '../../../api/academics';
 
 export interface ParentHomeFeeSummaryProps {
   onBack?: () => void;
@@ -54,95 +54,95 @@ interface PaymentHistoryItem {
   method: string;
 }
 
-const DEFAULT_FEE_STRUCTURE: FeeStructureItem[] = [
-  { slNo: 1, particulars: 'Admission Fee', amount: 10000 },
-  { slNo: 2, particulars: 'Tuition Fee', amount: 20000 },
-  { slNo: 3, particulars: 'Exam Fee', amount: 5000 },
-  { slNo: 4, particulars: 'Bus Fee', amount: 10000 },
-  { slNo: 5, particulars: 'Hostel Fee', amount: 5000 },
-];
-
-const INITIAL_FEE_TYPES: FeeTypeItem[] = [
-  { id: 'tuition', name: 'Tuition Fee', total: 20000, paid: 10000, pending: 10000 },
-  { id: 'admission', name: 'Admission Fee', total: 10000, paid: 10000, pending: 0 },
-  { id: 'exam', name: 'Exam Fee', total: 5000, paid: 0, pending: 5000 },
-  { id: 'bus', name: 'Bus Fee', total: 10000, paid: 5000, pending: 5000 },
-  { id: 'hostel', name: 'Hostel Fee', total: 5000, paid: 5000, pending: 0 },
-];
-
-const INITIAL_PAY_HISTORY: PaymentHistoryItem[] = [
-  {
-    id: 'pay-1',
-    date: '01 Apr 2026',
-    particulars: 'Admission Fee',
-    amount: 10000,
-    status: 'Paid',
-    receiptNo: 'REC-2026-0401',
-    method: 'UPI Online',
-  },
-  {
-    id: 'pay-2',
-    date: '01 Jun 2026',
-    particulars: 'Tuition Fee',
-    amount: 20000,
-    status: 'Paid',
-    receiptNo: 'REC-2026-0601',
-    method: 'Debit Card',
-  },
-];
+interface FeeRecord {
+  id: string;
+  title: string;
+  amount: number;
+  status: 'paid' | 'pending';
+  dueDate?: string;
+  receiptNo?: string;
+  paymentDate?: string;
+  paymentMethod?: string;
+}
 
 export const ParentHomeFeeSummary: React.FC<ParentHomeFeeSummaryProps> = ({ onBack }) => {
-  const fullName = useUserStore((s) => s.fullName) || 'Parent';
-  const childName = useUserStore((s) => s.childName) || 'Student';
-  const linkedStudentUSN = useUserStore((s) => s.linkedStudentUSN) || useUserStore((s) => s.rollNoOrUSN) || 'C6A-001';
+  const fullName = useUserStore((s) => s.fullName) || '';
+  const childName = useUserStore((s) => s.childName) || '';
+  const linkedStudentUSN = useUserStore((s) => s.linkedStudentUSN) || useUserStore((s) => s.rollNoOrUSN) || '';
 
   const [activeTab, setActiveTab] = useState<TabType>('payment');
-  const [feeTypes, setFeeTypes] = useState<FeeTypeItem[]>(INITIAL_FEE_TYPES);
-  const [selectedFeeTypeId, setSelectedFeeTypeId] = useState<string>('tuition');
+  const [feeRecords, setFeeRecords] = useState<FeeRecord[]>([]);
+  const [selectedFeeTypeId, setSelectedFeeTypeId] = useState<string>('');
   const [showFeeTypeModal, setShowFeeTypeModal] = useState<boolean>(false);
 
   const [enteredAmount, setEnteredAmount] = useState<string>('');
   const [isEditingAmount, setIsEditingAmount] = useState<boolean>(false);
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethodType>('upi');
-  const [historyList, setHistoryList] = useState<PaymentHistoryItem[]>(INITIAL_PAY_HISTORY);
   const [selectedReceipt, setSelectedReceipt] = useState<PaymentHistoryItem | null>(null);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
-  const financeIncome = useFinanceStore((s) => s.incomeRecords);
+  const loadFees = useCallback(async () => {
+    try {
+      const res = await fetchParentFeesApi();
+      setFeeRecords(Array.isArray(res) ? res : []);
+    } catch {
+      setFeeRecords([]);
+    }
+  }, []);
 
-  const dynamicHistoryList = useMemo(() => {
-    const combined = [...historyList];
-    const studentRecords = financeIncome.filter(
-      (r) =>
-        r.status === 'paid' &&
-        (r.rollNo === linkedStudentUSN ||
-          r.studentId === linkedStudentUSN ||
-          r.payerName === fullName ||
-          r.payerName === childName)
-    );
-    studentRecords.forEach((sr) => {
-      if (!combined.some((h) => h.receiptNo === sr.receiptNo)) {
-        combined.unshift({
-          id: sr.id,
-          date: sr.paymentDate || 'Recently Paid',
-          particulars: sr.title.replace(/^.*?\((.*?)\)$/, '$1') || 'Academic Fee',
-          amount: sr.amount,
-          status: 'Paid',
-          receiptNo: sr.receiptNo,
-          method: (sr.paymentMethod || 'UPI').toUpperCase(),
-        });
-      }
-    });
-    return combined;
-  }, [historyList, financeIncome, linkedStudentUSN, fullName, childName]);
+  useEffect(() => {
+    loadFees();
+  }, [loadFees]);
+
+  const feeTypes: FeeTypeItem[] = useMemo(
+    () =>
+      feeRecords.map((record) => ({
+        id: record.id,
+        name: record.title,
+        total: Number(record.amount) || 0,
+        paid: record.status === 'paid' ? Number(record.amount) || 0 : 0,
+        pending: record.status === 'paid' ? 0 : Number(record.amount) || 0,
+      })),
+    [feeRecords]
+  );
+
+  const feeStructure: FeeStructureItem[] = useMemo(
+    () =>
+      feeRecords.map((record, index) => ({
+        slNo: index + 1,
+        particulars: record.title,
+        amount: Number(record.amount) || 0,
+      })),
+    [feeRecords]
+  );
+
+  const dynamicHistoryList: PaymentHistoryItem[] = useMemo(
+    () =>
+      feeRecords
+        .filter((record) => record.status === 'paid')
+        .map((record) => ({
+          id: record.id,
+          date: record.paymentDate || '',
+          particulars: record.title,
+          amount: Number(record.amount) || 0,
+          status: 'Paid' as const,
+          receiptNo: record.receiptNo || '',
+          method: record.paymentMethod || '',
+        })),
+    [feeRecords]
+  );
+
+  useEffect(() => {
+    if (!selectedFeeTypeId && feeTypes.length > 0) {
+      setSelectedFeeTypeId(feeTypes[0].id);
+    }
+  }, [feeTypes, selectedFeeTypeId]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 600);
-  }, []);
+    loadFees().finally(() => setRefreshing(false));
+  }, [loadFees]);
 
   const handleDownloadReceipt = async (item: PaymentHistoryItem) => {
     try {
@@ -177,10 +177,14 @@ export const ParentHomeFeeSummary: React.FC<ParentHomeFeeSummaryProps> = ({ onBa
   }, [feeTypes]);
 
   const structureTotal = useMemo(() => {
-    return DEFAULT_FEE_STRUCTURE.reduce((sum, item) => sum + item.amount, 0);
-  }, []);
+    return feeStructure.reduce((sum, item) => sum + item.amount, 0);
+  }, [feeStructure]);
 
   const handleProceedToPay = () => {
+    if (!activeFeeType) {
+      Alert.alert('No Fee Record', 'No fee record is available for this account.');
+      return;
+    }
     const amountNum = enteredAmount ? parseFloat(enteredAmount) : activeFeeType.pending;
     if (isNaN(amountNum) || amountNum <= 0) {
       Alert.alert('No Amount Due', 'There is no pending amount due for this fee type.');
@@ -194,85 +198,9 @@ export const ParentHomeFeeSummary: React.FC<ParentHomeFeeSummaryProps> = ({ onBa
       return;
     }
 
-    const methodNameMap: Record<PaymentMethodType, string> = {
-      upi: 'UPI',
-      debit: 'Debit Card',
-      credit: 'Credit Card',
-      netbanking: 'Net Banking',
-    };
-
     Alert.alert(
-      'Confirm Payment',
-      `Proceed to pay ₹${amountNum.toLocaleString('en-IN')} for ${activeFeeType.name} (${childName}) via ${methodNameMap[selectedMethod]}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Confirm & Pay',
-          onPress: () => {
-            const todayStr = new Date().toLocaleDateString('en-GB', {
-              day: '2-digit',
-              month: 'short',
-              year: 'numeric',
-            });
-            const newReceiptNo = `REC-${Math.floor(100000 + Math.random() * 900000)}`;
-
-            setFeeTypes((prev) =>
-              prev.map((f) => {
-                if (f.id === activeFeeType.id) {
-                  const newPaid = f.paid + amountNum;
-                  const newPending = Math.max(0, f.total - newPaid);
-                  return { ...f, paid: newPaid, pending: newPending };
-                }
-                return f;
-              })
-            );
-
-            const newHistoryItem: PaymentHistoryItem = {
-              id: `pay-${Date.now()}`,
-              date: todayStr,
-              particulars: activeFeeType.name,
-              amount: amountNum,
-              status: 'Paid',
-              receiptNo: newReceiptNo,
-              method: methodNameMap[selectedMethod],
-            };
-
-            setHistoryList([newHistoryItem, ...historyList]);
-            setEnteredAmount('');
-
-            const financeMethodMap: Record<PaymentMethodType, 'upi' | 'card' | 'bank_transfer'> = {
-              upi: 'upi',
-              debit: 'card',
-              credit: 'card',
-              netbanking: 'bank_transfer',
-            };
-
-            useFinanceStore.getState().addIncome({
-              title: `Parent Fee: ${fullName} for ${childName} (${activeFeeType.name})`,
-              amount: amountNum,
-              category: 'student_fee',
-              payerName: fullName,
-              studentId: linkedStudentUSN,
-              rollNo: linkedStudentUSN,
-              paymentMethod: financeMethodMap[selectedMethod],
-              paymentDate: new Date().toISOString().slice(0, 10),
-              status: 'paid',
-            });
-
-            Alert.alert(
-              'Payment Successful!',
-              `Receipt ${newReceiptNo} has been generated for ₹${amountNum.toLocaleString('en-IN')}.`,
-              [
-                {
-                  text: 'View Pay History',
-                  onPress: () => setActiveTab('history'),
-                },
-                { text: 'OK' },
-              ]
-            );
-          },
-        },
-      ]
+      'Online Payment Unavailable',
+      'Fee payment will be enabled once the payment gateway is configured for this institution.'
     );
   };
 
@@ -374,7 +302,7 @@ export const ParentHomeFeeSummary: React.FC<ParentHomeFeeSummaryProps> = ({ onBa
               activeOpacity={0.75}
               onPress={() => setShowFeeTypeModal(true)}
             >
-              <Text style={styles.dropdownInputText}>{activeFeeType.name}</Text>
+              <Text style={styles.dropdownInputText}>{activeFeeType?.name || 'No fee selected'}</Text>
               <Feather name="chevron-down" size={20} color="#6B7280" />
             </TouchableOpacity>
 
@@ -391,19 +319,19 @@ export const ParentHomeFeeSummary: React.FC<ParentHomeFeeSummaryProps> = ({ onBa
                       onChangeText={setEnteredAmount}
                       autoFocus
                       onBlur={() => setIsEditingAmount(false)}
-                      placeholder={String(activeFeeType.pending)}
+                      placeholder={String(activeFeeType?.pending ?? 0)}
                     />
                   </View>
                 ) : (
                   <TouchableOpacity
                     activeOpacity={0.8}
                     onPress={() => {
-                      if (!enteredAmount) setEnteredAmount(String(activeFeeType.pending));
+                      if (!enteredAmount) setEnteredAmount(String(activeFeeType?.pending ?? 0));
                       setIsEditingAmount(true);
                     }}
                   >
                     <Text style={styles.amountToPayValue}>
-                      ₹{(enteredAmount && !isNaN(Number(enteredAmount)) ? Number(enteredAmount) : activeFeeType.pending).toLocaleString('en-IN')}
+                      ₹{(enteredAmount && !isNaN(Number(enteredAmount)) ? Number(enteredAmount) : activeFeeType?.pending ?? 0).toLocaleString('en-IN')}
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -413,7 +341,7 @@ export const ParentHomeFeeSummary: React.FC<ParentHomeFeeSummaryProps> = ({ onBa
                 style={styles.payFullAmountBtn}
                 activeOpacity={0.85}
                 onPress={() => {
-                  setEnteredAmount(String(activeFeeType.pending));
+                  setEnteredAmount(String(activeFeeType?.pending ?? 0));
                   setIsEditingAmount(false);
                 }}
               >
@@ -538,7 +466,7 @@ export const ParentHomeFeeSummary: React.FC<ParentHomeFeeSummaryProps> = ({ onBa
                 </View>
               </View>
 
-              {DEFAULT_FEE_STRUCTURE.map((item) => (
+              {feeStructure.map((item) => (
                 <View key={item.slNo}>
                   <View style={styles.tableDividerHorizontal} />
                   <View style={styles.tableBodyRow}>

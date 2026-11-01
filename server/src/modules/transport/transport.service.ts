@@ -1,5 +1,14 @@
 import { transportRepository, ITransportRepository } from './transport.repository.js';
-import { UpdateLocationInput } from './transport.schema.js';
+import {
+  UpdateLocationInput,
+  CreateRouteInput,
+  UpdateRouteInput,
+  CreateStopInput,
+  UpdateStopInput,
+  CreateVehicleInput,
+  UpdateVehicleInput,
+  AssignStudentTransportInput,
+} from './transport.schema.js';
 import { findClosestStop, calculateStopsRemaining, fetchRoadGeometry } from './transport.utils.js';
 
 export interface LiveLocationTelemetry {
@@ -456,6 +465,241 @@ export class TransportService {
           }
         : null,
     };
+  }
+
+  // ==================================================================
+  // Admin / admission transport management
+  // ==================================================================
+
+  private formatStop(stop: any) {
+    return {
+      id: stop.id,
+      name: stop.name,
+      latitude: Number(stop.latitude),
+      longitude: Number(stop.longitude),
+      sequence: stop.sequence,
+    };
+  }
+
+  private formatVehicle(vehicle: any) {
+    return {
+      id: vehicle.id,
+      registrationNo: vehicle.registrationNo,
+      capacity: vehicle.capacity,
+      status: vehicle.status,
+    };
+  }
+
+  private async getOwnedRoute(institutionCode: string, routeId: string) {
+    const route = await this.repo.getRouteById(routeId);
+    if (!route || route.institutionCode.toLowerCase() !== institutionCode.toLowerCase()) {
+      throw { statusCode: 404, code: 'ROUTE_NOT_FOUND', message: 'Bus route not found in this institution.' };
+    }
+    return route;
+  }
+
+  private async getOwnedStop(institutionCode: string, stopId: string) {
+    const stop = await this.repo.getStopById(stopId);
+    if (!stop || stop.institutionCode.toLowerCase() !== institutionCode.toLowerCase()) {
+      throw { statusCode: 404, code: 'STOP_NOT_FOUND', message: 'Bus stop not found in this institution.' };
+    }
+    return stop;
+  }
+
+  private async assertDriver(institutionCode: string, driverId: string) {
+    const drivers = await this.repo.listUsersByRole(institutionCode, 'driver');
+    const driver = drivers.find((d) => d.id === driverId);
+    if (!driver) {
+      throw {
+        statusCode: 400,
+        code: 'DRIVER_NOT_FOUND',
+        message: 'Selected driver does not exist in this institution.',
+      };
+    }
+    return driver;
+  }
+
+  private async assertVehicle(institutionCode: string, vehicleId: string) {
+    const vehicle = await this.repo.getVehicleById(vehicleId);
+    if (!vehicle || vehicle.institutionCode.toLowerCase() !== institutionCode.toLowerCase()) {
+      throw {
+        statusCode: 400,
+        code: 'VEHICLE_NOT_FOUND',
+        message: 'Selected bus does not exist in this institution.',
+      };
+    }
+    return vehicle;
+  }
+
+  public async getAdminOverview(institutionCode: string) {
+    const [routes, vehicles, drivers, stops, assignments] = await Promise.all([
+      this.repo.listRoutes(institutionCode),
+      this.repo.listVehicles(institutionCode),
+      this.repo.listUsersByRole(institutionCode, 'driver'),
+      this.repo.listStopsByInstitution(institutionCode),
+      this.repo.listAssignments(institutionCode),
+    ]);
+
+    const vehicleById = new Map(vehicles.map((v) => [v.id, v]));
+    const driverById = new Map(drivers.map((d) => [d.id, d]));
+
+    return {
+      routes: routes.map((route) => {
+        const vehicle = route.vehicleId ? vehicleById.get(route.vehicleId) : undefined;
+        const driver = route.driverId ? driverById.get(route.driverId) : undefined;
+        return {
+          id: route.id,
+          name: route.name,
+          vehicleId: route.vehicleId || null,
+          driverId: route.driverId || null,
+          vehicle: vehicle ? this.formatVehicle(vehicle) : null,
+          driver: driver || null,
+          stops: stops
+            .filter((s) => s.routeId === route.id)
+            .sort((a, b) => a.sequence - b.sequence)
+            .map((s) => this.formatStop(s)),
+          assignments: assignments.filter((a) => a.routeId === route.id),
+        };
+      }),
+      vehicles: vehicles.map((v) => this.formatVehicle(v)),
+      drivers,
+    };
+  }
+
+  public async createRoute(institutionCode: string, input: CreateRouteInput) {
+    if (input.vehicleId) await this.assertVehicle(institutionCode, input.vehicleId);
+    if (input.driverId) await this.assertDriver(institutionCode, input.driverId);
+    return this.repo.createRoute(institutionCode, {
+      name: input.name,
+      vehicleId: input.vehicleId ?? null,
+      driverId: input.driverId ?? null,
+    });
+  }
+
+  public async updateRoute(institutionCode: string, routeId: string, input: UpdateRouteInput) {
+    await this.getOwnedRoute(institutionCode, routeId);
+    if (input.vehicleId) await this.assertVehicle(institutionCode, input.vehicleId);
+    if (input.driverId) await this.assertDriver(institutionCode, input.driverId);
+    const updated = await this.repo.updateRoute(institutionCode, routeId, input);
+    if (!updated) throw { statusCode: 404, code: 'ROUTE_NOT_FOUND', message: 'Bus route not found.' };
+    return updated;
+  }
+
+  public async deleteRoute(institutionCode: string, routeId: string) {
+    await this.getOwnedRoute(institutionCode, routeId);
+    if (await this.repo.routeHasTrips(routeId)) {
+      throw {
+        statusCode: 409,
+        code: 'ROUTE_HAS_TRIPS',
+        message: 'This route has trip history and cannot be deleted. Rename it or reassign the driver instead.',
+      };
+    }
+    const deleted = await this.repo.deleteRoute(institutionCode, routeId);
+    if (!deleted) throw { statusCode: 404, code: 'ROUTE_NOT_FOUND', message: 'Bus route not found.' };
+    return { id: routeId, deleted: true };
+  }
+
+  public async createVehicle(institutionCode: string, input: CreateVehicleInput) {
+    try {
+      const vehicle = await this.repo.createVehicle(institutionCode, input);
+      return this.formatVehicle(vehicle);
+    } catch (err: any) {
+      if (err?.code === '23505' || String(err?.message || '').includes('duplicate key')) {
+        throw {
+          statusCode: 409,
+          code: 'VEHICLE_EXISTS',
+          message: 'A bus with this registration number already exists in this institution.',
+        };
+      }
+      throw err;
+    }
+  }
+
+  public async updateVehicle(institutionCode: string, vehicleId: string, input: UpdateVehicleInput) {
+    await this.assertVehicle(institutionCode, vehicleId);
+    const updated = await this.repo.updateVehicle(institutionCode, vehicleId, input);
+    if (!updated) throw { statusCode: 404, code: 'VEHICLE_NOT_FOUND', message: 'Bus not found.' };
+    return this.formatVehicle(updated);
+  }
+
+  public async addStop(institutionCode: string, routeId: string, input: CreateStopInput) {
+    await this.getOwnedRoute(institutionCode, routeId);
+    const existingStops = await this.repo.getStopsByRoute(institutionCode, routeId);
+    const nextSequence =
+      input.sequence ??
+      (existingStops.length > 0
+        ? Math.max(...existingStops.map((s) => s.sequence)) + 1
+        : 1);
+    const stop = await this.repo.createStop(institutionCode, routeId, {
+      name: input.name,
+      latitude: input.latitude,
+      longitude: input.longitude,
+      sequence: nextSequence,
+    });
+    return this.formatStop(stop);
+  }
+
+  public async updateStop(institutionCode: string, stopId: string, input: UpdateStopInput) {
+    await this.getOwnedStop(institutionCode, stopId);
+    const updated = await this.repo.updateStop(institutionCode, stopId, input);
+    if (!updated) throw { statusCode: 404, code: 'STOP_NOT_FOUND', message: 'Bus stop not found.' };
+    return this.formatStop(updated);
+  }
+
+  public async deleteStop(institutionCode: string, stopId: string) {
+    const stop = await this.getOwnedStop(institutionCode, stopId);
+    const assignments = await this.repo.listAssignments(institutionCode);
+    if (assignments.some((a) => a.stopId === stopId)) {
+      throw {
+        statusCode: 409,
+        code: 'STOP_IN_USE',
+        message: 'Students are assigned to this stop. Reassign them before deleting it.',
+      };
+    }
+    const deleted = await this.repo.deleteStop(institutionCode, stopId);
+    if (!deleted) throw { statusCode: 404, code: 'STOP_NOT_FOUND', message: 'Bus stop not found.' };
+    return { id: stop.id, deleted: true };
+  }
+
+  public async searchStudents(institutionCode: string, search: string) {
+    return this.repo.searchStudents(institutionCode, search || '', 30);
+  }
+
+  public async assignStudent(institutionCode: string, input: AssignStudentTransportInput) {
+    const route = await this.getOwnedRoute(institutionCode, input.routeId);
+    const stop = await this.getOwnedStop(institutionCode, input.stopId);
+    if (stop.routeId !== route.id) {
+      throw {
+        statusCode: 400,
+        code: 'STOP_NOT_ON_ROUTE',
+        message: 'The selected stop does not belong to the selected route.',
+      };
+    }
+
+    const student = await this.repo.findUserByIdOrUid(input.studentId);
+    if (
+      !student ||
+      (student.institutionCode || '').toLowerCase() !== institutionCode.toLowerCase() ||
+      (student.role || '').toLowerCase() !== 'student'
+    ) {
+      throw { statusCode: 404, code: 'STUDENT_NOT_FOUND', message: 'Student not found in this institution.' };
+    }
+
+    const assignment = await this.repo.upsertAssignment(institutionCode, input);
+    return {
+      id: assignment.id,
+      studentId: assignment.studentId,
+      routeId: assignment.routeId,
+      stopId: assignment.stopId,
+    };
+  }
+
+  public async removeAssignment(institutionCode: string, assignmentId: string) {
+    const removed = await this.repo.deactivateAssignment(institutionCode, assignmentId);
+    if (!removed) {
+      throw { statusCode: 404, code: 'ASSIGNMENT_NOT_FOUND', message: 'Student transport assignment not found.' };
+    }
+    return { id: assignmentId, removed: true };
   }
 }
 
