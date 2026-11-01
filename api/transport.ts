@@ -91,6 +91,8 @@ export interface AdminBusRoute {
   driver: TransportDriver | null;
   stops: BusStop[];
   assignments: StudentTransportAssignment[];
+  liveTrip?: LiveTrip | null;
+  location?: BusLocation | null;
 }
 
 export interface TransportOverview {

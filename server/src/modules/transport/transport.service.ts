@@ -532,21 +532,42 @@ export class TransportService {
   }
 
   public async getAdminOverview(institutionCode: string) {
-    const [routes, vehicles, drivers, stops, assignments] = await Promise.all([
+    const [routes, vehicles, drivers, stops, assignments, liveTrips] = await Promise.all([
       this.repo.listRoutes(institutionCode),
       this.repo.listVehicles(institutionCode),
       this.repo.listUsersByRole(institutionCode, 'driver'),
       this.repo.listStopsByInstitution(institutionCode),
       this.repo.listAssignments(institutionCode),
+      this.repo.listLiveTrips(institutionCode),
     ]);
 
     const vehicleById = new Map(vehicles.map((v) => [v.id, v]));
     const driverById = new Map(drivers.map((d) => [d.id, d]));
+    const liveTripByRoute = new Map(liveTrips.map((trip) => [trip.routeId, trip]));
+
+    const liveLocationByRoute = new Map<
+      string,
+      { latitude: number; longitude: number; speed: number | null; heading: number | null; updatedAt: Date | null }
+    >();
+    await Promise.all(
+      liveTrips.map(async (trip) => {
+        const location = await this.repo.getLatestLocation(trip.id);
+        if (!location) return;
+        liveLocationByRoute.set(trip.routeId, {
+          latitude: Number(location.latitude),
+          longitude: Number(location.longitude),
+          speed: location.speed != null ? Number(location.speed) : null,
+          heading: location.heading != null ? Number(location.heading) : null,
+          updatedAt: location.updatedAt,
+        });
+      })
+    );
 
     return {
       routes: routes.map((route) => {
         const vehicle = route.vehicleId ? vehicleById.get(route.vehicleId) : undefined;
         const driver = route.driverId ? driverById.get(route.driverId) : undefined;
+        const liveTrip = liveTripByRoute.get(route.id);
         return {
           id: route.id,
           name: route.name,
@@ -559,6 +580,15 @@ export class TransportService {
             .sort((a, b) => a.sequence - b.sequence)
             .map((s) => this.formatStop(s)),
           assignments: assignments.filter((a) => a.routeId === route.id),
+          liveTrip: liveTrip
+            ? {
+                id: liveTrip.id,
+                tripType: liveTrip.tripType,
+                status: liveTrip.status,
+                startedAt: liveTrip.startedAt,
+              }
+            : null,
+          location: liveLocationByRoute.get(route.id) || null,
         };
       }),
       vehicles: vehicles.map((v) => this.formatVehicle(v)),

@@ -39,6 +39,7 @@ export interface ITransportRepository {
   getStopsByRoute(institutionCode: string, routeId: string): Promise<BusStopRecord[]>;
   getLiveTripByDriver(institutionCode: string, driverId: string): Promise<BusTripRecord | undefined>;
   getTripById(id: string): Promise<BusTripRecord | undefined>;
+  listLiveTrips(institutionCode: string): Promise<BusTripRecord[]>;
   createTrip(trip: { institutionCode: string; routeId: string; driverId: string; tripType: string }): Promise<BusTripRecord>;
   endTrip(tripId: string): Promise<BusTripRecord | undefined>;
   upsertLocation(data: { tripId: string; latitude: number; longitude: number; speed?: number | null; heading?: number | null }): Promise<BusLocationRecord>;
@@ -116,6 +117,20 @@ export class TransportRepository implements ITransportRepository {
     if (!db) return undefined;
     const rows = await db.select().from(busTrips).where(eq(busTrips.id, id)).limit(1);
     return rows[0];
+  }
+
+  public async listLiveTrips(institutionCode: string): Promise<BusTripRecord[]> {
+    if (!db) return [];
+    return db
+      .select()
+      .from(busTrips)
+      .where(
+        and(
+          eq(busTrips.institutionCode, institutionCode),
+          eq(busTrips.status, 'live')
+        )
+      )
+      .orderBy(desc(busTrips.startedAt));
   }
 
   public async createTrip(trip: {

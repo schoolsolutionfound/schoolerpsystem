@@ -29,7 +29,7 @@ export const AdmissionDrawer: React.FC<AdmissionDrawerProps> = ({
 
   const menuItems: { key: string; label: string; icon: string; tab: AdmissionTab }[] = [
     { key: 'students', label: 'Admissions Registry', icon: 'account-group-outline', tab: 'students' },
-    { key: 'tracking', label: 'Seat Tracking & Matrix', icon: 'layers-outline', tab: 'tracking' },
+    { key: 'tracking', label: 'Live Tracking & Seats', icon: 'layers-outline', tab: 'tracking' },
     { key: 'transport', label: 'Transport & Bus Routes', icon: 'bus-outline', tab: 'transport' },
     { key: 'profile', label: 'Profile', icon: 'account-circle-outline', tab: 'profile' },
   ];
