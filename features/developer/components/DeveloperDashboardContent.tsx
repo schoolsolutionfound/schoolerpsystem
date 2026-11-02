@@ -16,6 +16,7 @@ import {
   useCreateInstitutionMutation,
 } from '../hooks/useDeveloperQueries';
 import { CreateInstitutionModal } from './CreateInstitutionModal';
+import { DeveloperDashboardSkeleton } from './skeletons/DeveloperSkeletons';
 import { AppBadge } from '../../shared/components/AppBadge';
 import { BorderRadius } from '../../../constants/theme';
 
@@ -39,6 +40,16 @@ export function DeveloperDashboardContent() {
 
   const recentInstitutions = institutions.slice(0, 3);
   const recentAdmins = admins.slice(0, 3);
+
+  const isInitialLoading =
+    (statsLoading || instLoading || adminsLoading) &&
+    !stats &&
+    institutions.length === 0 &&
+    admins.length === 0;
+
+  if (isInitialLoading) {
+    return <DeveloperDashboardSkeleton />;
+  }
 
   return (
     <ScrollView

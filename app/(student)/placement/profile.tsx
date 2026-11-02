@@ -18,6 +18,7 @@ import { getPlacementProfile, updatePlacementProfile, PlacementProfile } from '.
 import { FontFamily } from '../../../constants/fonts';
 import { BorderRadius } from '../../../constants/theme';
 import { safeGoBack } from '../../../features/shared/utils/safeNavigation';
+import { PlacementProfileSkeleton } from '../../../features/shared/components/skeletons/SharedSkeletons';
 
 export default function PlacementProfileScreen() {
   const router = useRouter();
@@ -91,9 +92,7 @@ export default function PlacementProfileScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.centerBox}>
-          <ActivityIndicator size="large" color="#F4C430" />
-        </View>
+        <PlacementProfileSkeleton />
       </SafeAreaView>
     );
   }

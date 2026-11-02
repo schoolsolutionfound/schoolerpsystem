@@ -17,6 +17,7 @@ import { FontFamily } from '../constants/fonts';
 import { BorderRadius } from '../constants/theme';
 import { useAnnouncementFeedQuery } from '../features/announcements/hooks/useAnnouncements';
 import { useClassTransferStore, ClassTransferRequest } from '../features/teacher/services/classTransferStore';
+import { NotificationsSkeleton } from '../features/shared/components/skeletons/SharedSkeletons';
 
 type NotificationCategory = 'all' | 'unread' | 'academics' | 'attendance' | 'announcements' | 'system';
 
@@ -55,7 +56,7 @@ export default function NotificationsScreen() {
   const { requests: transferRequests, respondToRequest } = useClassTransferStore();
 
   // Optionally fetch real announcements from server feed
-  const { data: serverAnnouncements, refetch } = useAnnouncementFeedQuery();
+  const { data: serverAnnouncements, refetch, isLoading: feedLoading } = useAnnouncementFeedQuery();
 
   // Combine default system alerts with server announcements and class transfer requests
   const allNotifications: NotificationItem[] = useMemo(() => {
@@ -373,7 +374,9 @@ export default function NotificationsScreen() {
             />
           }
         >
-          {filteredNotifications.length === 0 ? (
+          {feedLoading && allNotifications.length === 0 ? (
+            <NotificationsSkeleton />
+          ) : filteredNotifications.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyTitle}>
                 {searchQuery ? 'No Matching Notifications' : 'All Caught Up!'}

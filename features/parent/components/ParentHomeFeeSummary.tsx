@@ -22,6 +22,7 @@ import { FontFamily } from '../../../constants/fonts';
 import { useUserStore } from '../../../store/useUserStore';
 import { generateParentFeeReceiptPdf } from '../utils/receiptPdfGenerator';
 import { fetchParentFeesApi } from '../../../api/academics';
+import { FeeSummarySkeleton } from '../../shared/components/skeletons/SharedSkeletons';
 
 export interface ParentHomeFeeSummaryProps {
   onBack?: () => void;
@@ -81,6 +82,7 @@ export const ParentHomeFeeSummary: React.FC<ParentHomeFeeSummaryProps> = ({ onBa
   const [selectedReceipt, setSelectedReceipt] = useState<PaymentHistoryItem | null>(null);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
 
   const loadFees = useCallback(async () => {
     try {
@@ -88,6 +90,8 @@ export const ParentHomeFeeSummary: React.FC<ParentHomeFeeSummaryProps> = ({ onBa
       setFeeRecords(Array.isArray(res) ? res : []);
     } catch {
       setFeeRecords([]);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -203,6 +207,27 @@ export const ParentHomeFeeSummary: React.FC<ParentHomeFeeSummaryProps> = ({ onBa
       'Fee payment will be enabled once the payment gateway is configured for this institution.'
     );
   };
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.topHeader}>
+          {onBack && (
+            <TouchableOpacity
+              style={styles.backBtn}
+              onPress={onBack}
+              activeOpacity={0.7}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            >
+              <Feather name="chevron-left" size={28} color="#111827" />
+            </TouchableOpacity>
+          )}
+          <Text style={styles.topHeaderTitle}>Fees</Text>
+        </View>
+        <FeeSummarySkeleton />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>

@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import {
   View,
   StyleSheet,
-  ActivityIndicator,
   Alert,
   TouchableOpacity,
   Text,
@@ -40,6 +39,7 @@ import { FloatingFooter } from '../../features/shared/components/layout/Floating
 import { useDebugTab } from '../../features/shared/hooks/useDebugTab';
 import { HODDrawer } from '../../features/hod/components/HODDrawer';
 import { HODDashboardView } from '../../features/hod/components/HODDashboardView';
+import { HODPageSkeleton } from '../../features/hod/components/skeletons/HODSkeletons';
 import { PrincipalStaffDirectoryView } from '../../features/principal/components/PrincipalStaffDirectoryView';
 import { PrincipalHomeroomsView } from '../../features/principal/components/PrincipalHomeroomsView';
 import { PrincipalNoticesView } from '../../features/principal/components/PrincipalNoticesView';
@@ -137,7 +137,7 @@ export default function HODHomeScreen() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [tabLoading, setTabLoading] = useState(false);
-  const [tabLoadingTitle, setTabLoadingTitle] = useState('Loading Department...');
+  const [, setTabLoadingTitle] = useState('Loading Department...');
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -428,12 +428,7 @@ export default function HODHomeScreen() {
   };
 
   if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#F4C430" />
-        <Text style={styles.loadingText}>Loading Department Dashboard...</Text>
-      </View>
-    );
+    return <HODPageSkeleton tab="dashboard" />;
   }
 
   return (
@@ -458,10 +453,7 @@ export default function HODHomeScreen() {
         ) : (
           <View style={styles.body}>
             {tabLoading ? (
-              <View style={styles.tabLoaderWrap}>
-                <ActivityIndicator size="large" color="#F4C430" />
-                <Text style={styles.tabLoaderText}>{tabLoadingTitle}</Text>
-              </View>
+              <HODPageSkeleton tab={activeTab} />
             ) : (
               <>
                 {activeTab === 'dashboard' && (

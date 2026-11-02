@@ -7,8 +7,8 @@ import { AppLayout } from '../../shared/components/AppLayout';
 import { safeGoBack } from '../../shared/utils/safeNavigation';
 import { AppCard } from '../../shared/components/AppCard';
 import { AppBadge } from '../../shared/components/AppBadge';
-import { LoadingView } from '../../shared/components/LoadingView';
 import { ErrorState } from '../../shared/components/ErrorState';
+import { DeveloperDetailSkeleton } from '../components/skeletons/DeveloperSkeletons';
 import { useInstitutionDetailsQuery } from '../hooks/useDeveloperQueries';
 
 interface InstitutionDetailsScreenProps {
@@ -96,7 +96,7 @@ export function InstitutionDetailsScreen({ id }: InstitutionDetailsScreenProps) 
       </View>
 
       {isLoading ? (
-        <LoadingView message="Loading institution details..." />
+        <DeveloperDetailSkeleton />
       ) : isError || !institution ? (
         <ErrorState
           title="Institution Not Found"

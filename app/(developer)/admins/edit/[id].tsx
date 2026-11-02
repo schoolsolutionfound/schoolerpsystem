@@ -18,8 +18,8 @@ import { InstitutionSearchSelect } from '../../../../features/developer/componen
 import { Institution } from '../../../../features/developer/types/developer.types';
 import { AppInput } from '../../../../features/shared/components/AppInput';
 import { AppButton } from '../../../../features/shared/components/AppButton';
-import { LoadingView } from '../../../../features/shared/components/LoadingView';
 import { ErrorState } from '../../../../features/shared/components/ErrorState';
+import { DeveloperDetailSkeleton } from '../../../../features/developer/components/skeletons/DeveloperSkeletons';
 import {
   levelsForInstitution,
   normalizeInstitutionType,
@@ -178,7 +178,7 @@ export default function EditInstitutionAdminScreen() {
   if (adminsLoading) {
     return (
       <SafeAreaView style={styles.container}>
-        <LoadingView message="Loading admin details..." />
+        <DeveloperDetailSkeleton />
       </SafeAreaView>
     );
   }

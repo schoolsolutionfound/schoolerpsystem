@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Modal } from 'react-native';
+import { View, StyleSheet, Text, ScrollView, TouchableOpacity, Alert, Modal } from 'react-native';
+import { TeacherTimetableSkeleton } from './skeletons/TeacherTimetableSkeleton';
 import { MaterialCommunityIcons } from './common/Icons';
 import { FontFamily } from '../../../constants/fonts';
 import {
@@ -128,7 +129,7 @@ export const ClassTeacherTimetableBuilder: React.FC<ClassTeacherTimetableBuilder
   };
 
   if (loading) {
-    return <View style={styles.centerBox}><ActivityIndicator size="large" color="#F4C430" /></View>;
+    return <TeacherTimetableSkeleton />;
   }
 
   if (!classSection) {

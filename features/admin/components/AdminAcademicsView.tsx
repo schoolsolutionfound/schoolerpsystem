@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Text, ScrollView, TextInput, TouchableOpacity, Modal, Alert, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, StyleSheet, Text, ScrollView, TextInput, TouchableOpacity, Modal, Alert, RefreshControl } from 'react-native';
+import { AdminPanelSkeleton } from './skeletons/AdminSkeletons';
+import { ShimmerProvider } from '../../student/components/ShimmerSkeleton';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { FontFamily } from '../../../constants/fonts';
 import { DropdownSelect } from './DropdownSelect';
@@ -1612,9 +1614,9 @@ function MarksTab({ classSections, subjects, onDataChange }: any) {
       <Text style={styles.hintText}>Create an exam, then enter marks per subject for each class.</Text>
 
       {loadingExams ? (
-        <View style={{ padding: 30, alignItems: 'center' }}>
-          <ActivityIndicator color="#F4C430" size="large" />
-        </View>
+        <ShimmerProvider>
+          <AdminPanelSkeleton cards={2} />
+        </ShimmerProvider>
       ) : exams.length === 0 ? (
         <EmptyState icon="certificate-outline" title="No exams yet" sub="Tap New Exam to create one." />
       ) : (
@@ -1761,9 +1763,9 @@ function MarksTab({ classSections, subjects, onDataChange }: any) {
 
         <View style={{ marginTop: 12 }}>
           {marksLoading ? (
-            <View style={{ padding: 20, alignItems: 'center' }}>
-              <ActivityIndicator color="#F4C430" size="large" />
-            </View>
+            <ShimmerProvider>
+              <AdminPanelSkeleton cards={1} />
+            </ShimmerProvider>
           ) : marksRoster.length === 0 ? (
             <EmptyState icon="account-multiple" title="No students" sub="Pick a class with enrolled students." />
           ) : (

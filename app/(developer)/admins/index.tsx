@@ -17,8 +17,8 @@ import {
 } from '../../../features/developer/hooks/useDeveloperQueries';
 import { InstitutionAdminCard } from '../../../features/developer/components/InstitutionAdminCard';
 import { AppInput } from '../../../features/shared/components/AppInput';
-import { LoadingView } from '../../../features/shared/components/LoadingView';
 import { EmptyState } from '../../../features/shared/components/EmptyState';
+import { DeveloperListSkeleton } from '../../../features/developer/components/skeletons/DeveloperSkeletons';
 import { ErrorState } from '../../../features/shared/components/ErrorState';
 import { Colors, BorderRadius } from '../../../constants/theme';
 
@@ -138,7 +138,7 @@ export default function DeveloperAdminsScreen() {
 
       <View style={styles.contentWrap}>
         {isLoading ? (
-          <LoadingView message="Loading institution admins..." />
+          <DeveloperListSkeleton />
         ) : isError ? (
           <ErrorState
             title="Failed to Load Admins"

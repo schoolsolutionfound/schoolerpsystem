@@ -58,7 +58,7 @@ const TABS: { key: 'dashboard' | 'institution' | 'students' | 'teachers' | 'tran
   { key: 'institution', label: 'Institution', icon: 'office-building', iconFilled: 'office-building' },
   { key: 'students', label: 'Students', icon: 'account-school-outline', iconFilled: 'account-school' },
   { key: 'teachers', label: 'Teachers', icon: 'human-male-board', iconFilled: 'human-male-board' },
-  { key: 'transport', label: 'Transport', icon: 'bus-outline', iconFilled: 'bus' },
+  { key: 'transport', label: 'Transport', icon: 'bus', iconFilled: 'bus' },
   { key: 'profile', label: 'Profile', icon: 'account-circle-outline', iconFilled: 'account-circle' },
 ];
 

@@ -15,6 +15,8 @@ import { IncomeManagementView } from '../../features/accountant/components/Incom
 import { AccountsTallyView } from '../../features/accountant/components/AccountsTallyView';
 import { ExpenseManagementView } from '../../features/accountant/components/ExpenseManagementView';
 import { OnlinePaymentsView } from '../../features/accountant/components/OnlinePaymentsView';
+import { AccountantTabSkeleton } from '../../features/accountant/components/skeletons/AccountantSkeletons';
+import type { AccountantSkeletonTab } from '../../features/accountant/components/skeletons/AccountantSkeletons';
 import { useFinanceStore } from '../../features/accountant/store/useFinanceStore';
 import { UserAnnouncementFeedView } from '../../features/announcements';
 import { FontFamily } from '../../constants/fonts';
@@ -124,11 +126,11 @@ export default function AccountantHomeScreen() {
               <Text style={styles.errorText}>{error}</Text>
             </View>
           ) : null}
-          {loading && !useFinanceStore.getState().loaded ? (
-            <Text style={styles.loadingText}>Loading fee data…</Text>
-          ) : null}
-
-          {renderTabContent()}
+          {loading && !useFinanceStore.getState().loaded && activeTab !== 'announcements' ? (
+            <AccountantTabSkeleton tab={activeTab as AccountantSkeletonTab} />
+          ) : (
+            renderTabContent()
+          )}
         </ScrollView>
 
         <FloatingFooter

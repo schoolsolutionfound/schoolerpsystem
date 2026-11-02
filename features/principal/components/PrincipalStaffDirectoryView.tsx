@@ -12,10 +12,10 @@ import {
   useWindowDimensions,
   Modal,
   Pressable,
-  ActivityIndicator,
 } from 'react-native';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { FontFamily } from '../../../constants/fonts';
+import { PrincipalStaffSkeleton } from './skeletons/PrincipalSkeletons';
 import {
   PrincipalStaffMember,
   StaffDesignation,
@@ -1179,10 +1179,7 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
         showsVerticalScrollIndicator={false}
       >
         {isPageLoading ? (
-          <View style={styles.inPageLoaderWrap}>
-            <ActivityIndicator size="large" color="#F4C430" />
-            <Text style={styles.inPageLoaderText}>Loading Faculty Records...</Text>
-          </View>
+          <PrincipalStaffSkeleton />
         ) : (
           <>
             {departmentSections.map((section) => (

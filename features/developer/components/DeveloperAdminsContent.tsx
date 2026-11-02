@@ -16,8 +16,8 @@ import {
 } from '../hooks/useDeveloperQueries';
 import { InstitutionAdminCard } from './InstitutionAdminCard';
 import { AppInput } from '../../shared/components/AppInput';
-import { LoadingView } from '../../shared/components/LoadingView';
 import { EmptyState } from '../../shared/components/EmptyState';
+import { DeveloperListSkeleton } from './skeletons/DeveloperSkeletons';
 import { ErrorState } from '../../shared/components/ErrorState';
 import { Colors, BorderRadius } from '../../../constants/theme';
 
@@ -92,7 +92,7 @@ export function DeveloperAdminsContent() {
 
       <View style={styles.contentWrap}>
         {isLoading ? (
-          <LoadingView message="Loading institution admins..." />
+          <DeveloperListSkeleton />
         ) : isError ? (
           <ErrorState title="Failed to Load Admins" message={(error as any)?.message || 'Could not fetch admin list.'} onRetry={refetch} />
         ) : filteredAdmins.length === 0 ? (

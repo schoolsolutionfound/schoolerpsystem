@@ -15,6 +15,7 @@ import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { listPlacementMembers, searchEligibleMembers, assignPlacementMember } from '../../../api/placement';
 import { FontFamily } from '../../../constants/fonts';
 import { BorderRadius } from '../../../constants/theme';
+import { PlacementTeamSkeleton } from '../../shared/components/skeletons/SharedSkeletons';
 
 export function PlacementTeamView() {
   const [members, setMembers] = useState<any[]>([]);
@@ -73,11 +74,7 @@ export function PlacementTeamView() {
   };
 
   if (loading && !refreshing) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#F4C430" />
-      </View>
-    );
+    return <PlacementTeamSkeleton />;
   }
 
   // Filter out users already in team

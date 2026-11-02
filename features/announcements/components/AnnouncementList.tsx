@@ -6,8 +6,8 @@ import { AnnouncementDetailModal } from './AnnouncementDetailModal';
 import { CreateAnnouncementModal } from './CreateAnnouncementModal';
 import { AnnouncementFilters } from './AnnouncementFilters';
 import { Announcement, AnnouncementFilterState } from '../types';
-import { LoadingView } from '../../shared/components/LoadingView';
 import { EmptyState } from '../../shared/components/EmptyState';
+import { AnnouncementListSkeleton } from './skeletons/AnnouncementSkeletons';
 import { ErrorState } from '../../shared/components/ErrorState';
 import { Colors } from '../../../constants/theme';
 import { FontFamily } from '../../../constants/fonts';
@@ -89,7 +89,7 @@ export const AnnouncementList: React.FC<AnnouncementListProps> = ({
   };
 
   if (loading && items.length === 0 && !error) {
-    return <LoadingView message="Loading announcements..." />;
+    return <AnnouncementListSkeleton />;
   }
 
   if (error && items.length === 0) {

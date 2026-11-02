@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
-  ActivityIndicator,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import {
@@ -17,6 +16,7 @@ import {
 } from '../../../api/admission';
 import { FontFamily } from '../../../constants/fonts';
 import { AdmissionBatchConfigModal } from './AdmissionBatchConfigModal';
+import { AdmissionSeatMatrixSkeleton } from './skeletons/AdmissionSkeletons';
 
 interface AdmissionSeatTrackingViewProps {
   onNavigateToStudents?: (branchId?: string, status?: string) => void;
@@ -65,6 +65,10 @@ export function AdmissionSeatTrackingView({
   const totalSeats = stats?.totalSeats ?? 0;
   const availableSeats = stats?.availableSeats ?? 0;
   const waitingCount = stats?.waitingListCount ?? 0;
+
+  if (loading) {
+    return <AdmissionSeatMatrixSkeleton />;
+  }
 
   return (
     <ScrollView
@@ -157,11 +161,7 @@ export function AdmissionSeatTrackingView({
         <Text style={styles.sectionHeading}>PROGRAM BRANCH SEAT MATRIX</Text>
       </View>
 
-      {loading ? (
-        <View style={styles.loadingBox}>
-          <ActivityIndicator size="small" color="#1A1B1C" />
-        </View>
-      ) : courses.length === 0 ? (
+      {courses.length === 0 ? (
         <View style={styles.emptyCard}>
           <Feather name="layers" size={32} color="#9CA3AF" />
           <Text style={styles.emptyTitle}>No Branch Matrix Configured</Text>

@@ -1,10 +1,11 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { ShimmerSkeleton } from '../../student/components/ShimmerSkeleton';
+import { ShimmerProvider, ShimmerSkeleton } from '../../student/components/ShimmerSkeleton';
 import { BorderRadius } from '../../../constants/theme';
 
 export const PlacementStatsSkeleton: React.FC = () => {
   return (
+    <ShimmerProvider>
     <View style={styles.statsCard}>
       <View style={{ gap: 8 }}>
         <ShimmerSkeleton width={70} height={32} borderRadius={6} />
@@ -25,11 +26,13 @@ export const PlacementStatsSkeleton: React.FC = () => {
         </View>
       </View>
     </View>
+    </ShimmerProvider>
   );
 };
 
 export const PlacementDriveCardSkeleton: React.FC = () => {
   return (
+    <ShimmerProvider>
     <View style={styles.driveCard}>
       <View style={styles.driveHeader}>
         <ShimmerSkeleton width={48} height={48} borderRadius={10} />
@@ -47,11 +50,13 @@ export const PlacementDriveCardSkeleton: React.FC = () => {
         <ShimmerSkeleton width={90} height={14} borderRadius={4} />
       </View>
     </View>
+    </ShimmerProvider>
   );
 };
 
 export const PlacementStudentsSkeleton: React.FC = () => {
   return (
+    <ShimmerProvider>
     <View style={{ gap: 10, padding: 16 }}>
       {[1, 2, 3, 4, 5].map((i) => (
         <View key={i} style={styles.studentRow}>
@@ -64,6 +69,7 @@ export const PlacementStudentsSkeleton: React.FC = () => {
         </View>
       ))}
     </View>
+    </ShimmerProvider>
   );
 };
 

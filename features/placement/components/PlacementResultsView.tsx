@@ -6,7 +6,6 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
-  ActivityIndicator,
   RefreshControl,
   Linking,
   Platform,
@@ -16,6 +15,7 @@ import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { getAllPlacementResults, PlacementResultItem } from '../../../api/placement';
 import { FontFamily } from '../../../constants/fonts';
 import { BorderRadius } from '../../../constants/theme';
+import { PlacementResultsSkeleton } from '../../shared/components/skeletons/SharedSkeletons';
 
 type StatusFilter = 'all' | 'shortlisted' | 'hired' | 'applied' | 'rejected';
 
@@ -168,11 +168,7 @@ export function PlacementResultsView() {
   }, [companyFilteredResults, statusFilter, searchQuery]);
 
   if (loading && !refreshing) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#F4C430" />
-      </View>
-    );
+    return <PlacementResultsSkeleton />;
   }
 
   const statusTabList: { key: StatusFilter; label: string; count: number }[] = [

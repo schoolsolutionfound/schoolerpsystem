@@ -17,6 +17,7 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { FontFamily } from '../../../constants/fonts';
 import { SchoolNotice } from '../types/principal.types';
+import { PrincipalNoticesSkeleton } from './skeletons/PrincipalSkeletons';
 
 interface PrincipalNoticesViewProps {
   notices: SchoolNotice[];
@@ -352,10 +353,7 @@ export const PrincipalNoticesView: React.FC<PrincipalNoticesViewProps> = ({
             </TouchableOpacity>
           </View>
         ) : isPageLoading ? (
-          <View style={styles.inPageLoaderWrap}>
-            <ActivityIndicator size="large" color="#F4C430" />
-            <Text style={styles.inPageLoaderText}>Loading Announcements...</Text>
-          </View>
+          <PrincipalNoticesSkeleton />
         ) : (
           <>
             <View style={[styles.cardsGrid, isDesktop && styles.cardsGridDesktop]}>

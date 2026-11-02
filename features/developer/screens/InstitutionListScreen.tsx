@@ -16,8 +16,8 @@ import { CreateInstitutionModal } from '../components/CreateInstitutionModal';
 import { EditInstitutionModal } from '../components/EditInstitutionModal';
 import { DeleteInstitutionModal } from '../components/DeleteInstitutionModal';
 import { AppInput } from '../../shared/components/AppInput';
-import { LoadingView } from '../../shared/components/LoadingView';
 import { EmptyState } from '../../shared/components/EmptyState';
+import { DeveloperListSkeleton } from '../components/skeletons/DeveloperSkeletons';
 import { ErrorState } from '../../shared/components/ErrorState';
 import { useDebouncedValue } from '../../shared/hooks/useDebouncedValue';
 import {
@@ -143,7 +143,7 @@ export function InstitutionListScreen() {
 
       <View style={styles.contentWrap}>
         {isLoading ? (
-          <LoadingView message="Fetching registered institutions..." />
+          <DeveloperListSkeleton />
         ) : isError ? (
           <ErrorState
             title="Failed to Load Institutions"

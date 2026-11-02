@@ -14,6 +14,7 @@ import {
 import { FontFamily } from '../../../constants/fonts';
 import { BorderRadius } from '../../../constants/theme';
 import { safeGoBack } from '../../../features/shared/utils/safeNavigation';
+import { PlacementDriveDetailSkeleton } from '../../../features/shared/components/skeletons/SharedSkeletons';
 
 export default function DriveDetailsScreen() {
   const router = useRouter();
@@ -51,11 +52,7 @@ export default function DriveDetailsScreen() {
   }, [id]);
 
   if (loading) {
-    return (
-      <View style={styles.centerBox}>
-        <ActivityIndicator size="large" color="#F4C430" />
-      </View>
-    );
+    return <PlacementDriveDetailSkeleton />;
   }
 
   const handleBack = () => {

@@ -24,6 +24,7 @@ import { FontFamily } from '../../../constants/fonts';
 import { BorderRadius } from '../../../constants/theme';
 import { AdmissionStudentDetailModal } from './AdmissionStudentDetailModal';
 import { AdmissionAllocationModal } from './AdmissionAllocationModal';
+import { AdmissionStudentsSkeleton } from './skeletons/AdmissionSkeletons';
 
 type StatusTab = 'waiting_list' | 'allocated' | 'confirmed';
 
@@ -224,6 +225,10 @@ export function AdmissionStudentsView({
       ]
     );
   };
+
+  if (loading) {
+    return <AdmissionStudentsSkeleton />;
+  }
 
   return (
     <View style={styles.container}>

@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import {
   View,
   StyleSheet,
-  ActivityIndicator,
   Alert,
   TouchableOpacity,
   Text,
@@ -41,6 +40,7 @@ import { PrincipalFeeLedgerView } from '../../features/principal/components/Prin
 import { PrincipalHomeroomsView } from '../../features/principal/components/PrincipalHomeroomsView';
 import { PrincipalStaffDirectoryView } from '../../features/principal/components/PrincipalStaffDirectoryView';
 import { PrincipalNoticesView } from '../../features/principal/components/PrincipalNoticesView';
+import { PrincipalPageSkeleton } from '../../features/principal/components/skeletons/PrincipalSkeletons';
 import { AdminAttendanceView } from '../../features/admin/components/AdminAttendanceView';
 import { StudentFeedbackReviewManagerView } from '../../features/shared/components/StudentFeedbackReviewManagerView';
 import { AssignHomeroomModal } from '../../features/principal/components/modals/AssignHomeroomModal';
@@ -99,7 +99,7 @@ export default function PrincipalHomeScreen() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [tabLoading, setTabLoading] = useState(false);
-  const [tabLoadingTitle, setTabLoadingTitle] = useState('Loading...');
+  const [, setTabLoadingTitle] = useState('Loading...');
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -308,15 +308,9 @@ export default function PrincipalHomeScreen() {
               </TouchableOpacity>
             </View>
           ) : loading ? (
-            <View style={styles.loaderWrap}>
-              <ActivityIndicator size="large" color="#F4C430" />
-              <Text style={styles.loaderText}>Loading Dashboard...</Text>
-            </View>
+            <PrincipalPageSkeleton tab={activeTab} />
           ) : tabLoading ? (
-            <View style={styles.loaderWrap}>
-              <ActivityIndicator size="large" color="#F4C430" />
-              <Text style={styles.loaderText}>{tabLoadingTitle}</Text>
-            </View>
+            <PrincipalPageSkeleton tab={activeTab} />
           ) : (
             <>
               {activeTab === 'dashboard' && (

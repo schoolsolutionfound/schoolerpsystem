@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -12,6 +11,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { AdminBusRoute, getTransportOverviewApi } from '../../../api/transport';
 import { BusMap } from '../../shared/maps/BusMap';
 import { FontFamily } from '../../../constants/fonts';
+import { AdmissionLiveTrackingSkeleton } from './skeletons/AdmissionSkeletons';
 
 const POLL_INTERVAL_MS = 15000;
 
@@ -63,12 +63,7 @@ export const AdmissionLiveTrackingView: React.FC = () => {
   }, [load]);
 
   if (loading) {
-    return (
-      <View style={styles.loadingWrap}>
-        <ActivityIndicator size="large" color="#F4C430" />
-        <Text style={styles.loadingText}>Loading bus routes...</Text>
-      </View>
-    );
+    return <AdmissionLiveTrackingSkeleton />;
   }
 
   const selectedRoute = routes.find((route) => route.id === selectedRouteId) || null;

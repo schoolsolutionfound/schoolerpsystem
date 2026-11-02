@@ -9,7 +9,6 @@ import {
   RefreshControl,
   Modal,
   Pressable,
-  ActivityIndicator,
   Linking,
   useWindowDimensions,
 } from 'react-native';
@@ -23,6 +22,7 @@ import {
 } from '../../../api/principal';
 import { useUserStore } from '../../../store/useUserStore';
 import { generateStudentAcademicReportPDF } from '../utils/generateAcademicReportPDF';
+import { PrincipalStudentsSkeleton, PrincipalTabSkeleton } from './skeletons/PrincipalSkeletons';
 
 interface PrincipalHomeroomsViewProps {
   homerooms: HomeroomSection[];
@@ -546,20 +546,14 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
 
         {/* Student Roster List */}
         {loadingClassStudents ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#F4C430" />
-            <Text style={styles.loadingText}>Loading class student records...</Text>
-          </View>
+          <PrincipalStudentsSkeleton />
         ) : (
           <ScrollView
             contentContainerStyle={[styles.scrollContent, { maxWidth: contentMaxWidth, alignSelf: 'center', width: '100%', paddingHorizontal: horizontalPadding }]}
             showsVerticalScrollIndicator={false}
           >
             {isStudentsPageLoading ? (
-              <View style={styles.inPageLoaderWrap}>
-                <ActivityIndicator size="large" color="#F4C430" />
-                <Text style={styles.inPageLoaderText}>Loading Student Records...</Text>
-              </View>
+              <PrincipalStudentsSkeleton />
             ) : filteredStudents.length === 0 ? (
               <View style={styles.emptyCard}>
                 <MaterialCommunityIcons name="account-search-outline" size={42} color="#9CA3AF" />
@@ -1348,10 +1342,7 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
             </TouchableOpacity>
           </View>
         ) : isClassesPageLoading ? (
-          <View style={styles.inPageLoaderWrap}>
-            <ActivityIndicator size="large" color="#F4C430" />
-            <Text style={styles.inPageLoaderText}>Loading Classes...</Text>
-          </View>
+          <PrincipalTabSkeleton />
         ) : (
           <>
             <View style={[styles.classesGrid, { flexDirection: 'row', flexWrap: 'wrap', gap: gridGap }]}>

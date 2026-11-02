@@ -22,6 +22,7 @@ import { formatINR } from '../utils/financeUtils';
 import { showAlert } from '../../shared/utils/showAlert';
 import { useUserStore } from '../../../store/useUserStore';
 import { useFinanceStore } from '../store/useFinanceStore';
+import { AccountantOnlinePaymentsSkeleton } from './skeletons/AccountantSkeletons';
 import {
   fetchPaymentOrdersApi,
   refundPaymentOrderApi,
@@ -283,10 +284,7 @@ export const OnlinePaymentsView: React.FC = () => {
 
       {/* List */}
       {loading ? (
-        <View style={styles.centerBox}>
-          <ActivityIndicator size="large" color="#F4C430" />
-          <Text style={styles.centerText}>Loading online payments…</Text>
-        </View>
+        <AccountantOnlinePaymentsSkeleton />
       ) : error ? (
         <View style={styles.centerBox}>
           <MaterialCommunityIcons name="alert-circle-outline" size={44} color="#171717" />

@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { fetchInstitutionByIdApi } from '../../../api/institutions';
 import { Institution } from '../../../features/developer/types/developer.types';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { SchoolDetailsSkeleton } from '../../../features/shared/components/skeletons/SharedSkeletons';
 
 export default function SchoolProfileScreen() {
   const { id } = useLocalSearchParams();
@@ -27,11 +28,7 @@ export default function SchoolProfileScreen() {
   }, [id]);
 
   if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#4A90D9" />
-      </View>
-    );
+    return <SchoolDetailsSkeleton />;
   }
 
   if (!school) {

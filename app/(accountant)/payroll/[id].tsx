@@ -32,6 +32,7 @@ import {
   payrollRowStatus,
 } from '../../../features/accountant/utils/payrollUtils';
 import { showAlert } from '../../../features/shared/utils/showAlert';
+import { AccountantPayrollSkeleton } from '../../../features/accountant/components/skeletons/AccountantSkeletons';
 
 const METHOD_LABELS: Record<PaymentMethod, string> = {
   bank_transfer: 'Bank Transfer',
@@ -225,11 +226,13 @@ export default function AccountantPayrollPersonScreen() {
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Payroll</Text>
           </View>
-          <View style={styles.loadingWrap}>
-            <Text style={styles.loadingText}>
-              {payrollLoading ? 'Loading payroll…' : 'Schedule not found.'}
-            </Text>
-          </View>
+          {payrollLoading ? (
+            <AccountantPayrollSkeleton />
+          ) : (
+            <View style={styles.loadingWrap}>
+              <Text style={styles.loadingText}>Schedule not found.</Text>
+            </View>
+          )}
         </SafeAreaView>
       </View>
     );

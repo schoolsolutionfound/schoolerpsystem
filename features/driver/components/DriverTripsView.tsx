@@ -20,6 +20,7 @@ import {
 import { DriverTripHero } from './DriverTripHero';
 import { DriverTripBroadcastCard } from './DriverTripBroadcastCard';
 import { DriverTripStopsTimeline } from './DriverTripStopsTimeline';
+import { DriverTripsSkeleton } from './skeletons/DriverSkeletons';
 
 const EARTH_RADIUS_KM = 6371;
 
@@ -229,12 +230,7 @@ export const DriverTripsView: React.FC = () => {
   };
 
   if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#F4C430" />
-        <Text style={styles.loadingText}>Loading assigned route & bus...</Text>
-      </View>
-    );
+    return <DriverTripsSkeleton />;
   }
 
   const routeName = assignment?.route?.name || 'No route assigned';

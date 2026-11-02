@@ -19,6 +19,7 @@ import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { FontFamily } from '../../constants/fonts';
 import { fetchMyTimetableApi } from '../../api/academics';
 import { useUserStore } from '../../store/useUserStore';
+import { FeedbackSkeleton } from '../../features/shared/components/skeletons/SharedSkeletons';
 
 interface SubjectItem {
   id: string;
@@ -63,6 +64,7 @@ export default function StudentFeedbackScreen() {
   const [currentRatings, setCurrentRatings] = useState<Record<string, number>>({});
   const [description, setDescription] = useState<string>('');
   const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [loadingSubjects, setLoadingSubjects] = useState<boolean>(true);
 
   const userDept = useUserStore((s) => s.department);
 
@@ -106,6 +108,8 @@ export default function StudentFeedbackScreen() {
       }
     } catch (err) {
       console.warn('[StudentFeedback] error loading dynamic subjects:', err);
+    } finally {
+      setLoadingSubjects(false);
     }
   }, [userDept, defaultSem]);
 
@@ -152,6 +156,25 @@ export default function StudentFeedbackScreen() {
       'Student feedback submission is not enabled for this institution yet.'
     );
   };
+
+  if (loadingSubjects) {
+    return (
+      <View style={styles.container}>
+        <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
+          <TouchableOpacity
+            style={styles.backBtn}
+            onPress={() => router.back()}
+            activeOpacity={0.7}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
+            <Feather name="arrow-left" size={24} color="#111827" />
+          </TouchableOpacity>
+          <Text style={styles.topBarTitle}>Feedback</Text>
+        </View>
+        <FeedbackSkeleton />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
