@@ -380,14 +380,9 @@ export async function updateStudentDetailApi(
   studentId: string,
   updates: Partial<StudentDetailDossier>
 ): Promise<boolean> {
-  try {
-    await apiClient(`/admin/students/${studentId}`, {
-      method: 'PATCH',
-      body: JSON.stringify(updates),
-    });
-    return true;
-  } catch (err) {
-    console.warn('[updateStudentDetailApi] backend notice (mock/local sync):', err);
-    return true;
-  }
+  await apiClient(`/admin/students/${studentId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(updates),
+  });
+  return true;
 }

@@ -29,95 +29,13 @@ interface AttendanceDayLog {
   hours: string;
 }
 
-const INITIAL_LOGS: AttendanceDayLog[] = [
-  {
-    date: '2026-10-20',
-    dayName: 'Tue',
-    status: 'PRESENT',
-    checkIn: '08:42 AM',
-    checkOut: '04:30 PM',
-    hours: '7h 48m',
-  },
-  {
-    date: '2026-10-19',
-    dayName: 'Mon',
-    status: 'PRESENT',
-    checkIn: '08:40 AM',
-    checkOut: '04:35 PM',
-    hours: '7h 55m',
-  },
-  {
-    date: '2026-10-17',
-    dayName: 'Sat',
-    status: 'PRESENT',
-    checkIn: '08:55 AM',
-    checkOut: '01:30 PM',
-    hours: '4h 35m',
-  },
-  {
-    date: '2026-10-16',
-    dayName: 'Fri',
-    status: 'LATE',
-    checkIn: '09:15 AM',
-    checkOut: '04:30 PM',
-    hours: '7h 15m',
-  },
-  {
-    date: '2026-10-15',
-    dayName: 'Thu',
-    status: 'PRESENT',
-    checkIn: '08:38 AM',
-    checkOut: '04:30 PM',
-    hours: '7h 52m',
-  },
-  {
-    date: '2026-10-14',
-    dayName: 'Wed',
-    status: 'ON_LEAVE',
-    checkIn: '--',
-    checkOut: '--',
-    hours: '0h',
-  },
-  {
-    date: '2026-10-13',
-    dayName: 'Tue',
-    status: 'PRESENT',
-    checkIn: '08:44 AM',
-    checkOut: '04:32 PM',
-    hours: '7h 48m',
-  },
-  {
-    date: '2026-10-12',
-    dayName: 'Mon',
-    status: 'PRESENT',
-    checkIn: '08:41 AM',
-    checkOut: '04:30 PM',
-    hours: '7h 49m',
-  },
-  {
-    date: '2026-10-10',
-    dayName: 'Sat',
-    status: 'PRESENT',
-    checkIn: '08:50 AM',
-    checkOut: '01:30 PM',
-    hours: '4h 40m',
-  },
-  {
-    date: '2026-10-09',
-    dayName: 'Fri',
-    status: 'PRESENT',
-    checkIn: '08:39 AM',
-    checkOut: '04:30 PM',
-    hours: '7h 51m',
-  },
-];
 
 export const TeacherAttendanceView: React.FC<TeacherAttendanceViewProps> = ({ onBack }) => {
-  const fullName = useUserStore((s) => s.fullName) || 'Teacher';
-  const employeeId = useUserStore((s) => s.employeeId) || 'EMP-2024';
-  const designation = useUserStore((s) => s.designation) || 'Senior Faculty';
+  const fullName = useUserStore((s) => s.fullName) || '';
+  const employeeId = useUserStore((s) => s.employeeId) || '';
+  const designation = useUserStore((s) => s.designation) || '';
 
-  const [logs] = useState<AttendanceDayLog[]>(INITIAL_LOGS);
+  const [logs] = useState<AttendanceDayLog[]>([]);
 
   // Leave Modal State
   const [leaveModalVisible, setLeaveModalVisible] = useState(false);

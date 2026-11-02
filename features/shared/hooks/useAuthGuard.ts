@@ -26,6 +26,7 @@ export function useAuthGuard({
   isBootReady = true,
 }: AuthGuardProps) {
   const router = useRouter();
+  const accessBlocked = useUserStore((state) => state.accessBlocked);
 
   useEffect(() => {
     if (__DEV__) {
@@ -51,6 +52,20 @@ export function useAuthGuard({
       if (!isProfileSynced) return;
 
       const state = useUserStore.getState();
+
+      if (state.accessBlocked) {
+        if (pathname !== '/account-blocked') {
+          if (__DEV__) console.log('[BOOT] auth guard redirect blocked account -> /account-blocked');
+          router.replace('/account-blocked');
+        }
+        return;
+      }
+
+      if (pathname === '/account-blocked') {
+        if (__DEV__) console.log('[BOOT] auth guard redirect unblocked account -> home');
+        router.replace(getHomeRouteForRole(state.userRole) as any);
+        return;
+      }
 
       // Grouped role homes also resolve to pathname "/home" on native, so only
       // redirect when the active group is not the user's authoritative group.
@@ -107,7 +122,7 @@ export function useAuthGuard({
         router.replace('/auth');
       }
     }
-  }, [pathname, userRole, userSession, activeGroup, _hasHydrated, authLoading, isProfileSynced, isBootReady, router]);
+  }, [pathname, userRole, userSession, activeGroup, _hasHydrated, authLoading, isProfileSynced, isBootReady, accessBlocked, router]);
 
   return false;
 }

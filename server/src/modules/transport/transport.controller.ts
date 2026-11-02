@@ -1,6 +1,16 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { transportService } from './transport.service.js';
-import { StartTripSchema, UpdateLocationSchema } from './transport.schema.js';
+import {
+  StartTripSchema,
+  UpdateLocationSchema,
+  CreateVehicleSchema,
+  UpdateVehicleSchema,
+  CreateRouteSchema,
+  UpdateRouteSchema,
+  CreateStopSchema,
+  UpdateStopSchema,
+  AssignStudentTransportSchema,
+} from './transport.schema.js';
 
 function getInstCode(req: FastifyRequest): string {
   const user = req.user;
@@ -157,6 +167,143 @@ export async function streamBusLocationHandler(request: FastifyRequest, reply: F
     });
   } catch (err: any) {
     return sendError(reply, err, 'Failed to establish live location stream');
+  }
+}
+
+// ---------------------------------------------------------------- admin / admission
+
+export async function getTransportOverviewHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const institutionCode = getInstCode(request);
+    const data = await transportService.getAdminOverview(institutionCode);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to load transport overview');
+  }
+}
+
+export async function createRouteHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const institutionCode = getInstCode(request);
+    const body = CreateRouteSchema.parse(request.body);
+    const data = await transportService.createRoute(institutionCode, body);
+    return reply.status(201).send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to create bus route');
+  }
+}
+
+export async function updateRouteHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const institutionCode = getInstCode(request);
+    const routeId = (request.params as any).id;
+    const body = UpdateRouteSchema.parse(request.body);
+    const data = await transportService.updateRoute(institutionCode, routeId, body);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to update bus route');
+  }
+}
+
+export async function deleteRouteHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const institutionCode = getInstCode(request);
+    const routeId = (request.params as any).id;
+    const data = await transportService.deleteRoute(institutionCode, routeId);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to delete bus route');
+  }
+}
+
+export async function createVehicleHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const institutionCode = getInstCode(request);
+    const body = CreateVehicleSchema.parse(request.body);
+    const data = await transportService.createVehicle(institutionCode, body);
+    return reply.status(201).send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to create bus');
+  }
+}
+
+export async function updateVehicleHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const institutionCode = getInstCode(request);
+    const vehicleId = (request.params as any).id;
+    const body = UpdateVehicleSchema.parse(request.body);
+    const data = await transportService.updateVehicle(institutionCode, vehicleId, body);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to update bus');
+  }
+}
+
+export async function addStopHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const institutionCode = getInstCode(request);
+    const routeId = (request.params as any).id;
+    const body = CreateStopSchema.parse(request.body);
+    const data = await transportService.addStop(institutionCode, routeId, body);
+    return reply.status(201).send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to add bus stop');
+  }
+}
+
+export async function updateStopHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const institutionCode = getInstCode(request);
+    const stopId = (request.params as any).id;
+    const body = UpdateStopSchema.parse(request.body);
+    const data = await transportService.updateStop(institutionCode, stopId, body);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to update bus stop');
+  }
+}
+
+export async function deleteStopHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const institutionCode = getInstCode(request);
+    const stopId = (request.params as any).id;
+    const data = await transportService.deleteStop(institutionCode, stopId);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to delete bus stop');
+  }
+}
+
+export async function searchStudentsHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const institutionCode = getInstCode(request);
+    const search = String((request.query as any)?.search || '');
+    const data = await transportService.searchStudents(institutionCode, search);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to search students');
+  }
+}
+
+export async function assignStudentHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const institutionCode = getInstCode(request);
+    const body = AssignStudentTransportSchema.parse(request.body);
+    const data = await transportService.assignStudent(institutionCode, body);
+    return reply.status(201).send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to assign student to bus route');
+  }
+}
+
+export async function removeAssignmentHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const institutionCode = getInstCode(request);
+    const assignmentId = (request.params as any).id;
+    const data = await transportService.removeAssignment(institutionCode, assignmentId);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to remove student transport assignment');
   }
 }
 

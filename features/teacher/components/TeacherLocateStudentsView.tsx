@@ -15,16 +15,7 @@ interface Student {
   parentPhone: string;
 }
 
-const MOCK_STUDENTS: Student[] = [
-  { id: '1', name: 'Aarav Sharma', usn: 'C6A-001', class: 'Class 6', section: 'A', status: 'present', lastSeen: '8:30 AM', parentPhone: '+91 98765 43210' },
-  { id: '2', name: 'Diya Kumar', usn: 'C6A-002', class: 'Class 6', section: 'A', status: 'present', lastSeen: '8:25 AM', parentPhone: '+91 98765 43211' },
-  { id: '3', name: 'Vivaan Reddy', usn: 'C6A-003', class: 'Class 6', section: 'A', status: 'absent', lastSeen: 'Yesterday', parentPhone: '+91 98765 43212' },
-  { id: '4', name: 'Ananya Patel', usn: 'C6A-004', class: 'Class 6', section: 'A', status: 'late', lastSeen: '9:10 AM', parentPhone: '+91 98765 43213' },
-  { id: '5', name: 'Rohan Gupta', usn: 'C6B-001', class: 'Class 6', section: 'B', status: 'present', lastSeen: '8:28 AM', parentPhone: '+91 98765 43214' },
-  { id: '6', name: 'Ishita Joshi', usn: 'C6B-002', class: 'Class 6', section: 'B', status: 'present', lastSeen: '8:30 AM', parentPhone: '+91 98765 43215' },
-  { id: '7', name: 'Kabir Singh', usn: 'C6B-003', class: 'Class 6', section: 'B', status: 'absent', lastSeen: '3 days ago', parentPhone: '+91 98765 43216' },
-  { id: '8', name: 'Meera Nair', usn: 'C6B-004', class: 'Class 6', section: 'B', status: 'present', lastSeen: '8:20 AM', parentPhone: '+91 98765 43217' },
-];
+const STUDENTS: Student[] = [];
 
 export const TeacherLocateStudentsView: React.FC = () => {
   const [search, setSearch] = useState('');
@@ -38,9 +29,9 @@ export const TeacherLocateStudentsView: React.FC = () => {
     }, 600);
   };
 
-  const classes = ['All', 'Class 6 A', 'Class 6 B'];
+  const classes = ['All', ...Array.from(new Set(STUDENTS.map((s) => `${s.class} ${s.section}`)))];
 
-  const filtered = MOCK_STUDENTS.filter((s) => {
+  const filtered = STUDENTS.filter((s) => {
     const matchesSearch = !search || s.name.toLowerCase().includes(search.toLowerCase()) || s.usn.toLowerCase().includes(search.toLowerCase());
     const matchesClass = !selectedClass || selectedClass === 'All' || `${s.class} ${s.section}` === selectedClass;
     return matchesSearch && matchesClass;
@@ -125,6 +116,13 @@ export const TeacherLocateStudentsView: React.FC = () => {
       >
         {refreshing ? (
           <TeacherLocateSkeleton />
+        ) : filtered.length === 0 ? (
+          <View style={{ padding: 24, alignItems: 'center' }}>
+            <MaterialCommunityIcons name="account-search-outline" size={38} color="#9CA3AF" />
+            <Text style={{ marginTop: 8, fontFamily: FontFamily.regular, color: '#6B7280' }}>
+              No students found.
+            </Text>
+          </View>
         ) : (
           filtered.map((student) => {
             const meta = statusMeta(student.status);

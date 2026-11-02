@@ -33,10 +33,10 @@ function formatINR(amount: number): string {
 
 export async function generateStudentFeeReceiptPdf(receipt: StudentFeeReceiptData): Promise<void> {
   const userStore = useUserStore.getState();
-  const institutionName = userStore.institutionName || userStore.schoolName || 'School Management System';
-  const studentName = receipt.studentName || userStore.fullName || 'Student';
+  const institutionName = userStore.institutionName || userStore.schoolName || '';
+  const studentName = receipt.studentName || userStore.fullName || '';
   const rollNo = receipt.rollNo || userStore.rollNoOrUSN || '—';
-  const classSection = receipt.classSection || 'Class 6 A';
+  const classSection = receipt.classSection || '';
   const receiptNo = receipt.receiptNo || `REC-${Date.now().toString().slice(-6)}`;
   const dateStr = receipt.date || new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   const generatedTimestamp = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });

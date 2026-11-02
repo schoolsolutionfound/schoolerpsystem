@@ -101,14 +101,14 @@ export const SchoolDiscoveryFeed = () => {
     // Fallback if the affiliated school was not in the default list
     if (effectiveName || effectiveCode) {
       const fallbackSchool: Institution = {
-        id: effectiveCode || 'AFFILIATED_SCHOOL',
-        institutionCode: effectiveCode || 'AFFILIATED',
-        institutionName: effectiveName || 'Affiliated Campus',
+        id: effectiveCode || '',
+        institutionCode: effectiveCode || '',
+        institutionName: effectiveName || '',
         institutionType: 'school',
         subscriptionStatus: 'active',
-        description: 'Your currently affiliated institution campus.',
-        averageRating: 5.0,
-        totalReviews: 1,
+        description: '',
+        averageRating: 0,
+        totalReviews: 0,
       };
       return [fallbackSchool];
     }
@@ -180,13 +180,13 @@ export const SchoolDiscoveryFeed = () => {
               <View style={styles.ratingRow}>
                 <MaterialCommunityIcons name="star" size={16} color="#F59E0B" />
                 <Text style={styles.ratingText}>
-                  {item.averageRating ? item.averageRating.toFixed(1) : '5.0'} 
-                  {item.totalReviews ? ` (${item.totalReviews} reviews)` : ' (Official Campus)'}
+                  {item.averageRating ? item.averageRating.toFixed(1) : '-'}
+                  {item.totalReviews ? ` (${item.totalReviews} reviews)` : ''}
                 </Text>
               </View>
 
               <Text style={styles.description} numberOfLines={2}>
-                {item.description || "Official affiliated school offering comprehensive academic curriculum."}
+                {item.description || '-'}
               </Text>
 
               <TouchableOpacity

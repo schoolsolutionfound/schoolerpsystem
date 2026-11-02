@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -8,14 +8,16 @@ import { UnifiedHeader } from '../../features/shared/components/layout/UnifiedHe
 import { FloatingFooter } from '../../features/shared/components/layout/FloatingFooter';
 import { useDebugTab } from '../../features/shared/hooks/useDebugTab';
 import { AdmissionDrawer } from '../../features/admission/components/AdmissionDrawer';
+import { AdmissionLiveTrackingView } from '../../features/admission/components/AdmissionLiveTrackingView';
 import { AdmissionSeatTrackingView } from '../../features/admission/components/AdmissionSeatTrackingView';
 import { AdmissionStudentsView } from '../../features/admission/components/AdmissionStudentsView';
 import { AdmissionProfileView } from '../../features/admission/components/AdmissionProfileView';
 import { AdmissionStudentFormModal } from '../../features/admission/components/AdmissionStudentFormModal';
 import { AdmissionCourse, getAdmissionCourses } from '../../api/admission';
+import { TransportManagementView } from '../../features/shared/transport/TransportManagementView';
 import { FontFamily } from '../../constants/fonts';
 
-type Tab = 'students' | 'tracking' | 'profile';
+type Tab = 'students' | 'tracking' | 'transport' | 'profile';
 
 export default function AdmissionHomeScreen() {
   const router = useRouter();
@@ -23,6 +25,7 @@ export default function AdmissionHomeScreen() {
   const [activeTab, setActiveTab] = useState<Tab>((params.tab as Tab) || 'students');
   useDebugTab('admission', activeTab);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [trackingMode, setTrackingMode] = useState<'map' | 'seats'>('map');
 
   // Filter pass-through from tracking tab
   const [targetBranchId, setTargetBranchId] = useState<string | undefined>(undefined);
@@ -41,11 +44,12 @@ export default function AdmissionHomeScreen() {
   const tabs = [
     { key: 'students' as Tab, label: 'Registry', icon: 'account-group-outline', iconFilled: 'account-group' },
     { key: 'tracking' as Tab, label: 'Tracking', icon: 'view-dashboard-outline', iconFilled: 'view-dashboard' },
+    { key: 'transport' as Tab, label: 'Transport', icon: 'bus-outline', iconFilled: 'bus' },
     { key: 'profile' as Tab, label: 'Profile', icon: 'account-circle-outline', iconFilled: 'account-circle' },
   ];
 
   useEffect(() => {
-    if (params.tab && ['students', 'tracking', 'profile'].includes(params.tab)) {
+    if (params.tab && ['students', 'tracking', 'transport', 'profile'].includes(params.tab)) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveTab(params.tab as Tab);
     }
@@ -75,11 +79,65 @@ export default function AdmissionHomeScreen() {
         );
       case 'tracking':
         return (
-          <AdmissionSeatTrackingView
-            key={`tracking_${refreshKey}`}
-            onNavigateToStudents={handleNavigateToStudents}
-          />
+          <View style={styles.trackingContainer}>
+            <View style={styles.trackingToggle}>
+              <TouchableOpacity
+                style={[
+                  styles.trackingToggleBtn,
+                  trackingMode === 'map' && styles.trackingToggleBtnActive,
+                ]}
+                onPress={() => setTrackingMode('map')}
+                activeOpacity={0.8}
+              >
+                <Feather
+                  name="map"
+                  size={14}
+                  color={trackingMode === 'map' ? '#1A1B1C' : '#6B7280'}
+                />
+                <Text
+                  style={[
+                    styles.trackingToggleText,
+                    trackingMode === 'map' && styles.trackingToggleTextActive,
+                  ]}
+                >
+                  Live Map
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.trackingToggleBtn,
+                  trackingMode === 'seats' && styles.trackingToggleBtnActive,
+                ]}
+                onPress={() => setTrackingMode('seats')}
+                activeOpacity={0.8}
+              >
+                <Feather
+                  name="layers"
+                  size={14}
+                  color={trackingMode === 'seats' ? '#1A1B1C' : '#6B7280'}
+                />
+                <Text
+                  style={[
+                    styles.trackingToggleText,
+                    trackingMode === 'seats' && styles.trackingToggleTextActive,
+                  ]}
+                >
+                  Seat Matrix
+                </Text>
+              </TouchableOpacity>
+            </View>
+            {trackingMode === 'map' ? (
+              <AdmissionLiveTrackingView />
+            ) : (
+              <AdmissionSeatTrackingView
+                key={`tracking_${refreshKey}`}
+                onNavigateToStudents={handleNavigateToStudents}
+              />
+            )}
+          </View>
         );
+      case 'transport':
+        return <TransportManagementView roleLabel="Admissions transport desk" />;
       case 'profile':
         return <AdmissionProfileView />;
       default:
@@ -164,6 +222,29 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFFFFF' },
   safe: { flex: 1 },
   content: { flex: 1 },
+
+  trackingContainer: { flex: 1, backgroundColor: '#FAF8F5' },
+  trackingToggle: {
+    flexDirection: 'row',
+    gap: 6,
+    marginHorizontal: 12,
+    marginTop: 10,
+    padding: 4,
+    borderRadius: 10,
+    backgroundColor: '#F1EFE9',
+  },
+  trackingToggleBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  trackingToggleBtnActive: { backgroundColor: '#F4C430' },
+  trackingToggleText: { fontSize: 12, fontFamily: FontFamily.medium, color: '#6B7280' },
+  trackingToggleTextActive: { color: '#1A1B1C', fontFamily: FontFamily.bold },
 
   // Floating (+) Intake Button
   floatingAddBtn: {

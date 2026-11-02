@@ -80,7 +80,7 @@ export default function LibrarianHomeScreen() {
   const { width } = useWindowDimensions();
   const isDesktop = width >= 900;
 
-  const userName = useUserStore((state) => state.fullName) || 'Amina Rahman';
+  const userName = useUserStore((state) => state.fullName) || '';
   const resetUser = useUserStore((state) => state.resetUser);
 
   // Navigation & Drawer State
@@ -217,17 +217,19 @@ export default function LibrarianHomeScreen() {
     }
   };
 
+  const logoutNow = async () => {
+    try { await signOut(auth); } catch { }
+    resetUser();
+    router.replace('/auth');
+  };
+
   const handleLogout = () => {
     Alert.alert('Sign Out', 'Are you sure you want to log out of Librarian Portal?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Logout',
         style: 'destructive',
-        onPress: async () => {
-          try { await signOut(auth); } catch { }
-          resetUser();
-          router.replace('/auth');
-        },
+        onPress: logoutNow,
       },
     ]);
   };
@@ -620,7 +622,7 @@ export default function LibrarianHomeScreen() {
               setDrawerOpen(false);
               handleSwitchTab(tab);
             }}
-            onLogout={handleLogout}
+            onLogout={logoutNow}
           />
         )}
 

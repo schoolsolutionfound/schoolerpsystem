@@ -6,9 +6,18 @@
  *   npx tsx scripts/seedTestAccounts.ts
  *
  * Accounts created:
- *   admin@school.com       / admin123  → role: admin
- *   accountant@school.com  / admin123  → role: accountant
- *   student@school.com     / admin123  → role: student
+ *   admin@school.com           / admin123  → role: admin
+ *   accountant@school.com      / admin123  → role: accountant
+ *   student@school.com         / admin123  → role: student
+ *   teacher@school.com         / admin123  → role: teacher
+ *   principal@school.com       / admin123  → role: principal
+ *   hod@school.com             / admin123  → role: hod
+ *   librarian@school.com       / admin123  → role: librarian
+ *   parent@school.com          / admin123  → role: parent
+ *   driver@school.com          / admin123  → role: driver
+ *   admission@school.com       / admin123  → role: admission_officer
+ *   placement@school.com       / admin123  → role: placement_officer
+ *   institution-admin@school.com / admin123 → role: institution admin
  *
  * If an account already exists it is skipped (no error thrown).
  * After Firebase Auth accounts are created, matching rows are upserted
@@ -59,6 +68,78 @@ const TEST_ACCOUNTS = [
     password:  'admin123',
     fullName:  'Test Student',
     role:      'student',
+    profileCompleted: true,
+    mustChangePassword: false,
+  },
+  {
+    email:     'teacher@school.com',
+    password:  'admin123',
+    fullName:  'Test Teacher',
+    role:      'teacher',
+    profileCompleted: true,
+    mustChangePassword: false,
+  },
+  {
+    email:     'principal@school.com',
+    password:  'admin123',
+    fullName:  'Test Principal',
+    role:      'principal',
+    profileCompleted: true,
+    mustChangePassword: false,
+  },
+  {
+    email:     'hod@school.com',
+    password:  'admin123',
+    fullName:  'Test HOD',
+    role:      'hod',
+    profileCompleted: true,
+    mustChangePassword: false,
+  },
+  {
+    email:     'librarian@school.com',
+    password:  'admin123',
+    fullName:  'Test Librarian',
+    role:      'librarian',
+    profileCompleted: true,
+    mustChangePassword: false,
+  },
+  {
+    email:     'parent@school.com',
+    password:  'admin123',
+    fullName:  'Test Parent',
+    role:      'parent',
+    profileCompleted: true,
+    mustChangePassword: false,
+  },
+  {
+    email:     'driver@school.com',
+    password:  'admin123',
+    fullName:  'Test Driver',
+    role:      'driver',
+    profileCompleted: true,
+    mustChangePassword: false,
+  },
+  {
+    email:     'admission@school.com',
+    password:  'admin123',
+    fullName:  'Admission Officer',
+    role:      'admission_officer',
+    profileCompleted: true,
+    mustChangePassword: false,
+  },
+  {
+    email:     'placement@school.com',
+    password:  'admin123',
+    fullName:  'Placement Officer',
+    role:      'placement_officer',
+    profileCompleted: true,
+    mustChangePassword: false,
+  },
+  {
+    email:     'institution-admin@school.com',
+    password:  'admin123',
+    fullName:  'Institution Admin',
+    role:      'institution admin',
     profileCompleted: true,
     mustChangePassword: false,
   },
@@ -135,10 +216,19 @@ async function main() {
   }
 
   if (dbConnected) await db.end();
-  console.log('\n✅ Done. You can now log in with:\n');
-  console.log('   admin@school.com       / admin123  (Admin)');
-  console.log('   accountant@school.com  / admin123  (Accountant)');
-  console.log('   student@school.com     / admin123  (Student)\n');
+   console.log('\n✅ Done. You can now log in with:\n');
+  console.log('   admin@school.com           / admin123  (Admin)');
+  console.log('   accountant@school.com      / admin123  (Accountant)');
+  console.log('   student@school.com         / admin123  (Student)');
+  console.log('   teacher@school.com         / admin123  (Teacher)');
+  console.log('   principal@school.com       / admin123  (Principal)');
+  console.log('   hod@school.com             / admin123  (HOD)');
+  console.log('   librarian@school.com       / admin123  (Librarian)');
+  console.log('   parent@school.com          / admin123  (Parent)');
+  console.log('   driver@school.com          / admin123  (Driver)');
+  console.log('   admission@school.com       / admin123  (Admission Officer)');
+  console.log('   placement@school.com       / admin123  (Placement Officer)');
+  console.log('   institution-admin@school.com / admin123 (Institution Admin)\n');
   process.exit(0);
 }
 

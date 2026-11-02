@@ -22,11 +22,11 @@ interface AccountantHomeOverviewProps {
   userName?: string;
 }
 
-const QUICK_ACTIONS: { tab: NavTab; title: string; sub: string; icon: string }[] = [
-  { tab: 'fees', title: 'Student Fees', sub: 'Collect & manage', icon: 'school-outline' },
-  { tab: 'dues', title: 'Pending Dues', sub: 'Outstanding receivables', icon: 'clock-alert-outline' },
-  { tab: 'payments', title: 'Online Payments', sub: 'Razorpay gateway', icon: 'credit-card-outline' },
-  { tab: 'accounts', title: 'Accounts', sub: 'Tally & audit PDF', icon: 'calculator-variant-outline' },
+const QUICK_ACTIONS: { tab: NavTab; title: string }[] = [
+  { tab: 'fees', title: 'Student Fees' },
+  { tab: 'payments', title: 'Online Payments' },
+  { tab: 'dues', title: 'Pending Dues' },
+  { tab: 'accounts', title: 'Accounts' },
 ];
 
 export const AccountantHomeOverview: React.FC<AccountantHomeOverviewProps> = ({
@@ -75,7 +75,6 @@ export const AccountantHomeOverview: React.FC<AccountantHomeOverviewProps> = ({
       {/* ── Greeting ── */}
       <View style={styles.headerRow}>
         <Text style={styles.greeting}>Hello, {firstName}</Text>
-        <Text style={styles.greetingSub}>Here is your finance overview.</Text>
       </View>
 
       {/* ── Net Balance ── */}
@@ -149,14 +148,7 @@ export const AccountantHomeOverview: React.FC<AccountantHomeOverviewProps> = ({
               activeOpacity={0.75}
               onPress={() => onNavigateTab(a.tab)}
             >
-              <View style={styles.quickTopRow}>
-                <View style={styles.quickIcon}>
-                  <MaterialCommunityIcons name={a.icon as any} size={18} color="#171717" />
-                </View>
-                <MaterialCommunityIcons name="chevron-right" size={16} color="#9CA3AF" />
-              </View>
               <Text style={styles.quickCardTitle}>{a.title}</Text>
-              <Text style={styles.quickCardSub} numberOfLines={1}>{a.sub}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -237,13 +229,13 @@ const styles = StyleSheet.create({
   balanceLabel: {
     fontSize: 10,
     fontFamily: FontFamily.bold,
-    color: '#B8860B',
+    color: '#171717',
     letterSpacing: 1.2,
   },
   balanceAmount: {
     fontSize: 28,
     fontFamily: FontFamily.extrabold,
-    color: '#111827',
+    color: '#171717',
     letterSpacing: -0.5,
     marginTop: 2,
   },
@@ -257,9 +249,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   statCell: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
-  statNum: { fontSize: 13, fontFamily: FontFamily.extrabold, marginTop: 3, maxWidth: '100%' },
+  statNum: { fontSize: 15, fontFamily: FontFamily.extrabold, marginTop: 3, maxWidth: '100%' },
   statLabel: {
-    fontSize: 9,
+    fontSize: 11,
     fontFamily: FontFamily.bold,
     color: '#9CA3AF',
     letterSpacing: 0.5,
@@ -293,22 +285,7 @@ const styles = StyleSheet.create({
     padding: 12,
     gap: 3,
   },
-  quickTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  quickIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    backgroundColor: '#FFF4C7',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  quickCardTitle: { fontSize: 13, fontFamily: FontFamily.bold, color: '#111827' },
-  quickCardSub: { fontSize: 10, fontFamily: FontFamily.regular, color: '#6B7280' },
+  quickCardTitle: { fontSize: 14, fontFamily: FontFamily.bold, color: '#171717' },
 
   // ── Recent Activity ───────────────────────────────────────────────────────
   activityCard: {
@@ -326,7 +303,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: 6,
   },
-  viewAll: { fontSize: 12, fontFamily: FontFamily.bold, color: '#B8860B', marginTop: 4 },
+  viewAll: { fontSize: 12, fontFamily: FontFamily.bold, color: '#171717', marginTop: 4 },
   emptyText: {
     fontSize: 12,
     fontFamily: FontFamily.regular,

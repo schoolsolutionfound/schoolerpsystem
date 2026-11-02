@@ -1,6 +1,6 @@
-import React, { useRef, useEffect, useState, useMemo } from 'react';
+import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, Platform } from 'react-native';
-import MapView, { Marker, Polyline, Callout } from 'react-native-maps';
+import MapView, { Marker, Polyline, Callout, PROVIDER_GOOGLE } from 'react-native-maps';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BusMapProps } from './types';
 import { BusMapPlaceholder } from './BusMapPlaceholder';
@@ -17,14 +17,16 @@ export const BusMapView: React.FC<BusMapProps> = ({
   const mapRef = useRef<MapView>(null);
   const [isUserPanning, setIsUserPanning] = useState(false);
 
-  // If there are no stops, show placeholder empty state
-  if (!stops || stops.length === 0) {
-    return <BusMapPlaceholder stops={[]} isLive={isLive} height={height} />;
-  }
+  // Android always uses Google Maps. iOS uses Google Maps when an API key is
+  // configured, otherwise falls back to native Apple Maps.
+  const mapProvider =
+    Platform.OS === 'android' || process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
+      ? PROVIDER_GOOGLE
+      : undefined;
 
   // Sorted stops by sequence for drawing route polyline
   const sortedStops = useMemo(() => {
-    return [...stops].sort((a, b) => a.sequence - b.sequence);
+    return [...(stops || [])].sort((a, b) => a.sequence - b.sequence);
   }, [stops]);
 
   // Coordinates array for polyline (Gap 3: True road curves)
@@ -42,7 +44,7 @@ export const BusMapView: React.FC<BusMapProps> = ({
   }, [sortedStops, roadPath]);
 
   // Initial region or fit on mount / stops change
-  const fitMapToStops = () => {
+  const fitMapToStops = useCallback(() => {
     if (!mapRef.current || polylineCoordinates.length === 0) return;
     const allCoords = [...polylineCoordinates];
     if (busLocation) {
@@ -57,14 +59,17 @@ export const BusMapView: React.FC<BusMapProps> = ({
       animated: true,
     });
     setIsUserPanning(false);
-  };
+  }, [polylineCoordinates, busLocation]);
 
   useEffect(() => {
+    if (!stops || stops.length === 0) return;
     // Slight timeout to allow map layout to finish before fitting
     const timer = setTimeout(() => {
       fitMapToStops();
     }, 400);
     return () => clearTimeout(timer);
+    // Refit only when the stop list changes, not on every bus location update.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stops]);
 
   // Gently animate camera to follow bus when live and user is not manually panning
@@ -81,7 +86,7 @@ export const BusMapView: React.FC<BusMapProps> = ({
         { duration: 1000 }
       );
     }
-  }, [busLocation?.latitude, busLocation?.longitude, isLive, isUserPanning]);
+  }, [busLocation, isLive, isUserPanning]);
 
   const recenter = () => {
     if (isLive && busLocation && mapRef.current) {
@@ -101,6 +106,11 @@ export const BusMapView: React.FC<BusMapProps> = ({
     }
   };
 
+  // If there are no stops, show placeholder empty state (after all hooks).
+  if (!stops || stops.length === 0) {
+    return <BusMapPlaceholder stops={[]} isLive={isLive} height={height} />;
+  }
+
   const initialRegion = {
     latitude: Number(sortedStops[0]?.latitude || 12.9716),
     longitude: Number(sortedStops[0]?.longitude || 77.5946),
@@ -112,6 +122,7 @@ export const BusMapView: React.FC<BusMapProps> = ({
     <View style={[styles.container, { height }]}>
       <MapView
         ref={mapRef}
+        provider={mapProvider}
         style={StyleSheet.absoluteFill}
         initialRegion={initialRegion}
         showsUserLocation={showUserLocation}

@@ -206,9 +206,17 @@ export class LibraryService {
       const historyCount = await libraryRepository.countLoansByCopyId(copy.id);
       if (historyCount > 0) {
         throw {
-          statusCode: 400,
+          statusCode: 409,
           code: 'COPY_HAS_LOAN_HISTORY',
           message: `Cannot delete book. Physical copy "${copy.accessionNumber}" has ${historyCount} loan record(s).`,
+        };
+      }
+      const fineCount = await libraryRepository.countFinesByCopyId(copy.id);
+      if (fineCount > 0) {
+        throw {
+          statusCode: 409,
+          code: 'COPY_HAS_FINE_HISTORY',
+          message: `Cannot delete book. Physical copy "${copy.accessionNumber}" has ${fineCount} fine record(s).`,
         };
       }
     }
@@ -282,9 +290,17 @@ export class LibraryService {
     const historyCount = await libraryRepository.countLoansByCopyId(id);
     if (historyCount > 0) {
       throw {
-        statusCode: 400,
+        statusCode: 409,
         code: 'COPY_HAS_LOAN_HISTORY',
         message: `Cannot delete physical copy with ${historyCount} loan record(s). The loan ledger must remain intact.`,
+      };
+    }
+    const fineCount = await libraryRepository.countFinesByCopyId(id);
+    if (fineCount > 0) {
+      throw {
+        statusCode: 409,
+        code: 'COPY_HAS_FINE_HISTORY',
+        message: `Cannot delete physical copy with ${fineCount} fine record(s). The fine ledger must remain intact.`,
       };
     }
     return libraryRepository.deleteCopy(id);

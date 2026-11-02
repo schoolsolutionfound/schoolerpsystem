@@ -71,7 +71,7 @@ function getDaysOverdue(dueDateStr: string): number {
  */
 function buildReportHtml(options: GeneratePdfOptions): string {
   const userStore = useUserStore.getState();
-  const institutionName = userStore.institutionName || userStore.schoolName || 'School Library Management';
+  const institutionName = userStore.institutionName || userStore.schoolName || '';
 
   const { reportType, timeRange, books, copies, students } = options;
 

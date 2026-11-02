@@ -23,6 +23,8 @@ interface UserState {
   _hasHydrated: boolean;
   isProfileSynced: boolean;
   profileExists: boolean;
+  accessBlocked: boolean;
+  accessBlockedReason: string;
 
   mustChangePassword: boolean;
   profileCompleted: boolean;
@@ -52,6 +54,7 @@ interface UserState {
   switchRole: (newRole: UserRole) => void;
   setIsProfileSynced: (state: boolean) => void;
   setProfileExists: (state: boolean) => void;
+  setAccessBlocked: (blocked: boolean, reason?: string) => void;
   resetUser: () => void;
   setHasHydrated: (state: boolean) => void;
   setSelectedInstitution: (id: string, name: string) => void;
@@ -81,6 +84,8 @@ export const useUserStore = create<UserState>()(
       _hasHydrated: false,
       isProfileSynced: false,
       profileExists: false,
+      accessBlocked: false,
+      accessBlockedReason: '',
 
       mustChangePassword: false,
       profileCompleted: false,
@@ -122,6 +127,8 @@ export const useUserStore = create<UserState>()(
         })),
       setIsProfileSynced: (state) => set({ isProfileSynced: state }),
       setProfileExists: (state) => set({ profileExists: state }),
+      setAccessBlocked: (blocked, reason = '') =>
+        set({ accessBlocked: blocked, accessBlockedReason: reason }),
 
       resetUser: () =>
         set({
@@ -139,6 +146,8 @@ export const useUserStore = create<UserState>()(
           isEmailVerified: false,
           isProfileSynced: false,
           profileExists: false,
+          accessBlocked: false,
+          accessBlockedReason: '',
           mustChangePassword: false,
           profileCompleted: false,
           institutionType: 'college',

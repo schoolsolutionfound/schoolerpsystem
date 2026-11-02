@@ -1,0 +1,11 @@
+$token = "eyJhbGciOiJSUzI1NiIsImtpZCI6IjkwNGIwZjkxYmU2ZWIwODY3ZGFiYmFhYjU4N2RmYzJlMzNmMDBhMjQiLCJ0eXAiOiJKV1QifQ.eyJuYW1lIjoiVFNUIFNjaG9vbCBBZG1pbiIsImlzcyI6Imh0dHBzOi8vc2VjdXJldG9rZW4uZ29vZ2xlLmNvbS9zY2hvb2wtZXJwLWFwcC1kZWM4MiIsImF1ZCI6InNjaG9vbC1lcnAtYXBwLWRlYzgyIiwiYXV0aF90aW1lIjoxNzkyOTQzNTA4LCJ1c2VyX2lkIjoianI1Q210RFZaUFBzWVc0dW5zNWU3Wm52T2t0MiIsInN1YiI6ImpyNUNtdERWWlBQc1lXNHVuczVlN1pudk9rdDIiLCJpYXQiOjE3OTI5NDM1MDgsImV4cCI6MTc5Mjk0NzEwOCwiZW1haWwiOiJhZG1pbkB0c3Qtc2NoLTAwMS5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiZmlyZWJhc2UiOnsiaWRlbnRpdGllcyI6eyJlbWFpbCI6WyJhZG1pbkB0c3Qtc2NoLTAwMS5jb20iXX0sInNpZ25faW5fcHJvdmlkZXIiOiJjdXN0b20ifX0.OSSrbIr5TvoqXUfn6c3MCC5EsNsD7-ec1r824UDMjTBFIimb1hCNrUIXWjK-gI9nrjQZMZj-vMqttmT4CCXgrTGajjegmrpgzmDgGwnik7KIOTZhTpV-MsLbmCVQKBRVt_cg6dyBlk3D4h8m0Uvf81kvxeb7HtNzU6Dbyj8m8i6STU73NaF1EfMjNUncBSb-Qg5SE7tjeEF2X3oAt_bN14WN7HiXywozZzSihLNPBzJNJ2oP6nUr2J79i7W5HpoFgJ-UE0IYRjJvA8HWp4ulPFyqy4ze4atB5zTy8bRbxlQ0H38kOfjLBMop61Ia7Wsen1aZ1euzfWHzGQf1GD0OTw"
+
+$headers = @{
+    "Authorization" = "Bearer $token"
+    "Content-Type" = "application/json"
+}
+
+# Test PUT institution config with actorRole
+$body = '{"actorRole": "admin", "hasDefaultPassword": true, "defaultTempPassword": "TestPass123!"}'
+$response = Invoke-RestMethod -Uri 'http://localhost:5000/api/v1/admin/institution-config' -Method Put -Headers $headers -Body $body
+$response | ConvertTo-Json -Depth 10

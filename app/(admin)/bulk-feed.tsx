@@ -53,10 +53,10 @@ export default function AdminBulkFeedScreen() {
         const row = lines[i].split(',').map((s) => s.trim());
         if (row.length >= 4) {
           records.push({
-            firstName: row[0] || 'User',
-            lastName: row[1] || 'Unknown',
+            firstName: row[0] || '',
+            lastName: row[1] || '',
             rollNoOrUSN: row[2] || '',
-            email: row[3] || `user${i}@school.edu`,
+            email: row[3] || '',
             // Optional 5th CSV column overrides the institution default;
             // empty → server falls back to institution default, then random per-user temp.
             dummyPassword: row[4] || undefined,

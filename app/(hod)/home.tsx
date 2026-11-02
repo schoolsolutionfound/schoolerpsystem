@@ -351,21 +351,12 @@ export default function HODHomeScreen() {
   };
 
   // Sign out handler
-  const handleLogout = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out of the HOD Portal?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign Out',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await signOut(auth);
-          } catch {}
-          resetUser();
-          router.replace('/auth');
-        },
-      },
-    ]);
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch {}
+    resetUser();
+    router.replace('/auth');
   };
 
   // Assign homeroom teacher

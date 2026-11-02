@@ -8,7 +8,7 @@ vi.mock('../../shared/db/index.js', () => ({
 
 import { UserService } from '../user.service.js';
 import { dbFindStudentByUsnInInstitution } from '../../shared/db/index.js';
-import { getParentLinks, __resetParentLinksForTests } from '../parent-links.js';
+import { getParentLinks, insertParentLinks, __resetParentLinksForTests } from '../parent-links.js';
 
 const findStudent = vi.mocked(dbFindStudentByUsnInInstitution);
 
@@ -67,9 +67,23 @@ describe('completeProfile — parent link validation (H2)', () => {
     ).rejects.toMatchObject({ statusCode: 403, code: 'FORBIDDEN_FIELD' });
   });
 
-  it('rejects a USN that does not exist in the institution', async () => {
+  it('rejects self-service linking when the parent has no existing link', async () => {
+    const { repo, upsertUser } = makeRepo(makeUser());
+    const svc = new UserService(repo);
+
+    await expect(
+      svc.completeProfile(makeAuth(), { linkedStudentUSN: 'GIS2026001' })
+    ).rejects.toMatchObject({ statusCode: 403, code: 'LINK_REQUIRES_ADMIN' });
+    // Rejected before lookup so unlinked parents cannot probe student USNs.
+    expect(findStudent).not.toHaveBeenCalled();
+    expect(upsertUser).not.toHaveBeenCalled();
+  });
+
+  it('rejects an unknown USN for an already-linked parent', async () => {
     findStudent.mockResolvedValue(undefined);
-    const { repo } = makeRepo(makeUser());
+    const { repo } = makeRepo(
+      makeUser({ scope: JSON.stringify({ linkedStudentUSN: 'GIS2026001' }) })
+    );
     const svc = new UserService(repo);
 
     await expect(
@@ -87,8 +101,11 @@ describe('completeProfile — parent link validation (H2)', () => {
     ).rejects.toMatchObject({ statusCode: 400, code: 'INVALID_RELATION' });
   });
 
-  it('links a parent to an existing student in the same institution', async () => {
+  it('allows re-submitting an existing parent_links child without adding a duplicate', async () => {
     findStudent.mockResolvedValue({ id: 's1', role: 'student', rollNoOrUSN: 'GIS2026001' } as any);
+    await insertParentLinks('GIS001', 'u1', [
+      { studentId: 's1', relationship: 'Mother', permissions: [] },
+    ]);
     const { repo, upsertUser } = makeRepo(makeUser());
     const svc = new UserService(repo);
 
@@ -98,12 +115,10 @@ describe('completeProfile — parent link validation (H2)', () => {
     });
 
     expect(result.message).toBe('Profile completed successfully');
-    const scope = JSON.parse(upsertUser.mock.calls[0][0].scope);
-    expect(scope.linkedStudentUSN).toBeUndefined();
-    expect(scope.relation).toBe('Mother');
+    expect(JSON.parse(upsertUser.mock.calls[0][0].scope).relation).toBe('Mother');
     const links = await getParentLinks('u1');
     expect(links).toHaveLength(1);
-    expect(links[0]).toMatchObject({ studentId: 's1', relationship: 'Mother', isPrimary: true });
+    expect(links[0]).toMatchObject({ studentId: 's1', relationship: 'Mother' });
   });
 
   it('blocks re-linking to a different student once linked', async () => {

@@ -29,19 +29,21 @@ export default function DriverHomeScreen() {
   const institutionName = useUserStore((state) => state.institutionName) || '';
   const resetUser = useUserStore((state) => state.resetUser);
 
+  const logoutNow = async () => {
+    try {
+      await performLogout();
+    } catch {}
+    resetUser();
+    router.replace('/auth');
+  };
+
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to log out?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Logout',
         style: 'destructive',
-        onPress: async () => {
-          try {
-            await performLogout();
-          } catch {}
-          resetUser();
-          router.replace('/auth');
-        },
+        onPress: logoutNow,
       },
     ]);
   };
@@ -139,8 +141,8 @@ export default function DriverHomeScreen() {
         email={email}
         profilePic={profilePic}
         institutionName={institutionName}
-        onLogout={handleLogout}
-      />
+          onLogout={logoutNow}
+        />
     </View>
   );
 }

@@ -1,32 +1,19 @@
-import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Modal,
-  Pressable,
-  TouchableOpacity,
-  ScrollView,
-  Animated,
-  Easing,
-  Image,
-  useWindowDimensions,
-} from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { FontFamily } from '../../../constants/fonts';
+import React from 'react';
 import { useRouter } from 'expo-router';
-import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { useUserStore } from '../../../store/useUserStore';
+import { UnifiedDrawer, UnifiedDrawerSection } from '../../shared/components/layout/UnifiedDrawer';
+
+type AdminTab = 'dashboard' | 'institution' | 'students' | 'parents' | 'teachers' | 'users' | 'academics' | 'announcements' | 'payments' | 'transport' | 'settings' | 'profile';
 
 interface AdminDrawerProps {
   visible: boolean;
   onClose: () => void;
-  onNavigate: (tab: 'dashboard' | 'institution' | 'students' | 'parents' | 'teachers' | 'users' | 'academics' | 'announcements' | 'payments' | 'settings' | 'profile') => void;
+  onNavigate: (tab: AdminTab) => void;
   onLogout: () => void;
   router?: any;
 }
 
-const PRIMARY: { key: 'dashboard' | 'institution' | 'students' | 'parents' | 'teachers' | 'users' | 'academics' | 'announcements' | 'payments' | 'settings' | 'profile'; label: string; icon: string; route?: string; adminOnly?: boolean }[] = [
+const PRIMARY: { key: AdminTab; label: string; icon: string; route?: string; adminOnly?: boolean }[] = [
   { key: 'dashboard', label: 'Dashboard', icon: 'view-dashboard-outline', route: '/(admin)' },
   { key: 'announcements', label: 'Announcements', icon: 'bullhorn-outline' },
   { key: 'institution', label: 'Institution', icon: 'office-building' },
@@ -35,6 +22,7 @@ const PRIMARY: { key: 'dashboard' | 'institution' | 'students' | 'parents' | 'te
   { key: 'teachers', label: 'Teachers', icon: 'human-male-board' },
   { key: 'users', label: 'Users', icon: 'account-group-outline' },
   { key: 'academics', label: 'Academics', icon: 'school-outline' },
+  { key: 'transport', label: 'Transport & Bus', icon: 'bus-outline' },
   { key: 'payments', label: 'Payment Settings', icon: 'credit-card-outline' },
   { key: 'settings', label: 'Settings', icon: 'cog-outline', adminOnly: true },
   { key: 'profile', label: 'Profile', icon: 'account-circle-outline' },
@@ -54,269 +42,55 @@ export const AdminDrawer: React.FC<AdminDrawerProps> = ({
 }) => {
   const placementAccess = useUserStore((s) => s.placementAccess);
   const institutionType = useUserStore((s) => s.institutionType);
-  const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
-  const localRouter = router || useRouter();
-  const userRole = useUserStore((state) => state.userRole);
+  const userRole = useUserStore((s) => s.userRole);
+  const fallbackRouter = useRouter();
+  const localRouter = router || fallbackRouter;
   const menuItems = PRIMARY.filter((item) => !item.adminOnly || userRole === 'admin');
 
-  const [slideX] = useState(() => new Animated.Value(-width));
-  const [fade] = useState(() => new Animated.Value(0));
-  const [mounted, setMounted] = useState(visible);
-
-  useEffect(() => {
-    if (visible) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setMounted(true);
-      Animated.parallel([
-        Animated.timing(slideX, {
-          toValue: 0,
-          duration: 380,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(fade, {
-          toValue: 1,
-          duration: 320,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } else if (mounted) {
-      Animated.parallel([
-        Animated.timing(slideX, {
-          toValue: -width,
-          duration: 320,
-          easing: Easing.in(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(fade, {
-          toValue: 0,
-          duration: 260,
-          useNativeDriver: true,
-        }),
-      ]).start(({ finished }) => {
-        if (finished) setMounted(false);
-      });
-    }
-  }, [visible, slideX, fade, mounted, width]);
-
-  const handleTabPress = (tab: typeof PRIMARY[number]['key']) => {
-    onClose();
-    const item = PRIMARY.find(i => i.key === tab);
-    if (item?.route) {
-      setTimeout(() => localRouter.push(item.route as any), 120);
-    } else {
-      setTimeout(() => onNavigate(tab), 120);
-    }
+  const selectPrimary = (item: typeof PRIMARY[number]) => {
+    if (item.route) localRouter.push(item.route as any);
+    else onNavigate(item.key);
   };
 
-  const handleRoutePress = (route: string) => {
-    onClose();
-    setTimeout(() => localRouter.push(route as any), 120);
-  };
-
-  const handleLogout = () => {
-    onClose();
-    setTimeout(() => onLogout(), 120);
-  };
+  const sections: UnifiedDrawerSection[] = [
+    {
+      key: 'workspace',
+      label: 'WORKSPACE',
+      items: [
+        ...menuItems.map((item) => ({
+          key: item.key,
+          label: item.label,
+          icon: item.icon,
+          onPress: () => selectPrimary(item),
+        })),
+        ...(institutionType === 'college' && (placementAccess === 'head' || placementAccess === 'member')
+          ? [{
+              key: 'placement',
+              label: 'Placement Admin',
+              icon: 'briefcase-outline',
+              onPress: () => localRouter.push('/(placement)/drives' as any),
+            }]
+          : []),
+      ],
+    },
+    {
+      key: 'account',
+      label: 'ACCOUNT',
+      items: SECONDARY.map((item) => ({
+        key: item.key,
+        label: item.label,
+        icon: item.icon,
+        onPress: () => localRouter.push(`/${item.key}` as any),
+      })),
+    },
+  ];
 
   return (
-    <Modal
-      visible={mounted}
-      transparent
-      animationType="none"
-      onRequestClose={onClose}
-      statusBarTranslucent
-    >
-      <View style={styles.root}>
-        <Animated.View style={[styles.backdrop, { opacity: fade }]}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        </Animated.View>
-
-        <Animated.View
-          style={[
-            styles.drawerWrap,
-            { transform: [{ translateX: slideX }] },
-          ]}
-        >
-          <SafeAreaView style={styles.drawer} edges={['bottom']}>
-            <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
-              <View style={styles.headerTopRow}>
-                <View style={styles.brandRow}>
-                  <Image source={require('../../../assets/logo-transparent.png')} style={styles.brandLogo} resizeMode="contain" />
-                  <View>
-                    <Text style={styles.brandTitle}>KIVQUO</Text>
-                  </View>
-                </View>
-                <TouchableOpacity style={styles.closeBtn} onPress={onClose} hitSlop={10}>
-                  <Feather name="x" size={20} color="#FFFFFF" />
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <ScrollView
-              style={styles.body}
-              contentContainerStyle={styles.bodyContent}
-              showsVerticalScrollIndicator={false}
-            >
-              <Text style={styles.sectionLabel}>WORKSPACE</Text>
-              {menuItems.map((item) => (
-                <TouchableOpacity
-                  key={item.key}
-                  style={styles.menuItem}
-                  activeOpacity={0.7}
-                  onPress={() => handleTabPress(item.key)}
-                >
-                  <View style={styles.menuIcon}>
-                    <MaterialCommunityIcons
-                      name={item.icon as any}
-                      size={18}
-                      color="#9A9A9A"
-                    />
-                  </View>
-                  <Text style={styles.menuText}>{item.label}</Text>
-                  <Feather name="chevron-right" size={16} color="#5A5A5A" />
-                </TouchableOpacity>
-              ))}
-
-              {institutionType === 'college' && (placementAccess === 'head' || placementAccess === 'member') && (
-                <TouchableOpacity
-                  style={styles.menuItem}
-                  activeOpacity={0.7}
-                  onPress={() => handleRoutePress('/(placement)/drives')}
-                >
-                  <View style={styles.menuIcon}>
-                    <MaterialCommunityIcons name="briefcase-outline" size={18} color="#9A9A9A" />
-                  </View>
-                  <Text style={styles.menuText}>Placement Admin</Text>
-                  <Feather name="chevron-right" size={16} color="#5A5A5A" />
-                </TouchableOpacity>
-              )}
-
-              <Text style={[styles.sectionLabel, { marginTop: 18 }]}>ACCOUNT</Text>
-              {SECONDARY.map((item) => (
-                <TouchableOpacity
-                  key={item.key}
-                  style={styles.menuItem}
-                  activeOpacity={0.7}
-                  onPress={() => handleRoutePress(`/${item.key === 'change-password' ? 'change-password' : item.key}`)}
-                >
-                  <View style={styles.menuIcon}>
-                    <MaterialCommunityIcons
-                      name={item.icon as any}
-                      size={18}
-                      color="#9A9A9A"
-                    />
-                  </View>
-                  <Text style={styles.menuText}>{item.label}</Text>
-                  <Feather name="chevron-right" size={16} color="#5A5A5A" />
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            <View style={styles.footer}>
-              <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.8}>
-                <MaterialCommunityIcons name="logout" size={18} color="#F4C430" />
-                <Text style={styles.logoutText}>Logout</Text>
-              </TouchableOpacity>
-              <Text style={styles.version}>v1.0 · School ERP</Text>
-            </View>
-          </SafeAreaView>
-        </Animated.View>
-      </View>
-    </Modal>
+    <UnifiedDrawer
+      visible={visible}
+      onClose={onClose}
+      sections={sections}
+      onLogout={onLogout}
+    />
   );
 };
-
-const styles = StyleSheet.create({
-  root: { flex: 1, flexDirection: 'row' },
-backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.55)' },
-  drawerWrap: {
-    width: '82%',
-    maxWidth: 360,
-  },
-  drawer: {
-    flex: 1,
-    backgroundColor: '#1A1B1C',
-    borderRightWidth: 1,
-    borderRightColor: '#2A2B2C',
-  },
-
-  header: {
-    paddingHorizontal: 18,
-    paddingBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#2A2B2C',
-    backgroundColor: '#141516',
-  },
-  headerTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  brandLogo: { width: 34, height: 34 },
-  brandTitle: { fontSize: 14, fontFamily: FontFamily.extrabold, color: '#FFFFFF', letterSpacing: 0.3 },
-  closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 6,
-    backgroundColor: '#232425',
-    borderWidth: 1,
-    borderColor: '#2A2B2C',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  body: { flex: 1 },
-  bodyContent: { paddingTop: 14, paddingHorizontal: 10, paddingBottom: 20 },
-  sectionLabel: {
-    fontSize: 10,
-    color: '#6A6A6A',
-    fontFamily: FontFamily.bold,
-    letterSpacing: 1,
-    paddingHorizontal: 10,
-    marginBottom: 6,
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 11,
-    borderRadius: 8,
-  },
-  menuIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 6,
-    backgroundColor: '#232425',
-    borderWidth: 1,
-    borderColor: '#2A2B2C',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  menuText: { flex: 1, fontSize: 14, fontFamily: FontFamily.semibold, color: '#E5E5E5' },
-
-  footer: {
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 6,
-    borderTopWidth: 1,
-    borderTopColor: '#2A2B2C',
-    backgroundColor: '#141516',
-  },
-  logoutBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 11,
-    borderRadius: 8,
-    backgroundColor: 'rgba(244, 196, 48, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(244, 196, 48, 0.3)',
-  },
-  logoutText: { fontSize: 14, fontFamily: FontFamily.extrabold, color: '#F4C430', letterSpacing: 0.3 },
-  version: { fontSize: 10, fontFamily: FontFamily.regular, color: '#5A5A5A', textAlign: 'center', marginTop: 10, letterSpacing: 0.5 },
-});

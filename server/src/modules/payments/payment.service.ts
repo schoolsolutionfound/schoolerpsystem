@@ -462,48 +462,110 @@ export class PaymentService {
   // ────────────────────────────────────────────────────────────────── refunds
 
   /**
-   * Full-amount refund. The order flips to `refunded` only when the gateway's
-   * refund.processed webhook lands — same trust model as capture.
+   * Refund a captured order, in full or in part.
+   *
+   * `amountPaise` omitted  → refund the remaining refundable balance.
+   * `amountPaise` supplied → partial refund, validated against
+   *                          `order.amountPaise - order.refundedPaise`.
+   *
+   * The order flips to `refunded` only when the gateway's refund.processed
+   * webhook lands AND the accumulated refunded total covers the order — same
+   * trust model as capture. Two 50% refunds therefore finalize correctly.
    */
   async refundOrder(institutionCode: string, orderId: string, input: RefundOrderInput) {
     if (!db) throw httpError(503, 'DB_UNAVAILABLE', 'Database not available');
-    const [order] = await db
-      .select()
-      .from(paymentOrders)
-      .where(and(eq(paymentOrders.id, orderId), eq(paymentOrders.institutionCode, institutionCode)))
-      .limit(1);
-    if (!order) throw httpError(404, 'ORDER_NOT_FOUND', 'Payment order not found.');
-    if (!REFUNDABLE_STATUSES.includes(order.status)) {
-      throw httpError(409, 'REFUND_NOT_ALLOWED', `Order is ${order.status} and cannot be refunded.`);
-    }
-    if (!order.gatewayPaymentId) {
-      throw httpError(409, 'NO_GATEWAY_PAYMENT', 'Order has no captured gateway payment to refund.');
-    }
 
-    const merchant = await getMerchantCredentials(institutionCode);
-    const gateway = resolveGateway(merchant.gateway);
-    const result = await gateway.refund(merchant, {
-      paymentId: order.gatewayPaymentId,
-      amountPaise: order.amountPaise,
-      reason: input.reason,
+    // Serialize refunds for this order. The row lock is held across the
+    // gateway call so two concurrent requests (or a double-click) cannot both
+    // issue a refund. If the gateway call fails the tx rolls back, leaving the
+    // order refundable for a safe retry.
+    return withTransaction(async (tx) => {
+      const [order] = await tx
+        .select()
+        .from(paymentOrders)
+        .where(and(eq(paymentOrders.id, orderId), eq(paymentOrders.institutionCode, institutionCode)))
+        .for('update');
+      if (!order) throw httpError(404, 'ORDER_NOT_FOUND', 'Payment order not found.');
+      if (!REFUNDABLE_STATUSES.includes(order.status)) {
+        throw httpError(409, 'REFUND_NOT_ALLOWED', `Order is ${order.status} and cannot be refunded.`);
+      }
+      if (!order.gatewayPaymentId) {
+        throw httpError(409, 'NO_GATEWAY_PAYMENT', 'Order has no captured gateway payment to refund.');
+      }
+
+      // Remaining refundable balance, derived from the persisted running total
+      // so partial refunds accumulate instead of each one being treated as the
+      // whole order.
+      const alreadyRefunded = order.refundedPaise ?? 0;
+      const remaining = order.amountPaise - alreadyRefunded;
+      if (remaining <= 0) {
+        throw httpError(
+          409,
+          'REFUND_ALREADY_COMPLETED',
+          'This order has already been fully refunded.'
+        );
+      }
+
+      const amountPaise = input.amountPaise ?? remaining;
+      if (amountPaise > remaining) {
+        throw httpError(
+          409,
+          'REFUND_EXCEEDS_REMAINING',
+          `Refund of ${amountPaise} paise exceeds the remaining refundable balance of ${remaining} paise.`
+        );
+      }
+
+      // Only one refund may be in flight per order. A refund that already
+      // CONFIRMED (refund_processed) is deliberately not a blocker — the
+      // remaining-balance check above is what lets a second partial refund
+      // through once the first has settled.
+      const inFlight = await tx
+        .select({ id: paymentTransactions.id })
+        .from(paymentTransactions)
+        .where(
+          and(
+            eq(paymentTransactions.institutionCode, institutionCode),
+            eq(paymentTransactions.paymentOrderId, order.id),
+            eq(paymentTransactions.status, 'refund_initiated')
+          )
+        )
+        .limit(1);
+      if (inFlight.length > 0) {
+        throw httpError(
+          409,
+          'REFUND_ALREADY_INITIATED',
+          'A refund is already in progress for this order. Wait for the gateway confirmation.'
+        );
+      }
+
+      const merchant = await getMerchantCredentials(institutionCode);
+      const gateway = resolveGateway(merchant.gateway);
+      const result = await gateway.refund(merchant, {
+        paymentId: order.gatewayPaymentId,
+        amountPaise,
+        reason: input.reason,
+      });
+
+      await tx.insert(paymentTransactions).values({
+        institutionCode,
+        paymentOrderId: order.id,
+        gateway: merchant.gateway,
+        gatewayPaymentId: order.gatewayPaymentId,
+        gatewayRefundId: result.refundId,
+        amountPaise,
+        status: 'refund_initiated',
+        failureReason: input.reason || null,
+      });
+
+      return {
+        orderId: order.id,
+        refundId: result.refundId,
+        amountPaise,
+        remainingAfterPaise: remaining - amountPaise,
+        status: result.status,
+        note: 'Refund status will finalize when the gateway confirmation webhook arrives.',
+      };
     });
-
-    await db.insert(paymentTransactions).values({
-      institutionCode,
-      paymentOrderId: order.id,
-      gateway: merchant.gateway,
-      gatewayPaymentId: order.gatewayPaymentId,
-      amountPaise: order.amountPaise,
-      status: 'refund_initiated',
-      failureReason: input.reason || null,
-    });
-
-    return {
-      orderId: order.id,
-      refundId: result.refundId,
-      status: result.status,
-      note: 'Refund status will finalize when the gateway confirmation webhook arrives.',
-    };
   }
 
   // ────────────────────────────────────────────────────────────────── webhook
@@ -533,6 +595,17 @@ export class PaymentService {
     if (!order) {
       // Not persisted yet (gateway-order-id write race) — 500 so the gateway
       // retries shortly and the order is found on the next delivery.
+      //
+      // Refund events are the exception: a refund can only exist for a payment
+      // we already captured, so a missing order means the event is for an order
+      // this tenant does not own. Retrying would 500 forever, so acknowledge it
+      // and stop the redelivery loop.
+      if (event.type === 'refund.processed') {
+        console.error(
+          `[payments] refund.processed for unknown order (payment=${event.paymentId || '?'} refund=${event.refundId || '?'}) — acknowledged, not retried`
+        );
+        return { result: 'ignored' as const };
+      }
       throw httpError(500, 'ORDER_NOT_FOUND', 'Order for this event is not yet available.');
     }
     if (order.institutionCode !== institutionCode) {
@@ -684,11 +757,35 @@ export class PaymentService {
 
         if (event.type === 'refund.processed') {
           const refundPaise = event.refundAmountPaise ?? row.amountPaise;
-          const fullyRefunded = refundPaise >= row.amountPaise;
+
+          // Replay guard: the same gateway refund delivered twice must not
+          // accumulate twice. The unique index on (institution_code,
+          // gateway_refund_id) is the hard backstop; this is the cheap check.
+          if (event.refundId) {
+            const seen = await tx
+              .select({ id: paymentTransactions.id })
+              .from(paymentTransactions)
+              .where(
+                and(
+                  eq(paymentTransactions.institutionCode, institutionCode),
+                  eq(paymentTransactions.gatewayRefundId, event.refundId)
+                )
+              )
+              .limit(1);
+            if (seen.length > 0) return null;
+          }
+
+          // Accumulate against the persisted running total, never against the
+          // single event amount. This is what makes two 50% refunds finalize.
+          const alreadyRefunded = row.refundedPaise ?? 0;
+          const newRefunded = Math.min(alreadyRefunded + refundPaise, row.amountPaise);
+          const fullyRefunded = newRefunded >= row.amountPaise;
+
           const [updated] = await tx
             .update(paymentOrders)
             .set({
               status: fullyRefunded ? 'refunded' : 'partially_refunded',
+              refundedPaise: newRefunded,
               webhookEventId: eventKey,
               gatewayCallback: event.callback,
               updatedAt: new Date(),
@@ -707,6 +804,7 @@ export class PaymentService {
             paymentOrderId: row.id,
             gateway: merchant.gateway,
             gatewayPaymentId: event.paymentId || row.gatewayPaymentId,
+            gatewayRefundId: event.refundId,
             amountPaise: refundPaise,
             status: 'refund_processed',
           });

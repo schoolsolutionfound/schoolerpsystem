@@ -228,6 +228,7 @@ function orderRow(over: Record<string, any> = {}) {
     ],
     webhookEventId: null,
     gatewayCallback: null,
+    refundedPaise: 0,
     expiresAt: new Date(Date.now() + 3_600_000),
     paidAt: null,
     createdAt: now,
@@ -315,14 +316,14 @@ function bodyAuthorized(): Buffer {
   );
 }
 
-function bodyRefund(amount = 3075): Buffer {
+function bodyRefund(amount = 3075, refundId = 'rfnd_1'): Buffer {
   return Buffer.from(
     JSON.stringify({
       event: 'refund.processed',
       payload: {
         refund: {
           entity: {
-            id: 'rfnd_1',
+            id: refundId,
             payment_id: 'pay_1',
             amount,
             currency: 'INR',
@@ -806,7 +807,7 @@ describe('refundOrder', () => {
   });
 
   it('404s for an unknown order', async () => {
-    dbMock.push('select|payment_orders|lim', []);
+    dbMock.push('select|payment_orders|for', []);
     await expect(svc.refundOrder(INST, 'ghost', {})).rejects.toMatchObject({
       statusCode: 404,
       code: 'ORDER_NOT_FOUND',
@@ -814,7 +815,7 @@ describe('refundOrder', () => {
   });
 
   it('rejects refunding an order that never captured (409 REFUND_NOT_ALLOWED)', async () => {
-    dbMock.push('select|payment_orders|lim', [orderRow({ status: 'created' })]);
+    dbMock.push('select|payment_orders|for', [orderRow({ status: 'created' })]);
     await expect(svc.refundOrder(INST, 'ord_1', {})).rejects.toMatchObject({
       statusCode: 409,
       code: 'REFUND_NOT_ALLOWED',
@@ -823,7 +824,7 @@ describe('refundOrder', () => {
   });
 
   it('rejects a paid order without a gateway payment id (409 NO_GATEWAY_PAYMENT)', async () => {
-    dbMock.push('select|payment_orders|lim', [
+    dbMock.push('select|payment_orders|for', [
       orderRow({ status: 'paid', gatewayPaymentId: null }),
     ]);
     await expect(svc.refundOrder(INST, 'ord_1', {})).rejects.toMatchObject({
@@ -832,8 +833,21 @@ describe('refundOrder', () => {
     });
   });
 
+  it('rejects a second refund when one is already initiated (409 REFUND_ALREADY_INITIATED)', async () => {
+    dbMock.push('select|payment_orders|for', [
+      orderRow({ status: 'paid', gatewayPaymentId: 'pay_1' }),
+    ]);
+    dbMock.push('select|payment_transactions|lim', [{ id: 'pt_existing' }]);
+
+    await expect(svc.refundOrder(INST, 'ord_1', {})).rejects.toMatchObject({
+      statusCode: 409,
+      code: 'REFUND_ALREADY_INITIATED',
+    });
+    expect(h.sdk.paymentsRefund).not.toHaveBeenCalled();
+  });
+
   it('initiates the gateway refund and records a refund_initiated transaction', async () => {
-    dbMock.push('select|payment_orders|lim', [
+    dbMock.push('select|payment_orders|for', [
       orderRow({ status: 'paid', gatewayPaymentId: 'pay_1' }),
     ]);
     h.sdk.paymentsRefund.mockResolvedValue({ id: 'rfnd_77', status: 'processed' });
@@ -855,6 +869,93 @@ describe('refundOrder', () => {
     });
     // Order status must NOT flip here — only the refund.processed webhook does.
     expect(ops('update', 'payment_orders')).toHaveLength(0);
+  });
+
+  // ── partial refunds ──────────────────────────────────────────────────────
+
+  it('refunds a partial amount when amountPaise is supplied', async () => {
+    dbMock.push('select|payment_orders|for', [
+      orderRow({ status: 'paid', gatewayPaymentId: 'pay_1', refundedPaise: 0 }),
+    ]);
+    h.sdk.paymentsRefund.mockResolvedValue({ id: 'rfnd_p1', status: 'processed' });
+
+    const res = await svc.refundOrder(INST, 'ord_1', { amountPaise: 1000 });
+
+    expect(h.sdk.paymentsRefund).toHaveBeenCalledWith('pay_1', { amount: 1000 });
+    expect(res).toMatchObject({
+      orderId: 'ord_1',
+      refundId: 'rfnd_p1',
+      amountPaise: 1000,
+      remainingAfterPaise: 2075,
+    });
+    const [txInsert] = ops('insert', 'payment_transactions');
+    expect(txInsert!.values).toMatchObject({
+      status: 'refund_initiated',
+      amountPaise: 1000,
+      gatewayRefundId: 'rfnd_p1',
+    });
+  });
+
+  it('defaults to the REMAINING balance, not the full order, after a partial refund', async () => {
+    dbMock.push('select|payment_orders|for', [
+      orderRow({ status: 'partially_refunded', gatewayPaymentId: 'pay_1', refundedPaise: 1000 }),
+    ]);
+    h.sdk.paymentsRefund.mockResolvedValue({ id: 'rfnd_p2', status: 'processed' });
+
+    const res = await svc.refundOrder(INST, 'ord_1', {});
+
+    // 3075 total - 1000 already refunded = 2075 remaining.
+    expect(h.sdk.paymentsRefund).toHaveBeenCalledWith('pay_1', { amount: 2075 });
+    expect(res).toMatchObject({ amountPaise: 2075, remainingAfterPaise: 0 });
+  });
+
+  it('rejects a partial refund larger than the remaining balance (409 REFUND_EXCEEDS_REMAINING)', async () => {
+    dbMock.push('select|payment_orders|for', [
+      orderRow({ status: 'partially_refunded', gatewayPaymentId: 'pay_1', refundedPaise: 1000 }),
+    ]);
+
+    await expect(svc.refundOrder(INST, 'ord_1', { amountPaise: 2500 })).rejects.toMatchObject({
+      statusCode: 409,
+      code: 'REFUND_EXCEEDS_REMAINING',
+    });
+    expect(h.sdk.paymentsRefund).not.toHaveBeenCalled();
+  });
+
+  it('refuses to refund an order whose balance is already exhausted (409 REFUND_ALREADY_COMPLETED)', async () => {
+    dbMock.push('select|payment_orders|for', [
+      orderRow({ status: 'partially_refunded', gatewayPaymentId: 'pay_1', refundedPaise: 3075 }),
+    ]);
+
+    await expect(svc.refundOrder(INST, 'ord_1', {})).rejects.toMatchObject({
+      statusCode: 409,
+      code: 'REFUND_ALREADY_COMPLETED',
+    });
+    expect(h.sdk.paymentsRefund).not.toHaveBeenCalled();
+  });
+
+  it('allows a second partial refund once the first has CONFIRMED (refund_processed)', async () => {
+    dbMock.push('select|payment_orders|for', [
+      orderRow({ status: 'partially_refunded', gatewayPaymentId: 'pay_1', refundedPaise: 1000 }),
+    ]);
+    // No refund_initiated row in flight — the earlier one already settled.
+    h.sdk.paymentsRefund.mockResolvedValue({ id: 'rfnd_second', status: 'processed' });
+
+    const res = await svc.refundOrder(INST, 'ord_1', { amountPaise: 2075 });
+    expect(res.refundId).toBe('rfnd_second');
+    expect(h.sdk.paymentsRefund).toHaveBeenCalledWith('pay_1', { amount: 2075 });
+  });
+
+  it('still blocks a second refund while one is in flight (409 REFUND_ALREADY_INITIATED)', async () => {
+    dbMock.push('select|payment_orders|for', [
+      orderRow({ status: 'partially_refunded', gatewayPaymentId: 'pay_1', refundedPaise: 1000 }),
+    ]);
+    dbMock.push('select|payment_transactions|lim', [{ id: 'pt_inflight' }]);
+
+    await expect(svc.refundOrder(INST, 'ord_1', { amountPaise: 500 })).rejects.toMatchObject({
+      statusCode: 409,
+      code: 'REFUND_ALREADY_INITIATED',
+    });
+    expect(h.sdk.paymentsRefund).not.toHaveBeenCalled();
   });
 });
 
@@ -1093,6 +1194,88 @@ describe('handleWebhook (the ONLY path to paid)', () => {
   });
 
   it('500s (gateway retries) when the order row is not visible yet', async () => {
+    const body = bodyCaptured();
+    dbMock.push('select|payment_orders|lim', []);
+    await expect(svc.handleWebhook(INST, body, sign(body, WH_SECRET))).rejects.toMatchObject({
+      statusCode: 500,
+      code: 'ORDER_NOT_FOUND',
+    });
+  });
+
+  // ── refund accumulation ──────────────────────────────────────────────────
+
+  it('accumulates two 50% refunds and finalizes the order on the second', async () => {
+    // First 50% refund: order goes partially_refunded, 1537 of 3075 refunded.
+    const first = bodyRefund(1537, 'rfnd_a');
+    const paidOrder = orderRow({ status: 'paid', gatewayPaymentId: 'pay_1', refundedPaise: 0 });
+    dbMock.push('select|payment_orders|lim', [paidOrder]);
+    dbMock.push('select|payment_orders|for', [paidOrder]);
+    dbMock.push('update|payment_orders|ret', [{ ...paidOrder, status: 'partially_refunded' }]);
+
+    const res1 = await svc.handleWebhook(INST, first, sign(first, WH_SECRET));
+    expect(res1).toEqual({ result: 'processed' });
+
+    const [firstUpdate] = ops('update', 'payment_orders', (op) => op.set?.status === 'partially_refunded');
+    expect(firstUpdate).toBeDefined();
+    expect(firstUpdate!.set!.refundedPaise).toBe(1537);
+    // Not fully refunded yet — fee lines must stay untouched.
+    expect(ops('update', 'fee_payments')).toHaveLength(0);
+
+    // Second 50% refund: the running total now covers the order.
+    dbMock.captured.length = 0;
+    const second = bodyRefund(1538, 'rfnd_b');
+    const partialOrder = orderRow({
+      status: 'partially_refunded',
+      gatewayPaymentId: 'pay_1',
+      refundedPaise: 1537,
+    });
+    dbMock.push('select|payment_orders|lim', [partialOrder]);
+    dbMock.push('select|payment_orders|for', [partialOrder]);
+    dbMock.push('update|payment_orders|ret', [{ ...partialOrder, status: 'refunded' }]);
+
+    const res2 = await svc.handleWebhook(INST, second, sign(second, WH_SECRET));
+    expect(res2).toEqual({ result: 'processed' });
+
+    const [secondUpdate] = ops('update', 'payment_orders', (op) => op.set?.status === 'refunded');
+    expect(secondUpdate).toBeDefined();
+    // 1537 + 1538 = 3075 — the full order, accumulated not overwritten.
+    expect(secondUpdate!.set!.refundedPaise).toBe(3075);
+    // Only now do the fee lines flip.
+    const [feeUpdate] = ops('update', 'fee_payments');
+    expect(feeUpdate).toBeDefined();
+    expect(feeUpdate!.set!.status).toBe('refunded');
+  });
+
+  it('does not accumulate the same gateway refund twice (replay guard)', async () => {
+    const body = bodyRefund(1537, 'rfnd_replay');
+    const paidOrder = orderRow({ status: 'paid', gatewayPaymentId: 'pay_1', refundedPaise: 0 });
+    dbMock.push('select|payment_orders|lim', [paidOrder]);
+    dbMock.push('select|payment_orders|for', [paidOrder]);
+    // The replay guard finds a transaction already carrying this refund id.
+    dbMock.push('select|payment_transactions|lim', [{ id: 'pt_already' }]);
+
+    const res = await svc.handleWebhook(INST, body, sign(body, WH_SECRET));
+    expect(res).toEqual({ result: 'processed' });
+
+    // No status change, no accumulation, no duplicate transaction row.
+    expect(ops('update', 'payment_orders')).toHaveLength(0);
+    expect(ops('insert', 'payment_transactions')).toHaveLength(0);
+  });
+
+  it('acknowledges a refund for an unknown order instead of 500ing forever', async () => {
+    const body = bodyRefund(1000, 'rfnd_ghost');
+    // No order matches any lookup path.
+    dbMock.push('select|payment_orders|lim', []);
+
+    const res = await svc.handleWebhook(INST, body, sign(body, WH_SECRET));
+
+    // 200/ignored, not a thrown 500 — the gateway stops redelivering.
+    expect(res).toEqual({ result: 'ignored' });
+    expect(ops('update', 'payment_orders')).toHaveLength(0);
+    expect(ops('insert', 'payment_transactions')).toHaveLength(0);
+  });
+
+  it('still 500s an unknown PAYMENT event so capture retries are not lost', async () => {
     const body = bodyCaptured();
     dbMock.push('select|payment_orders|lim', []);
     await expect(svc.handleWebhook(INST, body, sign(body, WH_SECRET))).rejects.toMatchObject({

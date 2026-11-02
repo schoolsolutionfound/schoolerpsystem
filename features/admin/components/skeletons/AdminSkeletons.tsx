@@ -97,6 +97,7 @@ export type AdminSkeletonTab =
   | 'attendance'
   | 'announcements'
   | 'payments'
+  | 'transport'
   | 'settings'
   | 'profile';
 

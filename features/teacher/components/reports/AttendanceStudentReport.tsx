@@ -32,40 +32,6 @@ export interface StudentAttendanceRecord {
 
 const DATE_RANGES = ['Current Month', 'Last 30 Days', 'Full Academic Term'];
 
-const FALLBACK_STUDENTS: { name: string; roll: string; basePct: number }[] = [
-  { name: 'Ayesha Khan', roll: '08A01', basePct: 96 },
-  { name: 'Mohammed Rafi', roll: '08A02', basePct: 88 },
-  { name: 'Sana Fatima', roll: '08A03', basePct: 92 },
-  { name: 'Fahad Ali', roll: '08A04', basePct: 68 },
-  { name: 'Zara Begum', roll: '08A05', basePct: 98 },
-  { name: 'Irshad Ahmed', roll: '08A06', basePct: 82 },
-  { name: 'Nida Rahman', roll: '08A07', basePct: 90 },
-  { name: 'Adnan Shaikh', roll: '08A08', basePct: 62 },
-  { name: 'Kavya Menon', roll: '08A09', basePct: 97 },
-  { name: 'Arjun Reddy', roll: '08A10', basePct: 74 },
-  { name: 'Bilal Siddiqui', roll: '08A11', basePct: 85 },
-  { name: 'Chhavi Sharma', roll: '08A12', basePct: 95 },
-  { name: 'Devika Pillai', roll: '08A13', basePct: 93 },
-  { name: 'Faizan Qureshi', roll: '08A14', basePct: 56 },
-  { name: 'Gaurav Joshi', roll: '08A15', basePct: 99 },
-  { name: 'Hafsa Mariam', roll: '08A16', basePct: 86 },
-  { name: 'Imran Hashmi', roll: '08A17', basePct: 78 },
-  { name: 'Juhi Chawla', roll: '08A18', basePct: 91 },
-  { name: 'Karan Mehra', roll: '08A19', basePct: 89 },
-  { name: 'Laila Majnu', roll: '08A20', basePct: 48 },
-  { name: 'Manish Malhotra', roll: '08A21', basePct: 94 },
-  { name: 'Nusrat Jahan', roll: '08A22', basePct: 84 },
-  { name: 'Omer Farooq', roll: '08A23', basePct: 79 },
-  { name: 'Pooja Bhatt', roll: '08A24', basePct: 91 },
-  { name: 'Rohan Sethi', roll: '08A25', basePct: 87 },
-  { name: 'Sameera Reddy', roll: '08A26', basePct: 100 },
-  { name: 'Tariq Mansoor', roll: '08A27', basePct: 71 },
-  { name: 'Uzma Parveen', roll: '08A28', basePct: 93 },
-  { name: 'Varun Grover', roll: '08A29', basePct: 86 },
-  { name: 'Wasim Akram', roll: '08A30', basePct: 64 },
-  { name: 'Yasmin Bano', roll: '08A31', basePct: 95 },
-  { name: 'Zainab Qazi', roll: '08A32', basePct: 90 },
-];
 
 export interface AttendanceStudentReportProps {
   initialClass?: string;
@@ -77,14 +43,14 @@ export const AttendanceStudentReport: React.FC<AttendanceStudentReportProps> = (
   initialSection,
 }) => {
   // Dropdown states matching StudentMarksCardReport
-  const [selectedClass, setSelectedClass] = useState(() => initialClass || 'Class 8');
+  const [selectedClass, setSelectedClass] = useState(() => initialClass || '');
   const [selectedSection, setSelectedSection] = useState(() => {
     if (initialSection) {
       return initialSection.toLowerCase().startsWith('section')
         ? initialSection
         : `Section ${initialSection}`;
     }
-    return 'Section A';
+    return '';
   });
   const [selectedRange, setSelectedRange] = useState('Current Month');
   const [isPeriodOpen, setIsPeriodOpen] = useState(false);
@@ -139,40 +105,25 @@ export const AttendanceStudentReport: React.FC<AttendanceStudentReportProps> = (
   // Build full students list with fallback
   const studentRoster: StudentAttendanceRecord[] = useMemo(() => {
     const totalWorkingDays = selectedRange === 'Current Month' ? 24 : selectedRange === 'Last 30 Days' ? 26 : 150;
-    const cleanCls = selectedClass.replace(/[^0-9]/g, '') || '08';
-    const cleanSec = selectedSection.replace('Section ', '').trim();
 
     if (report?.students && Array.isArray(report.students) && report.students.length > 0) {
       return report.students.map((s: any, idx: number) => {
         const total = s.total || totalWorkingDays;
         const present = s.present || Math.round((s.percentage / 100) * total);
         return {
-          id: s.id || `std-${idx}`,
-          fullName: s.fullName || s.name || `Student ${idx + 1}`,
-          rollNoOrUSN: s.rollNoOrUSN || `${cleanCls}${cleanSec}${String(idx + 1).padStart(2, '0')}`,
+          id: s.id || `row-${idx}`,
+          fullName: s.fullName || s.name || '',
+          rollNoOrUSN: s.rollNoOrUSN || '',
           present,
           total,
           absent: Math.max(0, total - present),
-          percentage: s.percentage !== undefined ? s.percentage : Math.round((present / total) * 100),
+          percentage: s.percentage !== undefined ? s.percentage : total > 0 ? Math.round((present / total) * 100) : 0,
         };
       });
     }
 
-    return FALLBACK_STUDENTS.map((item, idx) => {
-      const present = Math.round((item.basePct / 100) * totalWorkingDays);
-      const absent = Math.max(0, totalWorkingDays - present);
-      const rollNo = `${cleanCls}${cleanSec}${String(idx + 1).padStart(2, '0')}`;
-      return {
-        id: `att-st-${idx}`,
-        fullName: item.name,
-        rollNoOrUSN: rollNo,
-        present,
-        total: totalWorkingDays,
-        absent,
-        percentage: item.basePct,
-      };
-    });
-  }, [report, selectedClass, selectedSection, selectedRange]);
+    return [];
+  }, [report]);
 
   // Filter students based on search query - matches Marks Card Report
   const filteredStudents = useMemo(() => {

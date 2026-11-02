@@ -1,9 +1,12 @@
 {
   "cli": {
-    "version": ">= 3.0.0"
+    "version": ">= 3.0.0",
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
+      "channel": "development",
+      "environment": "development",
       "distribution": "internal",
       "android": {
         "buildType": "apk",
@@ -14,6 +17,9 @@
       }
     },
     "preview": {
+      "channel": "preview",
+      "environment": "preview",
+      "autoIncrement": true,
       "distribution": "internal",
       "android": {
         "buildType": "apk",
@@ -24,6 +30,9 @@
       }
     },
     "production": {
+      "channel": "production",
+      "environment": "production",
+      "autoIncrement": true,
       "android": {
         "buildType": "app-bundle",
         "gradleCommand": ":app:bundleRelease"
@@ -33,12 +42,14 @@
       }
     }
   },
-    "submit": {
+  "submit": {
     "preview": {
-      "android": {}
+      "android": {},
+      "ios": {}
     },
     "production": {
-      "android": {}
+      "android": {},
+      "ios": {}
     }
   }
 }

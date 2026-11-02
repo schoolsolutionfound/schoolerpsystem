@@ -53,122 +53,18 @@ const ACADEMIC_YEARS = [
   `${currentYear - 2} - ${currentYear - 1}`,
 ];
 
-// Default exams exactly matching Image 1 and Image 2 from the user
-const DEFAULT_EXAMS: ExamItem[] = [
-  {
-    id: 'exam-ut1',
-    name: 'Unit Test 1',
-    dateStr: 'September 2025',
-    term: 'Term 1',
-    totalMax: 500,
-    totalObtained: 379,
-    percentage: 75.8,
-    subjects: [
-      { name: 'Computer Science', obtained: 79, maxMarks: 100, percentage: 79 },
-      { name: 'English', obtained: 90, maxMarks: 100, percentage: 90 },
-      { name: 'Science', obtained: 77, maxMarks: 100, percentage: 77 },
-      { name: 'Social Studies', obtained: 88, maxMarks: 100, percentage: 88 },
-      { name: 'Mathematics', obtained: 45, maxMarks: 100, percentage: 45 },
-    ],
-    activities: [
-      { type: 'Assignment', obtained: 18, maxMarks: 25, percentage: 72 },
-      { type: 'Project', obtained: 22, maxMarks: 25, percentage: 88 },
-    ],
-  },
-  {
-    id: 'exam-ut2',
-    name: 'Unit Test 2',
-    dateStr: 'October 2025',
-    term: 'Term 1',
-    totalMax: 500,
-    totalObtained: 412,
-    percentage: 82.4,
-    subjects: [
-      { name: 'Computer Science', obtained: 85, maxMarks: 100, percentage: 85 },
-      { name: 'English', obtained: 88, maxMarks: 100, percentage: 88 },
-      { name: 'Science', obtained: 82, maxMarks: 100, percentage: 82 },
-      { name: 'Social Studies', obtained: 84, maxMarks: 100, percentage: 84 },
-      { name: 'Mathematics', obtained: 73, maxMarks: 100, percentage: 73 },
-    ],
-    activities: [
-      { type: 'Assignment', obtained: 20, maxMarks: 25, percentage: 80 },
-      { type: 'Project', obtained: 21, maxMarks: 25, percentage: 84 },
-    ],
-  },
-  {
-    id: 'exam-mid',
-    name: 'Mid Term',
-    dateStr: 'November 2025',
-    term: 'Term 1',
-    totalMax: 500,
-    totalObtained: 428,
-    percentage: 85.6,
-    subjects: [
-      { name: 'Computer Science', obtained: 90, maxMarks: 100, percentage: 90 },
-      { name: 'English', obtained: 92, maxMarks: 100, percentage: 92 },
-      { name: 'Science', obtained: 85, maxMarks: 100, percentage: 85 },
-      { name: 'Social Studies', obtained: 81, maxMarks: 100, percentage: 81 },
-      { name: 'Mathematics', obtained: 80, maxMarks: 100, percentage: 80 },
-    ],
-    activities: [
-      { type: 'Assignment', obtained: 22, maxMarks: 25, percentage: 88 },
-      { type: 'Project', obtained: 24, maxMarks: 25, percentage: 96 },
-    ],
-  },
-  {
-    id: 'exam-ut3',
-    name: 'Unit Test 3',
-    dateStr: 'January 2026',
-    term: 'Term 2',
-    totalMax: 500,
-    totalObtained: 389,
-    percentage: 77.8,
-    subjects: [
-      { name: 'Computer Science', obtained: 82, maxMarks: 100, percentage: 82 },
-      { name: 'English', obtained: 78, maxMarks: 100, percentage: 78 },
-      { name: 'Science', obtained: 76, maxMarks: 100, percentage: 76 },
-      { name: 'Social Studies', obtained: 75, maxMarks: 100, percentage: 75 },
-      { name: 'Mathematics', obtained: 78, maxMarks: 100, percentage: 78 },
-    ],
-    activities: [
-      { type: 'Assignment', obtained: 19, maxMarks: 25, percentage: 76 },
-      { type: 'Project', obtained: 20, maxMarks: 25, percentage: 80 },
-    ],
-  },
-  {
-    id: 'exam-final',
-    name: 'Final Term',
-    dateStr: 'March 2026',
-    term: 'Term 2',
-    totalMax: 500,
-    totalObtained: 436,
-    percentage: 87.2,
-    subjects: [
-      { name: 'Computer Science', obtained: 94, maxMarks: 100, percentage: 94 },
-      { name: 'English', obtained: 89, maxMarks: 100, percentage: 89 },
-      { name: 'Science', obtained: 88, maxMarks: 100, percentage: 88 },
-      { name: 'Social Studies', obtained: 85, maxMarks: 100, percentage: 85 },
-      { name: 'Mathematics', obtained: 80, maxMarks: 100, percentage: 80 },
-    ],
-    activities: [
-      { type: 'Assignment', obtained: 23, maxMarks: 25, percentage: 92 },
-      { type: 'Project', obtained: 24, maxMarks: 25, percentage: 96 },
-    ],
-  },
-];
-
 export const StudentMarksView: React.FC<StudentMarksViewProps> = ({ onBack }) => {
   const router = useRouter();
 
   // State
-  const [selectedYear, setSelectedYear] = useState('2025 - 2026');
+  const [selectedYear, setSelectedYear] = useState(() => ACADEMIC_YEARS[0]);
   const [showYearModal, setShowYearModal] = useState(false);
   const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
   const [showExamDropdownModal, setShowExamDropdownModal] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [examsData, setExamsData] = useState<ExamItem[]>(DEFAULT_EXAMS);
+  const [examsData, setExamsData] = useState<ExamItem[]>([]);
 
   // Load marks from API (merges real data with fallback)
   const loadMarks = useCallback(async () => {
@@ -222,8 +118,8 @@ export const StudentMarksView: React.FC<StudentMarksViewProps> = ({ onBack }) =>
           if (!examMap.has(examName)) {
             examMap.set(examName, {
               name: examName,
-              dateStr: m.date || 'Academic Session',
-              term: m.term || 'Term 1',
+              dateStr: m.date || '',
+              term: m.term || '',
               subjects: [],
             });
           }
@@ -251,23 +147,20 @@ export const StudentMarksView: React.FC<StudentMarksViewProps> = ({ onBack }) =>
             totalObtained: totObt,
             percentage: pct,
             subjects: val.subjects,
-            activities: [
-              { type: 'Assignment', obtained: Math.round(totObt * 0.05), maxMarks: 25, percentage: 72 },
-              { type: 'Project', obtained: Math.round(totObt * 0.06), maxMarks: 25, percentage: 88 },
-            ],
+            activities: [],
           });
         });
 
         if (builtExams.length > 0) {
           setExamsData(builtExams);
         } else {
-          setExamsData(DEFAULT_EXAMS);
+          setExamsData([]);
         }
       } else {
-        setExamsData(DEFAULT_EXAMS);
+        setExamsData([]);
       }
     } catch {
-      setExamsData(DEFAULT_EXAMS);
+      setExamsData([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -283,17 +176,12 @@ export const StudentMarksView: React.FC<StudentMarksViewProps> = ({ onBack }) =>
     loadMarks();
   }, [loadMarks]);
 
-  // Handle header back action
+  // Handle back action (exam detail → list)
   const handleHeaderBack = useCallback(() => {
     if (selectedExamId !== null) {
-      // Return from Exam Detail (Image 2) to All Exams List (Image 1)
       setSelectedExamId(null);
-    } else if (onBack) {
-      onBack();
-    } else {
-      router.back();
     }
-  }, [selectedExamId, onBack, router]);
+  }, [selectedExamId]);
 
   // Overall calculations for Image 1 Top Summary Card
   const overallSummary = useMemo(() => {
@@ -334,34 +222,9 @@ export const StudentMarksView: React.FC<StudentMarksViewProps> = ({ onBack }) =>
 
   return (
     <View style={styles.container}>
-      {/* ─── Top Header Bar ────────────────────────────────────────────── */}
-      <View style={styles.headerBar}>
-        <View style={styles.headerLeft}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={handleHeaderBack}
-            activeOpacity={0.7}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <MaterialCommunityIcons name="arrow-left" size={24} color="#111827" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Marks</Text>
-        </View>
-
-        {/* Academic Year Dropdown Pill */}
-        <TouchableOpacity
-          style={styles.yearPill}
-          activeOpacity={0.8}
-          onPress={() => setShowYearModal(true)}
-        >
-          <Text style={styles.yearPillText}>{selectedYear}</Text>
-          <MaterialCommunityIcons name="chevron-down" size={18} color="#111827" />
-        </TouchableOpacity>
-      </View>
-
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: 12 }]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -372,6 +235,29 @@ export const StudentMarksView: React.FC<StudentMarksViewProps> = ({ onBack }) =>
           />
         }
       >
+        {/* Year Picker Row / Back Button */}
+        {activeExam !== null ? (
+          <View style={styles.yearPillRow}>
+            <TouchableOpacity
+              onPress={handleHeaderBack}
+              activeOpacity={0.7}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <MaterialCommunityIcons name="arrow-left" size={22} color="#111827" />
+            </TouchableOpacity>
+            <Text style={[styles.yearPillText, { marginLeft: 8 }]}>Back to Exams</Text>
+          </View>
+        ) : (
+          <TouchableOpacity
+            style={styles.yearPillRow}
+            activeOpacity={0.8}
+            onPress={() => setShowYearModal(true)}
+          >
+            <Text style={styles.yearPillText}>{selectedYear}</Text>
+            <MaterialCommunityIcons name="chevron-down" size={18} color="#111827" />
+          </TouchableOpacity>
+        )}
+
         {activeExam === null ? (
           /* ══════════════════════════════════════════════════════════════════
              SCREEN 1: All Exams Overview (Image 1)
@@ -533,13 +419,7 @@ export const StudentMarksView: React.FC<StudentMarksViewProps> = ({ onBack }) =>
 
                 {/* Activities Table Rows */}
                 <View style={styles.tableBody}>
-                  {(activeExam.activities && activeExam.activities.length > 0
-                    ? activeExam.activities
-                    : [
-                        { type: 'Assignment', obtained: 18, maxMarks: 25, percentage: 72 },
-                        { type: 'Project', obtained: 22, maxMarks: 25, percentage: 88 },
-                      ]
-                  ).map((act, idx, arr) => (
+                  {(activeExam.activities || []).map((act, idx, arr) => (
                     <View
                       key={act.type}
                       style={[
@@ -722,10 +602,28 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 1,
   },
-  yearPillText: {
+   yearPillText: {
     fontSize: 13,
     fontFamily: FontFamily.medium,
     color: '#111827',
+  },
+  yearPillRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#EFE7D8',
+    borderRadius: 5,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
+    marginBottom: 4,
   },
 
   /* ─── Top 3-Metric Summary Card ──────────────────────────────────── */

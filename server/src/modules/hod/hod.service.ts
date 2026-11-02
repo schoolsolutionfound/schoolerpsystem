@@ -194,6 +194,10 @@ export class HODService {
   }
 
   async createCourse(institutionCode: string, payload: any): Promise<DepartmentCourseEntity> {
+    const semester = payload.semester == null ? '' : String(payload.semester).trim();
+    if (!semester) {
+      throw { statusCode: 400, code: 'SEMESTER_REQUIRED', message: 'Semester is required to create a department course' };
+    }
     const database = getDb();
     const [created] = await database
       .insert(departmentCourses)
@@ -202,7 +206,7 @@ export class HODService {
         code: payload.code,
         name: payload.name,
         department: payload.department,
-        semester: payload.semester,
+        semester: semester,
         batchYear: payload.batchYear || '',
         type: payload.type || 'theory',
         credits: Number(payload.credits) || 3,

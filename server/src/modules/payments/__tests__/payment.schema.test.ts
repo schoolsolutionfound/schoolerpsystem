@@ -130,4 +130,14 @@ describe('RefundOrderSchema', () => {
   it('rejects reasons longer than 255 chars', () => {
     expect(() => RefundOrderSchema.parse({ reason: 'x'.repeat(256) })).toThrow();
   });
+
+  it('accepts a partial refund amount in paise', () => {
+    expect(RefundOrderSchema.parse({ amountPaise: 1000 })).toEqual({ amountPaise: 1000 });
+  });
+
+  it('rejects a non-positive or fractional refund amount', () => {
+    expect(() => RefundOrderSchema.parse({ amountPaise: 0 })).toThrow();
+    expect(() => RefundOrderSchema.parse({ amountPaise: -100 })).toThrow();
+    expect(() => RefundOrderSchema.parse({ amountPaise: 10.5 })).toThrow();
+  });
 });

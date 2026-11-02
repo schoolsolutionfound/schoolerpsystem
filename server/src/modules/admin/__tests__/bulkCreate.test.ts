@@ -1,10 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { createUser, dbUpsertUser, dbFindByEmail, upsertPreferences } = vi.hoisted(() => ({
+const { createUser, dbUpsertUser, dbFindByEmail, upsertPreferences, insertParentLinks, sendParentInvite } = vi.hoisted(() => ({
   createUser: vi.fn(),
   dbUpsertUser: vi.fn(),
   dbFindByEmail: vi.fn(),
   upsertPreferences: vi.fn(),
+  insertParentLinks: vi.fn(),
+  sendParentInvite: vi.fn(),
 }));
 
 vi.mock('../../shared/db/index.js', () => ({
@@ -51,7 +53,20 @@ vi.mock('../../notifications/notification.repository.js', () => ({
   upsertPreferences,
 }));
 
+vi.mock('../../notifications/email.service.js', () => ({
+  sendParentInvite,
+  sendLoginCredentialsInvite: vi.fn(),
+}));
+
+vi.mock('../../users/parent-links.js', () => ({
+  insertParentLinks,
+  getPrimaryParentChild: vi.fn(),
+  getFamilyChildPairs: vi.fn(),
+  DEFAULT_PARENT_PERMISSIONS: ['view_grades', 'view_attendance', 'pay_fees'],
+}));
+
 import { adminService } from '../admin.service.js';
+import { dbFindUserById } from '../../shared/db/index.js';
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -67,6 +82,8 @@ beforeEach(() => {
   }));
   createUser.mockImplementation(async (props: any) => ({ uid: `fb_${props.email}` }));
   upsertPreferences.mockResolvedValue(undefined);
+  insertParentLinks.mockResolvedValue(undefined);
+  sendParentInvite.mockResolvedValue({ sent: true });
 });
 
 const rec = (over: Record<string, any> = {}) => ({
@@ -169,7 +186,7 @@ describe('adminService.bulkCreateUsers — CSV bulk import', () => {
   it('creates parents with linked children (resolved by email) and returns invite temps', async () => {
     dbFindByEmail.mockImplementation(async (email: string) =>
       email === 'kid@school.edu'
-        ? { id: 'stu_1', email, role: 'student', fullName: 'Kid One' }
+        ? { id: 'stu_1', email, role: 'student', fullName: 'Kid One', institutionCode: 'GIS001' }
         : undefined
     );
 
@@ -189,6 +206,11 @@ describe('adminService.bulkCreateUsers — CSV bulk import', () => {
       role: 'parent',
       scope: JSON.stringify({ relation: 'Father' }),
     });
+    expect(upsertPreferences).toHaveBeenCalledWith(
+      'fb_father@parent.edu',
+      'GIS001',
+      { pushEnabled: true, disabledTypes: [] }
+    );
   });
 
   it('stores admission officer category + seats in users.scope', async () => {
@@ -209,6 +231,37 @@ describe('adminService.bulkCreateUsers — CSV bulk import', () => {
     expect(result.tempPasswords).toHaveLength(0);
     expect(createUser).toHaveBeenCalledWith(
       expect.objectContaining({ email: 'aarav@school.edu', password: 'School@1234' })
+    );
+  });
+});
+
+describe('adminService.createUser parent preferences FK', () => {
+  it('stores notification preferences under the Firebase UID, not the users.id', async () => {
+    vi.mocked(dbFindUserById).mockResolvedValue({
+      id: 'stu_1',
+      firebaseUid: 'fb_kid',
+      email: 'kid@school.edu',
+      fullName: 'Kid One',
+      role: 'student',
+      institutionCode: 'GIS001',
+    } as any);
+
+    await adminService.createUser({
+      fullName: 'Parent One',
+      email: 'parent@school.edu',
+      role: 'parent',
+      institutionCode: 'GIS001',
+      relation: 'father',
+      children: [{ studentId: 'stu_1' }],
+    } as any);
+
+    expect(createUser).toHaveBeenCalledWith(
+      expect.objectContaining({ email: 'parent@school.edu' })
+    );
+    expect(upsertPreferences).toHaveBeenCalledWith(
+      'fb_parent@school.edu',
+      'GIS001',
+      expect.objectContaining({ pushEnabled: true })
     );
   });
 });

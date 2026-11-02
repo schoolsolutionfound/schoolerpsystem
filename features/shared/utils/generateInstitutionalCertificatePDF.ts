@@ -5,31 +5,24 @@ import { DocumentRequest, DOCUMENT_TYPE_CONFIG } from '../types/documentRequest.
 
 function buildCertificateHtml(
   request: DocumentRequest,
-  institutionName: string = 'APEX INSTITUTE OF SCIENCE & TECHNOLOGY'
+  institutionName: string = ''
 ): string {
   const cfg = DOCUMENT_TYPE_CONFIG[request.documentType];
   const certNumber = request.certificateNumber || `INST/${cfg.prefix}/${new Date().getFullYear()}/${request.requestNumber.replace('DOC-', '')}`;
   const issueDate = request.generatedDate || new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
-  const academicYear = request.academicDetails?.academicYear || '2025 - 2026';
-  const semester = request.academicDetails?.semester || request.classOrSemester || 'Semester V';
+  const academicYear = request.academicDetails?.academicYear || '';
+  const semester = request.academicDetails?.semester || request.classOrSemester || '';
 
   // Specific bodies per document type
   let specificBodyHtml = '';
 
   if (request.documentType === 'marks_card') {
-    const courses = request.academicDetails?.courses || [
-      { code: 'CS501', name: 'Design and Analysis of Algorithms', credits: 4, marksObtained: 88, maxMarks: 100, grade: 'A+', gradePoints: 9.0 },
-      { code: 'CS502', name: 'Database Management Systems & SQL', credits: 4, marksObtained: 92, maxMarks: 100, grade: 'O', gradePoints: 10.0 },
-      { code: 'CS503', name: 'Operating Systems & System Kernel', credits: 4, marksObtained: 84, maxMarks: 100, grade: 'A', gradePoints: 8.5 },
-      { code: 'CS504', name: 'Automata Theory & Computability', credits: 3, marksObtained: 79, maxMarks: 100, grade: 'A', gradePoints: 8.0 },
-      { code: 'CS505', name: 'Software Engineering & Agile Methodologies', credits: 3, marksObtained: 90, maxMarks: 100, grade: 'O', gradePoints: 10.0 },
-      { code: 'CS506L', name: 'Database & Algorithms Laboratory', credits: 2, marksObtained: 96, maxMarks: 100, grade: 'O', gradePoints: 10.0 },
-    ];
+    const courses = request.academicDetails?.courses || [];
     const totalCredits = courses.reduce((acc, c) => acc + c.credits, 0);
     const totalMarks = courses.reduce((acc, c) => acc + c.marksObtained, 0);
     const maxMarks = courses.reduce((acc, c) => acc + c.maxMarks, 0);
-    const sgpa = request.academicDetails?.sgpa || 9.12;
-    const cgpa = request.academicDetails?.cgpa || 8.94;
+    const sgpa = request.academicDetails?.sgpa;
+    const cgpa = request.academicDetails?.cgpa;
 
     const courseRows = courses.map((c, i) => `
       <tr>
@@ -56,19 +49,19 @@ function buildCertificateHtml(
         </div>
         <div class="summary-col">
           <span class="label">TOTAL CREDITS</span>
-          <span class="val">${totalCredits}</span>
+          <span class="val">${courses.length ? totalCredits : ""}</span>
         </div>
         <div class="summary-col">
           <span class="label">SGPA</span>
-          <span class="val highlighted">${sgpa.toFixed(2)}</span>
+          <span class="val highlighted">${sgpa != null ? sgpa.toFixed(2) : ""}</span>
         </div>
         <div class="summary-col">
           <span class="label">CGPA</span>
-          <span class="val highlighted">${cgpa.toFixed(2)}</span>
+          <span class="val highlighted">${cgpa != null ? cgpa.toFixed(2) : ""}</span>
         </div>
         <div class="summary-col">
           <span class="label">RESULT</span>
-          <span class="val" style="color: #059669; font-weight: 800;">FIRST CLASS WITH DISTINCTION</span>
+          <span class="val" style="color: #059669; font-weight: 800;">${request.academicDetails?.resultStatus || ""}</span>
         </div>
       </div>
 
@@ -89,16 +82,16 @@ function buildCertificateHtml(
           ${courseRows}
           <tr class="total-row">
             <td colspan="3" style="text-align: right; font-weight: 700;">TOTAL MARKS / CREDITS</td>
-            <td style="text-align: center; font-weight: 700;">${totalCredits}</td>
-            <td style="text-align: center; font-weight: 700;">${maxMarks}</td>
-            <td style="text-align: center; font-weight: 700; color: #1e3a8a;">${totalMarks}</td>
-            <td colspan="2" style="text-align: center; font-weight: 700;">${((totalMarks / maxMarks) * 100).toFixed(1)}%</td>
+            <td style="text-align: center; font-weight: 700;">${courses.length ? totalCredits : ""}</td>
+            <td style="text-align: center; font-weight: 700;">${maxMarks || ""}</td>
+            <td style="text-align: center; font-weight: 700; color: #1e3a8a;">${totalMarks || ""}</td>
+            <td colspan="2" style="text-align: center; font-weight: 700;">${maxMarks ? (((totalMarks / maxMarks) * 100).toFixed(1) + "%") : ""}</td>
           </tr>
         </tbody>
       </table>
     `;
   } else if (request.documentType === 'hall_ticket') {
-    const examCenter = request.academicDetails?.examCenter || 'Campus Main Block, Auditorium Hall A';
+    const examCenter = request.academicDetails?.examCenter || '';
     specificBodyHtml = `
       <div class="hall-ticket-grid">
         <div class="ht-info-col">
@@ -197,7 +190,7 @@ function buildCertificateHtml(
         </tr>
         <tr>
           <td class="tc-q">4. Date of Admission into Institute:</td>
-          <td class="tc-a">${request.academicDetails?.admissionDate || '18-Aug-2022'}</td>
+          <td class="tc-a">${request.academicDetails?.admissionDate || ''}</td>
         </tr>
         <tr>
           <td class="tc-q">5. Class / Semester from which Leaving:</td>
@@ -205,19 +198,19 @@ function buildCertificateHtml(
         </tr>
         <tr>
           <td class="tc-q">6. Whether qualified for promotion to higher class:</td>
-          <td class="tc-a" style="font-weight: 600;">YES — COURSE OF STUDY COMPLETED</td>
+          <td class="tc-a" style="font-weight: 600;">${request.academicDetails?.resultStatus || ""}</td>
         </tr>
         <tr>
           <td class="tc-q">7. Whether all College / Hostel dues are paid:</td>
-          <td class="tc-a" style="color: #059669; font-weight: 700;">YES — NO OUTSTANDING DUES (CLEARED)</td>
+          <td class="tc-a" style="color: #059669; font-weight: 700;">${request.academicDetails?.feeStatus || ""}</td>
         </tr>
         <tr>
           <td class="tc-q">8. Reason for leaving the Institute:</td>
-          <td class="tc-a">${request.purpose || 'Course Completed / Higher Studies Admission'}</td>
+          <td class="tc-a">${request.purpose || ''}</td>
         </tr>
         <tr>
           <td class="tc-q">9. General Conduct and Character:</td>
-          <td class="tc-a" style="font-weight: 700; color: #059669;">EXEMPLARY & SATISFACTORY</td>
+          <td class="tc-a" style="font-weight: 700; color: #059669;"></td>
         </tr>
         <tr>
           <td class="tc-q">10. Date of Application for Certificate:</td>
@@ -253,7 +246,7 @@ function buildCertificateHtml(
 
         <div class="purpose-clause">
           This certificate is issued upon the candidate's specific request for the purpose of: 
-          <strong>${request.purpose || 'Scholarship / Passport Application / Official Verification'}</strong>.
+          <strong>${request.purpose || ''}</strong>.
         </div>
       </div>
     `;
@@ -281,7 +274,7 @@ function buildCertificateHtml(
         </div>
 
         <div class="purpose-clause">
-          Purpose: <strong>${request.purpose || 'Higher Education Admission / Employment Verification'}</strong>.
+          Purpose: <strong>${request.purpose || ''}</strong>.
         </div>
       </div>
     `;
@@ -336,7 +329,7 @@ function buildCertificateHtml(
         </table>
 
         <div class="purpose-clause">
-          Issued for the purpose of: <strong>${request.purpose || 'End Semester Hall Ticket / TC / Security Deposit Refund'}</strong>.
+          Issued for the purpose of: <strong>${request.purpose || ''}</strong>.
         </div>
       </div>
     `;
@@ -353,11 +346,11 @@ function buildCertificateHtml(
         </div>
 
         <div class="bonafide-statement">
-          ${request.studentRemarks || 'The institution has reviewed the application and issues this formal endorsement in support of the candidate.'}
+          ${request.studentRemarks || ''}
         </div>
 
         <div class="purpose-clause">
-          Application Purpose: <strong>${request.purpose || 'Official Certification'}</strong>.
+          Application Purpose: <strong>${request.purpose || ''}</strong>.
         </div>
       </div>
     `;

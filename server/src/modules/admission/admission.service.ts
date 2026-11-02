@@ -1,5 +1,5 @@
 import { eq, and, sql, desc, or, ilike } from 'drizzle-orm';
-import { db } from '../shared/db/index.js';
+import { db, withTransaction } from '../shared/db/index.js';
 import {
   admissionCourses,
   admissionApplications,
@@ -442,86 +442,106 @@ export class AdmissionService {
   public async allocateSeat(institutionCode: string, id: string, payload: AllocateSeatInput) {
     if (!db) throw new Error('Database connection required');
 
-    const app = await db.query.admissionApplications.findFirst({
-      where: and(eq(admissionApplications.institutionCode, institutionCode), eq(admissionApplications.id, id)),
-    });
+    // Serialize allocations for an application + course. Locking the course
+    // row makes the capacity check and the write atomic, so two concurrent
+    // requests can never both take the last seat.
+    return withTransaction(async (tx) => {
+      const [app] = await tx
+        .select()
+        .from(admissionApplications)
+        .where(and(eq(admissionApplications.institutionCode, institutionCode), eq(admissionApplications.id, id)))
+        .for('update');
 
-    if (!app) {
-      throw { statusCode: 404, code: 'NOT_FOUND', message: 'Application not found.' };
-    }
+      if (!app) {
+        throw { statusCode: 404, code: 'NOT_FOUND', message: 'Application not found.' };
+      }
 
-    if (app.status === 'confirmed') {
-      throw {
-        statusCode: 400,
-        code: 'ALREADY_CONFIRMED',
-        message: 'Cannot re-allocate a confirmed admission. Unconfirm or cancel first.',
-      };
-    }
-
-    // Verify course exists in this institution
-    const course = await db.query.admissionCourses.findFirst({
-      where: and(eq(admissionCourses.institutionCode, institutionCode), eq(admissionCourses.id, payload.courseId)),
-    });
-
-    if (!course) {
-      throw { statusCode: 404, code: 'COURSE_NOT_FOUND', message: 'Target course not found.' };
-    }
-
-    // Check course overall capacity
-    const appsInCourse = await db.query.admissionApplications.findMany({
-      where: and(
-        eq(admissionApplications.institutionCode, institutionCode),
-        eq(admissionApplications.allocatedCourseId, course.id),
-        or(eq(admissionApplications.status, 'allocated'), eq(admissionApplications.status, 'confirmed'))
-      ),
-    });
-
-    // If candidate was already allocated in this course, don't double count
-    const occupiedOverall = appsInCourse.filter((a) => a.id !== id).length;
-    if (occupiedOverall >= course.totalSeats) {
-      throw {
-        statusCode: 400,
-        code: 'COURSE_FULL',
-        message: `All ${course.totalSeats} seats in ${course.courseName} are occupied.`,
-      };
-    }
-
-    // Check quota capacity
-    const targetQuota = (course.quotas || []).find(
-      (q) => q.quotaName.toLowerCase().trim() === payload.quota.toLowerCase().trim()
-    );
-
-    if (targetQuota) {
-      const occupiedQuota = appsInCourse.filter(
-        (a) =>
-          a.id !== id &&
-          (a.allocatedQuota || '').toLowerCase().trim() === payload.quota.toLowerCase().trim()
-      ).length;
-
-      if (occupiedQuota >= targetQuota.seats) {
+      if (app.status === 'confirmed') {
         throw {
           statusCode: 400,
-          code: 'QUOTA_FULL',
-          message: `All ${targetQuota.seats} seats in quota "${targetQuota.quotaName}" for ${course.courseName} are occupied.`,
+          code: 'ALREADY_CONFIRMED',
+          message: 'Cannot re-allocate a confirmed admission. Unconfirm or cancel first.',
         };
       }
-    }
 
-    const [updated] = await db
-      .update(admissionApplications)
-      .set({
-        status: 'allocated',
-        allocatedCourseId: course.id,
-        allocatedCourseName: course.courseName,
-        allocatedQuota: payload.quota,
-        allocatedAt: new Date(),
-        notes: payload.notes || app.notes,
-        updatedAt: new Date(),
-      })
-      .where(and(eq(admissionApplications.institutionCode, institutionCode), eq(admissionApplications.id, id)))
-      .returning();
+      if (app.status === 'cancelled') {
+        throw {
+          statusCode: 400,
+          code: 'APPLICATION_CANCELLED',
+          message: 'Cancelled applications cannot be allocated.',
+        };
+      }
 
-    return updated;
+      // Verify course exists in this institution and lock its seat count.
+      const [course] = await tx
+        .select()
+        .from(admissionCourses)
+        .where(and(eq(admissionCourses.institutionCode, institutionCode), eq(admissionCourses.id, payload.courseId)))
+        .for('update');
+
+      if (!course) {
+        throw { statusCode: 404, code: 'COURSE_NOT_FOUND', message: 'Target course not found.' };
+      }
+
+      // Check course overall capacity
+      const appsInCourse = await tx
+        .select()
+        .from(admissionApplications)
+        .where(
+          and(
+            eq(admissionApplications.institutionCode, institutionCode),
+            eq(admissionApplications.allocatedCourseId, course.id),
+            or(eq(admissionApplications.status, 'allocated'), eq(admissionApplications.status, 'confirmed'))
+          )
+        );
+
+      // If candidate was already allocated in this course, don't double count
+      const occupiedOverall = appsInCourse.filter((a: AdmissionApplicationRecord) => a.id !== id).length;
+      if (occupiedOverall >= course.totalSeats) {
+        throw {
+          statusCode: 400,
+          code: 'COURSE_FULL',
+          message: `All ${course.totalSeats} seats in ${course.courseName} are occupied.`,
+        };
+      }
+
+      // Check quota capacity
+      const targetQuota = (course.quotas || []).find(
+        (q: QuotaAllocationItem) => q.quotaName.toLowerCase().trim() === payload.quota.toLowerCase().trim()
+      );
+
+      if (targetQuota) {
+        const occupiedQuota = appsInCourse.filter(
+          (a: AdmissionApplicationRecord) =>
+            a.id !== id &&
+            (a.allocatedQuota || '').toLowerCase().trim() === payload.quota.toLowerCase().trim()
+        ).length;
+
+        if (occupiedQuota >= targetQuota.seats) {
+          throw {
+            statusCode: 400,
+            code: 'QUOTA_FULL',
+            message: `All ${targetQuota.seats} seats in quota "${targetQuota.quotaName}" for ${course.courseName} are occupied.`,
+          };
+        }
+      }
+
+      const [updated] = await tx
+        .update(admissionApplications)
+        .set({
+          status: 'allocated',
+          allocatedCourseId: course.id,
+          allocatedCourseName: course.courseName,
+          allocatedQuota: payload.quota,
+          allocatedAt: new Date(),
+          notes: payload.notes || app.notes,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(admissionApplications.institutionCode, institutionCode), eq(admissionApplications.id, id)))
+        .returning();
+
+      return updated;
+    });
   }
 
   /**
@@ -530,37 +550,41 @@ export class AdmissionService {
   public async unallocateSeat(institutionCode: string, id: string, notes?: string) {
     if (!db) throw new Error('Database connection required');
 
-    const app = await db.query.admissionApplications.findFirst({
-      where: and(eq(admissionApplications.institutionCode, institutionCode), eq(admissionApplications.id, id)),
+    return withTransaction(async (tx) => {
+      const [app] = await tx
+        .select()
+        .from(admissionApplications)
+        .where(and(eq(admissionApplications.institutionCode, institutionCode), eq(admissionApplications.id, id)))
+        .for('update');
+
+      if (!app) {
+        throw { statusCode: 404, code: 'NOT_FOUND', message: 'Application not found.' };
+      }
+
+      if (app.status === 'confirmed') {
+        throw {
+          statusCode: 400,
+          code: 'CONFIRMED_SEAT',
+          message: 'Confirmed admissions cannot be unallocated directly. Please withdraw/cancel first.',
+        };
+      }
+
+      const [updated] = await tx
+        .update(admissionApplications)
+        .set({
+          status: 'waiting_list',
+          allocatedCourseId: null,
+          allocatedCourseName: '',
+          allocatedQuota: '',
+          allocatedAt: null,
+          notes: notes || app.notes,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(admissionApplications.institutionCode, institutionCode), eq(admissionApplications.id, id)))
+        .returning();
+
+      return updated;
     });
-
-    if (!app) {
-      throw { statusCode: 404, code: 'NOT_FOUND', message: 'Application not found.' };
-    }
-
-    if (app.status === 'confirmed') {
-      throw {
-        statusCode: 400,
-        code: 'CONFIRMED_SEAT',
-        message: 'Confirmed admissions cannot be unallocated directly. Please withdraw/cancel first.',
-      };
-    }
-
-    const [updated] = await db
-      .update(admissionApplications)
-      .set({
-        status: 'waiting_list',
-        allocatedCourseId: null,
-        allocatedCourseName: '',
-        allocatedQuota: '',
-        allocatedAt: null,
-        notes: notes || app.notes,
-        updatedAt: new Date(),
-      })
-      .where(and(eq(admissionApplications.institutionCode, institutionCode), eq(admissionApplications.id, id)))
-      .returning();
-
-    return updated;
   }
 
   /**
@@ -569,34 +593,46 @@ export class AdmissionService {
   public async confirmSeat(institutionCode: string, id: string, notes?: string) {
     if (!db) throw new Error('Database connection required');
 
-    const app = await db.query.admissionApplications.findFirst({
-      where: and(eq(admissionApplications.institutionCode, institutionCode), eq(admissionApplications.id, id)),
+    return withTransaction(async (tx) => {
+      const [app] = await tx
+        .select()
+        .from(admissionApplications)
+        .where(and(eq(admissionApplications.institutionCode, institutionCode), eq(admissionApplications.id, id)))
+        .for('update');
+
+      if (!app) {
+        throw { statusCode: 404, code: 'NOT_FOUND', message: 'Application not found.' };
+      }
+
+      if (app.status === 'cancelled') {
+        throw {
+          statusCode: 400,
+          code: 'APPLICATION_CANCELLED',
+          message: 'Cancelled applications cannot be confirmed.',
+        };
+      }
+
+      if (!app.allocatedCourseId) {
+        throw {
+          statusCode: 400,
+          code: 'NOT_ALLOCATED',
+          message: 'Student must be allocated a seat before confirmation.',
+        };
+      }
+
+      const [updated] = await tx
+        .update(admissionApplications)
+        .set({
+          status: 'confirmed',
+          confirmedAt: new Date(),
+          notes: notes || app.notes,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(admissionApplications.institutionCode, institutionCode), eq(admissionApplications.id, id)))
+        .returning();
+
+      return updated;
     });
-
-    if (!app) {
-      throw { statusCode: 404, code: 'NOT_FOUND', message: 'Application not found.' };
-    }
-
-    if (!app.allocatedCourseId) {
-      throw {
-        statusCode: 400,
-        code: 'NOT_ALLOCATED',
-        message: 'Student must be allocated a seat before confirmation.',
-      };
-    }
-
-    const [updated] = await db
-      .update(admissionApplications)
-      .set({
-        status: 'confirmed',
-        confirmedAt: new Date(),
-        notes: notes || app.notes,
-        updatedAt: new Date(),
-      })
-      .where(and(eq(admissionApplications.institutionCode, institutionCode), eq(admissionApplications.id, id)))
-      .returning();
-
-    return updated;
   }
 
   /**
@@ -605,17 +641,33 @@ export class AdmissionService {
   public async cancelApplication(institutionCode: string, id: string, notes?: string) {
     if (!db) throw new Error('Database connection required');
 
-    const [updated] = await db
-      .update(admissionApplications)
-      .set({
-        status: 'cancelled',
-        notes: notes || undefined,
-        updatedAt: new Date(),
-      })
-      .where(and(eq(admissionApplications.institutionCode, institutionCode), eq(admissionApplications.id, id)))
-      .returning();
+    return withTransaction(async (tx) => {
+      const [app] = await tx
+        .select()
+        .from(admissionApplications)
+        .where(and(eq(admissionApplications.institutionCode, institutionCode), eq(admissionApplications.id, id)))
+        .for('update');
 
-    return updated;
+      if (!app) {
+        throw { statusCode: 404, code: 'NOT_FOUND', message: 'Application not found.' };
+      }
+
+      const [updated] = await tx
+        .update(admissionApplications)
+        .set({
+          status: 'cancelled',
+          allocatedCourseId: null,
+          allocatedCourseName: '',
+          allocatedQuota: '',
+          allocatedAt: null,
+          notes: notes || app.notes,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(admissionApplications.institutionCode, institutionCode), eq(admissionApplications.id, id)))
+        .returning();
+
+      return updated;
+    });
   }
 
   // ==========================================

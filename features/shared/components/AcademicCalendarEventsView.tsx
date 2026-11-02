@@ -120,94 +120,6 @@ const getEventTypeBadgeStyle = (type: EventType) => {
   }
 };
 
-export const INITIAL_EVENTS: CalendarEvent[] = [
-  {
-    id: 'evt-1',
-    title: 'Mid-Semester Examinations (All Semesters)',
-    type: 'exam',
-    scope: 'institution',
-    startDate: '2026-10-22',
-    endDate: '2026-10-28',
-    time: '09:30 AM - 12:30 PM',
-    venue: 'Campus Examination Halls & Exam Block',
-    description: 'Centralized mid-term evaluations across degree programs with biometric student verification.',
-    organizer: 'Controller of Examinations & Principal Office',
-  },
-  {
-    id: 'evt-2',
-    title: 'AI & Neural Architectures National Symposium',
-    type: 'symposium',
-    scope: 'department',
-    department: 'Computer Science',
-    startDate: '2026-11-02',
-    endDate: '2026-11-03',
-    time: '10:00 AM - 04:30 PM',
-    venue: 'Dr. Kalam Tech Auditorium',
-    description: 'Paper presentations, industry keynote panels on Foundation Models, and live student project demonstrations.',
-    organizer: 'Prof. K. Sharma (HOD CSE) & IEEE Student Branch',
-  },
-  {
-    id: 'evt-3',
-    title: 'VLSI Design & Embedded Systems Workshop',
-    type: 'workshop',
-    scope: 'department',
-    department: 'Electronics & Comm',
-    startDate: '2026-11-05',
-    endDate: '2026-11-06',
-    time: '09:00 AM - 04:00 PM',
-    venue: 'ECE Advanced DSP & Microcontroller Lab',
-    description: 'Hands-on FPGA development and verilog synthesis training with industry application engineers.',
-    organizer: 'Dr. Radhika Sen (HOD ECE)',
-  },
-  {
-    id: 'evt-4',
-    title: 'Diwali & Mid-Term Institutional Recess',
-    type: 'holiday',
-    scope: 'institution',
-    startDate: '2026-11-10',
-    endDate: '2026-11-13',
-    venue: 'Institution Wide',
-    description: 'Campus non-instructional days for faculty and students. Hostels and essential security staff remain operational.',
-    organizer: 'Institutional Governing Board',
-  },
-  {
-    id: 'evt-5',
-    title: 'Faculty Development Program: Generative AI in Higher Education',
-    type: 'faculty_dev',
-    scope: 'institution',
-    startDate: '2026-11-18',
-    endDate: '2026-11-20',
-    time: '02:00 PM - 05:00 PM',
-    venue: 'Senate Conference Room & Virtual Hybrid',
-    description: 'Accreditation-aligned workshop on modern pedagogical technology, AI-assisted evaluation, and research grant writing.',
-    organizer: 'Office of the Principal & Internal Quality Assurance Cell',
-  },
-  {
-    id: 'evt-6',
-    title: 'Robotics & Mechatronics Automation Expo',
-    type: 'symposium',
-    scope: 'department',
-    department: 'Mechanical Eng',
-    startDate: '2026-12-01',
-    endDate: '2026-12-02',
-    time: '09:30 AM - 05:00 PM',
-    venue: 'Central CAD/CAM Facility & Mechanical Workshops',
-    description: 'Autonomous rover challenge, industrial robot prototyping, and fluid power systems exhibition.',
-    organizer: 'Prof. Manish Hegde (Mechanical Eng)',
-  },
-  {
-    id: 'evt-7',
-    title: 'End-Semester University Practical Lab Examinations',
-    type: 'exam',
-    scope: 'institution',
-    startDate: '2026-12-10',
-    endDate: '2026-12-18',
-    time: '08:30 AM - 04:30 PM',
-    venue: 'All Departmental Laboratories',
-    description: 'External viva voce, algorithm lab execution, and project evaluation as per University curricula.',
-    organizer: 'Controller of Examinations',
-  },
-];
 
 export const AcademicCalendarEventsView: React.FC<AcademicCalendarEventsViewProps> = ({
   userRole = 'principal',
@@ -221,7 +133,7 @@ export const AcademicCalendarEventsView: React.FC<AcademicCalendarEventsViewProp
   const cardGap = 10;
   const cardWidth = isDesktop ? Math.floor((maxContentWidth - 32 - cardGap) / 2) : '100%';
 
-  const [events, setEvents] = useState<CalendarEvent[]>(INITIAL_EVENTS);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [search, setSearch] = useState('');
   const [activeScopeFilter, setActiveScopeFilter] = useState<'all' | 'institution' | 'department' | 'exam' | 'holiday'>('all');
   const [selectedDept, setSelectedDept] = useState<string>('all');
@@ -239,7 +151,7 @@ export const AcademicCalendarEventsView: React.FC<AcademicCalendarEventsViewProp
   const [formTitle, setFormTitle] = useState('');
   const [formType, setFormType] = useState<EventType>('academic');
   const [formScope, setFormScope] = useState<'institution' | 'department'>('institution');
-  const [formDept, setFormDept] = useState(userDepartment || 'Computer Science');
+  const [formDept, setFormDept] = useState(userDepartment || '');
   const [scopeDropdownOpen, setScopeDropdownOpen] = useState(false);
   const [deptDropdownOpen, setDeptDropdownOpen] = useState(false);
   const [formStartDate, setFormStartDate] = useState('');
@@ -265,7 +177,7 @@ export const AcademicCalendarEventsView: React.FC<AcademicCalendarEventsViewProp
     setFormTitle('');
     setFormType('academic');
     setFormScope(canManageDeptOnly && !isPrincipalOrAdmin ? 'department' : 'institution');
-    setFormDept(userDepartment || 'Computer Science');
+    setFormDept(userDepartment || '');
     setScopeDropdownOpen(false);
     setDeptDropdownOpen(false);
     setFormStartDate(new Date().toISOString().slice(0, 10));
@@ -282,7 +194,7 @@ export const AcademicCalendarEventsView: React.FC<AcademicCalendarEventsViewProp
     setFormTitle(evt.title);
     setFormType(evt.type);
     setFormScope(evt.scope);
-    setFormDept(evt.department || 'Computer Science');
+    setFormDept(evt.department || '');
     setScopeDropdownOpen(false);
     setDeptDropdownOpen(false);
     setFormStartDate(evt.startDate);

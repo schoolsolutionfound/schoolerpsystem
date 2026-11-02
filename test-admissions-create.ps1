@@ -1,0 +1,20 @@
+$token = "eyJhbGciOiJSUzI1NiIsImtpZCI6IjkwNGIwZjkxYmU2ZWIwODY3ZGFiYmFhYjU4N2RmYzJlMzNmMDBhMjQiLCJ0eXAiOiJKV1QifQ.eyJuYW1lIjoiVGVzdCBTY2hvb2wgQWRtaXNzaW9uIE9mZmljZXIiLCJpc3MiOiJodHRwczovL3NlY3VyZXRva2VuLmdvb2dsZS5jb20vc2Nob29sLWVycC1hcHAtZGVjODIiLCJhdWQiOiJzY2hvb2wtZXJwLWFwcC1kZWM4MiIsImF1dGhfdGltZSI6MTc5Mjk0MzY5MSwidXNlcl9pZCI6IkQ0Qnd4Q2V5Zk9RVHNRVkVXbXl4ZjR5Sk1DbjIiLCJzdWIiOiJENEJ3eENleWZPUVRzUVZFV215eGY0eUpNQ24yIiwiaWF0IjoxNzkyOTQzNjkxLCJleHAiOjE3OTI5NDcyOTEsImVtYWlsIjoiYWRtaXNzaW9uQHNjaG9vbC5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiZmlyZWJhc2UiOnsiaWRlbnRpdGllcyI6eyJlbWFpbCI6WyJhZG1pc3Npb25Ac2Nob29sLmNvbSJdfSwic2lnbl9pbl9wcm92aWRlciI6ImN1c3RvbSJ9fQ.fyIO4SER8aAhZIn7SesIF2THPvoldc6szZpkoyPXK6j3iFqHUEHETQvMxKZHplkJl244SQPUg6x6w2utGgPfjdsCTTeShf3qFd0TzUSfAhwpd_fprX1ODAM50bMw5OjO8leTDCcaPVF7OJKSCntmkrJXM9E69WjNXObsSfJ1NP4q8mH7Ka2rawhCCiNowDxPPpokcU5gfKbKcuA1c8OmEDgsTDLmpX05ODw6QHvV7DbP99OWkO7iXQkZD-7AzhKL4u6fOq0qrxvo_6dF3ZBuyd3AMi9SiVPx9TaKAim2EN86exx3goShaLpUlq5kyeP9XAl517UuJFU6vXQpgf0nnA"
+
+$headers = @{
+    "Authorization" = "Bearer $token"
+    "Content-Type" = "application/json"
+}
+
+$body = '{
+  "childFullName": "Test Student",
+  "childAge": 6,
+  "childGender": "male",
+  "gradeApplyingFor": "Class 1",
+  "parentId": "BvDJFTSKHuZs7eYfo9t4PxPMa0I3",
+  "parentName": "Test Parent",
+  "parentEmail": "parent@tst-sch-001.com",
+  "parentPhone": "9876543210",
+  "schoolId": "TST-SCH-001"
+}'
+$response = Invoke-RestMethod -Uri 'http://localhost:5000/api/v1/admissions' -Method Post -Headers $headers -Body $body
+$response | ConvertTo-Json -Depth 10

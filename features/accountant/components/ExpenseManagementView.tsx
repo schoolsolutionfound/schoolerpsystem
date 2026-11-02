@@ -323,7 +323,6 @@ export const ExpenseManagementView: React.FC = () => {
     <View style={sharedFinanceStyles.container}>
       <View style={sharedFinanceStyles.pageHeader}>
         <Text style={sharedFinanceStyles.pageTitle}>Expense Ledger</Text>
-        <Text style={sharedFinanceStyles.pageSubtitle}>Record and track school expenses.</Text>
       </View>
 
       {/* Summary Strip */}

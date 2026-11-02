@@ -24,30 +24,6 @@ interface PeriodItem {
   endTime: string;
 }
 
-interface DefaultSlot {
-  periodId: string;
-  dayOfWeek: number; // 1 to 5
-  subjectName: string;
-}
-
-const DEFAULT_PERIODS: PeriodItem[] = [
-  { id: 'p1', label: 'Period 1', timeRange: '09:00 AM – 10:00 AM', startTime: '09:00', endTime: '10:00' },
-  { id: 'p2', label: 'Period 2', timeRange: '10:00 AM – 11:00 AM', startTime: '10:00', endTime: '11:00' },
-  { id: 'p3', label: 'Period 3', timeRange: '11:00 AM – 12:00 PM', startTime: '11:00', endTime: '12:00' },
-  { id: 'p4', label: 'Period 4', timeRange: '12:00 PM – 01:00 PM', startTime: '12:00', endTime: '13:00' },
-  { id: 'p5', label: 'Period 5', timeRange: '02:00 PM – 03:00 PM', startTime: '14:00', endTime: '15:00' },
-  { id: 'p6', label: 'Period 6', timeRange: '03:00 PM – 04:00 PM', startTime: '15:00', endTime: '16:00' },
-];
-
-const DEFAULT_SUBJECTS_MAP: Record<string, string> = {
-  p1: 'English',
-  p2: 'Science',
-  p3: 'Social Studies',
-  p4: 'Mathematics',
-  p5: 'Computer',
-  p6: 'English',
-};
-
 function getWeekDays(baseDate: Date) {
   const current = new Date(baseDate);
   const day = current.getDay();
@@ -134,7 +110,7 @@ export const StudentTimetableView: React.FC = () => {
   };
 
   const userDept = useUserStore((s) => s.department);
-  const className = data?.classSection?.name || userDept || 'Class 6 A';
+  const className = data?.classSection?.name || userDept || '';
 
   // Extract slots from API if available, else use default schedule
   const slotsFromApi = data?.slots || [];
@@ -162,7 +138,7 @@ export const StudentTimetableView: React.FC = () => {
         return Array.from(periodMap.values()).sort((a, b) => a.startTime.localeCompare(b.startTime));
       }
     }
-    return DEFAULT_PERIODS;
+    return [];
   }, [slotsFromApi]);
 
   const getSubjectForSlot = (dayOfWeek: number, periodId: string) => {
@@ -173,10 +149,10 @@ export const StudentTimetableView: React.FC = () => {
           (s.period?.id === periodId || s.period?.label?.toLowerCase().includes(periodId))
       );
       if (found) {
-        return found.subject?.name || 'Subject';
+        return found.subject?.name || '—';
       }
     }
-    return DEFAULT_SUBJECTS_MAP[periodId] || 'Subject';
+    return '';
   };
 
   if (loading && !refreshing) {

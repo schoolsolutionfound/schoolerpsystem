@@ -411,18 +411,32 @@ export class AcademicsService {
         },
         tx
       );
+      // Read the previous register only after the record row is locked by the
+      // upsert, so concurrent saves serialize and the second request sees the
+      // first one's entries instead of re-notifying the same absence.
+      const previousEntries = await academicsRepository.listEntriesForRecord(record.id);
+      const previousStatus = new Map(previousEntries.map((e) => [e.studentId, e.attendanceStatus]));
+      const changedEntries = input.entries.filter((e) => {
+        const status = (e.attendanceStatus || '').toLowerCase();
+        return (
+          (status === 'absent' || status === 'late') &&
+          (previousStatus.get(e.studentId) || '').toLowerCase() !== status
+        );
+      });
+
       const rows = entryRows.map((e) => ({ ...e, attendanceRecordId: record.id }));
       await academicsRepository.replaceEntriesForRecord(record.id, rows, tx);
       await this.autoLockIfPastEndOfDay(record.id, input.date, tx);
-      return record;
+      return { record, changedEntries };
     };
 
-    const record = db ? await withTransaction(writeAttendance) : await writeAttendance(null);
+    const { record, changedEntries } = db ? await withTransaction(writeAttendance) : await writeAttendance(null);
 
     return {
       recordId: record.id,
       status: record.status,
       entriesCount: input.entries.length,
+      changedEntries,
     };
   }
 

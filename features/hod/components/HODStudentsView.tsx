@@ -27,7 +27,7 @@ const SEMESTER_FILTERS = ['All', 'Semester 1', 'Semester 3', 'Semester 5', 'Seme
 
 export const HODStudentsView: React.FC<HODStudentsViewProps> = ({
   students = [],
-  department = 'Computer Science & Engineering',
+  department = '',
   refreshing,
   onRefresh,
   onNavigateToEligibility,

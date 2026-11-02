@@ -307,7 +307,7 @@ export function buildAcademicReportHtml(student: StudentDetailDossier, instituti
           </div>
           <div class="info-item">
             <span class="info-label">Faculty Advisor:</span>
-            <span class="info-value">${student.classTeacherName || 'Dr. Emily Watson'}</span>
+            <span class="info-value">${student.classTeacherName || '—'}</span>
           </div>
           <div class="info-item">
             <span class="info-label">Student Email:</span>
@@ -390,7 +390,7 @@ export function buildAcademicReportHtml(student: StudentDetailDossier, instituti
       <div class="footer-signatures">
         <div>
           <div class="sig-line">Class Teacher / Homeroom Advisor</div>
-          <div class="sig-sub">${student.classTeacherName || 'Dr. Emily Watson'}</div>
+          <div class="sig-sub">${student.classTeacherName || '—'}</div>
         </div>
         <div>
           <div class="stamp-box">Official Seal Verified</div>

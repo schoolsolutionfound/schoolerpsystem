@@ -34,43 +34,15 @@ export interface TeacherClassCard {
   studentCount?: number;
 }
 
-export interface FacultyClassItem {
-  id: string;
-  slotId: string;
-  classSectionName: string;
-  subjectName: string;
-  scheduledDays: number[];
-  scheduledDaysText: string;
-  periodTime: string;
-  studentCount: number;
-}
-
-export const FACULTY_ASSIGNED_CLASSES: FacultyClassItem[] = [
-  { id: 'cls-cse-3a', slotId: 'slot-cse-3a', classSectionName: 'CSE 3rd Year · Sec A', subjectName: 'Data Structures & Algorithms', scheduledDays: [1, 2, 3, 4, 5], scheduledDaysText: 'Mon - Fri', periodTime: '09:00 AM - 09:50 AM', studentCount: 42 },
-  { id: 'cls-cse-2b', slotId: 'slot-cse-2b', classSectionName: 'CSE 2nd Year · Sec B', subjectName: 'Database Management Systems', scheduledDays: [1, 2, 3, 4, 5], scheduledDaysText: 'Mon - Fri', periodTime: '10:00 AM - 10:50 AM', studentCount: 38 },
-  { id: 'cls-ece-1a', slotId: 'slot-ece-1a', classSectionName: 'ECE 1st Year · Sec A', subjectName: 'Digital Electronics & Circuits', scheduledDays: [1, 2, 3, 4, 5], scheduledDaysText: 'Mon - Fri', periodTime: '11:15 AM - 12:05 PM', studentCount: 40 },
-  { id: 'cls-aiml-2a', slotId: 'slot-aiml-2a', classSectionName: 'AIML 2nd Year · Sec A', subjectName: 'Machine Learning Fundamentals', scheduledDays: [1, 2, 3, 4, 5], scheduledDaysText: 'Mon - Fri', periodTime: '01:00 PM - 01:50 PM', studentCount: 36 },
-  { id: 'cls-cse-4a', slotId: 'slot-cse-4a', classSectionName: 'CSE 4th Year · Sec A', subjectName: 'Cloud Computing & Distributed Systems', scheduledDays: [1, 2, 3, 4, 5], scheduledDaysText: 'Mon - Fri', periodTime: '02:00 PM - 02:50 PM', studentCount: 44 },
-];
-
-const DEFAULT_TEACHER_CLASSES: TeacherClassCard[] = [
-  { id: 'tc-1', className: 'Class 8', sectionName: 'A', subjectName: 'Mathematics', studentCount: 32 },
-  { id: 'tc-2', className: 'Class 9', sectionName: 'B', subjectName: 'Algebra', studentCount: 30 },
-  { id: 'tc-3', className: 'Class 9', sectionName: 'C', subjectName: 'Algebra', studentCount: 28 },
-  { id: 'tc-4', className: 'Class 10', sectionName: 'A', subjectName: 'Mathematics', studentCount: 34 },
-  { id: 'tc-5', className: 'Class 10', sectionName: 'B', subjectName: 'Geometry', studentCount: 31 },
-  { id: 'tc-6', className: 'Class 11', sectionName: 'B', subjectName: 'Physics', studentCount: 29 },
-  { id: 'tc-7', className: 'Class 12', sectionName: 'A', subjectName: 'Chemistry', studentCount: 27 },
-];
 
 type Status = 'present' | 'absent';
 
 export function normalizeClassAndSection(rawClassStr?: string): { className: string; sectionName: string } {
-  if (!rawClassStr) return { className: 'VIII', sectionName: 'A' };
+  if (!rawClassStr) return { className: '', sectionName: '' };
 
   const clean = rawClassStr.replace(/^class\s*/i, '').trim();
   const m = clean.match(/^([IVXLCDM]+|\d+)\s*[-_/\s]?\s*([A-Za-z0-9]+)?/i);
-  if (!m) return { className: 'VIII', sectionName: 'A' };
+  if (!m) return { className: '', sectionName: '' };
 
   let cls = m[1].toUpperCase();
   const sec = (m[2] || 'A').toUpperCase();
@@ -97,8 +69,6 @@ interface AttendanceMarkingViewProps {
   onSaved?: (info?: { slotId?: string; className?: string; subjectName?: string; date?: string }) => void;
 }
 
-const DEFAULT_CLASSES = ['VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
-const DEFAULT_SECTIONS = ['A', 'B', 'C', 'D'];
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -112,88 +82,9 @@ const MONTH_SHORT = [
 
 const WEEK_DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
-// Mockup roster for Class VIII-A (28 students, 24 Present, 4 Absent)
-const ROSTER_VIII_A = [
-  { id: 's-8a-1', usn: 'USN2026001', admissionNo: 'USN2026001', fullName: 'Aarav Sharma' },
-  { id: 's-8a-2', usn: 'USN2026002', admissionNo: 'USN2026002', fullName: 'Aditya Nair' },
-  { id: 's-8a-3', usn: 'USN2026003', admissionNo: 'USN2026003', fullName: 'Ananya Ramesh' },
-  { id: 's-8a-4', usn: 'USN2026004', admissionNo: 'USN2026004', fullName: 'Devika S' },
-  { id: 's-8a-5', usn: 'USN2026005', admissionNo: 'USN2026005', fullName: 'Ibrahim Khan' },
-  { id: 's-8a-6', usn: 'USN2026006', admissionNo: 'USN2026006', fullName: 'Kavya B' },
-  { id: 's-8a-7', usn: 'USN2026007', admissionNo: 'USN2026007', fullName: 'Mohammed Ali' },
-  { id: 's-8a-8', usn: 'USN2026008', admissionNo: 'USN2026008', fullName: 'Sneha Prakash' },
-  { id: 's-8a-9', usn: 'USN2026009', admissionNo: 'USN2026009', fullName: 'Rohan Varma' },
-  { id: 's-8a-10', usn: 'USN2026010', admissionNo: 'USN2026010', fullName: 'Priya Menon' },
-  { id: 's-8a-11', usn: 'USN2026011', admissionNo: 'USN2026011', fullName: 'Arjun Das' },
-  { id: 's-8a-12', usn: 'USN2026012', admissionNo: 'USN2026012', fullName: 'Tanvi Shah' },
-  { id: 's-8a-13', usn: 'USN2026013', admissionNo: 'USN2026013', fullName: 'Varun Nair' },
-  { id: 's-8a-14', usn: 'USN2026014', admissionNo: 'USN2026014', fullName: 'Meera Nair' },
-  { id: 's-8a-15', usn: 'USN2026015', admissionNo: 'USN2026015', fullName: 'Siddharth Rao' },
-  { id: 's-8a-16', usn: 'USN2026016', admissionNo: 'USN2026016', fullName: 'Anika Patel' },
-  { id: 's-8a-17', usn: 'USN2026017', admissionNo: 'USN2026017', fullName: 'Rahul Krishna' },
-  { id: 's-8a-18', usn: 'USN2026018', admissionNo: 'USN2026018', fullName: 'Pooja Hegde' },
-  { id: 's-8a-19', usn: 'USN2026019', admissionNo: 'USN2026019', fullName: 'Nikhil Kamath' },
-  { id: 's-8a-20', usn: 'USN2026020', admissionNo: 'USN2026020', fullName: 'Sanjana Reddy' },
-  { id: 's-8a-21', usn: 'USN2026021', admissionNo: 'USN2026021', fullName: 'Farhan Akhtar' },
-  { id: 's-8a-22', usn: 'USN2026022', admissionNo: 'USN2026022', fullName: 'Riya Sen' },
-  { id: 's-8a-23', usn: 'USN2026023', admissionNo: 'USN2026023', fullName: 'Yash Malhotra' },
-  { id: 's-8a-24', usn: 'USN2026024', admissionNo: 'USN2026024', fullName: 'Ishaan Sharma' },
-  { id: 's-8a-25', usn: 'USN2026025', admissionNo: 'USN2026025', fullName: 'Diya Kapoor' },
-  { id: 's-8a-26', usn: 'USN2026026', admissionNo: 'USN2026026', fullName: 'Neil Fernandez' },
-  { id: 's-8a-27', usn: 'USN2026027', admissionNo: 'USN2026027', fullName: 'Alisha Joseph' },
-  { id: 's-8a-28', usn: 'USN2026028', admissionNo: 'USN2026028', fullName: 'Pranav Nair' },
-];
-
-const STUDENT_NAMES_POOL = [
-  'Aarav Sharma', 'Aditya Nair', 'Ananya Ramesh', 'Devika S', 'Ibrahim Khan',
-  'Kavya B', 'Mohammed Ali', 'Sneha Prakash', 'Rohan Varma', 'Priya Menon',
-  'Arjun Das', 'Tanvi Shah', 'Varun Nair', 'Meera Nair', 'Siddharth Rao',
-  'Anika Patel', 'Rahul Krishna', 'Pooja Hegde', 'Nikhil Kamath', 'Sanjana Reddy',
-  'Farhan Akhtar', 'Riya Sen', 'Yash Malhotra', 'Ishaan Sharma', 'Diya Kapoor',
-  'Neil Fernandez', 'Alisha Joseph', 'Pranav Nair', 'Bhavna Kulkarni', 'Chetan Bhagat',
-  'Deepa Mehta', 'Eshaan Roy', 'Gauri Shinde', 'Harsh Vardhan', 'Ishita Paul',
-];
-
-// Helper to convert Roman to number for smart search
-function romanToNum(roman: string): number | null {
-  const map: Record<string, number> = {
-    I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6,
-    VII: 7, VIII: 8, IX: 9, X: 10, XI: 11, XII: 12,
-  };
-  return map[roman.toUpperCase()] || null;
-}
-
-// Helper to calculate student attendance percentage
-function getStudentAttendancePercent(id: string, name: string): number {
-  let hash = 0;
-  const str = id + name;
-  for (let i = 0; i < str.length; i++) {
-    hash = (hash * 31 + str.charCodeAt(i)) % 1000;
-  }
-  return 75 + (hash % 24);
-}
-
-// Generate dynamic roster for any class and section
-function getDynamicRoster(className: string, sectionName: string): any[] {
-  if (className === 'VIII' && sectionName === 'A') {
-    return ROSTER_VIII_A;
-  }
-  const count = 22 + ((className.charCodeAt(0) + sectionName.charCodeAt(0)) % 8);
-  const cleanCls = className.replace(/[^A-Za-z0-9]/g, '');
-  return Array.from({ length: count }, (_, i) => {
-    const nameIdx = (i + className.length + sectionName.charCodeAt(0)) % STUDENT_NAMES_POOL.length;
-    const usnVal = `USN${cleanCls}${sectionName}${String(i + 1).padStart(3, '0')}`;
-    return {
-      id: `s-${cleanCls.toLowerCase()}${sectionName.toLowerCase()}-${i + 1}`,
-      usn: usnVal,
-      admissionNo: usnVal,
-      fullName: STUDENT_NAMES_POOL[nameIdx],
-    };
-  });
-}
 
 export const AttendanceMarkingView: React.FC<AttendanceMarkingViewProps> = ({
-  slotId = 'demo-1',
+  slotId,
   subjectName,
   className,
   sectionName,
@@ -213,16 +104,16 @@ export const AttendanceMarkingView: React.FC<AttendanceMarkingViewProps> = ({
         id: slotId || `prop-${className}-${sectionName || parsed.sectionName}`,
         className: className.toLowerCase().startsWith('class') ? className : `Class ${className}`,
         sectionName: sectionName || parsed.sectionName,
-        subjectName: subjectName || 'Mathematics',
+        subjectName: subjectName || '',
       };
     }
     return null;
   });
 
   // Teacher Assigned Classes & Search
-  const [teacherClasses, setTeacherClasses] = useState<TeacherClassCard[]>(DEFAULT_TEACHER_CLASSES);
+  const [teacherClasses, setTeacherClasses] = useState<TeacherClassCard[]>([]);
   const [classSearchQuery, setClassSearchQuery] = useState('');
-  const [selectedSubject, setSelectedSubject] = useState(subjectName || 'Mathematics');
+  const [selectedSubject, setSelectedSubject] = useState(subjectName || '');
 
   // Track marked periods from Zustand store for reactive updates in VIEW 1
   const markedPeriods = useAttendanceStore((state) => state.markedPeriods);
@@ -241,8 +132,8 @@ export const AttendanceMarkingView: React.FC<AttendanceMarkingViewProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
 
   // Dynamic available classes & sections
-  const [availableClasses, setAvailableClasses] = useState<string[]>(DEFAULT_CLASSES);
-  const [availableSections, setAvailableSections] = useState<string[]>(DEFAULT_SECTIONS);
+  const [availableClasses, setAvailableClasses] = useState<string[]>([]);
+  const [availableSections, setAvailableSections] = useState<string[]>([]);
 
   // Active inline dropdown selector: 'class' | 'section' | 'date' | null
   const [openDropdown, setOpenDropdown] = useState<'class' | 'section' | 'date' | null>(null);
@@ -255,21 +146,10 @@ export const AttendanceMarkingView: React.FC<AttendanceMarkingViewProps> = ({
   const [editingStudentIds, setEditingStudentIds] = useState<Set<string>>(new Set());
 
   // Dynamic attendance store keyed by: `${class}_${section}_${date}`
-  const [attendanceRecords, setAttendanceRecords] = useState<Record<string, Record<string, Status>>>(() => {
-    const initialMarks: Record<string, Status> = {};
-    ROSTER_VIII_A.forEach((s) => {
-      if (['s-8a-3', 's-8a-7', 's-8a-14', 's-8a-21'].includes(s.id)) {
-        initialMarks[s.id] = 'absent';
-      } else {
-        initialMarks[s.id] = 'present';
-      }
-    });
-    const todayKey = `VIII_A_${new Date().toISOString().slice(0, 10)}`;
-    return { [todayKey]: initialMarks };
-  });
+  const [attendanceRecords, setAttendanceRecords] = useState<Record<string, Record<string, Status>>>({});
 
   // Current active roster
-  const [roster, setRoster] = useState<any[]>(ROSTER_VIII_A);
+  const [roster, setRoster] = useState<any[]>([]);
 
   const [locked, setLocked] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -305,7 +185,7 @@ export const AttendanceMarkingView: React.FC<AttendanceMarkingViewProps> = ({
           if (rawName) {
             const parts = rawName.split('-');
             const cName = parts[0]?.trim() || rawName;
-            const sName = parts[1]?.trim() || 'A';
+            const sName = parts[1]?.trim() || '';
             const fullCls = cName.toLowerCase().startsWith('class') ? cName : `Class ${cName}`;
             const key = `${fullCls}_${sName}_${sub}`;
             if (!cardMap.has(key)) {
@@ -313,8 +193,8 @@ export const AttendanceMarkingView: React.FC<AttendanceMarkingViewProps> = ({
                 id: p.id || `tc-dyn-${idx}`,
                 className: fullCls,
                 sectionName: sName,
-                subjectName: sub || 'Mathematics',
-                studentCount: 30 + ((idx * 3) % 6),
+                subjectName: sub,
+                studentCount: p.studentCount || 0,
               });
             }
           }
@@ -398,8 +278,8 @@ export const AttendanceMarkingView: React.FC<AttendanceMarkingViewProps> = ({
     fetchClassSectionsApi()
       .then((res: any) => {
         if (Array.isArray(res) && res.length > 0) {
-          const classSet = new Set<string>(DEFAULT_CLASSES);
-          const sectionSet = new Set<string>(DEFAULT_SECTIONS);
+          const classSet = new Set<string>();
+          const sectionSet = new Set<string>();
           res.forEach((cs: any) => {
             const name = (cs.name || '').trim();
             const parts = name.split('-');
@@ -436,7 +316,7 @@ export const AttendanceMarkingView: React.FC<AttendanceMarkingViewProps> = ({
         id: slotId || `prop-${className}-${sectionName || parsed.sectionName}`,
         className: className.toLowerCase().startsWith('class') ? className : `Class ${className}`,
         sectionName: sectionName || parsed.sectionName,
-        subjectName: subjectName || 'Mathematics',
+        subjectName: subjectName || '',
       });
       setAvailableClasses((prev) => {
         if (!prev.includes(parsed.className)) {
@@ -447,32 +327,11 @@ export const AttendanceMarkingView: React.FC<AttendanceMarkingViewProps> = ({
     }
   }, [className, sectionName, subjectName, slotId]);
 
-  // Update dynamic roster and marks whenever class, section, or date changes
   useEffect(() => {
     setIsAllEditable(false);
     setEditingStudentIds(new Set());
-
-    // Generate or fetch roster for class and section
-    const currentRoster = getDynamicRoster(selectedClass, selectedSection);
-    setRoster(currentRoster);
-
-    // If marks do not exist for this combination, generate initial marks
-    setAttendanceRecords((prev) => {
-      if (prev[currentKey]) {
-        return prev;
-      }
-      const initial: Record<string, Status> = {};
-      currentRoster.forEach((s, idx) => {
-        // Set realistic 10-15% absent
-        if (idx % 7 === 2) {
-          initial[s.id] = 'absent';
-        } else {
-          initial[s.id] = 'present';
-        }
-      });
-      return { ...prev, [currentKey]: initial };
-    });
-  }, [selectedClass, selectedSection, selectedDate, currentKey]);
+    setRoster([]);
+  }, [selectedClass, selectedSection, selectedDate]);
 
   // Restore saved attendance from useAttendanceStore if available
   useEffect(() => {
@@ -495,27 +354,31 @@ export const AttendanceMarkingView: React.FC<AttendanceMarkingViewProps> = ({
 
   // Fetch real slot attendance if a live slot is connected
   const loadSlotData = useCallback(async () => {
-    if (!slotId || slotId.startsWith('demo-')) {
+    const activeSlotId = slotId || selectedClassCard?.id;
+    if (!activeSlotId || activeSlotId.startsWith('demo-')) {
       return;
     }
     setLoading(true);
     try {
       const [rosterRes, existingRes] = await Promise.all([
-        fetchRosterApi(slotId).catch(() => null),
-        fetchAttendanceForSlotApi(slotId, selectedDate).catch(() => null),
+        fetchRosterApi(activeSlotId).catch(() => null),
+        fetchAttendanceForSlotApi(activeSlotId, selectedDate).catch(() => null),
       ]);
 
       if (rosterRes?.students?.length) {
-        const students = rosterRes.students.map((s: any, idx: number) => {
-          const usnVal = s.rollNoOrUSN || s.studentUsn || s.rollNo || `USN2026${String(idx + 1).padStart(3, '0')}`;
+        const students = rosterRes.students.map((s: any) => {
+          const usnVal = s.rollNoOrUSN || s.studentUsn || s.rollNo || '';
           return {
             id: s.id,
             usn: usnVal,
             admissionNo: usnVal,
-            fullName: s.fullName || s.name || `Student ${idx + 1}`,
+            fullName: s.fullName || s.name || '',
+            attendancePercentage: s.attendancePercentage,
           };
         });
         setRoster(students);
+      } else {
+        setRoster([]);
       }
 
       if (rosterRes?.classSection?.name) {
@@ -540,7 +403,7 @@ export const AttendanceMarkingView: React.FC<AttendanceMarkingViewProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [slotId, selectedDate, currentKey]);
+  }, [slotId, selectedClassCard?.id, selectedDate, currentKey]);
 
   useEffect(() => {
     loadSlotData();
@@ -669,15 +532,24 @@ export const AttendanceMarkingView: React.FC<AttendanceMarkingViewProps> = ({
   // Save Attendance
   const handleSave = async () => {
     if (roster.length === 0) return;
+    const activeSlotId = slotId || selectedClassCard?.id;
+    if (!activeSlotId || activeSlotId.startsWith('demo-') || activeSlotId.startsWith('tc-') || activeSlotId.startsWith('prop-')) {
+      Alert.alert('Unable to Save', 'No timetable slot is connected to this class.');
+      return;
+    }
     setSaving(true);
-    const activeSlotId = slotId || selectedClassCard?.id || `slot-${selectedClass}-${selectedSection}`;
     const activeClassName = selectedClassCard?.className
       ? `${selectedClassCard.className}-${selectedSection}`
       : (className || `Class ${selectedClass}-${selectedSection}`);
-    const activeSubject = selectedSubject || subjectName || selectedClassCard?.subjectName || 'General';
+    const activeSubject = selectedSubject || subjectName || selectedClassCard?.subjectName || '';
 
     try {
-      // Save locally to useAttendanceStore
+      const entries = roster.map((s) => ({
+        studentId: s.id,
+        attendanceStatus: marks[s.id] || 'present',
+      }));
+      await markAttendanceApi({ timetableSlotId: activeSlotId, date: selectedDate, entries });
+
       useAttendanceStore.getState().markPeriodAttendance({
         slotId: activeSlotId,
         date: selectedDate,
@@ -691,26 +563,6 @@ export const AttendanceMarkingView: React.FC<AttendanceMarkingViewProps> = ({
         marks: { ...marks },
       });
 
-      if (!slotId || slotId.startsWith('demo-') || slotId.startsWith('tc-') || slotId.startsWith('prop-')) {
-        setIsAllEditable(false);
-        setEditingStudentIds(new Set());
-        Alert.alert(
-          'Attendance Saved',
-          `Attendance for Class ${selectedClass}-${selectedSection} on ${formattedDate} (${counts.present} Present, ${counts.absent} Absent) has been saved.`
-        );
-        onSaved?.({
-          slotId: activeSlotId,
-          className: activeClassName,
-          subjectName: activeSubject,
-          date: selectedDate,
-        });
-        return;
-      }
-      const entries = roster.map((s) => ({
-        studentId: s.id,
-        attendanceStatus: marks[s.id] || 'present',
-      }));
-      await markAttendanceApi({ timetableSlotId: slotId, date: selectedDate, entries });
       setIsAllEditable(false);
       setEditingStudentIds(new Set());
       Alert.alert(
@@ -1143,7 +995,7 @@ export const AttendanceMarkingView: React.FC<AttendanceMarkingViewProps> = ({
               const isPresent = status === 'present';
               const isAbsent = status === 'absent';
               const editable = isRowEditable(student.id);
-              const pct = getStudentAttendancePercent(student.id, student.fullName);
+              const pct = typeof student.attendancePercentage === 'number' ? student.attendancePercentage : null;
 
               return (
                 <View key={student.id} style={styles.tableRow}>
@@ -1159,12 +1011,12 @@ export const AttendanceMarkingView: React.FC<AttendanceMarkingViewProps> = ({
                       style={[
                         styles.tdPercent,
                         {
-                          color: pct < 75 ? '#DC2626' : '#171717',
+                          color: pct !== null && pct < 75 ? '#DC2626' : '#171717',
                         },
                       ]}
                       numberOfLines={1}
                     >
-                      {pct}%
+                      {pct === null ? '—' : `${pct}%`}
                     </Text>
                   </View>
 

@@ -1,14 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Animated, Dimensions, StatusBar, Image, Platform } from 'react-native';
+import { View, Text, StyleSheet, Animated, StatusBar, Image, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { onAuthStateChanged } from 'firebase/auth';
-import LottieView from 'lottie-react-native';
 import { auth } from '../firebaseConfig';
 import { useUserStore } from '../store/useUserStore';
 import { getHomeRouteForRole } from '../features/shared/utils/routeGuards';
 import { FontFamily } from '../constants/fonts';
 
-const { width } = Dimensions.get('window');
 
 export default function AppSplashScreen() {
   const router = useRouter();
@@ -26,6 +24,7 @@ export default function AppSplashScreen() {
   const isEmailVerified = useUserStore((state) => state.isEmailVerified);
   const mustChangePassword = useUserStore((state) => state.mustChangePassword);
   const profileCompleted = useUserStore((state) => state.profileCompleted);
+  const accessBlocked = useUserStore((state) => state.accessBlocked);
 
   const [authStateResolved, setAuthStateResolved] = useState(false);
 
@@ -101,6 +100,7 @@ export default function AppSplashScreen() {
         isEmailVerified,
         mustChangePassword,
         profileCompleted,
+        accessBlocked,
         isReadyToNavigate,
       });
     }
@@ -109,11 +109,12 @@ export default function AppSplashScreen() {
     let finalRoute: any = '/auth';
 
     if (user) {
-      if (userRole === 'loading') {
+      if (accessBlocked) {
+        finalRoute = '/account-blocked';
+      } else if (userRole === 'loading') {
         if (__DEV__) console.warn('[BOOT] splash waiting: authenticated but role still loading');
         return;
-      }
-      if (!isEmailVerified) {
+      } else if (!isEmailVerified) {
         finalRoute = '/verify-email';
       } else if (mustChangePassword) {
         finalRoute = '/change-password';
@@ -142,21 +143,11 @@ export default function AppSplashScreen() {
     }, remaining);
 
     return () => { clearTimeout(timer); clearTimeout(failsafe); };
-  }, [authStateResolved, isProfileSynced, _hasHydrated, userRole, isEmailVerified, mustChangePassword, profileCompleted, router]);
+  }, [authStateResolved, isProfileSynced, _hasHydrated, userRole, isEmailVerified, mustChangePassword, profileCompleted, accessBlocked, router]);
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
-
-      {/* Lottie animation */}
-      <View style={styles.lottieContainer}>
-        <LottieView
-          source={{ uri: 'https://assets9.lottiefiles.com/packages/lf20_u4yrau.json' }}
-          autoPlay
-          loop
-          style={styles.lottie}
-        />
-      </View>
 
       {/* Center content */}
       <View style={styles.content}>
@@ -213,19 +204,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFDF7',
-  },
-  lottieContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: Dimensions.get('window').height * 0.45,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  lottie: {
-    width: width * 0.75,
-    height: width * 0.75,
   },
   content: {
     flex: 1,

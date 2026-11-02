@@ -43,228 +43,36 @@ function getDepartmentIcon(deptName: string): keyof typeof Feather.glyphMap {
   return 'compass';
 }
 
-// Comprehensive realistic fallback faculty roster across departments
-const COMPREHENSIVE_STAFF_ROSTER: PrincipalStaffMember[] = [
-  {
-    id: 'fac-01',
-    fullName: 'Dr. Emily Watson',
-    email: 'e.watson@institution.edu',
-    phone: '+91 98451 23456',
-    department: 'Computer Science',
-    designation: 'hod',
-    assignedClass: 'CSE 1st Year · Sec A',
-    assignedSubjects: ['Advanced Data Structures', 'Cloud Computing Architecture'],
-    attendanceToday: 'present',
-    experienceYears: 14,
-    qualification: 'Ph.D. in Computer Science (IIT Bombay)',
-  },
-  {
-    id: 'fac-02',
-    fullName: 'Prof. David Vance',
-    email: 'd.vance@institution.edu',
-    phone: '+91 98452 34567',
-    department: 'Electronics & Comm',
-    designation: 'subject_teacher',
-    assignedClass: 'ECE 2nd Year · Sec A',
-    assignedSubjects: ['Digital Signal Processing', 'VLSI Design & Embedded Systems'],
-    attendanceToday: 'present',
-    experienceYears: 10,
-    qualification: 'M.Tech in Microelectronics (IISc Bangalore)',
-  },
-  {
-    id: 'fac-03',
-    fullName: 'Dr. Henry Ford',
-    email: 'h.ford@institution.edu',
-    phone: '+91 98453 45678',
-    department: 'Mechanical Eng',
-    designation: 'homeroom_teacher',
-    assignedClass: 'Mechanical 2nd Year',
-    assignedSubjects: ['Thermodynamics & Heat Transfer', 'Kinematics of Machinery'],
-    attendanceToday: 'present',
-    experienceYears: 12,
-    qualification: 'Ph.D. in Thermal Engineering (NIT Surathkal)',
-  },
-  {
-    id: 'fac-04',
-    fullName: 'Dr. Marie Curie',
-    email: 'm.curie@institution.edu',
-    phone: '+91 98454 56789',
-    department: 'Applied Sciences',
-    designation: 'subject_teacher',
-    assignedClass: 'Applied Physics Honors',
-    assignedSubjects: ['Quantum Mechanics', 'Electromagnetics & Optics'],
-    attendanceToday: 'absent',
-    experienceYears: 7,
-    qualification: 'Ph.D. in Quantum Physics (Delhi University)',
-  },
-  {
-    id: 'fac-05',
-    fullName: 'Prof. Arvind Raghavan',
-    email: 'a.raghavan@institution.edu',
-    phone: '+91 98455 67890',
-    department: 'AIML',
-    designation: 'hod',
-    assignedClass: 'AIML M.Tech 2nd Year',
-    assignedSubjects: ['Deep Learning Systems', 'Generative AI & LLM Engineering'],
-    attendanceToday: 'present',
-    experienceYears: 15,
-    qualification: 'Ph.D. in Artificial Intelligence (IIT Madras)',
-  },
-  {
-    id: 'fac-06',
-    fullName: 'Dr. Sunita Kulkarni',
-    email: 's.kulkarni@institution.edu',
-    phone: '+91 98456 78901',
-    department: 'AIML',
-    designation: 'subject_teacher',
-    assignedClass: 'AIML B.Tech 3rd Year',
-    assignedSubjects: ['Natural Language Processing', 'Computer Vision'],
-    attendanceToday: 'present',
-    experienceYears: 9,
-    qualification: 'Ph.D. in Computational Linguistics',
-  },
-  {
-    id: 'fac-07',
-    fullName: 'Prof. Rajeshwar Rao',
-    email: 'r.rao@institution.edu',
-    phone: '+91 98457 89012',
-    department: 'Civil Eng',
-    designation: 'hod',
-    assignedClass: 'Civil 3rd Year',
-    assignedSubjects: ['Structural Analysis', 'Geotechnical Engineering'],
-    attendanceToday: 'present',
-    experienceYears: 16,
-    qualification: 'Ph.D. in Structural Engineering (IIT Roorkee)',
-  },
-  {
-    id: 'fac-08',
-    fullName: 'Dr. Ananya Sengupta',
-    email: 'a.sengupta@institution.edu',
-    phone: '+91 98458 90123',
-    department: 'Commerce & Mgmt',
-    designation: 'academic_coordinator',
-    assignedClass: 'MBA 1st Year',
-    assignedSubjects: ['Financial Accounting & Modeling', 'Corporate Governance'],
-    attendanceToday: 'present',
-    experienceYears: 11,
-    qualification: 'Ph.D. in Finance (IIM Calcutta)',
-  },
-  {
-    id: 'fac-09',
-    fullName: 'Prof. Vikram Malhotra',
-    email: 'v.malhotra@institution.edu',
-    phone: '+91 98459 01234',
-    department: 'Computer Science',
-    designation: 'subject_teacher',
-    assignedClass: 'CSE 3rd Year · Sec B',
-    assignedSubjects: ['Operating Systems', 'Distributed Systems'],
-    attendanceToday: 'absent',
-    experienceYears: 8,
-    qualification: 'M.Tech in Software Engineering (BITS Pilani)',
-  },
-  {
-    id: 'fac-10',
-    fullName: 'Dr. Priya Nambiar',
-    email: 'p.nambiar@institution.edu',
-    phone: '+91 98460 12345',
-    department: 'Electronics & Comm',
-    designation: 'homeroom_teacher',
-    assignedClass: 'ECE 3rd Year · Sec B',
-    assignedSubjects: ['Wireless Communication', 'Microcontrollers & IoT'],
-    attendanceToday: 'present',
-    experienceYears: 10,
-    qualification: 'Ph.D. in Wireless Networks (IIT Kanpur)',
-  },
-  {
-    id: 'fac-11',
-    fullName: 'Er. Ramesh Babu',
-    email: 'r.babu@institution.edu',
-    phone: '+91 98461 23456',
-    department: 'Mechanical Eng',
-    designation: 'lab_instructor',
-    assignedSubjects: ['CAD/CAM Automation Lab', 'Robotics Workshop'],
-    attendanceToday: 'present',
-    experienceYears: 6,
-    qualification: 'B.Tech in Mechatronics (Anna University)',
-  },
-  {
-    id: 'fac-12',
-    fullName: 'Dr. Meenakshi Sundaram',
-    email: 'm.sundaram@institution.edu',
-    phone: '+91 98462 34567',
-    department: 'Applied Sciences',
-    designation: 'counselor',
-    assignedSubjects: ['Applied Mathematics', 'Linear Algebra & Calculus'],
-    attendanceToday: 'present',
-    experienceYears: 13,
-    qualification: 'Ph.D. in Applied Mathematics (University of Hyderabad)',
-  },
-];
 
-// Helper to compute deterministic, rich faculty details including leaves
 function getFacultyDossierDetails(staff: PrincipalStaffMember) {
-  let hash = 0;
-  for (let i = 0; i < staff.fullName.length; i++) {
-    hash = (hash << 5) - hash + staff.fullName.charCodeAt(i);
-    hash |= 0;
-  }
-  const posHash = Math.abs(hash);
-
-  const empId = staff.employeeId || `EMP-${(staff.department?.slice(0, 3) || 'FAC').toUpperCase()}-${(100 + (posHash % 900))}`;
-  const clTaken = (posHash % 5) + 2; // 2 to 6
-  const clTotal = 12;
-  const clAvailable = clTotal - clTaken;
-
-  const slTaken = (posHash % 4) + 1; // 1 to 4
-  const slTotal = 12;
-  const slAvailable = slTotal - slTaken;
-
-  const elTaken = (posHash % 7) + 3; // 3 to 9
-  const elTotal = 20;
-  const elAvailable = elTotal - elTaken;
-
-  const odTaken = (posHash % 4) + 1; // 1 to 4 on-duty
-
-  const totalTaken = clTaken + slTaken + elTaken + odTaken;
-  const totalAvailable = clAvailable + slAvailable + elAvailable;
-  const totalEntitled = clTotal + slTotal + elTotal;
-
-  const attendanceRate = (91 + (posHash % 8) + 0.4).toFixed(1);
-  const totalWorkingDays = 192;
-  const presentDays = Math.round((parseFloat(attendanceRate) / 100) * totalWorkingDays);
-
-  const isPresent = staff.attendanceToday === 'present';
-  const punchInTime = isPresent ? `08:${30 + (posHash % 25)} AM` : 'On Approved Leave';
-
-  const blockLetter = posHash % 3 === 0 ? 'Block A' : posHash % 3 === 1 ? 'Block B' : 'Block C';
-  const cabinRoom = staff.cabinNumber || `${blockLetter}, Cabin ${100 + (posHash % 250)}`;
-  const dateOfJoining = `15-Jul-${2015 + (posHash % 9)}`;
-  const weeklyHours = 14 + (posHash % 6);
-  const menteesCount = 18 + (posHash % 12);
-
   return {
-    empId,
-    clTaken,
-    clAvailable,
-    clTotal,
-    slTaken,
-    slAvailable,
-    slTotal,
-    elTaken,
-    elAvailable,
-    elTotal,
-    odTaken,
-    totalTaken,
-    totalAvailable,
-    totalEntitled,
-    attendanceRate,
-    totalWorkingDays,
-    presentDays,
-    punchInTime,
-    cabinRoom,
-    dateOfJoining,
-    weeklyHours,
-    menteesCount,
+    empId: staff.employeeId || '',
+    clTaken: 0,
+    clAvailable: 0,
+    clTotal: 0,
+    slTaken: 0,
+    slAvailable: 0,
+    slTotal: 0,
+    elTaken: 0,
+    elAvailable: 0,
+    elTotal: 0,
+    odTaken: 0,
+    totalTaken: 0,
+    totalAvailable: 0,
+    totalEntitled: 0,
+    attendanceRate: '0',
+    totalWorkingDays: 0,
+    presentDays: 0,
+    punchInTime:
+      staff.attendanceToday === 'present'
+        ? 'Present'
+        : staff.attendanceToday === 'on_leave'
+          ? 'On Approved Leave'
+          : 'Absent',
+    cabinRoom: staff.cabinNumber || '',
+    dateOfJoining: '',
+    weeklyHours: 0,
+    menteesCount: 0,
   };
 }
 
@@ -277,47 +85,6 @@ export const INSTITUTION_DEPARTMENTS = [
   'Commerce & Mgmt',
   'Applied Sciences',
 ] as const;
-
-// Helper to assign a deterministic valid department if missing from API or object
-function normalizeFacultyDepartment(staff: PrincipalStaffMember, index: number, fallbackDept?: string): string {
-  if (staff.department && staff.department.trim()) {
-    return staff.department.trim();
-  }
-  if (fallbackDept && fallbackDept.trim()) {
-    return fallbackDept.trim();
-  }
-  const text = `${staff.assignedClass || ''} ${(staff.assignedSubjects || []).join(' ')} ${staff.fullName || ''}`.toLowerCase();
-  if (text.includes('cse') || text.includes('computer') || text.includes('software')) return 'Computer Science';
-  if (text.includes('ai') || text.includes('ml') || text.includes('intelligence')) return 'AIML';
-  if (text.includes('ece') || text.includes('electronic') || text.includes('telecom')) return 'Electronics & Comm';
-  if (text.includes('mech') || text.includes('thermal') || text.includes('cad')) return 'Mechanical Eng';
-  if (text.includes('civil') || text.includes('struct')) return 'Civil Eng';
-  if (text.includes('mba') || text.includes('commerce') || text.includes('finance') || text.includes('mgmt')) return 'Commerce & Mgmt';
-  if (text.includes('physic') || text.includes('math') || text.includes('chem') || text.includes('science')) return 'Applied Sciences';
-
-  let hash = 0;
-  const key = staff.fullName || staff.id || String(index);
-  for (let i = 0; i < key.length; i++) {
-    hash = (hash << 5) - hash + key.charCodeAt(i);
-    hash |= 0;
-  }
-  return INSTITUTION_DEPARTMENTS[Math.abs(hash + index) % INSTITUTION_DEPARTMENTS.length];
-}
-
-// Helper to assign a deterministic valid phone number if missing from API or roster
-function normalizeFacultyPhone(staff: PrincipalStaffMember, index: number): string {
-  if (staff.phone && staff.phone.trim().length > 0) {
-    return staff.phone.trim();
-  }
-  let hash = 0;
-  const key = staff.fullName || staff.id || String(index);
-  for (let i = 0; i < key.length; i++) {
-    hash = (hash << 5) - hash + key.charCodeAt(i);
-    hash |= 0;
-  }
-  const suffix = 10000 + (Math.abs(hash + index * 97) % 90000);
-  return `+91 9845${suffix}`;
-}
 
 export const SCHEDULE_DAYS = [
   { dayIndex: 1, label: 'Mon', fullName: 'Monday' },
@@ -449,31 +216,14 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
   const modalMaxWidth = isDesktop ? 760 : isTablet ? 640 : '92%';
   const modalMaxHeight = isDesktop ? 720 : Math.min(Math.round(windowHeight * 0.80), 650);
 
-  // Active roster data with department normalization
-  const activeStaffList = useMemo(() => {
-    let rawList: PrincipalStaffMember[] = COMPREHENSIVE_STAFF_ROSTER;
-    if (restrictDepartment) {
-      if (staffList && staffList.length > 0) {
-        rawList = staffList;
-      } else {
-        const matched = COMPREHENSIVE_STAFF_ROSTER.filter(
-          (s) => (s.department || '').toLowerCase().includes(restrictDepartment.toLowerCase())
-        );
-        rawList = matched.length > 0 ? matched : COMPREHENSIVE_STAFF_ROSTER.slice(0, 6);
-      }
-    } else if (staffList && staffList.length >= 8) {
-      rawList = staffList;
-    } else if (staffList && staffList.length > 0) {
-      const existingIds = new Set(staffList.map((s) => s.id));
-      const additions = COMPREHENSIVE_STAFF_ROSTER.filter((s) => !existingIds.has(s.id));
-      rawList = [...staffList, ...additions];
-    }
-    return rawList.map((staff, idx) => ({
+  const activeStaffList = useMemo(
+    () => (staffList || []).map((staff) => ({
       ...staff,
-      department: normalizeFacultyDepartment(staff, idx, restrictDepartment),
-      phone: normalizeFacultyPhone(staff, idx),
-    }));
-  }, [staffList, restrictDepartment]);
+      department: staff.department || restrictDepartment || '',
+      phone: staff.phone || '',
+    })),
+    [staffList, restrictDepartment]
+  );
 
   // Search & Filter State
   const [search, setSearch] = useState('');

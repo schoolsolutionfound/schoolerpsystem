@@ -7,14 +7,14 @@ export default {
       "policy": "appVersion"
     },
     "orientation": "default",
-    "icon": "./assets/kivquo-logo-transparent.png",
-    "scheme": "schooerp",
+    "icon": "./assets/app-icon.png",
+    "scheme": "kivquo",
     "userInterfaceStyle": "light",
     "newArchEnabled": false,
     "ios": {
       "buildNumber": "1",
       "supportsTablet": true,
-      "bundleIdentifier": "com.schooerp.app",
+      "bundleIdentifier": "com.kivquo.app",
       "infoPlist": {
         "NSCameraUsageDescription": "Allow School ERP to use your camera for profile photos and document scanning.",
         "NSPhotoLibraryUsageDescription": "Allow School ERP to access your photos to upload documents.",
@@ -22,13 +22,20 @@ export default {
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Allow School ERP to access your location in the background to continuously broadcast bus position during active trips.",
         "UIBackgroundModes": ["location"],
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      ...(process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
+        ? {
+            "config": {
+              "googleMapsApiKey": process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
+            }
+          }
+        : {})
     },
     "android": {
       "versionCode": 1,
-      "package": "com.schooerp.app",
+      "package": "com.kivquo.app",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/kivquo-logo-transparent.png",
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#F4C430"
       },
       "edgeToEdgeEnabled": true,
@@ -55,8 +62,9 @@ export default {
       "favicon": "./assets/favicon.png"
     },
     "updates": {
-      "enabled": false,
-      "checkAutomatically": "NEVER"
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "url": "https://u.expo.dev/49525e1b-2eec-4315-a68d-f83d351f0ea0"
     },
     "plugins": [
       "expo-router",
@@ -64,8 +72,8 @@ export default {
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#F4C430",
-          "image": "./assets/kivquo-logo-transparent.png",
+          "backgroundColor": "#FFFDF7",
+          "image": "./assets/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain"
         }
@@ -74,7 +82,6 @@ export default {
       "expo-web-browser",
       "expo-secure-store",
       "@react-native-community/datetimepicker",
-      "@sentry/react-native",
       "expo-audio",
       "expo-font",
       "expo-image",

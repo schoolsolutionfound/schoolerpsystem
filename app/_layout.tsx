@@ -123,7 +123,6 @@ const AppLayout = function Layout() {
   const [isMCheckLoading, setIsMCheckLoading] = useState(true);
   const isSplashHidden = useRef(false);
   const appStateRef = useRef(AppState.currentState);
-  const institutionCode = useUserStore((state) => state.institutionCode);
   const setMaintenance = useConfigStore((state) => state.setMaintenance);
   const maintenanceConfigFetchedRef = useRef(false);
 
@@ -277,18 +276,13 @@ const AppLayout = function Layout() {
     let cancelled = false;
 
     const applyMaintenanceConfig = async () => {
-      if (!institutionCode) {
-        if (__DEV__) console.log('[BOOT] maintenance skipped: no institutionCode');
-        if (!cancelled) setIsMCheckLoading(false);
-        return;
-      }
       if (maintenanceConfigFetchedRef.current) {
         if (__DEV__) console.log('[BOOT] maintenance already fetched, unblocking');
         if (!cancelled) setIsMCheckLoading(false);
         return;
       }
       maintenanceConfigFetchedRef.current = true;
-      if (__DEV__) console.log('[BOOT] maintenance fetch start', { institutionCode });
+      if (__DEV__) console.log('[BOOT] maintenance fetch start');
       try {
         const res = await getInstitutionConfigRequest();
         const data = res?.data;
@@ -351,7 +345,7 @@ const AppLayout = function Layout() {
       clearTimeout(splashTimeout);
       unsubAuth();
     };
-  }, [validateAndRedirect, resetUser, setIsProfileSynced, institutionCode, setMaintenance]);
+  }, [validateAndRedirect, resetUser, setIsProfileSynced, setMaintenance]);
 
   const compareVersions = (v1: string, v2: string) => {
     const parts1 = v1.split('.').map(Number), parts2 = v2.split('.').map(Number);
@@ -471,6 +465,7 @@ const AppLayout = function Layout() {
           <Stack.Screen name="select-school" />
           <Stack.Screen name="change-password" />
           <Stack.Screen name="complete-profile" />
+          <Stack.Screen name="account-blocked" />
           <Stack.Screen name="notifications" />
           <Stack.Screen name="teacher-attendance" />
           <Stack.Screen name="leave" />

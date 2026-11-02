@@ -23,16 +23,16 @@ export default function ParentProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const fullName = useUserStore((s) => s.fullName) || 'Parent';
-  const email = useUserStore((s) => s.email) || 'safwanhaneef786@gmail.com';
-  const institutionName = useUserStore((s) => s.institutionName) || 'Test School';
-  const institutionCode = useUserStore((s) => s.institutionCode) || 'TST001';
+  const fullName = useUserStore((s) => s.fullName) || '';
+  const email = useUserStore((s) => s.email) || '';
+  const institutionName = useUserStore((s) => s.institutionName) || '';
+  const institutionCode = useUserStore((s) => s.institutionCode) || '';
   const institutionType = useUserStore((s) => s.institutionType) || 'school';
-  const phone = useUserStore((s) => s.phone) || '7892104273';
+  const phone = useUserStore((s) => s.phone) || '';
   const profilePic = useUserStore((s) => s.profilePic) || '';
-  const linkedStudentUSN = useUserStore((s) => s.linkedStudentUSN) || 'C6A-001';
-  const relation = useUserStore((s) => s.relation) || 'Father';
-  const childName = useUserStore((s) => s.childName) || 'Safwan Haneef';
+  const linkedStudentUSN = useUserStore((s) => s.linkedStudentUSN) || '';
+  const relation = useUserStore((s) => s.relation) || '';
+  const childName = useUserStore((s) => s.childName) || '';
 
   // Display student name as requested instead of "Haneef (Parent of Safwan)"
   const studentDisplayName =
@@ -40,7 +40,7 @@ export default function ParentProfileScreen() {
     (fullName.includes('Parent of')
       ? fullName.split('(')[1]?.replace(')', '')?.replace('Parent of', '')?.trim()
       : fullName) ||
-    'Safwan Haneef';
+    '';
 
   const resetUser = useUserStore((s) => s.resetUser);
   const setUserProfile = useUserStore((s) => s.setUserProfile);
@@ -165,12 +165,12 @@ export default function ParentProfileScreen() {
           </View>
           <View style={styles.statsDivider} />
           <View style={styles.statsCol}>
-            <Text style={styles.statsVal}>{linkedStudentUSN || 'C6A-001'}</Text>
+            <Text style={styles.statsVal}>{linkedStudentUSN || '—'}</Text>
             <Text style={styles.statsLabel}>STUDENT USN</Text>
           </View>
           <View style={styles.statsDivider} />
           <View style={styles.statsCol}>
-            <Text style={styles.statsVal}>{institutionCode || 'TST001'}</Text>
+            <Text style={styles.statsVal}>{institutionCode || '—'}</Text>
             <Text style={styles.statsLabel}>INST CODE</Text>
           </View>
         </View>
@@ -184,7 +184,7 @@ export default function ParentProfileScreen() {
           <View style={styles.fieldBlock}>
             <Text style={styles.infoLabel}>NAME</Text>
             <Text style={styles.infoValue} numberOfLines={1}>
-              {institutionName || institutionCode || 'Test School'}
+              {institutionName || institutionCode || '—'}
             </Text>
           </View>
 
@@ -193,7 +193,7 @@ export default function ParentProfileScreen() {
           <View style={styles.gridRow}>
             <View style={styles.gridCell}>
               <Text style={styles.infoLabel}>CODE</Text>
-              <Text style={styles.infoValue}>{institutionCode || 'TST001'}</Text>
+              <Text style={styles.infoValue}>{institutionCode || '—'}</Text>
             </View>
             <View style={styles.cellDivider} />
             <View style={styles.gridCell}>
@@ -211,14 +211,14 @@ export default function ParentProfileScreen() {
         <View style={styles.card}>
           <View style={styles.fieldBlock}>
             <Text style={styles.infoLabel}>EMAIL</Text>
-            <Text style={styles.infoValue}>{email || 'safwanhaneef786@gmail.com'}</Text>
+            <Text style={styles.infoValue}>{email || '—'}</Text>
           </View>
 
           <View style={styles.horizontalDivider} />
 
           <View style={styles.fieldBlock}>
             <Text style={styles.infoLabel}>PHONE NUMBER</Text>
-            <Text style={styles.infoValue}>{phone || '7892104273'}</Text>
+            <Text style={styles.infoValue}>{phone || '—'}</Text>
           </View>
         </View>
 
@@ -249,7 +249,7 @@ export default function ParentProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.versionText}>KIVQUO v1.0 · Parent Portal</Text>
+        <Text style={styles.versionText}>KIVQUO v1.0 Â· Parent Portal</Text>
       </ScrollView>
     </View>
   );
@@ -288,7 +288,7 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
 
-  /* ─── User Info Header ────────────────────────────────────────────── */
+  /* â”€â”€â”€ User Info Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   userHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -344,7 +344,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 
-  /* ─── Stats Card ─────────────────────────────────────────────────── */
+  /* â”€â”€â”€ Stats Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   statsCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -384,7 +384,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#EFE7D8',
   },
 
-  /* ─── Section Header ─────────────────────────────────────────────── */
+  /* â”€â”€â”€ Section Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -404,7 +404,7 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
 
-  /* ─── White Card ─────────────────────────────────────────────────── */
+  /* â”€â”€â”€ White Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 5,
@@ -451,7 +451,7 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
 
-  /* ─── Action Rows ────────────────────────────────────────────────── */
+  /* â”€â”€â”€ Action Rows â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -465,7 +465,7 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
 
-  /* ─── Version ────────────────────────────────────────────────────── */
+  /* â”€â”€â”€ Version â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   versionText: {
     fontSize: 11,
     fontFamily: FontFamily.regular,

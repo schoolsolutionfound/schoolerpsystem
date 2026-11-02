@@ -42,11 +42,11 @@ function formatINR(amount: number): string {
 
 export async function generateParentFeeReceiptPdf(receipt: FeeReceiptData): Promise<void> {
   const userStore = useUserStore.getState();
-  const institutionName = userStore.institutionName || userStore.schoolName || 'School Management System';
-  const childName = receipt.studentName || userStore.childName || userStore.fullName || 'Student';
-  const parentName = receipt.payerName || userStore.fullName || 'Parent';
+  const institutionName = userStore.institutionName || userStore.schoolName || '';
+  const childName = receipt.studentName || userStore.childName || userStore.fullName || '';
+  const parentName = receipt.payerName || userStore.fullName || '';
   const rollNo = receipt.rollNo || userStore.linkedStudentUSN || userStore.rollNoOrUSN || '—';
-  const classSection = receipt.classSection || 'Class 6 A';
+  const classSection = receipt.classSection || '';
   const receiptNo = receipt.receiptNo || (receipt.id ? `REC-${receipt.id.slice(-6).toUpperCase()}` : `REC-${Date.now().toString().slice(-6)}`);
   const dateStr = receipt.date || receipt.paidDate || receipt.paymentDate || new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   const generatedTimestamp = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });

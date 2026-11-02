@@ -81,51 +81,9 @@ const formatToIso = (d: Date) => {
   return `${yyyy}-${mm}-${dd}`;
 };
 
-const INITIAL_REQUESTS: LeaveRequest[] = [
-  {
-    id: 'lr-1',
-    type: 'Casual',
-    fromDate: '2026-10-25',
-    toDate: '2026-10-25',
-    days: 1,
-    reason: 'Personal family event',
-    status: 'PENDING',
-    appliedOn: '2026-10-20',
-  },
-  {
-    id: 'lr-2',
-    type: 'Sick',
-    fromDate: '2026-10-14',
-    toDate: '2026-10-14',
-    days: 1,
-    reason: 'Seasonal viral fever',
-    status: 'APPROVED',
-    appliedOn: '2026-10-13',
-  },
-  {
-    id: 'lr-3',
-    type: 'Casual',
-    fromDate: '2026-09-18',
-    toDate: '2026-09-19',
-    days: 2,
-    reason: 'Outstation family commitment',
-    status: 'APPROVED',
-    appliedOn: '2026-09-15',
-  },
-  {
-    id: 'lr-4',
-    type: 'Earned',
-    fromDate: '2026-08-05',
-    toDate: '2026-08-05',
-    days: 1,
-    reason: 'Government administrative work',
-    status: 'APPROVED',
-    appliedOn: '2026-08-01',
-  },
-];
 
 export const TeacherLeaveView: React.FC<TeacherLeaveViewProps> = ({ onBack }) => {
-  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>(INITIAL_REQUESTS);
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [activeTab, setActiveTab] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('ALL');
 
   // Leave Balances

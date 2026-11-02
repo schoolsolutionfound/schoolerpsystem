@@ -27,22 +27,13 @@ export interface TeacherClassCard {
   studentCount?: number;
 }
 
-const DEFAULT_TEACHER_CLASSES: TeacherClassCard[] = [
-  { id: 'tc-1', className: 'Class 8', sectionName: 'A', subjectName: 'Mathematics', studentCount: 32 },
-  { id: 'tc-2', className: 'Class 9', sectionName: 'B', subjectName: 'Algebra', studentCount: 30 },
-  { id: 'tc-3', className: 'Class 9', sectionName: 'C', subjectName: 'Algebra', studentCount: 28 },
-  { id: 'tc-4', className: 'Class 10', sectionName: 'A', subjectName: 'Mathematics', studentCount: 34 },
-  { id: 'tc-5', className: 'Class 10', sectionName: 'B', subjectName: 'Geometry', studentCount: 31 },
-  { id: 'tc-6', className: 'Class 11', sectionName: 'B', subjectName: 'Physics', studentCount: 29 },
-  { id: 'tc-7', className: 'Class 12', sectionName: 'A', subjectName: 'Chemistry', studentCount: 27 },
-];
 
 export const TeacherReportsView: React.FC = () => {
   // Step 1: Selected class card. When null, displays the classes taken by the teacher.
   const [selectedClassCard, setSelectedClassCard] = useState<TeacherClassCard | null>(null);
 
   // Dynamic teacher classes list
-  const [teacherClasses, setTeacherClasses] = useState<TeacherClassCard[]>(DEFAULT_TEACHER_CLASSES);
+  const [teacherClasses, setTeacherClasses] = useState<TeacherClassCard[]>([]);
 
   // Search filter for classes list
   const [classSearchQuery, setClassSearchQuery] = useState('');
@@ -65,16 +56,16 @@ export const TeacherReportsView: React.FC = () => {
           if (rawName) {
             const parts = rawName.split('-');
             const cName = parts[0]?.trim() || rawName;
-            const sName = parts[1]?.trim() || 'A';
+            const sName = parts[1]?.trim() || '';
             const fullCls = cName.toLowerCase().startsWith('class') ? cName : `Class ${cName}`;
             const key = `${fullCls}_${sName}`;
             if (!cardMap.has(key)) {
               cardMap.set(key, {
-                id: `tc-dyn-${idx}`,
+                id: p.id || `tc-dyn-${idx}`,
                 className: fullCls,
                 sectionName: sName,
-                subjectName: sub || 'Mathematics',
-                studentCount: 30 + ((idx * 3) % 6),
+                subjectName: sub,
+                studentCount: p.studentCount || 0,
               });
             }
           }

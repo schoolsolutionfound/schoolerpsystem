@@ -43,15 +43,15 @@ export const LibrarianProfileView = ({
   const [isEditing, setIsEditing] = useState(false);
 
   // Profile fields state
-  const [name, setName] = useState(userName || 'Amina Rahman');
-  const [email, setEmail] = useState('amina.rahman@kivquo.edu.org');
-  const [phone, setPhone] = useState('+1 (555) 234-5678');
-  const [employeeId, setEmployeeId] = useState('LIB-2024-8891');
-  const [libraryBadgeId, setLibraryBadgeId] = useState('BADGE-LIB-001');
-  const [designation, setDesignation] = useState('Head of Library Operations');
-  const [qualification, setQualification] = useState('Master of Library & Info Science (MLIS)');
-  const [officeLocation, setOfficeLocation] = useState('Central Library, Block B, Room 204');
-  const [profilePicUrl, setProfilePicUrl] = useState('https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400');
+  const [name, setName] = useState(userName || '');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [employeeId, setEmployeeId] = useState('');
+  const [libraryBadgeId, setLibraryBadgeId] = useState('');
+  const [designation, setDesignation] = useState('');
+  const [qualification, setQualification] = useState('');
+  const [officeLocation, setOfficeLocation] = useState('');
+  const [profilePicUrl, setProfilePicUrl] = useState('');
 
   // Fetch live profile from backend on mount
   useEffect(() => {
@@ -126,7 +126,7 @@ export const LibrarianProfileView = ({
       setIsEditing(false);
       Alert.alert('Profile Updated', 'Your librarian profile details have been saved to the server.');
     } catch (err: any) {
-      Alert.alert('Update Notice', err?.message || 'Profile saved locally.');
+      Alert.alert('Update Failed', err?.message || 'Could not save profile. Please try again.');
       setIsEditing(false);
     } finally {
       setSaving(false);

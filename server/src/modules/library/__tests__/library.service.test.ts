@@ -27,6 +27,7 @@ vi.mock('../library.repository.js', () => ({
     createTransaction: vi.fn(),
     createFine: vi.fn(),
     countLoansByCopyId: vi.fn(),
+    countFinesByCopyId: vi.fn(),
     deleteCopy: vi.fn(),
     listBooks: vi.fn(),
     listCategories: vi.fn(),
@@ -407,12 +408,22 @@ describe('deleteCopy (LIB-18 ledger protection)', () => {
     vi.mocked(libraryRepository.getCopyById).mockResolvedValue(mockCopy('c1', { institutionCode: INST }));
     vi.mocked(libraryRepository.countLoansByCopyId).mockResolvedValue(3);
 
-    await expect(svc.deleteCopy(INST, 'c1')).rejects.toMatchObject({ code: 'COPY_HAS_LOAN_HISTORY' });
+    await expect(svc.deleteCopy(INST, 'c1')).rejects.toMatchObject({ code: 'COPY_HAS_LOAN_HISTORY', statusCode: 409 });
+  });
+
+  it('rejects delete when copy has fine history but no loans', async () => {
+    vi.mocked(libraryRepository.getCopyById).mockResolvedValue(mockCopy('c1', { institutionCode: INST }));
+    vi.mocked(libraryRepository.countLoansByCopyId).mockResolvedValue(0);
+    vi.mocked(libraryRepository.countFinesByCopyId).mockResolvedValue(1);
+
+    await expect(svc.deleteCopy(INST, 'c1')).rejects.toMatchObject({ code: 'COPY_HAS_FINE_HISTORY', statusCode: 409 });
+    expect(libraryRepository.deleteCopy).not.toHaveBeenCalled();
   });
 
   it('deletes when no loan history exists', async () => {
     vi.mocked(libraryRepository.getCopyById).mockResolvedValue(mockCopy('c1', { institutionCode: INST }));
     vi.mocked(libraryRepository.countLoansByCopyId).mockResolvedValue(0);
+    vi.mocked(libraryRepository.countFinesByCopyId).mockResolvedValue(0);
     vi.mocked(libraryRepository.deleteCopy).mockResolvedValue({} as any);
 
     await expect(svc.deleteCopy(INST, 'c1')).resolves.toBeDefined();

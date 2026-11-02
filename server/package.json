@@ -8,7 +8,9 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "test": "vitest run",
-    "db:push": "npx drizzle-kit push",
+    "db:push": "node scripts/db-push-safe.cjs",
+    "db:bootstrap": "node scripts/db-bootstrap.cjs",
+    "db:migrate": "drizzle-kit migrate",
     "db:generate": "npx drizzle-kit generate"
   },
   "dependencies": {

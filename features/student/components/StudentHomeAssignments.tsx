@@ -3,11 +3,12 @@
  * @description Homework, Assignments & Test Tracker for students.
  */
 
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
 import { showAlert } from '../../shared/utils/showAlert';
+import { fetchStudentHomeworkApi } from '../../../api/academics';
 
 interface AssignmentItem {
   id: string;
@@ -20,54 +21,45 @@ interface AssignmentItem {
   bgColor: string;
 }
 
-const SAMPLE_ASSIGNMENTS: AssignmentItem[] = [
-  {
-    id: 'asg-1',
-    subject: 'Mathematics',
-    title: 'Ex 4.2 Quadratic Equations Practice & Solutions',
-    dueDate: 'Tomorrow, 11:59 PM',
-    isSubmitted: false,
-    teacher: 'Mr. Rajesh Sharma',
-    color: '#7E57C2',
-    bgColor: '#EDE7F6',
-  },
-  {
-    id: 'asg-2',
-    subject: 'Physics Lab',
-    title: 'Experiment 5: Focal Length of Convex Lens Record',
-    dueDate: 'Fri, Sep 05',
-    isSubmitted: false,
-    teacher: 'Dr. Sunita Rao',
-    color: '#0284C7',
-    bgColor: '#E0F2FE',
-  },
-  {
-    id: 'asg-3',
-    subject: 'Computer Science',
-    title: 'Mini Project: Python File Handling & Student ERP Model',
-    dueDate: 'Mon, Sep 08',
-    isSubmitted: true,
-    teacher: 'Mr. Vikrant Mehra',
-    color: '#16A34A',
-    bgColor: '#DCFCE7',
-  },
-];
-
 export const StudentHomeAssignments: React.FC = () => {
-  const [items, setItems] = useState<AssignmentItem[]>(SAMPLE_ASSIGNMENTS);
+  const [items, setItems] = useState<AssignmentItem[]>([]);
 
-  const toggleSubmit = (id: string) => {
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? { ...item, isSubmitted: !item.isSubmitted }
-          : item
-      )
-    );
-    const it = items.find((x) => x.id === id);
-    if (it && !it.isSubmitted) {
-      showAlert('Assignment Submitted', `Marked "${it.title}" as completed & submitted to teacher.`);
+  const loadAssignments = useCallback(async () => {
+    try {
+      const res: any = await fetchStudentHomeworkApi();
+      const list: any[] = Array.isArray(res) ? res : res?.homework || res?.data || [];
+      setItems(
+        list.map((item) => ({
+          id: String(item.id),
+          subject: item.subject?.name || item.subjectName || '',
+          title: item.title || item.description || '',
+          dueDate: item.dueDate
+            ? new Date(item.dueDate).toLocaleDateString('en-GB', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+              })
+            : '',
+          isSubmitted: item.status === 'submitted' || item.status === 'completed',
+          teacher: item.teacher?.fullName || item.teacherName || '',
+          color: '#7E57C2',
+          bgColor: '#EDE7F6',
+        }))
+      );
+    } catch {
+      setItems([]);
     }
+  }, []);
+
+  useEffect(() => {
+    loadAssignments();
+  }, [loadAssignments]);
+
+  const toggleSubmit = (_id: string) => {
+    showAlert(
+      'Submission Unavailable',
+      'Assignment submission is not enabled. Please submit through your class channel.'
+    );
   };
 
   return (

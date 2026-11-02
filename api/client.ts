@@ -4,15 +4,24 @@ import { debugLog, debugWarn } from '../utils/debugLogger';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 const getBaseUrl = (): string => {
-  // 1. On web in PC browser, always connect to the matching hostname that served the web app
-  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.hostname) {
-    const webHost = window.location.hostname;
-    return `http://${webHost}:5000/api/v1`;
+  // 1. Explicit API URL defined in .env always wins, including on web.
+  const configuredUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
+  if (configuredUrl) {
+    return configuredUrl.replace(/\/+$/, '');
   }
 
-  // 2. Explicit API URL defined in .env (takes precedence over stale/cached network interfaces)
-  if (process.env.EXPO_PUBLIC_API_URL) {
-    return process.env.EXPO_PUBLIC_API_URL;
+  // 2. Web: local dev talks to the same host on port 5000; deployed web
+  //    falls back to a same-origin API path instead of forcing port 5000.
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.hostname) {
+    const webHost = window.location.hostname;
+    const isLocalWeb =
+      webHost === 'localhost' ||
+      webHost === '127.0.0.1' ||
+      webHost === '[::1]' ||
+      /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[0-1])\.)/.test(webHost);
+    return __DEV__ || isLocalWeb
+      ? `http://${webHost}:5000/api/v1`
+      : `${window.location.origin}/api/v1`;
   }
 
   // 3. In development fallback, dynamically connect to active Metro host IP

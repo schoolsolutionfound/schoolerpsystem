@@ -184,7 +184,6 @@ export const IncomeManagementView: React.FC = () => {
     <View style={sharedFinanceStyles.container}>
       <View style={sharedFinanceStyles.pageHeader}>
         <Text style={sharedFinanceStyles.pageTitle}>Income Ledger</Text>
-        <Text style={sharedFinanceStyles.pageSubtitle}>Record and reconcile school income.</Text>
       </View>
 
       {/* Summary Strip */}

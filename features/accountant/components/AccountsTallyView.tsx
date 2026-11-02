@@ -134,7 +134,6 @@ export const AccountsTallyView: React.FC = () => {
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={sharedFinanceStyles.pageHeader}>
         <Text style={sharedFinanceStyles.pageTitle}>Accounts & Tally</Text>
-        <Text style={sharedFinanceStyles.pageSubtitle}>Monitor balances, ratios and audit reports.</Text>
       </View>
 
       {/* Time filter + Export */}

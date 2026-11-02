@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,11 +15,7 @@ import {
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { FontFamily } from '../../../constants/fonts';
 import { StudentFeeRecord, HomeroomSection } from '../types/principal.types';
-import {
-  MOCK_STUDENT_FEES,
-  generateAllInstitutionalStudentFees,
-} from '../constants/feeLedgerData';
-import { DEFAULT_INSTITUTION_CLASSES } from '../constants/defaultClasses';
+import { fetchClassSectionStudentsApi } from '../../../api/principal';
 import {
   FeeConcessionModal,
   FeeConcessionPayload,
@@ -138,7 +134,7 @@ function getClassCardDeduplicatedMeta(item: {
   const deptLower = (item.department || '').toLowerCase();
 
   // 1. Department acronym
-  let deptCode = 'APS';
+  let deptCode = '';
   if (deptLower.includes('aiml') || deptLower.includes('ai') || deptLower.includes('machine') || deptLower.includes('artificial')) {
     deptCode = 'AIML';
   } else if (deptLower.includes('computer') || deptLower.includes('cse')) {
@@ -292,22 +288,66 @@ export const PrincipalFeeLedgerView: React.FC<PrincipalFeeLedgerViewProps> = ({
 
   // State to support live fee updates when concessions are granted
   const [updatedFeeRecords, setUpdatedFeeRecords] = useState<StudentFeeRecord[] | null>(null);
+  const [feeRecords, setFeeRecords] = useState<StudentFeeRecord[]>([]);
 
-  // All student fee records (from active homerooms or full institutional classes)
-  const baseFeeRecords = useMemo(() => {
-    if (homerooms && homerooms.length > 0) {
-      return generateAllInstitutionalStudentFees(homerooms);
+  const activeHomerooms = useMemo(() => homerooms || [], [homerooms]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!activeHomerooms.length) {
+      setFeeRecords([]);
+      return () => { cancelled = true; };
     }
-    return MOCK_STUDENT_FEES;
-  }, [homerooms]);
 
-  const allFeeRecords = updatedFeeRecords || baseFeeRecords;
+    Promise.all(
+      activeHomerooms.map(async (section) => {
+        try {
+          const res = await fetchClassSectionStudentsApi(section.id);
+          return (res?.students || []).map((student) => {
+            const totalFee = Number(student.fees?.totalFee || 0);
+            const paidAmount = Number(student.fees?.paidFee || 0);
+            const pendingFee = Number(student.fees?.pendingFee || 0);
+            const dueDate = student.fees?.dueDate || '';
+            const status: StudentFeeRecord['status'] =
+              pendingFee <= 0
+                ? 'paid'
+                : dueDate && new Date(dueDate) < new Date()
+                  ? 'overdue'
+                  : 'due';
+            return {
+              id: student.id,
+              classId: section.id,
+              className: section.name,
+              studentName: student.fullName,
+              rollNumber: student.rollNoOrUSN || '',
+              department: student.department || section.department || '',
+              year: student.academicYear || section.grade || '',
+              institution: '',
+              totalFee,
+              paidAmount,
+              dueAmount: pendingFee,
+              dueDate,
+              status,
+              contactPhone: student.phone || '',
+              guardianName: '',
+            } satisfies StudentFeeRecord;
+          });
+        } catch {
+          return [] as StudentFeeRecord[];
+        }
+      })
+    )
+      .then((groups) => {
+        if (!cancelled) setFeeRecords(groups.flat());
+      })
+      .catch(() => {
+        if (!cancelled) setFeeRecords([]);
+      });
 
-  // Active classes (from homerooms prop or DEFAULT_INSTITUTION_CLASSES)
-  const activeHomerooms = useMemo(() => {
-    if (homerooms && homerooms.length > 0) return homerooms;
-    return DEFAULT_INSTITUTION_CLASSES;
-  }, [homerooms]);
+    return () => { cancelled = true; };
+  }, [activeHomerooms]);
+
+  const allFeeRecords = updatedFeeRecords || feeRecords;
 
   // Derived categories matching HomeroomsView
   const availableDepartments = useMemo(() => {

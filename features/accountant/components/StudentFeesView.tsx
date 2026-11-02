@@ -162,7 +162,6 @@ export const StudentFeesView: React.FC = () => {
     <View style={sharedFinanceStyles.container}>
       <View style={sharedFinanceStyles.pageHeader}>
         <Text style={sharedFinanceStyles.pageTitle}>Student Fees</Text>
-        <Text style={sharedFinanceStyles.pageSubtitle}>Collect and track student fee invoices.</Text>
       </View>
 
       {/* KPI Banner */}

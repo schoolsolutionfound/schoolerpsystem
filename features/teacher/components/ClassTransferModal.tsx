@@ -626,34 +626,6 @@ export const ClassTransferModal: React.FC<ClassTransferModalProps> = ({
                               : `Waiting for ${req.toTeacherName} to accept or reject.`}
                           </Text>
                         </View>
-
-                        {/* Testing Simulation Shortcuts for Instant Feedback */}
-                        {req.status === 'pending' && (
-                          <View style={styles.simRow}>
-                            <Text style={styles.simLabel}>Demo Simulation:</Text>
-                            <TouchableOpacity
-                              style={styles.simBtnAccept}
-                              onPress={() => {
-                                respondToRequest(req.id, 'accepted');
-                                Alert.alert('Updated', `${req.toTeacherName} accepted! Check your schedule card.`);
-                              }}
-                            >
-                              <Text style={styles.simBtnTextAccept}>Simulate Accept</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              style={styles.simBtnReject}
-                              onPress={() => {
-                                respondToRequest(req.id, 'rejected');
-                                Alert.alert(
-                                  'Transfer Declined',
-                                  `${req.toTeacherName} declined the transfer request. In Schedule, you can tap Transfer again to choose another teacher.`
-                                );
-                              }}
-                            >
-                              <Text style={styles.simBtnTextReject}>Simulate Reject</Text>
-                            </TouchableOpacity>
-                          </View>
-                        )}
                       </View>
                     ))
                   )
