@@ -89,6 +89,8 @@ export const CreateUserSchema = z.object({
   preferredLanguage: z.string().trim().max(30).optional(),
   vehicleNumber: z.string().trim().max(20).optional(),
   licenseNumber: z.string().trim().max(30).optional(),
+  /** driver only — bus vehicle assigned at account creation */
+  vehicleId: z.string().trim().min(1).max(100).optional(),
   /** parent only — Father | Mother | Guardian */
   relation: z.string().trim().max(20).optional(),
   /** admission_officer only — quota category name (e.g. "Management Quota") */

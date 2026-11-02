@@ -1,4 +1,4 @@
-import { eq, and, desc, asc, ilike, or } from 'drizzle-orm';
+import { eq, and, ne, desc, asc, ilike, or } from 'drizzle-orm';
 import { db, dbFindUserByIdOrUid, dbFindStudentByUsnInInstitution } from '../shared/db/index.js';
 import {
   busVehicles,
@@ -57,6 +57,8 @@ export interface ITransportRepository {
   listRoutes(institutionCode: string): Promise<BusRouteRecord[]>;
   createRoute(institutionCode: string, data: { name: string; vehicleId?: string | null; driverId?: string | null }): Promise<BusRouteRecord>;
   updateRoute(institutionCode: string, id: string, data: { name?: string; vehicleId?: string | null; driverId?: string | null }): Promise<BusRouteRecord | undefined>;
+  detachDriverFromOtherRoutes(institutionCode: string, driverId: string, keepRouteId: string): Promise<void>;
+  detachVehicleFromOtherRoutes(institutionCode: string, vehicleId: string, keepRouteId: string): Promise<void>;
   deleteRoute(institutionCode: string, id: string): Promise<boolean>;
   routeHasTrips(routeId: string): Promise<boolean>;
   listStopsByInstitution(institutionCode: string): Promise<BusStopRecord[]>;
@@ -351,6 +353,42 @@ export class TransportRepository implements ITransportRepository {
     return row;
   }
 
+  public async detachDriverFromOtherRoutes(
+    institutionCode: string,
+    driverId: string,
+    keepRouteId: string
+  ): Promise<void> {
+    if (!db) return;
+    await db
+      .update(busRoutes)
+      .set({ driverId: null, updatedAt: new Date() })
+      .where(
+        and(
+          eq(busRoutes.institutionCode, institutionCode),
+          eq(busRoutes.driverId, driverId),
+          ne(busRoutes.id, keepRouteId)
+        )
+      );
+  }
+
+  public async detachVehicleFromOtherRoutes(
+    institutionCode: string,
+    vehicleId: string,
+    keepRouteId: string
+  ): Promise<void> {
+    if (!db) return;
+    await db
+      .update(busRoutes)
+      .set({ vehicleId: null, updatedAt: new Date() })
+      .where(
+        and(
+          eq(busRoutes.institutionCode, institutionCode),
+          eq(busRoutes.vehicleId, vehicleId),
+          ne(busRoutes.id, keepRouteId)
+        )
+      );
+  }
+
   public async deleteRoute(institutionCode: string, id: string): Promise<boolean> {
     if (!db) return false;
     return db.transaction(async (tx) => {
@@ -510,25 +548,41 @@ export class TransportRepository implements ITransportRepository {
     data: { studentId: string; routeId: string; stopId: string }
   ): Promise<StudentTransportRecord> {
     if (!db) throw new Error('Database not connected');
-    const [row] = await db
-      .insert(studentTransport)
-      .values({
-        institutionCode,
-        studentId: data.studentId,
-        routeId: data.routeId,
-        stopId: data.stopId,
-        isActive: true,
-      })
-      .onConflictDoUpdate({
-        target: [studentTransport.studentId, studentTransport.routeId],
-        set: {
+    return db.transaction(async (tx) => {
+      // A student rides one bus at a time: deactivate any other active route
+      // before activating this one so getMyBus can never resolve a stale route.
+      await tx
+        .update(studentTransport)
+        .set({ isActive: false, updatedAt: new Date() })
+        .where(
+          and(
+            eq(studentTransport.institutionCode, institutionCode),
+            eq(studentTransport.studentId, data.studentId),
+            eq(studentTransport.isActive, true),
+            ne(studentTransport.routeId, data.routeId)
+          )
+        );
+
+      const [row] = await tx
+        .insert(studentTransport)
+        .values({
+          institutionCode,
+          studentId: data.studentId,
+          routeId: data.routeId,
           stopId: data.stopId,
           isActive: true,
-          updatedAt: new Date(),
-        },
-      })
-      .returning();
-    return row;
+        })
+        .onConflictDoUpdate({
+          target: [studentTransport.studentId, studentTransport.routeId],
+          set: {
+            stopId: data.stopId,
+            isActive: true,
+            updatedAt: new Date(),
+          },
+        })
+        .returning();
+      return row;
+    });
   }
 
   public async deactivateAssignment(

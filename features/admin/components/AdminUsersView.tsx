@@ -4,6 +4,10 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { FontFamily } from '../../../constants/fonts';
 import { BorderRadius } from '../../../constants/theme';
 import { resetUserPasswordApi, fetchFeesApi } from '../../../api/admin';
+import {
+  BusVehicle,
+  getTransportOverviewApi,
+} from '../../../api/transport';
 import { DropdownSelect } from './DropdownSelect';
 import { BulkImportModal } from './BulkImportModal';
 import { AdminMemberDetailSheet } from './AdminMemberDetailSheet';
@@ -49,6 +53,7 @@ interface AdminUsersViewProps {
     categoryName?: string;
     seats?: number;
     feeStructureIds?: string[];
+    vehicleId?: string;
   }) => Promise<void>;
   onSearchChange?: (q: string) => void;
   hasMore?: boolean;
@@ -93,9 +98,34 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
   const [feeStructures, setFeeStructures] = useState<FeeStructureItem[]>([]);
   const [selectedFeeIds, setSelectedFeeIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [vehicles, setVehicles] = useState<BusVehicle[]>([]);
+  const [busId, setBusId] = useState<string | null>(null);
+  const [busLoading, setBusLoading] = useState(false);
 
   const roleOptions = institutionType === 'college' ? COLLEGE_ROLE_OPTIONS : SCHOOL_ROLE_OPTIONS;
   const isOfficer = role === 'admission_officer';
+  const isDriver = role === 'driver';
+
+  useEffect(() => {
+    if (!isDriver || vehicles.length > 0 || busLoading) return;
+    let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setBusLoading(true);
+    (async () => {
+      try {
+        const overview = await getTransportOverviewApi();
+        if (!cancelled) setVehicles(overview.vehicles || []);
+      } catch {
+        if (!cancelled) setVehicles([]);
+      } finally {
+        if (!cancelled) setBusLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDriver]);
 
   // Fee structures (class + amount) for the officer's "Fee Structures" section.
   useEffect(() => {
@@ -157,6 +187,7 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
     setCategoryName('');
     setSeats('');
     setSelectedFeeIds([]);
+    setBusId(null);
   };
 
   const handleCreate = async () => {
@@ -180,6 +211,7 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
               feeStructureIds: selectedFeeIds.length ? selectedFeeIds : undefined,
             }
           : {}),
+        ...(role === 'driver' && busId ? { vehicleId: busId } : {}),
       });
       setModalOpen(false);
       resetForm();
@@ -430,6 +462,36 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
                 </View>
                 <Text style={styles.hintText}>User will be prompted to change password on first login.</Text>
               </View>
+
+              {isDriver && (
+                <>
+                  <View style={styles.formDivider} />
+                  <Text style={styles.sectionHeader}>Bus Assignment</Text>
+                  <Text style={styles.hintText}>Choose the bus this driver will operate.</Text>
+                  {busLoading ? (
+                    <Text style={styles.hintText}>Loading buses...</Text>
+                  ) : vehicles.length === 0 ? (
+                    <Text style={styles.hintText}>No buses yet — add buses in Transport & Bus first.</Text>
+                  ) : (
+                    <DropdownSelect
+                      variant="inline"
+                      value={busId || ''}
+                      options={vehicles.map((v) => ({
+                        key: v.id,
+                        label: `${v.registrationNo} · ${v.capacity} seats`,
+                      }))}
+                      onChange={(key) => setBusId(key || null)}
+                      placeholder="Select bus"
+                      menuTitle="Select Bus"
+                    />
+                  )}
+                  {busId && vehicles.some((v) => v.id === busId) && (
+                    <Text style={styles.hintText}>
+                      Assigned bus: {vehicles.find((v) => v.id === busId)?.registrationNo}
+                    </Text>
+                  )}
+                </>
+              )}
 
               {isOfficer && (
                 <>

@@ -9,7 +9,12 @@ import {
   UpdateVehicleInput,
   AssignStudentTransportInput,
 } from './transport.schema.js';
-import { findClosestStop, calculateStopsRemaining, fetchRoadGeometry } from './transport.utils.js';
+import {
+  findClosestStop,
+  findNearestStop,
+  calculateStopsRemaining,
+  fetchRoadGeometry,
+} from './transport.utils.js';
 
 export interface LiveLocationTelemetry {
   tripId: string;
@@ -411,17 +416,20 @@ export class TransportService {
         longitude: Number(location.longitude),
       };
       const closest = findClosestStop(busCoords, formattedStops);
+      const nearest = closest ?? findNearestStop(busCoords, formattedStops);
 
+      // "Arrived" is only reported inside the geofence, but the ETA should stay
+      // meaningful while the bus is in transit between stops.
       if (closest) {
         currentStop = {
           id: closest.id,
           name: closest.name,
           sequence: closest.sequence,
         };
+      }
 
-        if (stop) {
-          stopsRemaining = calculateStopsRemaining(stop.sequence, closest.sequence, liveTrip.tripType);
-        }
+      if (nearest && stop) {
+        stopsRemaining = calculateStopsRemaining(stop.sequence, nearest.sequence, liveTrip.tripType);
       }
     }
 
@@ -599,11 +607,20 @@ export class TransportService {
   public async createRoute(institutionCode: string, input: CreateRouteInput) {
     if (input.vehicleId) await this.assertVehicle(institutionCode, input.vehicleId);
     if (input.driverId) await this.assertDriver(institutionCode, input.driverId);
-    return this.repo.createRoute(institutionCode, {
+    const route = await this.repo.createRoute(institutionCode, {
       name: input.name,
       vehicleId: input.vehicleId ?? null,
       driverId: input.driverId ?? null,
     });
+    // A bus and a driver each belong to exactly one route. Moving either one
+    // here unlinks it from any previous route so live trips resolve correctly.
+    if (input.driverId) {
+      await this.repo.detachDriverFromOtherRoutes(institutionCode, input.driverId, route.id);
+    }
+    if (input.vehicleId) {
+      await this.repo.detachVehicleFromOtherRoutes(institutionCode, input.vehicleId, route.id);
+    }
+    return route;
   }
 
   public async updateRoute(institutionCode: string, routeId: string, input: UpdateRouteInput) {
@@ -612,6 +629,12 @@ export class TransportService {
     if (input.driverId) await this.assertDriver(institutionCode, input.driverId);
     const updated = await this.repo.updateRoute(institutionCode, routeId, input);
     if (!updated) throw { statusCode: 404, code: 'ROUTE_NOT_FOUND', message: 'Bus route not found.' };
+    if (input.driverId) {
+      await this.repo.detachDriverFromOtherRoutes(institutionCode, input.driverId, routeId);
+    }
+    if (input.vehicleId) {
+      await this.repo.detachVehicleFromOtherRoutes(institutionCode, input.vehicleId, routeId);
+    }
     return updated;
   }
 

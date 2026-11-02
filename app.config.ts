@@ -104,7 +104,18 @@ export default {
             "newArchEnabled": false
           }
         }
-      ]
+      ],
+      ...(process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
+        ? [
+            [
+              "react-native-maps",
+              {
+                "androidGoogleMapsApiKey": process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY,
+                "iosGoogleMapsApiKey": process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
+              }
+            ]
+          ]
+        : [])
     ],
     "experiments": {
       "typedRoutes": true

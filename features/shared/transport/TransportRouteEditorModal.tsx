@@ -293,6 +293,13 @@ export const TransportRouteEditorModal: React.FC<TransportRouteEditorModalProps>
     ]);
   };
 
+  const pendingLat = parseCoordinate(stopLat);
+  const pendingLng = parseCoordinate(stopLng);
+  const pendingPoint =
+    pendingLat !== null && pendingLng !== null
+      ? { latitude: pendingLat, longitude: pendingLng }
+      : null;
+
   if (!route) return null;
 
   return (
@@ -383,7 +390,13 @@ export const TransportRouteEditorModal: React.FC<TransportRouteEditorModalProps>
             <Text style={styles.sectionHint}>
               Tap the map to place a stop. You can fine-tune the location with latitude and longitude.
             </Text>
-            <LocationPickerMap stops={route.stops} onPick={handleMapPick} height={250} />
+            <LocationPickerMap
+              stops={route.stops}
+              onPick={handleMapPick}
+              height={250}
+              pendingPoint={pendingPoint}
+              searchEnabled
+            />
 
             <View style={styles.coordRow}>
               <View style={styles.coordField}>

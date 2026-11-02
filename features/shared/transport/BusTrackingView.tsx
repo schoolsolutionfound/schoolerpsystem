@@ -81,30 +81,50 @@ export const BusTrackingView: React.FC<BusTrackingViewProps> = ({ audience }) =>
           return;
         }
         if (payload.type === 'LOCATION_UPDATE') {
+          setData((prev) => {
+            if (!prev) return prev;
+            const nextStop = payload.currentStop ?? prev.currentStop;
+            let nextRemaining = prev.stopsRemaining;
+            if (payload.currentStop && prev.stop) {
+              const tripType = prev.trip?.tripType ?? 'pickup';
+              nextRemaining =
+                tripType === 'dropoff'
+                  ? payload.currentStop.sequence - prev.stop.sequence
+                  : prev.stop.sequence - payload.currentStop.sequence;
+            }
+            return {
+              ...prev,
+              isLive: true,
+              location: {
+                latitude: Number(payload.location.latitude),
+                longitude: Number(payload.location.longitude),
+                speed: payload.location.speed,
+                heading: payload.location.heading,
+                updatedAt: String(payload.location.updatedAt),
+              },
+              currentStop: nextStop,
+              stopsRemaining: nextRemaining,
+            };
+          });
+          return;
+        }
+        if (payload.type === 'TRIP_STARTED') {
+          setData((prev) => (prev ? { ...prev, isLive: true, trip: payload.trip } : prev));
+          return;
+        }
+        if (payload.type === 'TRIP_ENDED') {
           setData((prev) =>
             prev
               ? {
                   ...prev,
-                  isLive: true,
-                  location: {
-                    latitude: Number(payload.location.latitude),
-                    longitude: Number(payload.location.longitude),
-                    speed: payload.location.speed,
-                    heading: payload.location.heading,
-                    updatedAt: String(payload.location.updatedAt),
-                  },
-                  currentStop: payload.currentStop ?? prev.currentStop,
+                  isLive: false,
+                  location: null,
+                  currentStop: null,
+                  stopsRemaining: null,
+                  trip: null,
                 }
               : prev
           );
-          return;
-        }
-        if (payload.type === 'TRIP_STARTED') {
-          setData((prev) => (prev ? { ...prev, isLive: true } : prev));
-          return;
-        }
-        if (payload.type === 'TRIP_ENDED') {
-          setData((prev) => (prev ? { ...prev, isLive: false, location: null } : prev));
         }
       },
       () => {
@@ -134,9 +154,11 @@ export const BusTrackingView: React.FC<BusTrackingViewProps> = ({ audience }) =>
   const etaLabel =
     stopsRemaining === null || stopsRemaining === undefined
       ? '—'
-      : stopsRemaining <= 0
-        ? 'Arriving'
-        : `${stopsRemaining} stop${stopsRemaining === 1 ? '' : 's'}`;
+      : stopsRemaining < 0
+        ? 'Passed'
+        : stopsRemaining === 0
+          ? 'Arriving'
+          : `${stopsRemaining} stop${stopsRemaining === 1 ? '' : 's'}`;
 
   return (
     <ScrollView

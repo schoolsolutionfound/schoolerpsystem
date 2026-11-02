@@ -22,8 +22,8 @@ import {
   withTransaction,
   type InMemoryUser,
 } from '../shared/db/index.js';
-import { studentClasses, users, studentDocuments, feeStructures, feePayments, expenseRecords, placementMembers } from '../shared/db/schema.js';
-import { and as andSql, eq as eqSql, desc as descSql, inArray as inArraySql } from 'drizzle-orm';
+import { studentClasses, users, studentDocuments, feeStructures, feePayments, expenseRecords, placementMembers, busRoutes, busVehicles } from '../shared/db/schema.js';
+import { and as andSql, eq as eqSql, ne as neSql, desc as descSql, inArray as inArraySql } from 'drizzle-orm';
 import { admin, isFirebaseAdminInitialized } from '../shared/config/firebase.js';
 import { invalidateVerifiedTokensForUid } from '../shared/middleware/verifiedTokenCache.js';
 import { resolveProvisionPassword, validatePasswordStrength } from '../shared/utils/password.js';
@@ -235,6 +235,8 @@ export interface CreateUserPayload {
   /** driver only */
   vehicleNumber?: string;
   licenseNumber?: string;
+  /** driver only — bus vehicle assigned at account creation */
+  vehicleId?: string;
   /** parent only — Father | Mother | Guardian */
   relation?: string;
   /** parent only — at least one student, keyed by student id (no USN) */
@@ -1159,6 +1161,28 @@ export class AdminService {
     }
     const primaryRole = assignedRoles[0] || normalizedRole;
 
+    // Drivers can be linked to an existing bus at creation time. Validate the
+    // vehicle up front so we never create a Firebase account for an invalid bus.
+    if (primaryRole === 'driver' && payload.vehicleId && db) {
+      const [vehicle] = await db
+        .select({ id: busVehicles.id })
+        .from(busVehicles)
+        .where(
+          andSql(
+            eqSql(busVehicles.institutionCode, inst.institutionCode),
+            eqSql(busVehicles.id, payload.vehicleId)
+          )
+        )
+        .limit(1);
+      if (!vehicle) {
+        throw {
+          statusCode: 400,
+          code: 'INVALID_VEHICLE',
+          message: 'Selected bus was not found in this institution.',
+        };
+      }
+    }
+
     // --- Parent-specific validation (invite flow, links keyed by studentId) ---
     const isParent = primaryRole === 'parent';
     let parentRelation = '';
@@ -1287,6 +1311,54 @@ export class AdminService {
       profileCompleted: false,
       scope: JSON.stringify(scopeObj),
     });
+
+    if (primaryRole === 'driver' && payload.vehicleId && db) {
+      try {
+        const [existingRoute] = await db
+          .select({ id: busRoutes.id })
+          .from(busRoutes)
+          .where(
+            andSql(
+              eqSql(busRoutes.institutionCode, inst.institutionCode),
+              eqSql(busRoutes.driverId, createdUser.id)
+            )
+          )
+          .limit(1);
+
+        if (existingRoute) {
+          await db
+            .update(busRoutes)
+            .set({ vehicleId: payload.vehicleId, updatedAt: new Date() })
+            .where(
+              andSql(
+                eqSql(busRoutes.institutionCode, inst.institutionCode),
+                eqSql(busRoutes.id, existingRoute.id)
+              )
+            );
+        } else {
+          await db.insert(busRoutes).values({
+            institutionCode: inst.institutionCode,
+            name: `${payload.fullName} - Bus Route`,
+            vehicleId: payload.vehicleId,
+            driverId: createdUser.id,
+          });
+        }
+
+        // Each bus belongs to one route: unlink it from any other route.
+        await db
+          .update(busRoutes)
+          .set({ vehicleId: null, updatedAt: new Date() })
+          .where(
+            andSql(
+              eqSql(busRoutes.institutionCode, inst.institutionCode),
+              eqSql(busRoutes.vehicleId, payload.vehicleId),
+              neSql(busRoutes.driverId, createdUser.id)
+            )
+          );
+      } catch (err: any) {
+        console.warn('[Admin createUser] driver bus assignment warning:', err?.message);
+      }
+    }
 
     if (primaryRole === 'placement_officer' && db) {
       try {

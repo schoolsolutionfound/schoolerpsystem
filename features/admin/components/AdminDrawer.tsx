@@ -22,7 +22,7 @@ const PRIMARY: { key: AdminTab; label: string; icon: string; route?: string; adm
   { key: 'teachers', label: 'Teachers', icon: 'human-male-board' },
   { key: 'users', label: 'Users', icon: 'account-group-outline' },
   { key: 'academics', label: 'Academics', icon: 'school-outline' },
-  { key: 'transport', label: 'Transport & Bus', icon: 'bus-outline' },
+  { key: 'transport', label: 'Transport & Bus', icon: 'bus' },
   { key: 'payments', label: 'Payment Settings', icon: 'credit-card-outline' },
   { key: 'settings', label: 'Settings', icon: 'cog-outline', adminOnly: true },
   { key: 'profile', label: 'Profile', icon: 'account-circle-outline' },

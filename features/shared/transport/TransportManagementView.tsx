@@ -14,12 +14,13 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   AdminBusRoute,
+  BusVehicle,
   TransportOverview,
-  createTransportRouteApi,
   createTransportVehicleApi,
   getTransportOverviewApi,
 } from '../../../api/transport';
 import { FontFamily } from '../../../constants/fonts';
+import { BusDetailView } from './BusDetailView';
 import { TransportRouteEditorModal } from './TransportRouteEditorModal';
 
 interface TransportManagementViewProps {
@@ -34,12 +35,7 @@ export const TransportManagementView: React.FC<TransportManagementViewProps> = (
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
-
-  const [createVisible, setCreateVisible] = useState(false);
-  const [newRouteName, setNewRouteName] = useState('');
-  const [newDriverId, setNewDriverId] = useState<string | null>(null);
-  const [newVehicleId, setNewVehicleId] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
 
   const [busVisible, setBusVisible] = useState(false);
   const [busRegNo, setBusRegNo] = useState('');
@@ -72,33 +68,14 @@ export const TransportManagementView: React.FC<TransportManagementViewProps> = (
   const selectedRoute: AdminBusRoute | null =
     overview?.routes.find((route) => route.id === selectedRouteId) || null;
 
+  const selectedVehicle: BusVehicle | null =
+    overview?.vehicles.find((vehicle) => vehicle.id === selectedVehicleId) || null;
+
+  const assignedRouteForBus = (vehicleId: string) =>
+    overview?.routes.find((route) => route.vehicleId === vehicleId) || null;
+
   const totalAssigned =
     overview?.routes.reduce((sum, route) => sum + route.assignments.length, 0) || 0;
-
-  const handleCreateRoute = async () => {
-    if (!newRouteName.trim()) {
-      Alert.alert('Route name required', 'Enter a name for the new route.');
-      return;
-    }
-    setCreating(true);
-    try {
-      const created: any = await createTransportRouteApi({
-        name: newRouteName.trim(),
-        driverId: newDriverId,
-        vehicleId: newVehicleId,
-      });
-      setCreateVisible(false);
-      setNewRouteName('');
-      setNewDriverId(null);
-      setNewVehicleId(null);
-      await load();
-      if (created?.id) setSelectedRouteId(created.id);
-    } catch (err: any) {
-      Alert.alert('Could not create route', err?.message || 'Try again.');
-    } finally {
-      setCreating(false);
-    }
-  };
 
   const handleCreateBus = async () => {
     if (!busRegNo.trim()) {
@@ -129,6 +106,22 @@ export const TransportManagementView: React.FC<TransportManagementViewProps> = (
         <ActivityIndicator size="large" color="#F4C430" />
         <Text style={styles.loadingText}>Loading transport routes...</Text>
       </View>
+    );
+  }
+
+  if (selectedVehicle) {
+    return (
+      <BusDetailView
+        vehicle={selectedVehicle}
+        route={assignedRouteForBus(selectedVehicle.id)}
+        drivers={overview?.drivers || []}
+        onBack={() => setSelectedVehicleId(null)}
+        onChanged={load}
+        onOpenRouteEditor={(routeId) => {
+          setSelectedVehicleId(null);
+          setSelectedRouteId(routeId);
+        }}
+      />
     );
   }
 
@@ -181,91 +174,47 @@ export const TransportManagementView: React.FC<TransportManagementViewProps> = (
         )}
 
         <View style={styles.actionRow}>
-          <TouchableOpacity style={styles.primaryBtn} onPress={() => setCreateVisible(true)}>
+          <TouchableOpacity style={styles.primaryBtn} onPress={() => setBusVisible(true)}>
             <MaterialCommunityIcons name="plus" size={18} color="#171717" />
-            <Text style={styles.primaryBtnText}>New route</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.secondaryBtn} onPress={() => setBusVisible(true)}>
-            <MaterialCommunityIcons name="bus-multiple" size={18} color="#1A1B1C" />
-            <Text style={styles.secondaryBtnText}>Add bus</Text>
+            <Text style={styles.primaryBtnText}>Add bus</Text>
           </TouchableOpacity>
         </View>
-
-        <Text style={styles.sectionTitle}>Bus routes</Text>
-        {!overview || overview.routes.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <MaterialCommunityIcons name="map-marker-path" size={34} color="#D1D5DB" />
-            <Text style={styles.emptyTitle}>No routes yet</Text>
-            <Text style={styles.emptyText}>
-              Create a route, drop stops on the map, and assign the driver and bus.
-            </Text>
-          </View>
-        ) : (
-          overview.routes.map((route) => (
-            <TouchableOpacity
-              key={route.id}
-              style={styles.routeCard}
-              onPress={() => setSelectedRouteId(route.id)}
-              activeOpacity={0.85}
-            >
-              <View style={styles.routeTopRow}>
-                <View style={styles.routeIcon}>
-                  <MaterialCommunityIcons name="routes" size={18} color="#1A1B1C" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.routeName}>{route.name}</Text>
-                  <Text style={styles.routeMeta}>
-                    {route.driver?.fullName || 'No driver'} · {route.vehicle?.registrationNo || 'No bus'}
-                  </Text>
-                </View>
-                <MaterialCommunityIcons name="chevron-right" size={20} color="#9CA3AF" />
-              </View>
-              <View style={styles.routeBadges}>
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{route.stops.length} stops</Text>
-                </View>
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{route.assignments.length} students</Text>
-                </View>
-                {route.stops.length === 0 && (
-                  <View style={[styles.badge, styles.badgeWarning]}>
-                    <Text style={[styles.badgeText, styles.badgeWarningText]}>Add stops</Text>
-                  </View>
-                )}
-                {!route.driver && (
-                  <View style={[styles.badge, styles.badgeWarning]}>
-                    <Text style={[styles.badgeText, styles.badgeWarningText]}>No driver</Text>
-                  </View>
-                )}
-              </View>
-            </TouchableOpacity>
-          ))
-        )}
 
         <Text style={styles.sectionTitle}>Buses</Text>
         {!overview || overview.vehicles.length === 0 ? (
           <View style={styles.emptyCard}>
             <MaterialCommunityIcons name="bus" size={30} color="#D1D5DB" />
-            <Text style={styles.emptyText}>No buses added yet. Add a bus to assign it to a route.</Text>
+            <Text style={styles.emptyText}>No buses added yet. Tap “Add bus” above to create one.</Text>
           </View>
         ) : (
-          overview.vehicles.map((vehicle) => (
-            <View key={vehicle.id} style={styles.busRow}>
-              <MaterialCommunityIcons name="bus" size={18} color="#1A1B1C" />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.busReg}>{vehicle.registrationNo}</Text>
-                <Text style={styles.busMeta}>Capacity {vehicle.capacity}</Text>
-              </View>
-              <View
-                style={[
-                  styles.statusPill,
-                  vehicle.status === 'active' ? styles.statusActive : styles.statusInactive,
-                ]}
+          overview.vehicles.map((vehicle) => {
+            const assignedRoute = assignedRouteForBus(vehicle.id);
+            return (
+              <TouchableOpacity
+                key={vehicle.id}
+                style={styles.busRow}
+                onPress={() => setSelectedVehicleId(vehicle.id)}
+                activeOpacity={0.85}
               >
-                <Text style={styles.statusText}>{vehicle.status}</Text>
-              </View>
-            </View>
-          ))
+                <MaterialCommunityIcons name="bus" size={18} color="#1A1B1C" />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.busReg}>{vehicle.registrationNo}</Text>
+                  <Text style={styles.busMeta}>
+                    Capacity {vehicle.capacity} · {assignedRoute ? assignedRoute.name : 'No route assigned'}
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    styles.statusPill,
+                    vehicle.status === 'active' ? styles.statusActive : styles.statusInactive,
+                  ]}
+                >
+                  <Text style={styles.statusText}>{vehicle.status}</Text>
+                </View>
+                <MaterialCommunityIcons name="chevron-right" size={20} color="#9CA3AF" />
+              </TouchableOpacity>
+            );
+          })
         )}
 
         {overview && overview.drivers.length > 0 && (
@@ -303,77 +252,6 @@ export const TransportManagementView: React.FC<TransportManagementViewProps> = (
           load();
         }}
       />
-
-      <Modal visible={createVisible} transparent animationType="fade" onRequestClose={() => setCreateVisible(false)}>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>New bus route</Text>
-            <Text style={styles.label}>Route name</Text>
-            <TextInput
-              style={styles.input}
-              value={newRouteName}
-              onChangeText={setNewRouteName}
-              placeholder="e.g. East City Morning Route"
-              placeholderTextColor="#9CA3AF"
-            />
-
-            <Text style={styles.label}>Driver</Text>
-            <View style={styles.chipWrap}>
-              <TouchableOpacity
-                style={[styles.chip, newDriverId === null && styles.chipActive]}
-                onPress={() => setNewDriverId(null)}
-              >
-                <Text style={[styles.chipText, newDriverId === null && styles.chipTextActive]}>Later</Text>
-              </TouchableOpacity>
-              {(overview?.drivers || []).map((driver) => (
-                <TouchableOpacity
-                  key={driver.id}
-                  style={[styles.chip, newDriverId === driver.id && styles.chipActive]}
-                  onPress={() => setNewDriverId(driver.id)}
-                >
-                  <Text style={[styles.chipText, newDriverId === driver.id && styles.chipTextActive]}>
-                    {driver.fullName}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <Text style={styles.label}>Bus</Text>
-            <View style={styles.chipWrap}>
-              <TouchableOpacity
-                style={[styles.chip, newVehicleId === null && styles.chipActive]}
-                onPress={() => setNewVehicleId(null)}
-              >
-                <Text style={[styles.chipText, newVehicleId === null && styles.chipTextActive]}>Later</Text>
-              </TouchableOpacity>
-              {(overview?.vehicles || []).map((vehicle) => (
-                <TouchableOpacity
-                  key={vehicle.id}
-                  style={[styles.chip, newVehicleId === vehicle.id && styles.chipActive]}
-                  onPress={() => setNewVehicleId(vehicle.id)}
-                >
-                  <Text style={[styles.chipText, newVehicleId === vehicle.id && styles.chipTextActive]}>
-                    {vehicle.registrationNo}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.ghostBtn} onPress={() => setCreateVisible(false)}>
-                <Text style={styles.ghostBtnText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.primaryBtn} onPress={handleCreateRoute} disabled={creating}>
-                {creating ? (
-                  <ActivityIndicator size="small" color="#171717" />
-                ) : (
-                  <Text style={styles.primaryBtnText}>Create route</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
 
       <Modal visible={busVisible} transparent animationType="fade" onRequestClose={() => setBusVisible(false)}>
         <View style={styles.modalBackdrop}>
@@ -548,6 +426,21 @@ const styles = StyleSheet.create({
   },
   busReg: { fontSize: 12, fontFamily: FontFamily.bold, color: '#171717' },
   busMeta: { fontSize: 10, fontFamily: FontFamily.regular, color: '#6B7280', marginTop: 1 },
+  routePickRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+    marginTop: 6,
+  },
+  routePickActive: { borderColor: '#86EFAC', backgroundColor: '#F0FDF4' },
+  routePickName: { fontSize: 12, fontFamily: FontFamily.bold, color: '#171717' },
+  routePickMeta: { fontSize: 10, fontFamily: FontFamily.regular, color: '#6B7280', marginTop: 1 },
   statusPill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
   statusActive: { backgroundColor: '#DCFCE7' },
   statusInactive: { backgroundColor: '#F3F4F6' },

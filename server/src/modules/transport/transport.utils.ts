@@ -60,14 +60,14 @@ const ARRIVAL_RADIUS_KM = 0.15;
  * Returns null when the bus is not within ARRIVAL_RADIUS_KM of any stop,
  * meaning the bus is in transit between stops.
  */
-export function findClosestStop(
+export function findNearestStop(
   busCoords: LatLng,
   stops: StopCoordinate[]
 ): StopCoordinate | null {
   if (!stops || stops.length === 0) return null;
 
   let minDistance = Infinity;
-  let closest: StopCoordinate | null = null;
+  let nearest: StopCoordinate | null = null;
 
   for (const stop of stops) {
     const dist = haversineDistanceKm(
@@ -78,13 +78,32 @@ export function findClosestStop(
     );
     if (dist < minDistance) {
       minDistance = dist;
-      closest = stop;
+      nearest = stop;
     }
   }
 
+  return nearest;
+}
+
+export function findClosestStop(
+  busCoords: LatLng,
+  stops: StopCoordinate[]
+): StopCoordinate | null {
+  if (!stops || stops.length === 0) return null;
+
+  const nearest = findNearestStop(busCoords, stops);
+  if (!nearest) return null;
+
+  const distance = haversineDistanceKm(
+    busCoords.latitude,
+    busCoords.longitude,
+    nearest.latitude,
+    nearest.longitude
+  );
+
   // Only report arrival if the bus is actually within the geofence radius.
   // Returns null when bus is between stops (in transit).
-  return minDistance <= ARRIVAL_RADIUS_KM ? closest : null;
+  return distance <= ARRIVAL_RADIUS_KM ? nearest : null;
 }
 
 /**

@@ -44,7 +44,7 @@ export default function AdmissionHomeScreen() {
   const tabs = [
     { key: 'students' as Tab, label: 'Registry', icon: 'account-group-outline', iconFilled: 'account-group' },
     { key: 'tracking' as Tab, label: 'Tracking', icon: 'view-dashboard-outline', iconFilled: 'view-dashboard' },
-    { key: 'transport' as Tab, label: 'Transport', icon: 'bus-outline', iconFilled: 'bus' },
+    { key: 'transport' as Tab, label: 'Transport', icon: 'bus', iconFilled: 'bus' },
     { key: 'profile' as Tab, label: 'Profile', icon: 'account-circle-outline', iconFilled: 'account-circle' },
   ];
 

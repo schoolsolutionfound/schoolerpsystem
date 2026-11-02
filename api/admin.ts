@@ -290,6 +290,8 @@ export async function createUserApi(payload: {
   occupation?: string;
   emergencyContact?: string;
   preferredLanguage?: string;
+  /** driver only — bus vehicle assigned at account creation */
+  vehicleId?: string;
   relation?: string;
   children?: { studentId: string; relationship?: string; permissions?: string[] }[];
   notificationPrefs?: { pushEnabled?: boolean; disabledTypes?: string[] };

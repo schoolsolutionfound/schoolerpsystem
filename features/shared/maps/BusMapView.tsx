@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, Platform } from 'react-native';
 import MapView, { Marker, Polyline, Callout, PROVIDER_GOOGLE } from 'react-native-maps';
+import Constants from 'expo-constants';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BusMapProps } from './types';
 import { BusMapPlaceholder } from './BusMapPlaceholder';
@@ -17,12 +18,14 @@ export const BusMapView: React.FC<BusMapProps> = ({
   const mapRef = useRef<MapView>(null);
   const [isUserPanning, setIsUserPanning] = useState(false);
 
-  // Android always uses Google Maps. iOS uses Google Maps when an API key is
-  // configured, otherwise falls back to native Apple Maps.
+  // Expo Go (SDK 55+) no longer bundles Google Maps, so use the platform
+  // default there (Apple Maps on iOS). Native builds use Google when the key is set.
   const mapProvider =
-    Platform.OS === 'android' || process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
-      ? PROVIDER_GOOGLE
-      : undefined;
+    Constants.executionEnvironment === 'storeClient'
+      ? undefined
+      : Platform.OS === 'android' || process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
+        ? PROVIDER_GOOGLE
+        : undefined;
 
   // Sorted stops by sequence for drawing route polyline
   const sortedStops = useMemo(() => {
