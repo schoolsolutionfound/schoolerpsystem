@@ -54,6 +54,36 @@ describe('extractRecipients', () => {
       extractRecipients({ notificationType: 'bounce', bounce: { bouncedRecipients: [] } })
     ).toBeNull();
   });
+
+  it('reads configuration-set event publishing records (eventType)', () => {
+    expect(
+      extractRecipients({
+        eventType: 'Bounce',
+        bounce: { bounceType: 'Permanent', bouncedRecipients: [{ emailAddress: 'Gone@Example.com' }] },
+      })
+    ).toEqual({ kind: 'bounce', emails: ['gone@example.com'] });
+
+    expect(
+      extractRecipients({
+        eventType: 'Complaint',
+        complaint: { complainedRecipients: [{ emailAddress: 'spam@example.com' }] },
+      })
+    ).toEqual({ kind: 'complaint', emails: ['spam@example.com'] });
+  });
+
+  it('ignores non-bounce/complaint event publishing records', () => {
+    expect(extractRecipients({ eventType: 'Delivery' })).toBeNull();
+    expect(extractRecipients({ eventType: 'Send' })).toBeNull();
+  });
+
+  it('accepts capitalized legacy notificationType values', () => {
+    expect(
+      extractRecipients({
+        notificationType: 'Bounce',
+        bounce: { bouncedRecipients: [{ emailAddress: 'gone@example.com' }] },
+      })
+    ).toEqual({ kind: 'bounce', emails: ['gone@example.com'] });
+  });
 });
 
 describe('processSnsEnvelope', () => {
@@ -106,6 +136,24 @@ describe('processSnsEnvelope', () => {
     expect(res).toMatchObject({ ok: true, suppressed: 1 });
     expect(repo.addSuppression).toHaveBeenCalledWith(
       expect.objectContaining({ institutionCode: '', reason: 'complaint' })
+    );
+  });
+
+  it('suppresses configuration-set event publishing complaints', async () => {
+    vi.mocked(repo.findInstitutionCodeByEmail).mockResolvedValue(null);
+
+    const res = await processSnsEnvelope({
+      Type: 'Notification',
+      MessageId: 'sns-2',
+      Message: JSON.stringify({
+        eventType: 'Complaint',
+        complaint: { complainedRecipients: [{ emailAddress: 'spam@example.com' }] },
+      }),
+    });
+
+    expect(res).toMatchObject({ ok: true, suppressed: 1, ignored: 0 });
+    expect(repo.addSuppression).toHaveBeenCalledWith(
+      expect.objectContaining({ email: 'spam@example.com', reason: 'complaint', sesEventId: 'sns-2' })
     );
   });
 

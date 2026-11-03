@@ -43,7 +43,10 @@ interface SnsEnvelope {
 }
 
 interface SesNotification {
+  // Legacy feedback notifications use `notificationType`; configuration-set
+  // event publishing uses `eventType` with capitalized values ("Bounce").
   notificationType?: string;
+  eventType?: string;
   bounce?: {
     bounceType?: string;
     bouncedRecipients?: { emailAddress?: string; status?: string; diagnosticCode?: string }[];
@@ -58,14 +61,15 @@ export function extractRecipients(message: SesNotification): {
   kind: 'bounce' | 'complaint';
   emails: string[];
 } | null {
-  if (message.notificationType === 'bounce' && message.bounce) {
+  const type = (message.eventType || message.notificationType || '').toLowerCase();
+  if (type === 'bounce' && message.bounce) {
     const emails = (message.bounce.bouncedRecipients || [])
       .map((r) => (r.emailAddress || '').trim().toLowerCase())
       .filter(Boolean);
     // A bounce with no recipient list carries nothing actionable.
     return emails.length > 0 ? { kind: 'bounce', emails } : null;
   }
-  if (message.notificationType === 'complaint' && message.complaint) {
+  if (type === 'complaint' && message.complaint) {
     const emails = (message.complaint.complainedRecipients || [])
       .map((r) => (r.emailAddress || '').trim().toLowerCase())
       .filter(Boolean);
