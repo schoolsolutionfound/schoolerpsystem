@@ -8,9 +8,16 @@ import { SESv2Client, SendEmailCommand, SendEmailCommandInput } from '@aws-sdk/c
 // resolved by the caller from institution_email_config.
 //
 // Delivery failures are classified so the queue can distinguish transient
-// (retry) from permanent (suppress) outcomes:
+// (retry) from configuration (retry, alert) from recipient-permanent (suppress):
 //   - transient: throttling, 5xx, network — retry with backoff
-//   - permanent: invalid recipient, suppression list, account sending disabled
+//   - config: IAM/identity/sandbox/message problems — retry, never suppress
+//   - permanent: the recipient itself is on the account suppression list
+//
+// Important: a send-time rejection is almost never about the recipient. The
+// "not verified" rejection in the SES sandbox and an IAM AccessDenied both
+// arrive as MessageRejected/AccessDeniedException; classifying those as
+// permanent poisons deliverable addresses. Bounces are learned from SNS
+// delivery events, not from the send call.
 // ============================================================================
 
 export interface EmailMessage {
@@ -24,7 +31,7 @@ export interface EmailMessage {
   configurationSet?: string;
 }
 
-export type EmailFailureKind = 'transient' | 'permanent';
+export type EmailFailureKind = 'transient' | 'permanent' | 'config';
 
 export class EmailSendError extends Error {
   constructor(
@@ -73,6 +80,7 @@ function classifyAwsError(err: any): EmailFailureKind {
   if (
     name === 'TooManyRequestsException' ||
     name === 'ThrottlingException' ||
+    name === 'LimitExceededException' ||
     name === 'ServiceUnavailableException' ||
     name === 'InternalFailure' ||
     status === 429 ||
@@ -80,20 +88,34 @@ function classifyAwsError(err: any): EmailFailureKind {
   ) {
     return 'transient';
   }
-  // Everything else from SES (invalid address, config set missing, account
-  // disabled, message rejected) is permanent — retrying won't help.
-  return 'permanent';
+
+  // The only send-time rejection that is genuinely about the recipient: SES
+  // itself has the address on its account-level suppression list.
+  if (name === 'SuppressedDestinationException') {
+    return 'permanent';
+  }
+
+  // AccessDeniedException, UnrecognizedClientException, InvalidClientTokenId,
+  // SignatureDoesNotMatch, MessageRejected (sandbox "not verified", invalid
+  // message), ConfigurationSetDoesNotExistException, MailFromDomainNotVerified,
+  // AccountSuspended/SendingPaused and friends are sender/config problems.
+  // They say nothing about the recipient, so never suppress on them.
+  return 'config';
 }
 
 export async function sendEmail(message: EmailMessage): Promise<{ messageId: string }> {
   if (!isSesConfigured()) {
-    throw new EmailSendError('SES not configured — set AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / SES_REGION', 'permanent', 'SES_NOT_CONFIGURED');
+    throw new EmailSendError('SES not configured — set AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / SES_REGION', 'config', 'SES_NOT_CONFIGURED');
   }
 
   const from =
     message.fromName && message.fromName.trim()
       ? `${message.fromName.trim()} <${message.fromEmail}>`
       : message.fromEmail;
+
+  // Every send must carry a configuration set so bounce/complaint events reach
+  // the SNS webhook even when a tenant has not configured one.
+  const configurationSet = message.configurationSet || process.env.SES_CONFIGURATION_SET || '';
 
   const input: SendEmailCommandInput = {
     FromEmailAddress: from,
@@ -108,7 +130,7 @@ export async function sendEmail(message: EmailMessage): Promise<{ messageId: str
       },
     },
     ...(message.replyTo ? { ReplyToAddresses: [message.replyTo] } : {}),
-    ...(message.configurationSet ? { ConfigurationSetName: message.configurationSet } : {}),
+    ...(configurationSet ? { ConfigurationSetName: configurationSet } : {}),
   };
 
   try {

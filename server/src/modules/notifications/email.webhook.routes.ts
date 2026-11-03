@@ -15,8 +15,17 @@ import { processSnsEnvelope, isValidSnsSecret } from '../notifications/email.sns
 
 export async function emailWebhookRoutes(fastify: FastifyInstance) {
   await fastify.register(async (scope) => {
-    // SNS posts application/json; keep the default parser (no raw body needed
-    // since we authenticate via the path secret, not a body signature).
+    // SNS posts HTTP subscriptions as `text/plain`, not application/json.
+    // Without this parser Fastify replies 415 and the subscription never
+    // confirms, so keep it scoped to this plugin only.
+    scope.addContentTypeParser('text/plain', { parseAs: 'string' }, (_req, body, done) => {
+      try {
+        done(null, JSON.parse(body as string));
+      } catch {
+        done(null, null);
+      }
+    });
+
     scope.post(
       '/sns/:secret',
       { config: { rateLimit: { max: 120, timeWindow: '1 minute' } } },
