@@ -1,6 +1,14 @@
 import { auth } from './firebase';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
+const configuredBaseUrl = (import.meta.env.VITE_API_BASE_URL || '').trim().replace(/\/+$/, '');
+const BASE_URL = configuredBaseUrl || (import.meta.env.DEV ? 'http://localhost:5000/api/v1' : '');
+
+function requireBaseUrl(): string {
+  if (!BASE_URL) {
+    throw new Error('VITE_API_BASE_URL is not configured for this build.');
+  }
+  return BASE_URL;
+}
 
 async function getAuthToken(forceRefresh = false): Promise<string> {
   const currentUser = auth.currentUser;
@@ -22,7 +30,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}, retried =
     ...(options.headers || {}),
   };
 
-  const response = await fetch(`${BASE_URL}${endpoint}`, {
+  const response = await fetch(`${requireBaseUrl()}${endpoint}`, {
     ...options,
     headers,
   });
@@ -60,6 +68,7 @@ export interface InstitutionPayload {
   classes?: string[];
   programs?: string[];
   convert?: boolean;
+  clearStructure?: boolean;
 }
 
 export interface InstitutionListParams {
@@ -174,7 +183,7 @@ export const developerApi = {
     if (params?.status) qs.set('status', params.status);
     const query = qs.toString();
     const token = await getAuthToken();
-    const response = await fetch(`${BASE_URL}/developer/institutions/export${query ? `?${query}` : ''}`, {
+    const response = await fetch(`${requireBaseUrl()}/developer/institutions/export${query ? `?${query}` : ''}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!response.ok) {

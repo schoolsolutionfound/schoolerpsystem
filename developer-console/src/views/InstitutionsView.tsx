@@ -5,11 +5,19 @@ import { InstitutionDetailsView } from './InstitutionDetailsView';
 
 const PAGE_SIZE = 50;
 
-const TERM_YEAR = { school: '2026-2027', college: '2026-27' };
+function currentAcademicYear(type: 'school' | 'college', reference = new Date()): string {
+  const year = reference.getFullYear();
+  const startYear = reference.getMonth() >= 5 ? year : year - 1;
+  return type === 'college'
+    ? `${startYear}-${String((startYear + 1) % 100).padStart(2, '0')}`
+    : `${startYear}-${startYear + 1}`;
+}
+
+const TERM_YEAR = { school: currentAcademicYear('school'), college: currentAcademicYear('college') };
 
 function buildTermsPlan(count: string, academicYear: string | undefined, type: 'school' | 'college') {
   const parsed = Math.floor(Number(count));
-  const total = Number.isFinite(parsed) ? Math.min(Math.max(parsed, 1), 12) : type === 'college' ? 2 : 3;
+  const total = Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 12) : 0;
   const prefix = type === 'college' ? 'Semester' : 'Term';
   return [
     {
@@ -18,21 +26,6 @@ function buildTermsPlan(count: string, academicYear: string | undefined, type: '
     },
   ];
 }
-
-const STRUCTURE_DEFAULTS = {
-  school: {
-    units: ['English', 'Mathematics', 'Science'],
-    levels: ['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10'],
-    programs: [] as string[],
-    sections: ['A', 'B', 'C'],
-  },
-  college: {
-    units: ['CSE', 'ECE', 'Civil', 'Mechanical', 'AIML'],
-    levels: ['1st Year', '2nd Year', '3rd Year', '4th Year'],
-    programs: ['B.Tech', 'M.Tech'],
-    sections: ['A', 'B'],
-  },
-};
 
 export const InstitutionsView: React.FC = () => {
   const [institutions, setInstitutions] = useState<any[]>([]);
@@ -64,20 +57,26 @@ export const InstitutionsView: React.FC = () => {
   const [type, setType] = useState<'school' | 'college'>('school');
   const [subscription, setSubscription] = useState('active');
   // School: deptsText = subjects, yearsText = classes. College: departments/years.
-  const [deptsText, setDeptsText] = useState(STRUCTURE_DEFAULTS.school.units.join(', '));
-  const [yearsText, setYearsText] = useState(STRUCTURE_DEFAULTS.school.levels.join(', '));
+  const [deptsText, setDeptsText] = useState('');
+  const [yearsText, setYearsText] = useState('');
   const [coursesText, setCoursesText] = useState('');
-  const [sectionsText, setSectionsText] = useState(STRUCTURE_DEFAULTS.school.sections.join(', '));
-  const [termsCount, setTermsCount] = useState('3');
+  const [sectionsText, setSectionsText] = useState('');
+  const [termsCount, setTermsCount] = useState('');
 
   const handleTypeChange = (val: 'school' | 'college') => {
+    if (editingInst && editingInst.institutionType !== val) {
+      const ok = window.confirm(
+        `Convert "${editingInst.institutionName}" from ${editingInst.institutionType} to ${val}?\n\n` +
+          'Existing roles are remapped. Fill in the structure for the new type below.'
+      );
+      if (!ok) return;
+    }
     setType(val);
-    const defaults = STRUCTURE_DEFAULTS[val] || STRUCTURE_DEFAULTS.school;
-    setDeptsText(defaults.units.join(', '));
-    setYearsText(defaults.levels.join(', '));
-    setCoursesText(defaults.programs.join(', '));
-    setSectionsText(defaults.sections.join(', '));
-    setTermsCount(String(val === 'college' ? 2 : 3));
+    setDeptsText('');
+    setYearsText('');
+    setCoursesText('');
+    setSectionsText('');
+    setTermsCount('');
   };
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -124,11 +123,11 @@ export const InstitutionsView: React.FC = () => {
     setCode('');
     setType('school');
     setSubscription('active');
-    setDeptsText(STRUCTURE_DEFAULTS.school.units.join(', '));
-    setYearsText(STRUCTURE_DEFAULTS.school.levels.join(', '));
+    setDeptsText('');
+    setYearsText('');
     setCoursesText('');
-    setSectionsText(STRUCTURE_DEFAULTS.school.sections.join(', '));
-    setTermsCount('3');
+    setSectionsText('');
+    setTermsCount('');
     setError('');
     setModalOpen(true);
   };
@@ -146,7 +145,7 @@ export const InstitutionsView: React.FC = () => {
     setYearsText(Array.isArray(levels) ? levels.join(', ') : levels || '');
     setCoursesText(Array.isArray(inst.courses) ? inst.courses.join(', ') : inst.courses || '');
     setSectionsText(Array.isArray(inst.sections) ? inst.sections.join(', ') : inst.sections || '');
-    setTermsCount(String(inst.terms?.[0]?.terms?.length || (inst.institutionType === 'college' ? 2 : 3)));
+    setTermsCount(String(inst.terms?.[0]?.terms?.length || ''));
     setError('');
     setModalOpen(true);
   };
@@ -180,11 +179,15 @@ export const InstitutionsView: React.FC = () => {
       programs: type === 'college' ? programs : [],
       sections,
       terms: (() => {
+        if (!termsCount.trim()) return editingInst?.terms || [];
         const plan = buildTermsPlan(termsCount, editingInst?.terms?.[0]?.academicYear, type);
         return [...(editingInst?.terms || []).filter((t: any) => t.academicYear !== plan[0].academicYear), ...plan];
       })(),
       convert:
         editingInst && editingInst.institutionType !== type ? true : undefined,
+      // This editor submits the complete structure, so empty lists are
+      // intentional clears (and removed classes/sections are deleted).
+      clearStructure: true,
     };
 
     try {
