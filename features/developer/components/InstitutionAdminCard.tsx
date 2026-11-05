@@ -112,12 +112,6 @@ export const InstitutionAdminCard: React.FC<InstitutionAdminCardProps> = ({
           <Text style={styles.scopeValue} numberOfLines={1}>
             {yearsList.length > 0 ? yearsList.join(', ') : 'All'}
           </Text>
-          <View style={styles.statusBadgeContainer}>
-            <AppBadge
-              label={admin.status === 'inactive' ? 'Inactive' : 'Active'}
-              type={admin.status === 'inactive' ? 'inactive' : 'active'}
-            />
-          </View>
         </View>
       </View>
     </AppCard>
@@ -222,8 +216,5 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
     fontWeight: '600',
     flex: 1,
-  },
-  statusBadgeContainer: {
-    marginLeft: 'auto',
   },
 });

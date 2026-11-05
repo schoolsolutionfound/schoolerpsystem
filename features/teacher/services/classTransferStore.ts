@@ -39,6 +39,36 @@ export function getTeachersBySubject(_subjectName: string): TeacherDirectoryItem
   return [];
 }
 
+function normalizeIdentity(value?: string): string {
+  return (value || '').trim().toLowerCase();
+}
+
+export function isRequestForTeacher(
+  request: ClassTransferRequest,
+  teacherId?: string,
+  teacherName?: string
+): boolean {
+  const id = (teacherId || '').trim();
+  const name = normalizeIdentity(teacherName);
+  return (
+    (Boolean(id) && request.toTeacherId === id) ||
+    (Boolean(name) && normalizeIdentity(request.toTeacherName) === name)
+  );
+}
+
+export function isRequestFromTeacher(
+  request: ClassTransferRequest,
+  teacherId?: string,
+  teacherName?: string
+): boolean {
+  const id = (teacherId || '').trim();
+  const name = normalizeIdentity(teacherName);
+  return (
+    (Boolean(id) && request.fromTeacherId === id) ||
+    (Boolean(name) && normalizeIdentity(request.fromTeacherName) === name)
+  );
+}
+
 function getTodayIsoDate(): string {
   const d = new Date();
   const yyyy = d.getFullYear();

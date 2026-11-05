@@ -17,6 +17,7 @@ import { MaterialCommunityIcons } from '../common/Icons';
 import { apiClient } from '../../../../api/client';
 import { auth } from '../../../../firebaseConfig';
 import { FontFamily } from '../../../../constants/fonts';
+import { uploadProfilePictureApi } from '../../../../api/upload';
 
 let ImagePicker: any = null;
 try {
@@ -50,7 +51,7 @@ export const LibrarianProfileView = ({
   const [libraryBadgeId, setLibraryBadgeId] = useState('');
   const [designation, setDesignation] = useState('');
   const [qualification, setQualification] = useState('');
-  const [officeLocation, setOfficeLocation] = useState('');
+  const [officeLocation] = useState('');
   const [profilePicUrl, setProfilePicUrl] = useState('');
 
   // Fetch live profile from backend on mount
@@ -110,7 +111,10 @@ export const LibrarianProfileView = ({
   const handleSaveProfile = async () => {
     setSaving(true);
     try {
-      let finalPicUrl = profilePicUrl;
+      const finalPicUrl =
+        profilePicUrl && !/^https?:\/\//i.test(profilePicUrl)
+          ? await uploadProfilePictureApi(profilePicUrl)
+          : profilePicUrl;
       await apiClient('/users/complete-profile', {
         method: 'POST',
         body: JSON.stringify({
@@ -123,11 +127,11 @@ export const LibrarianProfileView = ({
         }),
       });
 
+      setProfilePicUrl(finalPicUrl);
       setIsEditing(false);
       Alert.alert('Profile Updated', 'Your librarian profile details have been saved to the server.');
     } catch (err: any) {
       Alert.alert('Update Failed', err?.message || 'Could not save profile. Please try again.');
-      setIsEditing(false);
     } finally {
       setSaving(false);
     }
@@ -293,8 +297,8 @@ export const LibrarianProfileView = ({
             <TextInput
               style={styles.formInput}
               value={officeLocation}
-              onChangeText={setOfficeLocation}
-              placeholder="Office Location"
+              editable={false}
+              placeholder="Not configured"
               placeholderTextColor="#475569"
             />
           </View>

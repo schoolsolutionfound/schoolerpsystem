@@ -26,10 +26,18 @@ import {
   fetchPrincipalHomeroomsApi,
   fetchPrincipalStaffDirectoryApi,
   fetchSchoolNoticesApi,
+  fetchPrincipalFeeSummaryApi,
+  fetchPrincipalTodayClassesApi,
+  fetchUpcomingEventsApi,
   assignHomeroomTeacherApi,
   createSchoolNoticeApi,
   deleteSchoolNoticeApi,
   updateSchoolNoticeApi,
+} from '../../api/principal';
+import type {
+  PrincipalFeeSummary,
+  PrincipalTodayClasses,
+  UpcomingEvent,
 } from '../../api/principal';
 import { UnifiedHeader } from '../../features/shared/components/layout/UnifiedHeader';
 import { FloatingFooter } from '../../features/shared/components/layout/FloatingFooter';
@@ -88,7 +96,7 @@ export default function PrincipalHomeScreen() {
 
   // User store selectors
   const fullName = useUserStore((state) => state.fullName) || 'Principal';
-  const institutionName = useUserStore((state) => state.institutionName) || 'My Institution';
+  const institutionName = useUserStore((state) => state.institutionName) || '';
   const resetUser = useUserStore((state) => state.resetUser);
   const hasModuleAccess = useUserStore((state) => state.hasModuleAccess);
   const grantModuleAccess = useUserStore((state) => state.grantModuleAccess);
@@ -155,6 +163,9 @@ export default function PrincipalHomeScreen() {
   const [homerooms, setHomerooms] = useState<HomeroomSection[]>([]);
   const [staffList, setStaffList] = useState<PrincipalStaffMember[]>([]);
   const [notices, setNotices] = useState<SchoolNotice[]>([]);
+  const [feeSummary, setFeeSummary] = useState<PrincipalFeeSummary | null>(null);
+  const [todayClasses, setTodayClasses] = useState<PrincipalTodayClasses | null>(null);
+  const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
 
   // Dynamic KPIs calculated live from homerooms and faculty lists
   const dynamicKPIs: PrincipalKPIs = useMemo(() => {
@@ -201,6 +212,9 @@ export default function PrincipalHomeScreen() {
         fetchPrincipalHomeroomsApi(),
         fetchPrincipalStaffDirectoryApi(),
         fetchSchoolNoticesApi(),
+        fetchPrincipalFeeSummaryApi(),
+        fetchPrincipalTodayClassesApi(),
+        fetchUpcomingEventsApi(),
       ]);
 
       if (!isMountedRef.current) return;
@@ -208,6 +222,9 @@ export default function PrincipalHomeScreen() {
       if (results[1].status === 'fulfilled' && results[1].value) setHomerooms(results[1].value);
       if (results[2].status === 'fulfilled' && results[2].value) setStaffList(results[2].value);
       if (results[3].status === 'fulfilled' && results[3].value) setNotices(results[3].value);
+      if (results[4].status === 'fulfilled' && results[4].value) setFeeSummary(results[4].value);
+      if (results[5].status === 'fulfilled' && results[5].value) setTodayClasses(results[5].value);
+      if (results[6].status === 'fulfilled' && results[6].value) setUpcomingEvents(results[6].value);
     } catch (err: any) {
       if (!isMountedRef.current) return;
       console.warn('Principal data load error:', err);
@@ -292,7 +309,7 @@ export default function PrincipalHomeScreen() {
       <SafeAreaView style={styles.safe} edges={['top']}>
         <UnifiedHeader
           onMenuPress={() => setDrawerOpen(true)}
-          onNotificationsPress={() => switchTab('notices')}
+          onNotificationsPress={() => router.push('/notifications')}
         />
 
         {/* Active View Container */}
@@ -320,6 +337,9 @@ export default function PrincipalHomeScreen() {
                   homerooms={homerooms}
                   staffList={staffList}
                   notices={notices}
+                  feeSummary={feeSummary}
+                  todayClasses={todayClasses}
+                  upcomingEvents={upcomingEvents}
                   refreshing={refreshing}
                   onRefresh={handleRefresh}
                   onNavigateTab={(tab) => {
@@ -600,26 +620,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#111827',
     fontFamily: FontFamily.semibold,
-  },
-  ovalBottomBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 36,
-    borderWidth: 1,
-    borderColor: '#EFEFEF',
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-    marginHorizontal: 12,
-    maxWidth: 620,
-    width: '94%',
-    alignSelf: 'center',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.10,
-    shadowRadius: 10,
-    elevation: 8,
   },
   tabBtn: {
     alignItems: 'center',

@@ -116,7 +116,7 @@ export const AdminParentsView: React.FC<AdminParentsViewProps> = ({
   const [city, setCity] = useState('');
   const [pincode, setPincode] = useState('');
   const [emergencyContact, setEmergencyContact] = useState('');
-  const [preferredLanguage, setPreferredLanguage] = useState('English');
+  const [preferredLanguage, setPreferredLanguage] = useState('');
 
   // Notifications
   const [pushEnabled, setPushEnabled] = useState(true);
@@ -157,7 +157,7 @@ export const AdminParentsView: React.FC<AdminParentsViewProps> = ({
     setCity('');
     setPincode('');
     setEmergencyContact('');
-    setPreferredLanguage('English');
+    setPreferredLanguage('');
     setPushEnabled(true);
     setDisabledTypes([]);
   };

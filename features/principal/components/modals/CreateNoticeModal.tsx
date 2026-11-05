@@ -14,6 +14,7 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { FontFamily } from '../../../../constants/fonts';
 import { SchoolNotice } from '../../types/principal.types';
+import { useConfigStore } from '../../../../store/useConfigStore';
 
 interface CreateNoticeModalProps {
   visible: boolean;
@@ -21,21 +22,12 @@ interface CreateNoticeModalProps {
   onSubmit: (notice: Omit<SchoolNotice, 'id' | 'publishedDate' | 'acknowledgedCount'>) => Promise<void>;
 }
 
-const INSTITUTION_DEPARTMENTS = [
-  'Computer Science',
-  'AIML',
-  'Electronics & Comm',
-  'Mechanical Eng',
-  'Civil Eng',
-  'Commerce & Mgmt',
-  'Applied Sciences',
-];
-
 export const CreateNoticeModal: React.FC<CreateNoticeModalProps> = ({
   visible,
   onClose,
   onSubmit,
 }) => {
+  const departmentOptions = useConfigStore((s) => s.institution.departments);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [priority, setPriority] = useState<SchoolNotice['priority']>('important');
@@ -139,7 +131,7 @@ export const CreateNoticeModal: React.FC<CreateNoticeModalProps> = ({
               <View style={styles.chipsWrap}>
                 {[
                   { key: '', label: 'All Departments' },
-                  ...INSTITUTION_DEPARTMENTS.map((d) => ({ key: d, label: d })),
+                  ...departmentOptions.map((d) => ({ key: d, label: d })),
                 ].map((dept) => {
                   const active = (department || '').toLowerCase() === dept.key.toLowerCase();
                   return (

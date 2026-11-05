@@ -72,7 +72,7 @@ export const DocumentRequestsManagerView: React.FC<DocumentRequestsManagerViewPr
   const isCompact = width < 420;
 
   // Requests state
-  const [requests, setRequests] = useState<DocumentRequest[]>([]);
+  const [requests] = useState<DocumentRequest[]>([]);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -94,7 +94,7 @@ export const DocumentRequestsManagerView: React.FC<DocumentRequestsManagerViewPr
   const [newRequestModalVisible, setNewRequestModalVisible] = useState(false);
 
   // Form states
-  const [pickupLocationInput, setPickupLocationInput] = useState('Administrative Office (Accounts Counter 2)');
+  const [pickupLocationInput, setPickupLocationInput] = useState('');
   const [pickupDropdownOpen, setPickupDropdownOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -119,17 +119,8 @@ export const DocumentRequestsManagerView: React.FC<DocumentRequestsManagerViewPr
 
   // Department list
   const departmentsList = useMemo(() => {
-    return [
-      'all',
-      'Computer Science',
-      'AIML',
-      'Electronics & Comm',
-      'Mechanical Eng',
-      'Civil Eng',
-      'Commerce & Mgmt',
-      'Applied Sciences',
-    ];
-  }, []);
+    return ['all', ...Array.from(new Set(requests.map((request) => request.department).filter(Boolean)))];
+  }, [requests]);
 
   // Filter check
   const isAnyFilterActive =
@@ -151,7 +142,7 @@ export const DocumentRequestsManagerView: React.FC<DocumentRequestsManagerViewPr
       // Role scope
       if (userRole === 'student') {
         if (req.studentId !== currentStudentId && req.rollNoOrUSN !== currentStudentUSN) {
-          // If we have existing mocked data, allow seeing student's own requests
+          return false;
         }
       } else if (userRole === 'hod' && userDepartment) {
         if (req.department.toLowerCase() !== userDepartment.toLowerCase()) {
@@ -240,34 +231,16 @@ export const DocumentRequestsManagerView: React.FC<DocumentRequestsManagerViewPr
   const handleOpenProcessModal = (req: DocumentRequest) => {
     setSelectedRequest(req);
     setPickupDropdownOpen(false);
-    setPickupLocationInput(req.pickupLocation || 'Administrative Office (Accounts Counter 2)');
+    setPickupLocationInput(req.pickupLocation || '');
     setProcessRemarksInput(req.reviewRemarks || '');
     setProcessModalVisible(true);
   };
 
   const handleConfirmProcess = () => {
-    if (!selectedRequest) return;
-    const cfg = DOCUMENT_TYPE_CONFIG[selectedRequest.documentType];
-    const pickupLoc = pickupLocationInput.trim() || 'Administrative Office (Counter 3, Ground Floor)';
-    const updated: DocumentRequest = {
-      ...selectedRequest,
-      status: 'processed',
-      processedDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-      processedBy: userRole === 'principal' ? 'Principal Office' : userRole === 'hod' ? 'Head of Department' : 'Administrative Office',
-      pickupLocation: pickupLoc,
-      reviewRemarks: processRemarksInput.trim() || selectedRequest.reviewRemarks,
-    };
-
-    setRequests((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
-    if (selectedRequest && selectedRequest.id === updated.id) {
-      setSelectedRequest(updated);
-    }
-    setPickupDropdownOpen(false);
     setProcessModalVisible(false);
-
     Alert.alert(
-      'Document Processed & Student Notified',
-      `Notification sent to ${updated.studentName}:\n\n"Your requested document (${cfg.label}) is processed. You can go and collect it from office (${pickupLoc})."`
+      'Document Workflow Unavailable',
+      'Document processing and student notification persistence are not configured.'
     );
   };
 
@@ -280,76 +253,18 @@ export const DocumentRequestsManagerView: React.FC<DocumentRequestsManagerViewPr
   };
 
   const handleConfirmQuery = () => {
-    if (!selectedRequest) return;
-    if (!queryTextInput.trim()) {
-      Alert.alert('Query Details Required', 'Please enter or select consultation requirements for the student.');
-      return;
-    }
-    const cfg = DOCUMENT_TYPE_CONFIG[selectedRequest.documentType];
-    const updated: DocumentRequest = {
-      ...selectedRequest,
-      status: 'query_raised',
-      queryText: queryTextInput.trim(),
-      queryDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-      queriedBy: userRole === 'principal' ? 'Principal Office' : userRole === 'hod' ? 'Head of Department' : 'Administrative Office',
-    };
-
-    setRequests((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
-    if (selectedRequest && selectedRequest.id === updated.id) {
-      setSelectedRequest(updated);
-    }
     setQueryModalVisible(false);
-
     Alert.alert(
-      'Query Dispatched & Student Notified',
-      `Notification sent to ${updated.studentName}:\n\n"Consultation / Action Required on requested document (${cfg.label}):\n${updated.queryText}\n\nPlease consult the office."`
+      'Document Workflow Unavailable',
+      'Document queries and student notification persistence are not configured.'
     );
   };
 
   const handleSubmitNewRequest = () => {
-    if (!newPurpose.trim()) {
-      Alert.alert('Reason / Purpose Required', 'Please provide a short description explaining why you need this document.');
-      return;
-    }
-
-    const selCfg = DOCUMENT_TYPE_CONFIG[newDocType];
-    const unitFee = selCfg?.fee ?? 0;
-    const totalFee = unitFee * newCopies;
-    const paymentNotice =
-      totalFee > 0
-        ? `Pay ₹${unitFee} × ${newCopies} = ₹${totalFee} must be paid while collecting document`
-        : 'Free Official Issuance (₹0)';
-
-    const reqNum = `DOC-2026-${String(Math.floor(1000 + Math.random() * 9000))}`;
-    const newReq: DocumentRequest = {
-      id: `doc-${Date.now()}`,
-      requestNumber: reqNum,
-      studentId: currentStudentId || 'std-101',
-      studentName: currentStudentName || 'Aarav Sharma',
-      rollNoOrUSN: currentStudentUSN || '1MS21CS001',
-      department: userDepartment || 'Computer Science',
-      classOrSemester: 'Semester V',
-      documentType: newDocType,
-      purpose: newPurpose.trim(),
-      urgency: newUrgency,
-      copiesCount: newCopies,
-      feeAmount: totalFee,
-      paymentNote: paymentNotice,
-      studentRemarks: newRemarks.trim() || undefined,
-      appliedDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-      status: 'pending',
-    };
-
-    setRequests((prev) => [newReq, ...prev]);
-    setDocDropdownOpen(false);
     setNewRequestModalVisible(false);
-    setNewPurpose('');
-    setNewRemarks('');
-    setNewCopies(1);
-    setNewUrgency('normal');
     Alert.alert(
-      'Application Submitted',
-      `Your application ${reqNum} for ${selCfg.label} has been submitted.\n\n${paymentNotice}`
+      'Document Requests Unavailable',
+      'Document request persistence is not configured. Please contact the institution office.'
     );
   };
 

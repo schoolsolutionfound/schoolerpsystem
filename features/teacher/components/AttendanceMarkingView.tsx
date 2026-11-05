@@ -154,6 +154,7 @@ export const AttendanceMarkingView: React.FC<AttendanceMarkingViewProps> = ({
   const [locked, setLocked] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState('');
 
   // Storage key for current selection
   const currentKey = `${selectedClass}_${selectedSection}_${selectedDate}`;
@@ -355,14 +356,22 @@ export const AttendanceMarkingView: React.FC<AttendanceMarkingViewProps> = ({
   // Fetch real slot attendance if a live slot is connected
   const loadSlotData = useCallback(async () => {
     const activeSlotId = slotId || selectedClassCard?.id;
-    if (!activeSlotId || activeSlotId.startsWith('demo-')) {
+    if (
+      !activeSlotId ||
+      activeSlotId.startsWith('demo-') ||
+      activeSlotId.startsWith('prop-') ||
+      activeSlotId.startsWith('tc-')
+    ) {
+      setLoadError('No timetable slot is connected to this class.');
+      setRoster([]);
       return;
     }
     setLoading(true);
+    setLoadError('');
     try {
       const [rosterRes, existingRes] = await Promise.all([
-        fetchRosterApi(activeSlotId).catch(() => null),
-        fetchAttendanceForSlotApi(activeSlotId, selectedDate).catch(() => null),
+        fetchRosterApi(activeSlotId),
+        fetchAttendanceForSlotApi(activeSlotId, selectedDate),
       ]);
 
       if (rosterRes?.students?.length) {
@@ -387,19 +396,22 @@ export const AttendanceMarkingView: React.FC<AttendanceMarkingViewProps> = ({
         if (parts[1]) setSelectedSection(parts[1].trim());
       }
 
+      setLocked(existingRes?.record?.status === 'locked');
+      const initial: Record<string, Status> = {};
       if (existingRes?.record) {
-        setLocked(existingRes.record.status === 'locked');
-        const initial: Record<string, Status> = {};
         for (const e of existingRes.entries || []) {
           initial[e.studentId] = e.attendanceStatus === 'absent' ? 'absent' : 'present';
         }
-        setAttendanceRecords((prev) => ({
-          ...prev,
-          [currentKey]: { ...(prev[currentKey] || {}), ...initial },
-        }));
       }
-    } catch {
-      // Keep dynamic local data
+      setAttendanceRecords((prev) => ({
+        ...prev,
+        [currentKey]: initial,
+      }));
+    } catch (error: any) {
+      setRoster([]);
+      setLocked(false);
+      setAttendanceRecords((prev) => ({ ...prev, [currentKey]: {} }));
+      setLoadError(error?.message || 'Could not load the attendance register.');
     } finally {
       setLoading(false);
     }
@@ -524,14 +536,26 @@ export const AttendanceMarkingView: React.FC<AttendanceMarkingViewProps> = ({
     let a = 0;
     roster.forEach((s) => {
       if (marks[s.id] === 'absent') a++;
-      else p++;
+      if (marks[s.id] === 'present') p++;
     });
-    return { total: roster.length, present: p, absent: a };
+    return { total: roster.length, present: p, absent: a, unmarked: roster.length - p - a };
   }, [roster, marks]);
 
   // Save Attendance
   const handleSave = async () => {
     if (roster.length === 0) return;
+    if (loadError) {
+      Alert.alert('Unable to Save', 'Reload the attendance register before saving.');
+      return;
+    }
+    const unmarkedStudents = roster.filter((student) => !marks[student.id]);
+    if (unmarkedStudents.length > 0) {
+      Alert.alert(
+        'Attendance Incomplete',
+        `Mark present or absent for all students. ${unmarkedStudents.length} still unmarked.`
+      );
+      return;
+    }
     const activeSlotId = slotId || selectedClassCard?.id;
     if (!activeSlotId || activeSlotId.startsWith('demo-') || activeSlotId.startsWith('tc-') || activeSlotId.startsWith('prop-')) {
       Alert.alert('Unable to Save', 'No timetable slot is connected to this class.');
@@ -546,7 +570,7 @@ export const AttendanceMarkingView: React.FC<AttendanceMarkingViewProps> = ({
     try {
       const entries = roster.map((s) => ({
         studentId: s.id,
-        attendanceStatus: marks[s.id] || 'present',
+        attendanceStatus: marks[s.id],
       }));
       await markAttendanceApi({ timetableSlotId: activeSlotId, date: selectedDate, entries });
 
@@ -944,6 +968,10 @@ export const AttendanceMarkingView: React.FC<AttendanceMarkingViewProps> = ({
             <Text style={styles.statLabel}>Absent</Text>
             <Text style={styles.statNumber}>{counts.absent}</Text>
           </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>Unmarked</Text>
+            <Text style={styles.statNumber}>{counts.unmarked}</Text>
+          </View>
         </View>
 
         {/* 4. Student Search Bar */}
@@ -964,7 +992,16 @@ export const AttendanceMarkingView: React.FC<AttendanceMarkingViewProps> = ({
         </View>
 
         {/* 5. Student Attendance Table */}
-        {loading ? (
+        {loadError ? (
+          <View style={styles.loadErrorCard}>
+            <Feather name="alert-circle" size={22} color="#B91C1C" />
+            <Text style={styles.loadErrorTitle}>Attendance register unavailable</Text>
+            <Text style={styles.loadErrorText}>{loadError}</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={loadSlotData}>
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : loading ? (
           <TeacherAttendanceSkeleton />
         ) : (
           <View style={styles.tableCard}>
@@ -991,7 +1028,7 @@ export const AttendanceMarkingView: React.FC<AttendanceMarkingViewProps> = ({
 
             {/* Table Rows */}
             {filteredRoster.map((student, i) => {
-              const status = marks[student.id] || 'present';
+              const status = marks[student.id];
               const isPresent = status === 'present';
               const isAbsent = status === 'absent';
               const editable = isRowEditable(student.id);
@@ -1481,6 +1518,39 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.extrabold,
     color: '#111827',
     marginTop: 2,
+  },
+  loadErrorCard: {
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FECACA',
+    borderRadius: 6,
+    borderWidth: 1,
+    gap: 6,
+    marginBottom: 12,
+    padding: 18,
+  },
+  loadErrorTitle: {
+    color: '#991B1B',
+    fontFamily: FontFamily.bold,
+    fontSize: 14,
+  },
+  loadErrorText: {
+    color: '#7F1D1D',
+    fontFamily: FontFamily.regular,
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  retryButton: {
+    backgroundColor: '#991B1B',
+    borderRadius: 5,
+    marginTop: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontFamily: FontFamily.bold,
+    fontSize: 12,
   },
 
   // Search input

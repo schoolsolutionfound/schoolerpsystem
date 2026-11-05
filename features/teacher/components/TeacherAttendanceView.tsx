@@ -44,13 +44,6 @@ export const TeacherAttendanceView: React.FC<TeacherAttendanceViewProps> = ({ on
   const [leaveTo, setLeaveTo] = useState('');
   const [leaveReason, setLeaveReason] = useState('');
 
-  // Leave Balances
-  const [leaveBalances, setLeaveBalances] = useState({
-    casual: 8,
-    sick: 6,
-    earned: 14,
-  });
-
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = useCallback(() => {
@@ -61,31 +54,19 @@ export const TeacherAttendanceView: React.FC<TeacherAttendanceViewProps> = ({ on
   }, []);
 
   const handleApplyLeave = () => {
-    if (!leaveFrom.trim() || !leaveReason.trim()) {
-      Alert.alert('Missing Details', 'Please specify the start date and reason for leave.');
-      return;
-    }
-
-    // Deduct leave balance
-    setLeaveBalances((prev) => ({
-      ...prev,
-      [leaveType.toLowerCase()]: Math.max(0, (prev as any)[leaveType.toLowerCase()] - 1),
-    }));
-
     setLeaveModalVisible(false);
-    setLeaveFrom('');
-    setLeaveTo('');
-    setLeaveReason('');
-
-    Alert.alert('Leave Application Submitted', 'Your leave request has been submitted to the Administration for approval.');
+    Alert.alert(
+      'Leave Applications Unavailable',
+      'Staff leave requests and balances are not configured in the backend.'
+    );
   };
 
   const stats = useMemo(() => {
     const present = logs.filter((l) => l.status === 'PRESENT' || l.status === 'LATE').length;
     const late = logs.filter((l) => l.status === 'LATE').length;
     const leave = logs.filter((l) => l.status === 'ON_LEAVE').length;
-    const totalWorking = 24;
-    const percentage = '96.2';
+    const totalWorking = logs.filter((l) => l.status !== 'HOLIDAY').length;
+    const percentage = totalWorking > 0 ? Math.round((present / totalWorking) * 1000) / 10 : null;
     return { present, late, leave, totalWorking, percentage };
   }, [logs]);
 
@@ -150,7 +131,12 @@ export const TeacherAttendanceView: React.FC<TeacherAttendanceViewProps> = ({ on
 
         <TouchableOpacity
           style={styles.leaveActionBtn}
-          onPress={() => setLeaveModalVisible(true)}
+          onPress={() =>
+            Alert.alert(
+              'Leave Applications Unavailable',
+              'Staff leave requests and balances are not configured in the backend.'
+            )
+          }
           activeOpacity={0.8}
         >
           <Feather name="plus" size={15} color="#171717" />
@@ -188,8 +174,7 @@ export const TeacherAttendanceView: React.FC<TeacherAttendanceViewProps> = ({ on
               </Text>
             </View>
             <View style={styles.todayBadge}>
-              <View style={styles.todayDot} />
-              <Text style={styles.todayBadgeText}>Present Today</Text>
+              <Text style={styles.todayBadgeText}>Attendance Not Tracked</Text>
             </View>
           </View>
         </View>
@@ -198,13 +183,13 @@ export const TeacherAttendanceView: React.FC<TeacherAttendanceViewProps> = ({ on
         <View style={styles.metricsRow}>
           <View style={styles.metricCard}>
             <Text style={styles.metricLabel}>Attendance</Text>
-            <Text style={styles.metricVal}>{stats.percentage}%</Text>
+            <Text style={styles.metricVal}>{stats.percentage == null ? '—' : `${stats.percentage}%`}</Text>
             <View style={[styles.metricBar, { backgroundColor: '#F4C430' }]} />
           </View>
 
           <View style={styles.metricCard}>
             <Text style={styles.metricLabel}>Working Days</Text>
-            <Text style={styles.metricVal}>{stats.totalWorking}</Text>
+            <Text style={styles.metricVal}>{logs.length > 0 ? stats.totalWorking : '—'}</Text>
             <View style={[styles.metricBar, { backgroundColor: '#E8E5DC' }]} />
           </View>
 
@@ -224,26 +209,26 @@ export const TeacherAttendanceView: React.FC<TeacherAttendanceViewProps> = ({ on
         {/* 4. Leave Balances Section */}
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionTitle}>Leave Balances</Text>
-          <Text style={styles.sectionSub}>AY 2026 - 2027</Text>
+            <Text style={styles.sectionSub}>Not configured</Text>
         </View>
 
         <View style={styles.leaveBalanceRow}>
           <View style={styles.leaveBalCard}>
             <Text style={styles.leaveBalTitle}>Casual (CL)</Text>
-            <Text style={styles.leaveBalCount}>{leaveBalances.casual}</Text>
-            <Text style={styles.leaveBalSub}>of 12 remaining</Text>
+            <Text style={styles.leaveBalCount}>—</Text>
+            <Text style={styles.leaveBalSub}>Not tracked</Text>
           </View>
 
           <View style={styles.leaveBalCard}>
             <Text style={styles.leaveBalTitle}>Sick (SL)</Text>
-            <Text style={styles.leaveBalCount}>{leaveBalances.sick}</Text>
-            <Text style={styles.leaveBalSub}>of 10 remaining</Text>
+            <Text style={styles.leaveBalCount}>—</Text>
+            <Text style={styles.leaveBalSub}>Not tracked</Text>
           </View>
 
           <View style={styles.leaveBalCard}>
             <Text style={styles.leaveBalTitle}>Earned (EL)</Text>
-            <Text style={styles.leaveBalCount}>{leaveBalances.earned}</Text>
-            <Text style={styles.leaveBalSub}>of 15 remaining</Text>
+            <Text style={styles.leaveBalCount}>—</Text>
+            <Text style={styles.leaveBalSub}>Not tracked</Text>
           </View>
         </View>
 
@@ -251,7 +236,9 @@ export const TeacherAttendanceView: React.FC<TeacherAttendanceViewProps> = ({ on
         <View style={[styles.sectionHeaderRow, { marginTop: 6 }]}>
           <Text style={styles.sectionTitle}>Monthly Attendance Log</Text>
           <View style={styles.monthPill}>
-            <Text style={styles.monthPillText}>October 2026</Text>
+            <Text style={styles.monthPillText}>
+              {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+            </Text>
           </View>
         </View>
 
@@ -296,6 +283,11 @@ export const TeacherAttendanceView: React.FC<TeacherAttendanceViewProps> = ({ on
               </View>
             );
           })}
+          {logs.length === 0 ? (
+            <View style={{ padding: 18, alignItems: 'center' }}>
+              <Text style={styles.leaveBalSub}>Staff attendance tracking is not configured.</Text>
+            </View>
+          ) : null}
         </View>
           </>
         )}

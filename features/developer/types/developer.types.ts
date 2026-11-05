@@ -70,7 +70,7 @@ export interface InstitutionAdmin {
   institutionCode: string;
   institutionName: string;
   institutionType: 'school' | 'college';
-  status: 'active' | 'inactive' | 'suspended';
+  status?: 'active' | 'inactive' | 'suspended';
   scope: AdminScope;
   permissions: string[];
   createdAt?: string;

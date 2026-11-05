@@ -32,7 +32,13 @@ import {
 } from '../../api/hod';
 import {
   fetchPrincipalHomeroomsApi,
+  fetchPrincipalTodayClassesApi,
+  fetchUpcomingEventsApi,
   assignHomeroomTeacherApi,
+} from '../../api/principal';
+import type {
+  PrincipalTodayClasses,
+  UpcomingEvent,
 } from '../../api/principal';
 import { UnifiedHeader } from '../../features/shared/components/layout/UnifiedHeader';
 import { FloatingFooter } from '../../features/shared/components/layout/FloatingFooter';
@@ -194,6 +200,8 @@ export default function HODHomeScreen() {
   const [courses, setCourses] = useState<DepartmentCourse[]>([]);
   const [notices, setNotices] = useState<SchoolNotice[]>([]);
   const [homerooms, setHomerooms] = useState<HomeroomSection[]>([]);
+  const [todayClasses, setTodayClasses] = useState<PrincipalTodayClasses | null>(null);
+  const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
 
   // Modals state (matching Principal)
   const [assignModalVisible, setAssignModalVisible] = useState(false);
@@ -229,11 +237,11 @@ export default function HODHomeScreen() {
 
   // Faculty formatted for PrincipalStaffDirectoryView
   const deptStaffList: PrincipalStaffMember[] = useMemo(() => {
-    return faculty.map((f, idx) => {
+    return faculty.map((f) => {
       let desig: StaffDesignation = 'subject_teacher';
       const rank = (f.rank || '').toLowerCase();
       if (rank === 'professor') {
-        desig = idx === 0 || f.email?.includes('hod') ? 'hod' : 'academic_coordinator';
+        desig = 'subject_teacher';
       } else if (rank === 'associate_professor') {
         desig = 'homeroom_teacher';
       } else if (rank === 'assistant_professor') {
@@ -242,8 +250,18 @@ export default function HODHomeScreen() {
         desig = 'lab_instructor';
       }
 
+      const rawStatus = String(f.status || '').toLowerCase();
+      const attendanceToday: PrincipalStaffMember['attendanceToday'] =
+        rawStatus === 'absent'
+          ? 'absent'
+          : rawStatus === 'on_leave'
+            ? 'on_leave'
+            : rawStatus === 'present' || rawStatus === 'in_lecture' || rawStatus === 'in_lab'
+              ? 'present'
+              : 'unknown';
+
       return {
-        id: f.id || `fac-${idx}`,
+        id: f.id || f.email || '',
         fullName: f.name,
         employeeId: f.employeeId,
         cabinNumber: f.cabinNumber,
@@ -253,12 +271,7 @@ export default function HODHomeScreen() {
         designation: desig,
         assignedClass: deptHomerooms.find((sec) => sec.homeroomTeacherName === f.name)?.name,
         assignedSubjects: f.assignedCourses,
-        attendanceToday:
-          f.status === 'absent'
-            ? 'absent'
-            : f.status === 'on_leave'
-            ? 'on_leave'
-            : 'present',
+        attendanceToday,
       };
     });
   }, [faculty, department, deptHomerooms]);
@@ -269,9 +282,11 @@ export default function HODHomeScreen() {
       deptHomerooms.reduce((acc, h) => acc + (h.studentCount || 0), 0) || kpis.totalStudents;
     const totalFaculty = faculty.length || kpis.totalFaculty;
     const facultyOnDuty =
-      faculty.filter(
-        (f) => f.status === 'present' || f.status === 'in_lecture' || f.status === 'in_lab'
-      ).length || kpis.facultyOnDuty;
+      faculty.length > 0
+        ? faculty.filter(
+            (f) => f.status === 'present' || f.status === 'in_lecture' || f.status === 'in_lab'
+          ).length
+        : kpis.facultyOnDuty;
     const activeCourses = courses.length || kpis.activeCourses;
     const practicalLabsCount =
       courses.filter(
@@ -305,6 +320,8 @@ export default function HODHomeScreen() {
         fetchDepartmentCoursesApi(targetDept),
         fetchDepartmentNoticesApi(targetDept),
         fetchPrincipalHomeroomsApi(),
+        fetchPrincipalTodayClassesApi(),
+        fetchUpcomingEventsApi(),
       ]);
 
       if (!isMountedRef.current) return;
@@ -322,6 +339,12 @@ export default function HODHomeScreen() {
       }
       if (results[4].status === 'fulfilled' && Array.isArray(results[4].value)) {
         setHomerooms(results[4].value);
+      }
+      if (results[5].status === 'fulfilled' && results[5].value) {
+        setTodayClasses(results[5].value);
+      }
+      if (results[6].status === 'fulfilled' && Array.isArray(results[6].value)) {
+        setUpcomingEvents(results[6].value);
       }
     } catch (err: any) {
       if (!isMountedRef.current) return;
@@ -428,7 +451,45 @@ export default function HODHomeScreen() {
   };
 
   if (loading) {
-    return <HODPageSkeleton tab="dashboard" />;
+    return (
+      <View style={styles.container}>
+        <SafeAreaView style={styles.safe} edges={['top']}>
+          <UnifiedHeader
+            onMenuPress={() => setDrawerOpen(true)}
+            onNotificationsPress={() => router.push('/notifications')}
+          />
+          <HODPageSkeleton tab="dashboard" />
+          <FloatingFooter
+            tabs={BOTTOM_TABS.map((tab) => ({
+              key: tab.key,
+              label: tab.label,
+              icon: tab.icon,
+              iconFilled: tab.iconActive,
+            }))}
+            activeKey={activeTab}
+            onTabPress={(key) => {
+              if (key === 'profile') {
+                router.push('/(hod)/profile');
+              } else {
+                switchTab(key);
+              }
+            }}
+          />
+        </SafeAreaView>
+
+        <HODDrawer
+          visible={drawerOpen}
+          activeTab={activeTab}
+          onClose={() => setDrawerOpen(false)}
+          onNavigate={(t) => {
+            if (t === 'profile') router.push('/(hod)/profile');
+            else switchTab(t);
+            setDrawerOpen(false);
+          }}
+          onLogout={handleLogout}
+        />
+      </View>
+    );
   }
 
   return (
@@ -436,7 +497,7 @@ export default function HODHomeScreen() {
       <SafeAreaView style={styles.safe} edges={['top']}>
         <UnifiedHeader
           onMenuPress={() => setDrawerOpen(true)}
-          onNotificationsPress={() => switchTab('notices')}
+          onNotificationsPress={() => router.push('/notifications')}
         />
 
         {/* View Switcher or Error Screen */}
@@ -465,6 +526,8 @@ export default function HODHomeScreen() {
                     staffList={deptStaffList}
                     courses={courses}
                     notices={notices}
+                    todayClasses={todayClasses}
+                    upcomingEvents={upcomingEvents}
                     refreshing={refreshing}
                     onRefresh={handleRefresh}
                     onNavigateTab={(tab) => {
@@ -732,26 +795,6 @@ const styles = StyleSheet.create({
     color: '#111827',
     fontSize: 14,
     fontFamily: FontFamily.semibold,
-  },
-  ovalBottomBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 36,
-    borderWidth: 1,
-    borderColor: '#EFEFEF',
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-    marginHorizontal: 12,
-    maxWidth: 620,
-    width: '94%',
-    alignSelf: 'center',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.10,
-    shadowRadius: 10,
-    elevation: 8,
   },
   tabBtn: {
     alignItems: 'center',

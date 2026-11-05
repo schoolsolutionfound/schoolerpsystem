@@ -20,6 +20,10 @@ import {
   HomeroomSection,
   PrincipalStaffMember,
 } from '../../principal/types/principal.types';
+import type {
+  PrincipalTodayClasses,
+  UpcomingEvent,
+} from '../../../api/principal';
 
 interface HODDashboardViewProps {
   fullName?: string;
@@ -30,6 +34,8 @@ interface HODDashboardViewProps {
   courses?: DepartmentCourse[];
   eligibility?: ExamEligibilityRecord[];
   notices?: any[];
+  todayClasses?: PrincipalTodayClasses | null;
+  upcomingEvents?: UpcomingEvent[];
   refreshing: boolean;
   onRefresh: () => void;
   onNavigateTab: (tab: HODTab) => void;
@@ -71,6 +77,8 @@ export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
   courses,
   eligibility,
   notices,
+  todayClasses,
+  upcomingEvents,
   refreshing,
   onRefresh,
   onNavigateTab,
@@ -150,16 +158,45 @@ export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
   const [chartPeriod, setChartPeriod] = useState<'term' | 'annual'>('term');
   const chartData = chartPeriod === 'term' ? dynamicDeptAcademicStats.term : dynamicDeptAcademicStats.annual;
 
-  // Highlights: Upcoming Events & Today's Classes
-  const todayClasses: { subjectName: string; periodTime: string; studentCount: number }[] = [];
-  const upcomingEvents: { title: string; startDate: string; endDate?: string }[] = [];
+  // Highlights: upcoming EVENT announcements and today's scheduled periods
+  const departmentClassIds = useMemo(
+    () => new Set((homerooms || []).map((room) => room.id)),
+    [homerooms]
+  );
 
-  const nextUpcomingEvent = upcomingEvents[0] || null;
+  const todayClassItems = useMemo(() => {
+    const classes = (todayClasses?.classes || []).filter(
+      (cls) => departmentClassIds.size === 0 || departmentClassIds.has(cls.classSectionId)
+    );
+    return classes
+      .flatMap((cls) =>
+        cls.slots.map((slot) => ({
+          subjectName: slot.subject?.name || 'Untitled Subject',
+          periodTime: slot.period ? `${slot.period.startTime} - ${slot.period.endTime}` : '',
+          studentCount: cls.studentCount,
+        }))
+      )
+      .sort((a, b) => a.periodTime.localeCompare(b.periodTime));
+  }, [todayClasses, departmentClassIds]);
+
+  const upcomingEventItems = useMemo(
+    () =>
+      (upcomingEvents || [])
+        .map((event) => ({
+          title: event.title,
+          startDate: event.publishAt ? event.publishAt.slice(0, 10) : '',
+          endDate: event.expiresAt ? event.expiresAt.slice(0, 10) : undefined,
+        }))
+        .filter((event) => !!event.startDate),
+    [upcomingEvents]
+  );
+
+  const nextUpcomingEvent = upcomingEventItems[0] || null;
   const hasUpcomingEvent = !!nextUpcomingEvent;
-  const hasTodayClasses = todayClasses.length > 0;
+  const hasTodayClasses = todayClassItems.length > 0;
   const bothCardsVisible = hasUpcomingEvent && hasTodayClasses;
   const showHighlightsRow = hasUpcomingEvent || hasTodayClasses;
-  const firstClass = todayClasses[0] || null;
+  const firstClass = todayClassItems[0] || null;
 
   return (
     <ScrollView
@@ -382,7 +419,7 @@ export const HODDashboardView: React.FC<HODDashboardViewProps> = ({
               >
                 <View style={styles.highlightBodySection}>
                   <Text style={styles.highlightMainTitle} numberOfLines={1}>
-                    {todayClasses.length} {todayClasses.length === 1 ? 'Class' : 'Classes'} Scheduled
+                    {todayClassItems.length} {todayClassItems.length === 1 ? 'Class' : 'Classes'} Scheduled
                   </Text>
                   <Text style={styles.highlightSubText} numberOfLines={1}>
                     Next: {firstClass.subjectName}

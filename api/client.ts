@@ -35,9 +35,17 @@ const getBaseUrl = (): string => {
     }
   }
 
-  return Platform.OS === 'android'
-    ? 'http://10.0.2.2:5000/api/v1'
-    : 'http://localhost:5000/api/v1';
+  if (__DEV__) {
+    return Platform.OS === 'android'
+      ? 'http://10.0.2.2:5000/api/v1'
+      : 'http://localhost:5000/api/v1';
+  }
+
+  throw new AppError(
+    'API base URL is not configured for this build. Set EXPO_PUBLIC_API_URL.',
+    'API_URL_NOT_CONFIGURED',
+    500
+  );
 };
 
 export function getApiBaseUrl(): string {

@@ -83,11 +83,11 @@ const formatToIso = (d: Date) => {
 
 
 export const TeacherLeaveView: React.FC<TeacherLeaveViewProps> = ({ onBack }) => {
-  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
+  const [leaveRequests] = useState<LeaveRequest[]>([]);
   const [activeTab, setActiveTab] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('ALL');
 
   // Leave Balances
-  const [leaveBalances, setLeaveBalances] = useState({
+  const [leaveBalances] = useState({
     casual: 8,
     casualTotal: 12,
     sick: 6,
@@ -194,66 +194,17 @@ export const TeacherLeaveView: React.FC<TeacherLeaveViewProps> = ({ onBack }) =>
   };
 
   const openApplyLeaveModal = () => {
-    setActiveDatePicker(null);
-    if (leaveFrom) {
-      const [y, m] = leaveFrom.split('-').map(Number);
-      if (y && m) setCalendarViewDate(new Date(y, m - 1, 1));
-    } else {
-      setCalendarViewDate(new Date());
-    }
-    setLeaveModalVisible(true);
+    Alert.alert(
+      'Leave Applications Unavailable',
+      'Staff leave requests and balances are not configured in the backend.'
+    );
   };
 
   const handleApplyLeave = () => {
-    if (!leaveFrom.trim() || !leaveReason.trim()) {
-      Alert.alert('Missing Details', 'Please select a start date and provide a reason for leave.');
-      return;
-    }
-
-    const typeKey = leaveType.toLowerCase() as 'casual' | 'sick' | 'earned';
-    const currentRemaining = leaveBalances[typeKey];
-    if (currentRemaining <= 0) {
-      Alert.alert('Insufficient Balance', `You have no ${leaveType} leaves remaining.`);
-      return;
-    }
-
-    const daysCount = calculatedDays > 0 ? calculatedDays : 1;
-    if (daysCount > currentRemaining) {
-      Alert.alert(
-        'Insufficient Balance',
-        `You have applied for ${daysCount} ${daysCount === 1 ? 'day' : 'days'}, but only have ${currentRemaining} ${leaveType} ${currentRemaining === 1 ? 'leave' : 'leaves'} remaining.`
-      );
-      return;
-    }
-
-    const newRequest: LeaveRequest = {
-      id: `lr-${Date.now()}`,
-      type: leaveType,
-      fromDate: leaveFrom.trim(),
-      toDate: (leaveTo || leaveFrom).trim(),
-      days: daysCount,
-      reason: leaveReason.trim(),
-      status: 'PENDING',
-      appliedOn: formatToIso(new Date()),
-    };
-
-    setLeaveRequests((prev) => [newRequest, ...prev]);
-
-    // Deduct leave balance
-    setLeaveBalances((prev) => ({
-      ...prev,
-      [typeKey]: Math.max(0, prev[typeKey] - daysCount),
-    }));
-
     setLeaveModalVisible(false);
-    setActiveDatePicker(null);
-    setLeaveFrom('');
-    setLeaveTo('');
-    setLeaveReason('');
-
     Alert.alert(
-      'Leave Application Submitted',
-      'Your leave request has been submitted to the Administration for approval.'
+      'Leave Applications Unavailable',
+      'Staff leave requests and balances are not configured in the backend.'
     );
   };
 
@@ -343,20 +294,20 @@ export const TeacherLeaveView: React.FC<TeacherLeaveViewProps> = ({ onBack }) =>
         <View style={styles.leaveBalanceRow}>
           <View style={styles.leaveBalCard}>
             <Text style={styles.leaveBalTitle}>Casual</Text>
-            <Text style={styles.leaveBalCount}>{leaveBalances.casual}</Text>
-            <Text style={styles.leaveBalSub}>of {leaveBalances.casualTotal} left</Text>
+            <Text style={styles.leaveBalCount}>—</Text>
+            <Text style={styles.leaveBalSub}>Not tracked</Text>
           </View>
 
           <View style={styles.leaveBalCard}>
             <Text style={styles.leaveBalTitle}>Sick</Text>
-            <Text style={styles.leaveBalCount}>{leaveBalances.sick}</Text>
-            <Text style={styles.leaveBalSub}>of {leaveBalances.sickTotal} left</Text>
+            <Text style={styles.leaveBalCount}>—</Text>
+            <Text style={styles.leaveBalSub}>Not tracked</Text>
           </View>
 
           <View style={styles.leaveBalCard}>
             <Text style={styles.leaveBalTitle}>Earned</Text>
-            <Text style={styles.leaveBalCount}>{leaveBalances.earned}</Text>
-            <Text style={styles.leaveBalSub}>of {leaveBalances.earnedTotal} left</Text>
+            <Text style={styles.leaveBalCount}>—</Text>
+            <Text style={styles.leaveBalSub}>Not tracked</Text>
           </View>
         </View>
 

@@ -157,7 +157,8 @@ export function PlacementStudentsView() {
 
       // 4. Backlogs
       if (selectedBacklog !== 'all') {
-        const backlogs = s.activeBacklogs || 0;
+        const backlogs = s.activeBacklogs;
+        if (backlogs === null || backlogs === undefined) return false;
         if (selectedBacklog === 'zero' && backlogs > 0) return false;
         if (selectedBacklog === 'has_backlogs' && backlogs === 0) return false;
       }
@@ -291,7 +292,7 @@ export function PlacementStudentsView() {
         ) : (
           filteredStudents.map((st) => {
             const hasResume = !!st.resumeUrl;
-            const hasBacklogs = (st.activeBacklogs || 0) > 0;
+            const hasBacklogs = st.activeBacklogs != null && st.activeBacklogs > 0;
             const cgpa = st.cgpa !== null && st.cgpa !== undefined ? st.cgpa.toFixed(2) : 'N/A';
 
             return (
@@ -327,7 +328,7 @@ export function PlacementStudentsView() {
                         <Text style={styles.studentMetaText}>{st.rollNoOrUSN} • </Text>
                       ) : null}
                       <Text style={styles.studentMetaText}>
-                        {st.branch || 'General'}
+                        {st.branch || '—'}
                         {st.academicYear ? ` • ${st.academicYear}` : ''}
                       </Text>
                     </View>
@@ -353,7 +354,7 @@ export function PlacementStudentsView() {
                   <View style={styles.scoreItem}>
                     <Text style={styles.scoreLabel}>Active Backlogs</Text>
                     <Text style={[styles.scoreValue, hasBacklogs && styles.backlogAlertValue]}>
-                      {st.activeBacklogs || 0}
+                      {st.activeBacklogs ?? '—'}
                     </Text>
                   </View>
                 </View>
@@ -418,7 +419,11 @@ export function PlacementStudentsView() {
                       hasBacklogs ? styles.backlogTextAlert : styles.backlogTextClear,
                     ]}
                   >
-                    {hasBacklogs ? `${st.activeBacklogs} backlogs` : '0 backlogs'}
+                    {st.activeBacklogs == null
+                      ? 'Backlogs not provided'
+                      : hasBacklogs
+                        ? `${st.activeBacklogs} backlogs`
+                        : '0 backlogs'}
                   </Text>
 
                   {hasResume ? (
@@ -728,15 +733,17 @@ export function PlacementStudentsView() {
                           styles.academicGridVal,
                           {
                             color:
-                              (selectedStudent.activeBacklogs || 0) > 0
-                                ? '#DC2626'
-                                : '#16A34A',
+                              selectedStudent.activeBacklogs == null
+                                ? '#64748B'
+                                : selectedStudent.activeBacklogs > 0
+                                  ? '#DC2626'
+                                  : '#16A34A',
                           },
                         ]}
                       >
                         {selectedStudent.activeBacklogs != null
                           ? selectedStudent.activeBacklogs
-                          : '0'}
+                          : '—'}
                       </Text>
                       <Text style={styles.academicGridSub}>Active Backlogs</Text>
                     </View>

@@ -39,11 +39,8 @@ export const AdmissionBatchConfigModal: React.FC<AdmissionBatchConfigModalProps>
   const [courseCode, setCourseCode] = useState('');
   const [courseName, setCourseName] = useState('');
   const [totalSeats, setTotalSeats] = useState('');
-  const [programType, setProgramType] = useState<'school' | 'pu' | 'engineering' | 'degree'>('engineering');
-  const [quotas, setQuotas] = useState<QuotaDraft[]>([
-    { quotaName: 'CET', seats: '' },
-    { quotaName: 'Management', seats: '' },
-  ]);
+  const [programType, setProgramType] = useState<'' | 'school' | 'pu' | 'engineering' | 'degree'>('');
+  const [quotas, setQuotas] = useState<QuotaDraft[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -55,17 +52,14 @@ export const AdmissionBatchConfigModal: React.FC<AdmissionBatchConfigModalProps>
       if (courseToEdit.quotas && courseToEdit.quotas.length > 0) {
         setQuotas(courseToEdit.quotas.map((q) => ({ quotaName: q.quotaName, seats: String(q.seats) })));
       } else {
-        setQuotas([{ quotaName: 'General', seats: String(courseToEdit.totalSeats) }]);
+        setQuotas([]);
       }
     } else {
       setCourseCode('');
       setCourseName('');
-      setTotalSeats('120');
-      setProgramType('engineering');
-      setQuotas([
-        { quotaName: 'CET', seats: '80' },
-        { quotaName: 'Management', seats: '40' },
-      ]);
+      setTotalSeats('');
+      setProgramType('');
+      setQuotas([]);
     }
   }, [courseToEdit, visible]);
 
@@ -103,6 +97,10 @@ export const AdmissionBatchConfigModal: React.FC<AdmissionBatchConfigModalProps>
       Alert.alert('Required', 'Total seats must be greater than 0');
       return;
     }
+    if (!programType) {
+      Alert.alert('Required', 'Please select a program type');
+      return;
+    }
     if (isOverallocated) {
       Alert.alert('Quota Over-allocation', `Sum of quota seats (${quotaSum}) cannot exceed total course seats (${totalSeatsNum}).`);
       return;
@@ -111,6 +109,15 @@ export const AdmissionBatchConfigModal: React.FC<AdmissionBatchConfigModalProps>
     const cleanedQuotas = quotas
       .filter((q) => q.quotaName.trim() && parseInt(q.seats, 10) > 0)
       .map((q) => ({ quotaName: q.quotaName.trim(), seats: parseInt(q.seats, 10) }));
+    if (cleanedQuotas.length === 0) {
+      Alert.alert('Required', 'Add at least one quota category, such as General.');
+      return;
+    }
+
+    if (!activeBatch) {
+      Alert.alert('Batch Not Loaded', 'Could not resolve the active admission batch. Please retry.');
+      return;
+    }
 
     try {
       setSubmitting(true);
@@ -124,7 +131,7 @@ export const AdmissionBatchConfigModal: React.FC<AdmissionBatchConfigModalProps>
         Alert.alert('Updated', 'Course seat matrix updated successfully.');
       } else {
         await createAdmissionCourse({
-          academicYear: activeBatch || '2026-2027',
+          academicYear: activeBatch,
           courseCode: courseCode.trim().toUpperCase(),
           courseName: courseName.trim(),
           programType,
@@ -154,7 +161,7 @@ export const AdmissionBatchConfigModal: React.FC<AdmissionBatchConfigModalProps>
               <Text style={styles.title}>
                 {courseToEdit ? `Configure ${courseToEdit.courseCode}` : 'Add Branch / Course Seat Matrix'}
               </Text>
-              <Text style={styles.subtitle}>Batch: {activeBatch || '2026-2027'}</Text>
+              <Text style={styles.subtitle}>Batch: {activeBatch || '—'}</Text>
             </View>
             <TouchableOpacity style={styles.closeBtn} onPress={onClose} hitSlop={10}>
               <Feather name="x" size={18} color="#171717" />

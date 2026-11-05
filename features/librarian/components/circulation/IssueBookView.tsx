@@ -323,7 +323,7 @@ export const IssueBookView: React.FC<IssueBookViewProps> = ({
       const availCount = bookCopies.filter((c) => c.status === 'AVAILABLE').length;
       return {
         ...b,
-        availableCount: bookCopies.length > 0 ? availCount : (b.availableCopies && b.availableCopies > 0 ? b.availableCopies : 1),
+        availableCount: bookCopies.length > 0 ? availCount : Number(b.availableCopies || 0),
       };
     });
   }, [books, copies]);
@@ -344,19 +344,7 @@ export const IssueBookView: React.FC<IssueBookViewProps> = ({
   // Available copies for the currently selected book
   const availableCopies = useMemo(() => {
     if (!selectedBook) return [];
-    const directCopies = copies.filter((c) => c.bookId === selectedBook.id && c.status === 'AVAILABLE');
-    if (directCopies.length > 0) return directCopies;
-    return [
-      {
-        id: `copy-${selectedBook.id}-1`,
-        bookId: selectedBook.id,
-        accessionNumber: `ACC-${selectedBook.isbn ? selectedBook.isbn.slice(-4) : '001'}`,
-        rack: selectedBook.shelfLocation || 'Main Stacks',
-        shelf: 'Shelf 1',
-        status: 'AVAILABLE',
-        condition: 'GOOD',
-      } as BookCopy,
-    ];
+    return copies.filter((c) => c.bookId === selectedBook.id && c.status === 'AVAILABLE');
   }, [selectedBook, copies]);
 
   // Filtered Students for Issue dropdown
@@ -394,37 +382,31 @@ export const IssueBookView: React.FC<IssueBookViewProps> = ({
     if (bookCopies.length > 0) {
       setSelectedCopy(bookCopies[0]);
     } else {
-      setSelectedCopy({
-        id: `copy-${book.id}-1`,
-        bookId: book.id,
-        accessionNumber: `ACC-${book.isbn ? book.isbn.slice(-4) : '001'}`,
-        rack: book.shelfLocation || 'Main Stacks',
-        shelf: 'Shelf 1',
-        status: 'AVAILABLE',
-        condition: 'GOOD',
-      } as BookCopy);
+      setSelectedCopy(null);
     }
 
     // Also asynchronously fetch real copies from API
     getBookCopiesApi(book.id)
       .then((realCopies) => {
         if (Array.isArray(realCopies) && realCopies.length > 0) {
-          const avail = realCopies.find((c) => c.status === 'AVAILABLE') || realCopies[0];
+          const avail = realCopies.find((c) => c.status === 'AVAILABLE');
           if (avail) {
             setSelectedCopy({
               id: avail.id,
               bookId: avail.bookId,
               accessionNumber: avail.accessionNumber,
               barcode: avail.barcode || '',
-              status: (avail.status as any) || 'AVAILABLE',
-              condition: (avail.condition as any) || 'GOOD',
+               status: avail.status as any,
+               condition: avail.condition as any,
               rack: (avail as any).rack || '',
               shelf: (avail as any).shelf || '',
             });
           }
         }
       })
-      .catch(() => { });
+      .catch(() => {
+        setSelectedCopy(null);
+      });
 
     // Guide user forward to the Student selection field
     if (!selectedStudent) {
@@ -715,7 +697,7 @@ export const IssueBookView: React.FC<IssueBookViewProps> = ({
                       {selectedBook.title}
                     </Text>
                     <Text style={circStyles.selectedMeta}>
-                      Book No: {selectedBook.isbn || 'N/A'} • {selectedBook.language || 'English'}
+                      Book No: {selectedBook.isbn || 'N/A'} • {selectedBook.language || 'Not specified'}
                     </Text>
                   </View>
 

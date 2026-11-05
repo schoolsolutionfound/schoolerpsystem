@@ -26,23 +26,25 @@ export function useLibraryFines(initialFilters?: FineFilters) {
       const itemsList = Array.isArray(rawList) ? rawList : [];
       const totalCount = Array.isArray(res) ? res.length : (res?.total ?? itemsList.length);
 
-      const mapped: Fine[] = itemsList.map((f: any) => ({
+      const mapped: Fine[] = itemsList
+        .filter((f: any) => f?.id && f?.studentId && f?.fineType && f?.status)
+        .map((f: any) => ({
         id: f.id,
         loanId: f.loanId || undefined,
         bookCopyId: f.copyId || f.bookCopyId || undefined,
         copyId: f.copyId || f.bookCopyId || undefined,
         studentId: f.studentId,
-        fineType: (f.fineType as FineType) || 'OVERDUE',
+        fineType: f.fineType as FineType,
         damageType: f.damageType || undefined,
         damageNotes: f.damageNotes || f.reason || undefined,
         reason: f.reason || undefined,
         amount: typeof f.amount === 'string' ? parseFloat(f.amount) || 0 : (f.amount || 0),
         paidAmount: typeof f.paidAmount === 'string' ? parseFloat(f.paidAmount) || 0 : (f.paidAmount || 0),
-        status: (f.status as FineStatus) || 'UNPAID',
+        status: f.status as FineStatus,
         waivedBy: f.waivedBy || undefined,
         waivedReason: f.waivedReason || undefined,
-        createdAt: f.createdAt ? String(f.createdAt).split('T')[0] : new Date().toISOString().split('T')[0],
-        updatedAt: f.updatedAt ? String(f.updatedAt).split('T')[0] : new Date().toISOString().split('T')[0],
+        createdAt: f.createdAt ? String(f.createdAt).split('T')[0] : '',
+        updatedAt: f.updatedAt ? String(f.updatedAt).split('T')[0] : '',
         paymentTransactions: f.paymentTransactions || [],
       }));
 

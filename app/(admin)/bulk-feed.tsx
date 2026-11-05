@@ -15,7 +15,7 @@ import { DEFAULT_INSTITUTION_TYPE, normalizeInstitutionType } from '../../featur
 export default function AdminBulkFeedScreen() {
   const router = useRouter();
   const storeInstitutionCode = useUserStore((state) => state.institutionCode || state.institutionId) || 'CLG001';
-  const storeInstitutionName = useUserStore((state) => state.institutionName) || 'My Institution';
+  const storeInstitutionName = useUserStore((state) => state.institutionName) || '';
   const storeInstitutionType = normalizeInstitutionType(useUserStore((state) => state.institutionType) || DEFAULT_INSTITUTION_TYPE);
 
   const [wizardStep, setWizardStep] = useState<1 | 2 | 3>(1);

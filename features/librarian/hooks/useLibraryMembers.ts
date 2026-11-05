@@ -25,9 +25,9 @@ export function useLibraryMembers(initialFilters?: MemberFilters) {
 
       const mapped: StudentProfile[] = itemsList.map((m: any) => ({
         id: m.id,
-        fullName: m.fullName || 'Library Member',
-        admissionNo: m.admissionNo || 'ADM-N/A',
-        classSection: m.classSection || 'General',
+        fullName: m.fullName || '',
+        admissionNo: m.admissionNo || '',
+        classSection: m.classSection || '',
         email: m.email || '',
         phone: m.phone || undefined,
         profilePicUrl: m.profilePicUrl || undefined,

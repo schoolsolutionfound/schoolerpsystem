@@ -67,7 +67,7 @@ export default function AdminHomeScreen() {
   const searchParams = useLocalSearchParams<{ tab?: string }>();
   const fullName = useUserStore((state) => state.fullName) || 'Institution Admin';
   const email = useUserStore((state) => state.email) || 'admin@school.com';
-  const institutionName = useUserStore((state) => state.institutionName) || 'My Institution';
+  const institutionName = useUserStore((state) => state.institutionName) || '';
   const institutionCode = useUserStore((state) => state.institutionCode || state.institutionId) || 'DEFAULT';
   const designation = useUserStore((state) => state.designation) || '';
   const phone = useUserStore((state) => state.phone) || '';

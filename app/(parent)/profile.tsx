@@ -18,6 +18,7 @@ import { auth } from '../../firebaseConfig';
 import { useUserStore } from '../../store/useUserStore';
 import { FontFamily } from '../../constants/fonts';
 import { uploadProfilePictureApi } from '../../api/upload';
+import { getProfileApi, updateMyProfileApi } from '../../api/users';
 
 export default function ParentProfileScreen() {
   const router = useRouter();
@@ -39,19 +40,30 @@ export default function ParentProfileScreen() {
     childName ||
     (fullName.includes('Parent of')
       ? fullName.split('(')[1]?.replace(')', '')?.replace('Parent of', '')?.trim()
-      : fullName) ||
-    '';
+      : '') ||
+    'Linked student unavailable';
 
   const resetUser = useUserStore((s) => s.resetUser);
   const setUserProfile = useUserStore((s) => s.setUserProfile);
 
   const [refreshing, setRefreshing] = useState(false);
-  const onRefresh = useCallback(() => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    setTimeout(() => {
+    try {
+      const profile: any = await getProfileApi();
+      setUserProfile({
+        fullName: profile?.fullName || '',
+        phone: profile?.phone || '',
+        profilePic: profile?.profilePicUrl || '',
+        linkedStudentUSN: profile?.linkedStudentUSN || '',
+        relation: profile?.relation || '',
+      });
+    } catch (error: any) {
+      Alert.alert('Refresh Failed', error?.message || 'Could not refresh profile.');
+    } finally {
       setRefreshing(false);
-    }, 600);
-  }, []);
+    }
+  }, [setUserProfile]);
 
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to log out?', [
@@ -81,6 +93,7 @@ export default function ParentProfileScreen() {
     const uri = result.assets[0].uri;
     try {
       const url = await uploadProfilePictureApi(uri);
+      await updateMyProfileApi({ profilePicUrl: url });
       setUserProfile({ profilePic: url });
       Alert.alert('Success', 'Profile photo updated!');
     } catch (err: any) {
@@ -160,7 +173,7 @@ export default function ParentProfileScreen() {
         {/* Quick Stats Summary Card */}
         <View style={styles.statsCard}>
           <View style={styles.statsCol}>
-            <Text style={styles.statsVal}>{relation || 'Father'}</Text>
+            <Text style={styles.statsVal}>{relation || 'Not provided'}</Text>
             <Text style={styles.statsLabel}>RELATION</Text>
           </View>
           <View style={styles.statsDivider} />

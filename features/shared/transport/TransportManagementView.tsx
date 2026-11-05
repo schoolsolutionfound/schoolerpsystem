@@ -39,7 +39,7 @@ export const TransportManagementView: React.FC<TransportManagementViewProps> = (
 
   const [busVisible, setBusVisible] = useState(false);
   const [busRegNo, setBusRegNo] = useState('');
-  const [busCapacity, setBusCapacity] = useState('30');
+  const [busCapacity, setBusCapacity] = useState('');
   const [savingBus, setSavingBus] = useState(false);
 
   const load = useCallback(async () => {
@@ -83,15 +83,19 @@ export const TransportManagementView: React.FC<TransportManagementViewProps> = (
       return;
     }
     const capacity = Number(busCapacity);
+    if (!Number.isFinite(capacity) || capacity <= 0) {
+      Alert.alert('Capacity required', 'Enter a valid passenger capacity.');
+      return;
+    }
     setSavingBus(true);
     try {
       await createTransportVehicleApi({
         registrationNo: busRegNo.trim(),
-        capacity: Number.isFinite(capacity) && capacity > 0 ? Math.round(capacity) : 30,
+        capacity: Math.round(capacity),
       });
       setBusVisible(false);
       setBusRegNo('');
-      setBusCapacity('30');
+      setBusCapacity('');
       await load();
     } catch (err: any) {
       Alert.alert('Could not add bus', err?.message || 'Try again.');

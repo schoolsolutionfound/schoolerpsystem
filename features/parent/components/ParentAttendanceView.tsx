@@ -3,7 +3,7 @@ import { View, StyleSheet, Text, ScrollView, RefreshControl, TouchableOpacity } 
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Svg, { Circle, G } from 'react-native-svg';
 import { FontFamily } from '../../../constants/fonts';
-import { fetchParentAttendanceApi, fetchStudentAttendanceHistoryApi } from '../../../api/academics';
+import { fetchParentAttendanceApi } from '../../../api/academics';
 import { useUserStore } from '../../../store/useUserStore';
 import { AttendanceSkeleton } from './skeletons';
 import { ShimmerProvider } from './ShimmerSkeleton';
@@ -14,13 +14,6 @@ const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
-];
-
-const currentYear = new Date().getFullYear();
-const TERMS = [
-  `${currentYear - 1} - ${currentYear}`,
-  `${currentYear} - ${currentYear + 1}`,
-  `${currentYear - 2} - ${currentYear - 1}`,
 ];
 
 function getDaysInMonth(year: number, month: number) {
@@ -116,20 +109,15 @@ export const ParentAttendanceView: React.FC = () => {
   const [mode, setMode] = useState<ViewMode>('subject');
   const [calMonth, setCalMonth] = useState(new Date().getMonth());
   const [calYear, setCalYear] = useState(new Date().getFullYear());
-  const [selectedTerm, setSelectedTerm] = useState(TERMS[0]);
-  const [termDropdownOpen, setTermDropdownOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const storeChildName = useUserStore((s) => s.childName) || '';
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      let res: any = null;
-      try {
-        res = await fetchParentAttendanceApi();
-      } catch {
-        res = await fetchStudentAttendanceHistoryApi();
-      }
-      setData(res?.data || res);
+      const res: any = await fetchParentAttendanceApi();
+      setData(res);
+      setErrorMessage('');
       if (res?.childName) {
         useUserStore.getState().setUserProfile({
           childName: res.childName,
@@ -139,6 +127,8 @@ export const ParentAttendanceView: React.FC = () => {
         });
       }
     } catch (err: any) {
+      setData(null);
+      setErrorMessage(err?.message || 'Could not load attendance.');
       if (!err?.message?.includes('No linked student found')) {
         console.warn('[ParentAttendance]', err.message);
       }
@@ -172,9 +162,9 @@ export const ParentAttendanceView: React.FC = () => {
   }
 
   const overall = data?.overall;
-  const overallPct = typeof overall?.percentage === 'number' ? overall.percentage : 86.2;
-  const overallPresent = overall?.present ?? 155;
-  const overallTotal = overall?.total ?? 180;
+  const overallPct = typeof overall?.percentage === 'number' ? overall.percentage : 0;
+  const overallPresent = overall?.present ?? 0;
+  const overallTotal = overall?.total ?? 0;
   const childName = data?.childName || storeChildName;
 
   return (
@@ -194,44 +184,19 @@ export const ParentAttendanceView: React.FC = () => {
         ) : null}
       </View>
 
-      {/* Term Selector */}
-      <View style={styles.termSelectorWrap}>
-        <TouchableOpacity
-          style={styles.termSelector}
-          onPress={() => setTermDropdownOpen(!termDropdownOpen)}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.termText}>{selectedTerm}</Text>
-          <MaterialCommunityIcons
-            name={termDropdownOpen ? 'chevron-up' : 'chevron-down'}
-            size={20}
-            color="#111827"
-          />
-        </TouchableOpacity>
-
-        {termDropdownOpen && (
-          <View style={styles.termDropdownMenu}>
-            {TERMS.map((term) => {
-              const active = term === selectedTerm;
-              return (
-                <TouchableOpacity
-                  key={term}
-                  style={[styles.termDropdownItem, active && styles.termDropdownItemActive]}
-                  onPress={() => {
-                    setSelectedTerm(term);
-                    setTermDropdownOpen(false);
-                  }}
-                >
-                  <Text style={[styles.termDropdownItemText, active && styles.termDropdownItemTextActive]}>
-                    {term}
-                  </Text>
-                  {active && <MaterialCommunityIcons name="check" size={16} color="#111827" />}
-                </TouchableOpacity>
-              );
-            })}
+      {errorMessage ? (
+        <View style={styles.emptyCard}>
+          <MaterialCommunityIcons name="alert-circle-outline" size={40} color="#B91C1C" />
+          <Text style={styles.emptyTitle}>Attendance unavailable</Text>
+          <Text style={styles.emptySub}>{errorMessage}</Text>
+        </View>
+      ) : (
+        <>
+          <View style={styles.termSelectorWrap}>
+            <View style={styles.termSelector}>
+              <Text style={styles.termText}>All recorded attendance</Text>
+            </View>
           </View>
-        )}
-      </View>
 
       {/* Overall Attendance Card */}
       <View style={styles.overallCard}>
@@ -281,6 +246,8 @@ export const ParentAttendanceView: React.FC = () => {
           onDateSelect={handleScrollToDetail}
         />
       )}
+        </>
+      )}
     </ScrollView>
   );
 };
@@ -303,8 +270,8 @@ const SubjectWiseListView: React.FC<{ data: any }> = ({ data }) => {
   return (
     <View style={styles.subjectList}>
       {perSubject.map((row: any, i: number) => {
-        const code = row.subject?.code || `CS${101 + i}`;
-        const name = row.subject?.name || 'Subject';
+        const code = row.subject?.code || '';
+        const name = row.subject?.name || 'Unnamed subject';
         const present = row.present ?? 0;
         const total = row.total ?? 0;
         const pctNum = typeof row.percentage === 'number' ? row.percentage : 0;
@@ -314,7 +281,7 @@ const SubjectWiseListView: React.FC<{ data: any }> = ({ data }) => {
         return (
           <TouchableOpacity key={row.subject?.id || i} style={styles.subjectCard} activeOpacity={0.7}>
             <View style={styles.subjectCardLeft}>
-              <Text style={styles.subjectCode}>{code}</Text>
+              {code ? <Text style={styles.subjectCode}>{code}</Text> : null}
               <Text style={styles.subjectName} numberOfLines={1}>{name}</Text>
               <Text style={styles.subjectClasses}>{present} / {total} Classes</Text>
             </View>

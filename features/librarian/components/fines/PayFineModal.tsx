@@ -12,9 +12,10 @@ import {
   Platform,
 } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '../common/Icons';
-import { Fine, StudentProfile, FineStatus, PaymentTransaction } from '../../types';
-import { apiClient } from '../../../../api/client';
+import { Fine, StudentProfile } from '../../types';
+import { payFineApi } from '../../../../api/library';
 import { FontFamily } from '../../../../constants/fonts';
+import { useUserStore } from '../../../../store/useUserStore';
 
 export const PayFineModal = ({
   visible,
@@ -35,6 +36,7 @@ export const PayFineModal = ({
   commonStyles: any;
   fineStyles: any;
 }) => {
+  const institutionName = useUserStore((state) => state.institutionName) || '';
   const [payAmount, setPayAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CARD' | 'UPI_ONLINE' | 'DIGITAL_WALLET' | 'SCANNER_QR'>('CASH');
   const [cashTendered, setCashTendered] = useState('');
@@ -80,7 +82,7 @@ export const PayFineModal = ({
     );
   };
 
-  const handleProcessPayment = () => {
+  const handleProcessPayment = async () => {
     const amt = parseFloat(payAmount);
     if (isNaN(amt) || amt <= 0) {
       Alert.alert('Invalid Amount', 'Please enter a valid payment amount greater than ₹0.');
@@ -100,63 +102,47 @@ export const PayFineModal = ({
     }
 
     setSubmitting(true);
-    const newPaidTotal = fine.paidAmount + amt;
-    const isFullyPaid = newPaidTotal >= fine.amount - 0.01;
-    const updatedStatus: FineStatus = isFullyPaid ? 'PAID' : 'PARTIALLY_PAID';
+    try {
+      const { transaction } = await payFineApi(fine.id, {
+        amount: amt,
+        paymentMethod,
+        cashTendered: paymentMethod === 'CASH' ? parseFloat(cashTendered || '0') : undefined,
+        changeReturned: paymentMethod === 'CASH' ? changeReturned : undefined,
+        transactionRef: refNotes.trim() || undefined,
+        scannedQrPayload: paymentMethod === 'SCANNER_QR' ? scannedPayload || undefined : undefined,
+      });
 
-    const receiptNo = `REC-${Math.floor(100000 + Math.random() * 900000)}`;
+      const newReceipt = {
+        receiptNo: transaction.receiptNo,
+        date: new Date(transaction.paidAt || transaction.createdAt || Date.now()).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+        studentName: student?.fullName || '',
+        admissionNo: student?.admissionNo || '',
+        classSection: student?.classSection || '',
+        fineId: fine.id,
+        fineType: fine.fineType.replace('_', ' '),
+        amountPaid: amt,
+        paymentMethod: paymentMethod.replace('_', ' '),
+        cashTendered: paymentMethod === 'CASH' ? parseFloat(cashTendered || '0') : undefined,
+        changeReturned: paymentMethod === 'CASH' ? changeReturned : undefined,
+        remainingBalance: Math.max(0, remainingBalance - amt),
+        refNotes: refNotes.trim() || 'N/A',
+        scannedPayload,
+        cashier: transaction.cashier || '',
+      };
 
-    const newTxn: PaymentTransaction = {
-      id: `txn-${Date.now()}`,
-      fineId: fine.id,
-      receiptNo,
-      amount: amt,
-      paymentMethod,
-      cashTendered: paymentMethod === 'CASH' ? parseFloat(cashTendered || '0') : undefined,
-      changeReturned: paymentMethod === 'CASH' ? changeReturned : undefined,
-      transactionRef: refNotes.trim() || undefined,
-      scannedQrPayload: paymentMethod === 'SCANNER_QR' ? scannedPayload || undefined : undefined,
-      paidAt: new Date().toISOString(),
-      cashier: 'Amina Rahman (Librarian)',
-    };
-
-    const updatedTransactions = [...(fine.paymentTransactions || []), newTxn];
-
-    const updatedFine: Fine = {
-      ...fine,
-      paidAmount: newPaidTotal,
-      status: updatedStatus,
-      updatedAt: new Date().toISOString().split('T')[0],
-      paymentTransactions: updatedTransactions,
-    };
-
-    // Save transaction record to backend DB API (with offline fallback)
-    apiClient('/fines/payment', {
-      method: 'POST',
-      body: JSON.stringify(newTxn),
-    }).catch(() => { });
-
-    const newReceipt = {
-      receiptNo,
-      date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
-      studentName: student?.fullName || 'Student Member',
-      admissionNo: student?.admissionNo || 'N/A',
-      classSection: student?.classSection || 'N/A',
-      fineId: fine.id,
-      fineType: fine.fineType.replace('_', ' '),
-      amountPaid: amt,
-      paymentMethod: paymentMethod.replace('_', ' '),
-      cashTendered: paymentMethod === 'CASH' ? parseFloat(cashTendered || '0') : undefined,
-      changeReturned: paymentMethod === 'CASH' ? changeReturned : undefined,
-      remainingBalance: Math.max(0, fine.amount - newPaidTotal),
-      refNotes: refNotes.trim() || 'N/A',
-      scannedPayload,
-      cashier: 'Amina Rahman (Librarian)',
-    };
-
-    setSubmitting(false);
-    setReceiptData(newReceipt);
-    onPaymentSuccess(updatedFine);
+      setReceiptData(newReceipt);
+      onPaymentSuccess(fine);
+    } catch (err: any) {
+      Alert.alert('Payment Failed', err?.message || 'Could not record this payment.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const styles = commonStyles;
@@ -190,7 +176,9 @@ export const PayFineModal = ({
               <View style={fineStyles.receiptContainer}>
                 <View style={fineStyles.receiptHeader}>
                   <MaterialCommunityIcons name="check-circle" size={40} color="#026440" />
-                  <Text style={fineStyles.receiptTitle}>KIVQUO SCHOOL LIBRARY</Text>
+                  <Text style={fineStyles.receiptTitle}>
+                    {institutionName ? `${institutionName} Library` : 'Library Payment Receipt'}
+                  </Text>
                   <Text style={fineStyles.receiptSub}>Official Payment Receipt</Text>
                   <Text style={fineStyles.receiptNo}>Receipt No: {receiptData.receiptNo}</Text>
                 </View>

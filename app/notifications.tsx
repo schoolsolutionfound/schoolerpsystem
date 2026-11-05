@@ -16,8 +16,10 @@ import { Feather } from '@expo/vector-icons';
 import { FontFamily } from '../constants/fonts';
 import { BorderRadius } from '../constants/theme';
 import { useAnnouncementFeedQuery } from '../features/announcements/hooks/useAnnouncements';
-import { useClassTransferStore, ClassTransferRequest } from '../features/teacher/services/classTransferStore';
+import { useClassTransferStore, ClassTransferRequest, isRequestForTeacher, isRequestFromTeacher } from '../features/teacher/services/classTransferStore';
+import { useUserStore } from '../store/useUserStore';
 import { NotificationsSkeleton } from '../features/shared/components/skeletons/SharedSkeletons';
+import { markAnnouncementReadApi } from '../api/announcements';
 
 type NotificationCategory = 'all' | 'unread' | 'academics' | 'attendance' | 'announcements' | 'system';
 
@@ -54,6 +56,11 @@ export default function NotificationsScreen() {
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
 
   const { requests: transferRequests, respondToRequest } = useClassTransferStore();
+  const employeeId = useUserStore((s) => s.employeeId);
+  const email = useUserStore((s) => s.email);
+  const fullName = useUserStore((s) => s.fullName);
+  const currentTeacherId = employeeId || email;
+  const currentTeacherName = (fullName || email || '').trim();
 
   // Optionally fetch real announcements from server feed
   const { data: serverAnnouncements, refetch, isLoading: feedLoading } = useAnnouncementFeedQuery();
@@ -64,8 +71,8 @@ export default function NotificationsScreen() {
 
     // Map Class Transfer Requests (Incoming for current teacher)
     transferRequests.forEach((tr) => {
-      const isRecipient = tr.toTeacherId === 'current-user' || tr.toTeacherName.includes('You');
-      const isSender = tr.fromTeacherId === 'current-user' || tr.fromTeacherName.includes('You');
+      const isRecipient = isRequestForTeacher(tr, currentTeacherId, currentTeacherName);
+      const isSender = isRequestFromTeacher(tr, currentTeacherId, currentTeacherName);
 
       if (isRecipient) {
         list.push({
@@ -141,7 +148,7 @@ export default function NotificationsScreen() {
           message: a.content || a.message || '',
           category: 'announcements',
           timestamp: a.createdAt ? new Date(a.createdAt).toLocaleDateString() : 'Recent',
-          isRead: false,
+          isRead: Boolean(a.isRead),
           priority: a.priority || 'normal',
         });
       });
@@ -154,7 +161,7 @@ export default function NotificationsScreen() {
         ...n,
         isRead: readIds.has(n.id) || n.isRead,
       }));
-  }, [serverAnnouncements, readIds, deletedIds, transferRequests]);
+  }, [serverAnnouncements, readIds, deletedIds, transferRequests, currentTeacherId, currentTeacherName]);
 
   // Filtered notifications
   const filteredNotifications = useMemo(() => {
@@ -193,13 +200,37 @@ export default function NotificationsScreen() {
     setRefreshing(false);
   };
 
-  const handleMarkAllAsRead = () => {
+  const handleMarkAllAsRead = async () => {
+    const unreadAnnouncements = allNotifications.filter(
+      (notification) =>
+        !notification.isRead && notification.category === 'announcements' && notification.id.startsWith('feed_')
+    );
+    try {
+      await Promise.all(
+        unreadAnnouncements.map((notification) =>
+          markAnnouncementReadApi(notification.id.replace(/^feed_/, ''))
+        )
+      );
+    } catch (error: any) {
+      Alert.alert('Unable to Mark Read', error?.message || 'Could not update announcement read state.');
+      return;
+    }
     const newRead = new Set(readIds);
     allNotifications.forEach((n) => newRead.add(n.id));
     setReadIds(newRead);
   };
 
-  const handleToggleRead = (id: string) => {
+  const handleToggleRead = async (id: string) => {
+    const notification = allNotifications.find((item) => item.id === id);
+    if (notification?.category === 'announcements' && id.startsWith('feed_')) {
+      if (notification.isRead) return;
+      try {
+        await markAnnouncementReadApi(id.replace(/^feed_/, ''));
+      } catch (error: any) {
+        Alert.alert('Unable to Mark Read', error?.message || 'Could not update announcement read state.');
+        return;
+      }
+    }
     const newRead = new Set(readIds);
     if (newRead.has(id)) {
       newRead.delete(id);
@@ -428,7 +459,7 @@ export default function NotificationsScreen() {
 
                     {notif.transferRequest && notif.transferRequest.status === 'pending' && (
                       <View style={styles.notifActionRow}>
-                        {notif.transferRequest.toTeacherId === 'current-user' || notif.transferRequest.toTeacherName.includes('You') ? (
+                        {isRequestForTeacher(notif.transferRequest, currentTeacherId, currentTeacherName) ? (
                           <>
                             <TouchableOpacity
                               style={styles.notifAcceptBtn}

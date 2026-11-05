@@ -10,12 +10,19 @@
  *  - Clean mobile responsive layout with Export Statement action
  */
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Alert, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFinanceStore } from '../store/useFinanceStore';
-import { formatINR, getCategoryTotal } from '../utils/financeUtils';
+import {
+  formatINR,
+  getIncomeCategoryLabel,
+  getExpenseCategoryLabel,
+} from '../utils/financeUtils';
 import { generateIncomeExpenseStatementPdf } from '../utils/financePdfGenerator';
+
+const INCOME_COLORS = ['#171717', '#D97706', '#BE185D', '#0369A1', '#6B7280'];
+const EXPENSE_COLORS = ['#DC3545', '#D97706', '#EA580C', '#9D174D', '#171717', '#475569'];
 
 export const IncomeExpenseTallyView: React.FC = () => {
   const getTotalIncome = useFinanceStore((s) => s.getTotalIncome);
@@ -35,16 +42,28 @@ export const IncomeExpenseTallyView: React.FC = () => {
   const incomePercent = grandTotal > 0 ? Math.round((totalIncome / grandTotal) * 100) : 50;
   const expensePercent = grandTotal > 0 ? Math.round((totalExpense / grandTotal) * 100) : 50;
 
-  // Breakdown amounts
-  const studentFeesTotal    = getCategoryTotal(incomeRecords,  'student_fee');
-  const busFeesTotal        = getCategoryTotal(incomeRecords,  'bus_fee');
-  const hostelFeesTotal     = getCategoryTotal(incomeRecords,  'hostel_fee');
+  // Breakdown streams derived from the categories actually present in the ledger
+  const incomeStreams = useMemo(() => {
+    const totals = new Map<string, number>();
+    incomeRecords.forEach((r) => {
+      if (r.status !== 'paid') return;
+      totals.set(r.category, (totals.get(r.category) || 0) + r.amount);
+    });
+    return Array.from(totals.entries())
+      .map(([key, amount]) => ({ key, label: getIncomeCategoryLabel(key), amount }))
+      .sort((a, b) => b.amount - a.amount);
+  }, [incomeRecords]);
 
-  const salariesTotal       = getCategoryTotal(expenseRecords, 'salary');
-  const busFuelTotal        = getCategoryTotal(expenseRecords, 'bus_fuel');
-  const busMaintenanceTotal = getCategoryTotal(expenseRecords, 'bus_maintenance') + getCategoryTotal(expenseRecords, 'bus_expense');
-  const hostelExpensesTotal = getCategoryTotal(expenseRecords, 'hostel_expense');
-  const utilityTotal        = getCategoryTotal(expenseRecords, 'utility');
+  const expenseStreams = useMemo(() => {
+    const totals = new Map<string, number>();
+    expenseRecords.forEach((r) => {
+      if (r.status !== 'paid') return;
+      totals.set(r.category, (totals.get(r.category) || 0) + r.amount);
+    });
+    return Array.from(totals.entries())
+      .map(([key, amount]) => ({ key, label: getExpenseCategoryLabel(key), amount }))
+      .sort((a, b) => b.amount - a.amount);
+  }, [expenseRecords]);
 
   const handleExportStatement = async () => {
     if (isGeneratingPdf) return;
@@ -119,59 +138,25 @@ export const IncomeExpenseTallyView: React.FC = () => {
             <Text style={styles.breakdownTitle}>Income Streams</Text>
           </View>
 
-          <View style={styles.barItem}>
-            <View style={styles.barItemRow}>
-              <Text style={styles.barItemLabel}>Student Tuition & Fees</Text>
-              <Text style={styles.barItemVal}>{formatINR(studentFeesTotal)}</Text>
+          {incomeStreams.map((stream, index) => (
+            <View key={stream.key} style={styles.barItem}>
+              <View style={styles.barItemRow}>
+                <Text style={styles.barItemLabel}>{stream.label}</Text>
+                <Text style={styles.barItemVal}>{formatINR(stream.amount)}</Text>
+              </View>
+              <View style={styles.barTrack}>
+                <View
+                  style={[
+                    styles.barFill,
+                    {
+                      backgroundColor: INCOME_COLORS[index % INCOME_COLORS.length],
+                      width: `${totalIncome > 0 ? (stream.amount / totalIncome) * 100 : 0}%`,
+                    },
+                  ]}
+                />
+              </View>
             </View>
-            <View style={styles.barTrack}>
-              <View
-                style={[
-                  styles.barFill,
-                  {
-                    backgroundColor: '#171717',
-                    width: `${totalIncome > 0 ? (studentFeesTotal / totalIncome) * 100 : 0}%`,
-                  },
-                ]}
-              />
-            </View>
-          </View>
-
-          <View style={styles.barItem}>
-            <View style={styles.barItemRow}>
-              <Text style={styles.barItemLabel}>Bus & Transport Fees</Text>
-              <Text style={styles.barItemVal}>{formatINR(busFeesTotal)}</Text>
-            </View>
-            <View style={styles.barTrack}>
-              <View
-                style={[
-                  styles.barFill,
-                  {
-                    backgroundColor: '#D97706',
-                    width: `${totalIncome > 0 ? (busFeesTotal / totalIncome) * 100 : 0}%`,
-                  },
-                ]}
-              />
-            </View>
-          </View>
-
-          <View style={styles.barItem}>
-            <View style={styles.barItemRow}>
-              <Text style={styles.barItemLabel}>Hostel & Boarding Fees</Text>
-              <Text style={styles.barItemVal}>{formatINR(hostelFeesTotal)}</Text>
-            </View>
-            <View style={styles.barTrack}>
-              <View
-                style={[
-                  styles.barFill,
-                  {
-                    backgroundColor: '#BE185D',
-                    width: `${totalIncome > 0 ? (hostelFeesTotal / totalIncome) * 100 : 0}%`,
-                  },
-                ]}
-              />
-            </View>
-          </View>
+          ))}
         </View>
 
         {/* Expense Breakdown */}
@@ -181,95 +166,25 @@ export const IncomeExpenseTallyView: React.FC = () => {
             <Text style={styles.breakdownTitle}>Expense Allocations</Text>
           </View>
 
-          <View style={styles.barItem}>
-            <View style={styles.barItemRow}>
-              <Text style={styles.barItemLabel}>Teacher & Staff Salaries</Text>
-              <Text style={styles.barItemVal}>{formatINR(salariesTotal)}</Text>
+          {expenseStreams.map((stream, index) => (
+            <View key={stream.key} style={styles.barItem}>
+              <View style={styles.barItemRow}>
+                <Text style={styles.barItemLabel}>{stream.label}</Text>
+                <Text style={styles.barItemVal}>{formatINR(stream.amount)}</Text>
+              </View>
+              <View style={styles.barTrack}>
+                <View
+                  style={[
+                    styles.barFill,
+                    {
+                      backgroundColor: EXPENSE_COLORS[index % EXPENSE_COLORS.length],
+                      width: `${totalExpense > 0 ? (stream.amount / totalExpense) * 100 : 0}%`,
+                    },
+                  ]}
+                />
+              </View>
             </View>
-            <View style={styles.barTrack}>
-              <View
-                style={[
-                  styles.barFill,
-                  {
-                    backgroundColor: '#DC3545',
-                    width: `${totalExpense > 0 ? (salariesTotal / totalExpense) * 100 : 0}%`,
-                  },
-                ]}
-              />
-            </View>
-          </View>
-
-          <View style={styles.barItem}>
-            <View style={styles.barItemRow}>
-              <Text style={styles.barItemLabel}>Bus Diesel & Fuel</Text>
-              <Text style={styles.barItemVal}>{formatINR(busFuelTotal)}</Text>
-            </View>
-            <View style={styles.barTrack}>
-              <View
-                style={[
-                  styles.barFill,
-                  {
-                    backgroundColor: '#D97706',
-                    width: `${totalExpense > 0 ? (busFuelTotal / totalExpense) * 100 : 0}%`,
-                  },
-                ]}
-              />
-            </View>
-          </View>
-
-          <View style={styles.barItem}>
-            <View style={styles.barItemRow}>
-              <Text style={styles.barItemLabel}>Bus Repairs & Service</Text>
-              <Text style={styles.barItemVal}>{formatINR(busMaintenanceTotal)}</Text>
-            </View>
-            <View style={styles.barTrack}>
-              <View
-                style={[
-                  styles.barFill,
-                  {
-                    backgroundColor: '#EA580C',
-                    width: `${totalExpense > 0 ? (busMaintenanceTotal / totalExpense) * 100 : 0}%`,
-                  },
-                ]}
-              />
-            </View>
-          </View>
-
-          <View style={styles.barItem}>
-            <View style={styles.barItemRow}>
-              <Text style={styles.barItemLabel}>Hostel Mess & Food</Text>
-              <Text style={styles.barItemVal}>{formatINR(hostelExpensesTotal)}</Text>
-            </View>
-            <View style={styles.barTrack}>
-              <View
-                style={[
-                  styles.barFill,
-                  {
-                    backgroundColor: '#9D174D',
-                    width: `${totalExpense > 0 ? (hostelExpensesTotal / totalExpense) * 100 : 0}%`,
-                  },
-                ]}
-              />
-            </View>
-          </View>
-
-          <View style={styles.barItem}>
-            <View style={styles.barItemRow}>
-              <Text style={styles.barItemLabel}>Campus Utilities & Electricity</Text>
-              <Text style={styles.barItemVal}>{formatINR(utilityTotal)}</Text>
-            </View>
-            <View style={styles.barTrack}>
-              <View
-                style={[
-                  styles.barFill,
-                  {
-                    backgroundColor: '#171717',
-                    width: `${totalExpense > 0 ? (utilityTotal / totalExpense) * 100 : 0}%`,
-                  },
-                ]}
-              />
-            </View>
-          </View>
+          ))}
         </View>
       </View>
     </ScrollView>

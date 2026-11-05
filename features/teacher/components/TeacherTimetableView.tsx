@@ -13,7 +13,7 @@ import { MaterialCommunityIcons, Feather } from './common/Icons';
 import { FontFamily } from '../../../constants/fonts';
 import { fetchTeacherTimetableApi } from '../../../api/academics';
 import { useUserStore } from '../../../store/useUserStore';
-import { useClassTransferStore } from '../services/classTransferStore';
+import { useClassTransferStore, isRequestForTeacher } from '../services/classTransferStore';
 import { ClassTransferModal } from './ClassTransferModal';
 import { TeacherTimetableSkeleton } from './skeletons';
 
@@ -138,16 +138,18 @@ export const TeacherTimetableView: React.FC<TeacherTimetableViewProps> = ({ onOp
   const [transferModalVisible, setTransferModalVisible] = useState(false);
   const [selectedTransferSlot, setSelectedTransferSlot] = useState<any>(null);
 
-  const currentTeacherName = useUserStore((s) => s.fullName) || 'You (Teacher)';
+  const fullName = useUserStore((s) => s.fullName);
+  const email = useUserStore((s) => s.email);
+  const employeeId = useUserStore((s) => s.employeeId);
+  const currentTeacherId = employeeId || email;
+  const currentTeacherName = (fullName || email || '').trim();
   const { requests, getTransferForPeriod } = useClassTransferStore();
 
   const pendingIncomingCount = useMemo(() => {
     return requests.filter(
-      (r) =>
-        (r.toTeacherId === 'current-user' || r.toTeacherName.includes('You')) &&
-        r.status === 'pending'
+      (r) => isRequestForTeacher(r, currentTeacherId, currentTeacherName) && r.status === 'pending'
     ).length;
-  }, [requests]);
+  }, [requests, currentTeacherId, currentTeacherName]);
 
   // Compute 7 days centered on stripAnchorDate
   const stripDays = useMemo(() => {
@@ -263,7 +265,7 @@ export const TeacherTimetableView: React.FC<TeacherTimetableViewProps> = ({ onOp
         (r) =>
           r.status === 'accepted' &&
           r.date === selectedDate &&
-          (r.toTeacherId === 'current-user' || r.toTeacherName.includes('You'))
+          isRequestForTeacher(r, currentTeacherId, currentTeacherName)
       )
       .map((r) => ({
         id: r.periodId || `transfer-${r.id}`,
@@ -279,7 +281,7 @@ export const TeacherTimetableView: React.FC<TeacherTimetableViewProps> = ({ onOp
       }));
 
     return [...basePeriods, ...acceptedIncoming];
-  }, [basePeriods, requests, selectedDate]);
+  }, [basePeriods, requests, selectedDate, currentTeacherId, currentTeacherName]);
 
   return (
     <ScrollView
@@ -465,7 +467,7 @@ export const TeacherTimetableView: React.FC<TeacherTimetableViewProps> = ({ onOp
             const endTime = p.period?.endTime || '00:00';
             const rawSubject = p.subject?.shortName || p.subject?.name || p.subjectName || 'Subject';
             const subject = getSubjectShortcut(rawSubject);
-            const cls = p.classSectionName || p.classSection?.name || 'Class 10-A';
+            const cls = p.classSectionName || p.classSection?.name || 'Class not assigned';
 
             const periodId = p.id || `period-${i + 1}`;
             const periodLabel = p.period?.label || `${num} Period`;

@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useCallback, useRef } from 'react';
 import {
   View,
+  Text,
+  TouchableOpacity,
   StyleSheet,
   Alert,
   Platform,
@@ -12,6 +14,7 @@ import { signOut } from 'firebase/auth';
 import { auth } from '../../firebaseConfig';
 import { useUserStore } from '../../store/useUserStore';
 import { FontFamily } from '../../constants/fonts';
+import { uploadDocumentApi } from '../../api/upload';
 
 // Types
 import {
@@ -22,7 +25,6 @@ import {
   QuestionPaper,
   Loan,
   Fine,
-  LibrarySettings,
   StudentProfile,
 } from '../../features/librarian/types';
 
@@ -99,9 +101,20 @@ export default function LibrarianHomeScreen() {
   const { authors, loading: authorsLoading } = useLibraryAuthors();
   const { loans, loading: loansLoading, issueBook, returnBook, renewLoan, refetch: refetchLoans } = useLibraryLoans();
   const { fines, loading: finesLoading, payFine, waiveFine, createDamageFine, refetch: refetchFines } = useLibraryFines();
-  const { members: students, loading: membersLoading, refetch: refetchMembers } = useLibraryMembers();
+  const {
+    members: students,
+    loading: membersLoading,
+    refetch: refetchMembers,
+    updateMember,
+  } = useLibraryMembers();
   const { pyqs: questionPapers, loading: pyqsLoading, createPYQ, deletePYQ: deletePYQApi, trackDownload, refetch: refetchPYQs } = useLibraryPYQs();
-  const { settings: apiSettings, loading: settingsLoading, updateSettings, refetch: refetchSettings } = useLibrarySettings();
+  const {
+    settings,
+    loading: settingsLoading,
+    error: settingsError,
+    updateSettings,
+    refetch: refetchSettings,
+  } = useLibrarySettings();
 
   // Tab Switching & Page Skeleton Transition
   const [isSwitchingTab, setIsSwitchingTab] = useState(false);
@@ -161,19 +174,6 @@ export default function LibrarianHomeScreen() {
     settingsLoading,
     pyqsLoading,
   ]);
-
-  // Settings fallback
-  const settings: LibrarySettings = apiSettings || {
-    borrowingLimit: 3,
-    loanPeriodDays: 14,
-    gracePeriodDays: 2,
-    finePerDay: 1.0,
-    maxFine: 100.0,
-    renewalLimit: 2,
-    allowReservation: true,
-    lostBookPenalty: 50.0,
-    damagedBookPenalty: 25.0,
-  };
 
   // UI Modal State
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
@@ -260,31 +260,9 @@ export default function LibrarianHomeScreen() {
   };
 
   const handleDeleteStudent = (studentId: string) => {
-    const student = students.find((s) => s.id === studentId);
-    const activeStudentLoans = loans.filter((l) => l.studentId === studentId && (l.status === 'ACTIVE' || l.status === 'OVERDUE'));
-
-    if (activeStudentLoans.length > 0) {
-      Alert.alert(
-        'Cannot Remove Member',
-        `Member ${student?.fullName || ''} currently has ${activeStudentLoans.length} active unreturned loan(s). Please return all borrowed books first.`
-      );
-      return;
-    }
-
     Alert.alert(
-      'Remove Library Member',
-      `Are you sure you want to remove ${student?.fullName || 'this member'} from the library directory?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async () => {
-            refetchMembers();
-            Alert.alert('Member Removed', 'The member record has been updated.');
-          },
-        },
-      ]
+      'Member Removal Unavailable',
+      'Library member deletion is not configured. Manage the student account from administration.'
     );
   };
 
@@ -328,7 +306,7 @@ export default function LibrarianHomeScreen() {
           <View style={styles.mainWorkspace}>
             <UnifiedHeader
               onMenuPress={() => setDrawerOpen(true)}
-              onNotificationsPress={() => handleSwitchTab('notifications')}
+              onNotificationsPress={() => router.push('/notifications')}
             />
 
             <View style={styles.tabContentArea}>
@@ -414,7 +392,7 @@ export default function LibrarianHomeScreen() {
                 )
               )}
 
-              {activeTab === 'issue' && (
+              {activeTab === 'issue' && settings && (
                 <IssueBookView
                   students={students}
                   books={books}
@@ -519,8 +497,10 @@ export default function LibrarianHomeScreen() {
                   onRefresh={handleRefresh}
                   isRefreshing={isRefreshing}
                   onAddStudent={() => {
-                    setEditingStudent(null);
-                    setStudentModalOpen(true);
+                    Alert.alert(
+                      'Member Registration Unavailable',
+                      'Library members are created from institution student accounts.'
+                    );
                   }}
                   onEditStudent={(student) => {
                     setEditingStudent(student);
@@ -545,31 +525,65 @@ export default function LibrarianHomeScreen() {
                 />
               )}
 
-              {activeTab === 'settings' && (
+              {activeTab === 'settings' && settings && (
                 <SettingsView
                   settings={settings}
                   onRefresh={handleRefresh}
                   isRefreshing={isRefreshing}
                   onSaveSettings={async (newSettings) => {
-                    try {
-                      await updateSettings({
-                        borrowingLimit: newSettings.borrowingLimit,
-                        loanPeriodDays: newSettings.loanPeriodDays,
-                        gracePeriodDays: newSettings.gracePeriodDays,
-                        finePerDay: Number(newSettings.finePerDay),
-                        maxFine: Number(newSettings.maxFine),
-                        renewalLimit: newSettings.renewalLimit,
-                        allowReservation: newSettings.allowReservation,
-                        lostBookPenalty: Number(newSettings.lostBookPenalty),
-                        damagedBookPenalty: Number(newSettings.damagedBookPenalty),
-                      });
-                      Alert.alert('Settings Updated', 'Library configuration saved successfully.');
-                    } catch (err: any) {
-                      Alert.alert('Error', err?.message || 'Failed to update settings.');
-                    }
+                    await updateSettings({
+                      borrowingLimit: newSettings.borrowingLimit,
+                      loanPeriodDays: newSettings.loanPeriodDays,
+                      gracePeriodDays: newSettings.gracePeriodDays,
+                      finePerDay: Number(newSettings.finePerDay),
+                      maxFine: Number(newSettings.maxFine),
+                      renewalLimit: newSettings.renewalLimit,
+                      allowReservation: newSettings.allowReservation,
+                      lostBookPenalty: Number(newSettings.lostBookPenalty),
+                      damagedBookPenalty: Number(newSettings.damagedBookPenalty),
+                      reservationExpiryDays: newSettings.reservationExpiryDays,
+                      unpaidFineLockThreshold: Number(newSettings.unpaidFineLockThreshold),
+                      openingHours: newSettings.openingHours,
+                      closingHours: newSettings.closingHours,
+                      openOnWeekends: newSettings.openOnWeekends,
+                    });
                   }}
                   commonStyles={styles}
                 />
+              )}
+
+              {activeTab === 'issue' && !settings && !settingsLoading && (
+                <View style={{ alignItems: 'center', gap: 8, padding: 28 }}>
+                  <Text style={{ color: '#991B1B', fontFamily: FontFamily.bold, fontSize: 15 }}>
+                    Circulation policy unavailable
+                  </Text>
+                  <Text style={{ color: '#6B7280', textAlign: 'center' }}>
+                    {settingsError || 'Library settings must load before issuing or renewing books.'}
+                  </Text>
+                  <TouchableOpacity
+                    style={{ backgroundColor: '#171717', borderRadius: 5, paddingHorizontal: 16, paddingVertical: 9 }}
+                    onPress={() => refetchSettings()}
+                  >
+                    <Text style={{ color: '#FFFFFF', fontFamily: FontFamily.bold }}>Retry</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {activeTab === 'settings' && !settings && !settingsLoading && (
+                <View style={{ alignItems: 'center', gap: 8, padding: 28 }}>
+                  <Text style={{ color: '#991B1B', fontFamily: FontFamily.bold, fontSize: 15 }}>
+                    Library settings unavailable
+                  </Text>
+                  <Text style={{ color: '#6B7280', textAlign: 'center' }}>
+                    {settingsError || 'Could not load the institution library policy.'}
+                  </Text>
+                  <TouchableOpacity
+                    style={{ backgroundColor: '#171717', borderRadius: 5, paddingHorizontal: 16, paddingVertical: 9 }}
+                    onPress={() => refetchSettings()}
+                  >
+                    <Text style={{ color: '#FFFFFF', fontFamily: FontFamily.bold }}>Retry</Text>
+                  </TouchableOpacity>
+                </View>
               )}
 
               {activeTab === 'profile' && (
@@ -609,22 +623,20 @@ export default function LibrarianHomeScreen() {
           />
         )}
 
-        {/* Mobile Slide-out Animated Drawer matching attendance flow */}
-        {!isDesktop && (
-          <LibrarianDrawer
-            visible={drawerOpen}
-            onClose={() => setDrawerOpen(false)}
-            fullName={userName}
-            email={useUserStore.getState().email || ''}
-            institutionName={useUserStore.getState().institutionName || 'Library Management'}
-            activeTab={activeTab}
-            onTabSwitch={(tab) => {
-              setDrawerOpen(false);
-              handleSwitchTab(tab);
-            }}
-            onLogout={logoutNow}
-          />
-        )}
+        {/* Slide-out Animated Drawer matching attendance flow */}
+        <LibrarianDrawer
+          visible={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          fullName={userName}
+          email={useUserStore.getState().email || ''}
+          institutionName={useUserStore.getState().institutionName || 'Library Management'}
+          activeTab={activeTab}
+          onTabSwitch={(tab) => {
+            setDrawerOpen(false);
+            handleSwitchTab(tab);
+          }}
+          onLogout={logoutNow}
+        />
 
         {/* Book Form Modal */}
         <BookFormModal
@@ -650,6 +662,7 @@ export default function LibrarianHomeScreen() {
                   subject: bookData.subject || undefined,
                   edition: bookData.edition || undefined,
                   bookType: bookData.bookType || undefined,
+                  keywords: bookData.keywords || undefined,
                 });
               } else {
                 const { totalCopies, ...bData } = bookData;
@@ -666,6 +679,7 @@ export default function LibrarianHomeScreen() {
                   subject: bData.subject || undefined,
                   edition: bData.edition || undefined,
                   bookType: bData.bookType || undefined,
+                  keywords: bData.keywords || undefined,
                   totalCopies: totalCopies && totalCopies > 0 ? totalCopies : 1,
                 });
               }
@@ -698,6 +712,8 @@ export default function LibrarianHomeScreen() {
                   barcode: copyData.barcode || undefined,
                   condition: copyData.condition || undefined,
                   status: copyData.status || undefined,
+                  rack: copyData.rack || undefined,
+                  shelf: copyData.shelf || undefined,
                 });
               } else {
                 await createCopy(selectedBook.id, {
@@ -705,6 +721,8 @@ export default function LibrarianHomeScreen() {
                   barcode: copyData.barcode || undefined,
                   condition: copyData.condition || 'GOOD',
                   status: copyData.status || 'AVAILABLE',
+                  rack: copyData.rack || undefined,
+                  shelf: copyData.shelf || undefined,
                 });
               }
               refetchBooks();
@@ -722,8 +740,15 @@ export default function LibrarianHomeScreen() {
           visible={studentModalOpen}
           editingStudent={editingStudent}
           onClose={() => setStudentModalOpen(false)}
-          onSave={async () => {
-            refetchMembers();
+          onSave={async (studentData) => {
+            if (!editingStudent) {
+              throw new Error('Library member registration is not configured.');
+            }
+            await updateMember(editingStudent.id, {
+              fullName: studentData.fullName,
+              admissionNo: studentData.admissionNo,
+              phone: studentData.phone,
+            });
             setStudentModalOpen(false);
           }}
           modalStyles={modalStyles}
@@ -776,36 +801,55 @@ export default function LibrarianHomeScreen() {
         />
 
         {/* Damage Fine Assessment Modal */}
-        <DamageFineModal
+        {settings ? (
+          <DamageFineModal
           visible={damageFineModalOpen}
           students={students}
           copies={copies}
           books={books}
           loans={loans}
-          defaultPenalty={typeof settings.damagedBookPenalty === 'number' ? settings.damagedBookPenalty : parseFloat(String(settings.damagedBookPenalty || '25'))}
-          defaultDueRate={typeof settings.finePerDay === 'number' ? settings.finePerDay : parseFloat(String(settings.finePerDay || '10'))}
+          defaultPenalty={Number(settings.damagedBookPenalty)}
+          defaultDueRate={Number(settings.finePerDay)}
           onClose={() => setDamageFineModalOpen(false)}
-          onSaveDamageFine={async (newFine: Fine, updatedCopy?: BookCopy, paymentMode?: 'CASH' | 'ONLINE') => {
+          onSaveDamageFine={async (
+            newFine: Fine,
+            updatedCopy?: BookCopy,
+            paymentMode?: 'CASH' | 'ONLINE',
+            transactionRef?: string
+          ) => {
             try {
-              await createDamageFine({
+              const result = await createDamageFine({
                 studentId: newFine.studentId,
                 bookCopyId: newFine.bookCopyId || undefined,
                 loanId: newFine.loanId || undefined,
                 damageType: (newFine.damageType as any) || 'GENERAL_WEAR',
-                fineType: newFine.fineType === 'LOST_BOOK' ? 'LOST' : 'DAMAGE',
+                fineType:
+                  newFine.fineType === 'LOST_BOOK'
+                    ? 'LOST'
+                    : newFine.fineType === 'OVERDUE'
+                      ? 'OVERDUE'
+                      : 'DAMAGE',
                 amount: newFine.amount,
                 damageNotes: newFine.damageNotes || 'Fine Collected',
                 reason: newFine.damageNotes || 'Fine Collected',
                 copyCondition: updatedCopy?.condition || 'DAMAGED',
                 copyStatus: updatedCopy?.status || 'UNDER_REPAIR',
                 paymentMethod: paymentMode === 'ONLINE' ? 'UPI_ONLINE' : 'CASH',
+                transactionRef,
                 isPaid: true,
               });
               await refetchFines();
               await refetchBooks();
               await refetchDashboard();
               setDamageFineModalOpen(false);
-              Alert.alert('Fine Collected', `Successfully collected fine of ₹${newFine.amount.toFixed(2)} via ${paymentMode === 'ONLINE' ? 'Online Pay' : 'Cash'}.`);
+              Alert.alert(
+                'Fine Collected',
+                `Successfully collected ₹${newFine.amount.toFixed(2)}${
+                  result?.transaction?.receiptNo
+                    ? ` (Receipt ${result.transaction.receiptNo})`
+                    : ''
+                }.`
+              );
             } catch (err: any) {
               Alert.alert('Error', err?.message || 'Failed to collect fine.');
             }
@@ -813,7 +857,8 @@ export default function LibrarianHomeScreen() {
           modalStyles={modalStyles}
           commonStyles={styles}
           fineStyles={fineStyles}
-        />
+          />
+        ) : null}
 
         {/* Upload PYQ Modal */}
         <UploadPYQModal
@@ -822,13 +867,17 @@ export default function LibrarianHomeScreen() {
           onClose={() => setPyqModalOpen(false)}
           onSave={async (paperData) => {
             try {
+              const sourceUrl = paperData.fileUrl as string;
+              const uploadedFile = /^https?:\/\//i.test(sourceUrl)
+                ? { url: sourceUrl }
+                : await uploadDocumentApi(sourceUrl, `${paperData.title}.pdf`);
               await createPYQ({
                 title: paperData.title,
                 subject: paperData.subject,
                 academicYear: paperData.academicYear,
                 classGrade: paperData.classGrade || undefined,
                 examType: paperData.examType || undefined,
-                fileUrl: paperData.fileUrl || 'https://example.com/sample.pdf',
+                fileUrl: uploadedFile.url,
                 fileSize: paperData.fileSize || undefined,
               });
               await refetchPYQs();

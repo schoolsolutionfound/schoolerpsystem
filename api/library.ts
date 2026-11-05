@@ -212,6 +212,7 @@ export interface CreateBookPayload {
   bookType?: string;
   totalCopies?: number;
   price?: number;
+  keywords?: string[];
 }
 
 export type UpdateBookPayload = Partial<CreateBookPayload>;
@@ -562,12 +563,15 @@ export async function waiveFineApi(id: string, payload: WaiveFinePayload): Promi
   });
 }
 
-export async function createDamageFineApi(payload: CreateDamageFinePayload): Promise<LibraryFine> {
-  const res = await apiClient<LibraryFine | { fine: LibraryFine }>('/library/fines/damage', {
+export async function createDamageFineApi(payload: CreateDamageFinePayload): Promise<{
+  fine: LibraryFine;
+  copy?: LibraryBookCopy | null;
+  transaction?: LibraryPaymentTransaction | null;
+}> {
+  return apiClient('/library/fines/damage', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
-  return 'fine' in res ? res.fine : res;
 }
 
 // ==================== PYQ APIS ====================

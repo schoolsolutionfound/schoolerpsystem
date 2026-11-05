@@ -3,36 +3,44 @@
  * @description Shared utility functions for the Finance & Accounting module.
  */
 
-import { IncomeCategory, ExpenseCategory } from '../types/finance';
-
 /** Formats a numeric amount as an Indian-Rupee string. */
 export const formatINR = (amount: number): string =>
   '₹' + Math.abs(amount).toLocaleString('en-IN');
 
+/** Converts an arbitrary category key into a readable label. */
+const humanizeCategory = (cat: string): string =>
+  cat
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+
 /** Returns human-readable label for an income category */
-export const getIncomeCategoryLabel = (cat: IncomeCategory): string => {
+export const getIncomeCategoryLabel = (cat: string): string => {
   switch (cat) {
     case 'student_fee': return 'Student Fee';
     case 'bus_fee':     return 'Bus Fee';
     case 'hostel_fee':  return 'Hostel Fee';
     case 'misc':        return 'Misc Income';
+    default:            return cat ? humanizeCategory(cat) : 'Unspecified';
   }
 };
 
 /** Returns background and text color for an income category */
 export const getIncomeCategoryColor = (
-  cat: IncomeCategory
+  cat: string
 ): { bg: string; text: string } => {
   switch (cat) {
     case 'student_fee': return { bg: '#E0E7FF', text: '#4338CA' };
     case 'bus_fee':     return { bg: '#FEF3C7', text: '#B45309' };
     case 'hostel_fee':  return { bg: '#FCE7F3', text: '#BE185D' };
     case 'misc':        return { bg: '#E0F2FE', text: '#0369A1' };
+    default:            return { bg: '#F1F5F9', text: '#475569' };
   }
 };
 
 /** Returns human-readable label for an expense category */
-export const getExpenseCategoryLabel = (cat: ExpenseCategory): string => {
+export const getExpenseCategoryLabel = (cat: string): string => {
   switch (cat) {
     case 'salary':          return 'Staff Salary';
     case 'bus_fuel':        return 'Bus Diesel & Fuel';
@@ -42,12 +50,13 @@ export const getExpenseCategoryLabel = (cat: ExpenseCategory): string => {
     case 'utility':         return 'Utilities & Bills';
     case 'maintenance':     return 'Campus Maintenance';
     case 'other':           return 'Other Expense';
+    default:                return cat ? humanizeCategory(cat) : 'Unspecified';
   }
 };
 
 /** Returns background and text color for an expense category */
 export const getExpenseCategoryColor = (
-  cat: ExpenseCategory
+  cat: string
 ): { bg: string; text: string } => {
   switch (cat) {
     case 'salary':          return { bg: '#FEE2E2', text: '#991B1B' };
@@ -58,6 +67,7 @@ export const getExpenseCategoryColor = (
     case 'utility':         return { bg: '#E0F2FE', text: '#075985' };
     case 'maintenance':     return { bg: '#171717', text: '#F4C430' };
     case 'other':           return { bg: '#F1F5F9', text: '#475569' };
+    default:                return { bg: '#F1F5F9', text: '#475569' };
   }
 };
 

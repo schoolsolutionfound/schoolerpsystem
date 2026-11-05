@@ -35,22 +35,18 @@ export interface StatementInput {
 export async function generateStudentFeeReceiptPdf(receipt: FeeReceiptInput): Promise<void> {
   const institutionName = getInstitutionName();
 
-  // B4: Stable receipt number (no Math.random or Date.now)
-  let receiptNo = receipt.receiptNo;
-  if (!receiptNo && receipt.id) {
-    receiptNo = `REC-${receipt.id.slice(-6).toUpperCase()}`;
-  } else if (!receiptNo) {
-    receiptNo = '—';
+  const receiptNo = receipt.receiptNo?.trim();
+  const paymentDate = receipt.paymentDate?.trim();
+  const title = receipt.title?.trim();
+  const paymentMethod = receipt.paymentMethod?.trim().toUpperCase();
+  if (!receiptNo || !paymentDate || !title || !paymentMethod) {
+    throw new Error('Official receipt data is incomplete for this payment.');
   }
-
-  const paymentDate = receipt.paymentDate || '—';
-  const title = receipt.title || 'Student Fee Receipt';
 
   // B3: Real information or fallback to '—' (no fake names/classes)
   const payerName = receipt.payerName || '—';
   const classSection = receipt.classSection || '—';
   const rollNo = receipt.rollNo || '—';
-  const paymentMethod = (receipt.paymentMethod || 'CASH').toUpperCase();
   const generatedDate = formatGeneratedDate();
 
   // Receipt-specific stylesheet (card layout differs from table reports).
@@ -225,9 +221,8 @@ export async function generateStudentFeeReceiptPdf(receipt: FeeReceiptInput): Pr
     </table>
 
     <div class="footer">
-      <div class="verified-badge">✓ Verified & Audited by Accounts Department</div>
       <div>${escapeHtml(institutionName)} • Institutional Financial Module</div>
-      <div>Confidential • ${escapeHtml(generatedDate)}</div>
+      <div>Generated from recorded payment data • ${escapeHtml(generatedDate)}</div>
     </div>
   </div>
     `,
@@ -495,7 +490,7 @@ export async function generateIncomeExpenseStatementPdf(data: StatementInput): P
             <td>${escapeHtml(dateDisplay)}</td>
             <td><strong>${escapeHtml(titleDisplay)}</strong><br/><small class="sub">${escapeHtml(payerDisplay)}</small></td>
             <td>${escapeHtml(categoryDisplay)}</td>
-            <td>${escapeHtml((inc.paymentMethod || 'CASH').toUpperCase())}</td>
+            <td>${escapeHtml((inc.paymentMethod || 'unknown').toUpperCase())}</td>
             <td style="text-align: right;" class="amount-income">${formatINR(inc.amount)}</td>
           </tr>
         `;
@@ -539,7 +534,7 @@ export async function generateIncomeExpenseStatementPdf(data: StatementInput): P
             <td>${escapeHtml(dateDisplay)}</td>
             <td><strong>${escapeHtml(titleDisplay)}</strong><br/><small class="sub">${escapeHtml(payeeDisplay)}</small></td>
             <td>${escapeHtml(categoryDisplay)}</td>
-            <td>${escapeHtml((exp.paymentMethod || 'BANK').toUpperCase())}</td>
+            <td>${escapeHtml((exp.paymentMethod || 'unknown').toUpperCase())}</td>
             <td style="text-align: right;" class="amount-expense">${formatINR(exp.amount)}</td>
           </tr>
         `;
@@ -551,9 +546,8 @@ export async function generateIncomeExpenseStatementPdf(data: StatementInput): P
     </table>
 
     <div class="footer">
-      <div class="verified-badge">&#10003; Digitally Verified &amp; Audited</div>
       <div>${escapeHtml(institutionName)} &bull; Official Income &amp; Expense Statement</div>
-      <div>Generated on ${escapeHtml(generatedDate)} &bull; For internal financial audit use</div>
+      <div>Generated on ${escapeHtml(generatedDate)} &bull; For internal financial review</div>
     </div>
   </div>
     `,

@@ -53,7 +53,7 @@ function normalizeCategory(cat?: string): IncomeCategory {
 function normalizeMethod(m?: string): PaymentMethod {
   const v = (m || '').toLowerCase().trim() as PaymentMethod;
   if ((VALID_METHODS as string[]).includes(v)) return v;
-  return 'upi';
+  return 'unknown';
 }
 
 function normalizeStatus(s?: string): PaymentStatus {
@@ -78,8 +78,8 @@ function parseScope(scope: StudentRow['scope']): Record<string, string> {
 
 /**
  * Join fee_structures + fee_payments + users into accountant IncomeRecords.
- * One record per payment; fee structures with no payment for a student
- * become pending dues (when a student list is provided).
+ * One record per persisted payment. Pending student liabilities need an
+ * authoritative server-side fee ledger and are not synthesized here.
  */
 export function mapFeeData(
   fees: FeeStructureRow[],
@@ -89,13 +89,11 @@ export function mapFeeData(
   const feeById = new Map((fees || []).map((f) => [f.id, f]));
   const studentById = new Map((students || []).map((s) => [s.id, s]));
   const records: IncomeRecord[] = [];
-  const covered = new Set<string>();
 
   for (const p of payments || []) {
     const fee = feeById.get(p.feeStructureId);
     const student = studentById.get(p.studentId);
     const scope = parseScope(student?.scope);
-    covered.add(`${p.feeStructureId}:${p.studentId}`);
     records.push({
       id: p.id,
       title: fee?.title || 'Fee Payment',
@@ -116,38 +114,6 @@ export function mapFeeData(
       feeStructureId: p.feeStructureId,
       paymentId: p.id,
     });
-  }
-
-  for (const fee of fees || []) {
-    if (fee.status && fee.status !== 'active') continue;
-    for (const student of students || []) {
-      const key = `${fee.id}:${student.id}`;
-      if (covered.has(key)) continue;
-      const scope = parseScope(student.scope);
-      if (fee.classSectionId) {
-        const childClass = scope.classSectionId || '';
-        if (childClass && childClass !== fee.classSectionId) continue;
-      }
-      records.push({
-        id: `due_${fee.id}_${student.id}`,
-        title: fee.title,
-        category: normalizeCategory(fee.category),
-        payerName: student.fullName || student.id,
-        studentId: student.id,
-        rollNo: student.rollNoOrUSN || '',
-        classSection: scope.classSectionName || scope.section || '',
-        totalFee: toNumber(fee.amount),
-        amount: toNumber(fee.amount),
-        dueDate: fee.dueDate || undefined,
-        parentPhone: student.parentPhone || '',
-        paymentMethod: 'upi',
-        paymentDate: fee.dueDate || '',
-        status: 'pending',
-        receiptNo: '',
-        feeStructureId: fee.id,
-        paymentId: null,
-      });
-    }
   }
 
   return records;

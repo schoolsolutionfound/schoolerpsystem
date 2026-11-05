@@ -14,7 +14,6 @@ import {
 import {
   buildTerms,
   DEFAULT_INSTITUTION_TYPE,
-  DEFAULT_STRUCTURE,
   normalizeInstitutionType,
   termCountFromPlan,
 } from '../../shared/academicStructure';
@@ -62,7 +61,7 @@ export const EditInstitutionModal: React.FC<EditInstitutionModalProps> = ({
   const [levelsText, setLevelsText] = useState('');
   const [programsText, setProgramsText] = useState('');
   const [sectionsText, setSectionsText] = useState('');
-  const [termsCount, setTermsCount] = useState('3');
+  const [termsCount, setTermsCount] = useState('');
 
   useEffect(() => {
     if (institution) {
@@ -87,22 +86,9 @@ export const EditInstitutionModal: React.FC<EditInstitutionModalProps> = ({
       setSectionsText(
         Array.isArray(institution.sections) ? institution.sections.join(', ') : ''
       );
-      setTermsCount(String(termCountFromPlan(institution.terms, institution.institutionType)));
+      setTermsCount(String(termCountFromPlan(institution.terms)));
     }
   }, [institution, reset]);
-
-  useEffect(() => {
-    if (!institution) return;
-    const original = normalizeInstitutionType(institution.institutionType);
-    const next = normalizeInstitutionType(institutionType);
-    if (next === original) return;
-    const defaults = DEFAULT_STRUCTURE[next];
-    setUnitsText(defaults.units.join(', '));
-    setLevelsText(defaults.levels.join(', '));
-    setProgramsText(defaults.programs.join(', '));
-    setSectionsText(defaults.sections.join(', '));
-    setTermsCount(String(defaults.terms[0]?.terms.length || (next === 'college' ? 2 : 3)));
-  }, [institutionType, institution]);
 
   const handleFormSubmit = (data: UpdateInstitutionFormValues) => {
     if (institution) {
@@ -123,6 +109,7 @@ export const EditInstitutionModal: React.FC<EditInstitutionModalProps> = ({
         courses: kind === 'college' ? programs : [],
         sections,
         terms: (() => {
+          if (!termsCount.trim()) return institution.terms || [];
           const plan = buildTerms(termsCount, institution.terms?.[0]?.academicYear, kind);
           return [...(institution.terms || []).filter((t) => t.academicYear !== plan[0].academicYear), ...plan];
         })(),

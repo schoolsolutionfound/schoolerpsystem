@@ -165,10 +165,10 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const [feesRes, paymentsRes, studentsRes, expensesRes] = await Promise.all([
-        fetchFeesApi().catch(() => [] as any[]),
-        fetchFeePaymentsApi().catch(() => [] as any[]),
-        fetchStudentsApi().catch(() => ({ data: [] }) as any),
-        fetchExpensesApi().catch(() => [] as any[]),
+        fetchFeesApi(),
+        fetchFeePaymentsApi(),
+        fetchStudentsApi(),
+        fetchExpensesApi(),
       ]);
       const fees = Array.isArray(feesRes) ? feesRes : [];
       const payments = Array.isArray(paymentsRes) ? paymentsRes : [];
@@ -204,9 +204,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
 
   addExpense: async (record) => {
     const newId = `exp-${Date.now()}`;
-    const invoiceNo = `INV-EXP-${Math.floor(1000 + Math.random() * 9000)}`;
     const prev = get().expenseRecords;
-    set({ expenseRecords: [{ ...record, id: newId, invoiceNo }, ...prev], error: null });
+    set({ expenseRecords: [{ ...record, id: newId, invoiceNo: '' }, ...prev], error: null });
     try {
       await createExpenseApi({
         title: record.title,
@@ -382,8 +381,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       // app/server was away (server dedupes, so calling this is always safe).
       await generateDuePayrollApi().catch(() => null);
       const [schedulesRes] = await Promise.all([
-        fetchPayrollSchedulesApi().catch(() => [] as any[]),
-        get().loadFees().catch(() => undefined),
+        fetchPayrollSchedulesApi(),
+        get().loadFees(),
       ]);
       const schedules = Array.isArray(schedulesRes)
         ? schedulesRes

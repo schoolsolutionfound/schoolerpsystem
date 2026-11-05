@@ -28,17 +28,37 @@ export default function SchoolProfileScreen() {
   }, [id]);
 
   if (loading) {
-    return <SchoolDetailsSkeleton />;
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
+            <MaterialCommunityIcons name="arrow-left" size={24} color="#1A202C" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>School Profile</Text>
+          <View style={styles.headerBtn} />
+        </View>
+        <SchoolDetailsSkeleton />
+      </SafeAreaView>
+    );
   }
 
   if (!school) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.errorText}>School not found.</Text>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Text style={styles.backBtnText}>Go Back</Text>
-        </TouchableOpacity>
-      </View>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
+            <MaterialCommunityIcons name="arrow-left" size={24} color="#1A202C" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>School Profile</Text>
+          <View style={styles.headerBtn} />
+        </View>
+        <View style={styles.center}>
+          <Text style={styles.errorText}>School not found.</Text>
+          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+            <Text style={styles.backBtnText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
     );
   }
 

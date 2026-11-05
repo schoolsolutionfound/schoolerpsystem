@@ -29,16 +29,28 @@ export const CreateReviewCycleModal: React.FC<CreateReviewCycleModalProps> = ({
   onSubmit,
 }) => {
   const [title, setTitle] = useState('');
-  const [period, setPeriod] = useState('Spring Semester 2026');
+  const [period, setPeriod] = useState('');
   const [scope, setScope] = useState<ReviewCycleScope>(defaultDepartment ? 'department' : 'all_staff');
   const [department, setDepartment] = useState(defaultDepartment || '');
-  const [deadline, setDeadline] = useState('2026-04-30');
+  const [deadline, setDeadline] = useState('');
   const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const handleCreate = async () => {
     if (!title.trim()) {
       Alert.alert('Title Required', 'Please enter a title for the review cycle.');
+      return;
+    }
+    if (!period.trim()) {
+      Alert.alert('Period Required', 'Please enter the academic period or term for this cycle.');
+      return;
+    }
+    if (!deadline.trim()) {
+      Alert.alert('Deadline Required', 'Please enter the completion deadline.');
+      return;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(deadline.trim())) {
+      Alert.alert('Invalid Deadline', 'Enter the deadline in YYYY-MM-DD format.');
       return;
     }
 
@@ -49,7 +61,7 @@ export const CreateReviewCycleModal: React.FC<CreateReviewCycleModalProps> = ({
         period: period.trim(),
         scope,
         department: scope === 'department' ? department.trim() : undefined,
-        deadline,
+        deadline: deadline.trim(),
         description: description.trim(),
       });
       Alert.alert('Review Cycle Launched', `"${title}" is now active for evaluation.`);

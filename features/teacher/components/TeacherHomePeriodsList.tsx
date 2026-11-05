@@ -3,8 +3,9 @@ import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { FontFamily } from '../../../constants/fonts';
 import { TeacherShimmerSkeleton } from './common/TeacherShimmer';
 import { MaterialCommunityIcons, Feather } from './common/Icons';
-import { useClassTransferStore } from '../services/classTransferStore';
+import { useClassTransferStore, isRequestForTeacher, isRequestFromTeacher } from '../services/classTransferStore';
 import { useAttendanceStore } from '../services/attendanceStore';
+import { useUserStore } from '../../../store/useUserStore';
 
 interface TeacherHomePeriodsListProps {
   loading?: boolean;
@@ -98,6 +99,11 @@ export const TeacherHomePeriodsList: React.FC<TeacherHomePeriodsListProps> = ({
 }) => {
   const { requests: transferRequests } = useClassTransferStore();
   const { isPeriodMarked } = useAttendanceStore();
+  const employeeId = useUserStore((s) => s.employeeId);
+  const email = useUserStore((s) => s.email);
+  const fullName = useUserStore((s) => s.fullName);
+  const currentTeacherId = employeeId || email;
+  const currentTeacherName = (fullName || email || '').trim();
   const todayStr = useMemo(() => getTodayIsoDate(), []);
 
   const displaySlots = useMemo(() => {
@@ -107,6 +113,7 @@ export const TeacherHomePeriodsList: React.FC<TeacherHomePeriodsListProps> = ({
       const matched = transferRequests.find(
         (r) =>
           r.status === 'accepted' &&
+          isRequestFromTeacher(r, currentTeacherId, currentTeacherName) &&
           (r.date === todayStr || !r.date) &&
           (r.periodId === slot.id ||
             (Boolean(slot.period?.label) && r.periodLabel?.toLowerCase() === slot.period?.label?.toLowerCase()))
@@ -127,7 +134,7 @@ export const TeacherHomePeriodsList: React.FC<TeacherHomePeriodsListProps> = ({
         (r) =>
           r.status === 'accepted' &&
           (r.date === todayStr || !r.date) &&
-          (r.toTeacherId === 'current-user' || r.toTeacherName.includes('You'))
+          isRequestForTeacher(r, currentTeacherId, currentTeacherName)
       )
       .map((r) => ({
         id: r.periodId || `incoming-${r.id}`,
@@ -143,7 +150,7 @@ export const TeacherHomePeriodsList: React.FC<TeacherHomePeriodsListProps> = ({
       }));
 
     return [...baseList, ...acceptedIncomingToday];
-  }, [slots, transferRequests]);
+  }, [slots, transferRequests, currentTeacherId, currentTeacherName]);
 
   return (
     <View style={styles.card}>

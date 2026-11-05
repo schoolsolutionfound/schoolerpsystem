@@ -61,7 +61,7 @@ function detectClassProgram(sec: { name?: string; grade?: string; className?: st
   if (text.includes('b.tech') || text.includes('btech')) return 'B.Tech';
   if (text.includes('mba')) return 'MBA';
   if (text.includes('diploma')) return 'Diploma';
-  return 'B.Tech';
+  return '';
 }
 
 function getDepartmentIcon(deptName: string): keyof typeof Feather.glyphMap {
@@ -359,8 +359,23 @@ export const PrincipalFeeLedgerView: React.FC<PrincipalFeeLedgerViewProps> = ({
     return ['all', ...Array.from(set)];
   }, [activeHomerooms]);
 
-  const availableYears = ['all', '1st Year', '2nd Year', '3rd Year', '4th Year'];
-  const availablePrograms = ['all', 'B.Tech', 'M.Tech', 'MBA', 'Diploma'];
+  const availableYears = useMemo(() => {
+    const set = new Set<string>();
+    activeHomerooms.forEach((h) => {
+      const year = detectClassYear(h);
+      if (year) set.add(year);
+    });
+    return ['all', ...Array.from(set)];
+  }, [activeHomerooms]);
+
+  const availablePrograms = useMemo(() => {
+    const set = new Set<string>();
+    activeHomerooms.forEach((h) => {
+      const program = detectClassProgram(h);
+      if (program) set.add(program);
+    });
+    return ['all', ...Array.from(set)];
+  }, [activeHomerooms]);
 
   const hasActiveClassFilters =
     classDeptFilter !== 'all' ||

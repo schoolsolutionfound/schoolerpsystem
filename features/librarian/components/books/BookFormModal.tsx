@@ -14,9 +14,8 @@ import {
 } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '../common/Icons';
 import { Book, BookType, Category, Author } from '../../types';
-import { apiClient } from '../../../../api/client';
-import { auth } from '../../../../firebaseConfig';
 import { createCategoryApi } from '../../../../api/library';
+import { uploadDocumentApi } from '../../../../api/upload';
 import { FontFamily } from '../../../../constants/fonts';
 
 let ImagePicker: any = null;
@@ -43,7 +42,7 @@ export const BookFormModal = ({
   categories: Category[];
   authors: Author[];
   onClose: () => void;
-  onSave: (bookData: Partial<Book> & { totalCopies?: number }) => void;
+  onSave: (bookData: Partial<Book> & { totalCopies?: number }) => Promise<void>;
   onCreateCategory?: (cat: { name: string; description?: string }) => Promise<Category>;
   modalStyles: any;
   commonStyles: any;
@@ -55,7 +54,7 @@ export const BookFormModal = ({
   const [publisher, setPublisher] = useState('');
   const [edition, setEdition] = useState('');
   const [publicationYear, setPublicationYear] = useState('');
-  const [language, setLanguage] = useState('English');
+  const [language, setLanguage] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [coverImage, setCoverImage] = useState('');
   const [coverResizeMode, setCoverResizeMode] = useState<'cover' | 'contain' | 'stretch'>('cover');
@@ -84,7 +83,7 @@ export const BookFormModal = ({
       setPublisher(editingBook.publisher || '');
       setEdition(editingBook.edition || '');
       setPublicationYear(editingBook.publicationYear ? String(editingBook.publicationYear) : '');
-      setLanguage(editingBook.language || 'English');
+      setLanguage(editingBook.language || '');
       setCategoryId(editingBook.categoryId || (categories[0]?.id || ''));
       setCoverImage(editingBook.coverImage || '');
       setKeywords(Array.isArray(editingBook.keywords) ? editingBook.keywords.join(', ') : '');
@@ -97,7 +96,7 @@ export const BookFormModal = ({
       setPublisher('');
       setEdition('');
       setPublicationYear('');
-      setLanguage('English');
+      setLanguage('');
       setCategoryId(categories[0]?.id || '');
       setCoverImage('');
       setKeywords('');
@@ -194,10 +193,18 @@ export const BookFormModal = ({
       Alert.alert('Required Field', 'Book price is mandatory. Please enter a valid price in rupees.');
       return;
     }
+    if (!categoryId) {
+      Alert.alert('Required Field', 'Please select a real book category.');
+      return;
+    }
 
     setSubmitting(true);
     try {
-      const finalCover = coverImage.trim();
+      const selectedCover = coverImage.trim();
+      const finalCover =
+        selectedCover && !/^https?:\/\//i.test(selectedCover)
+          ? (await uploadDocumentApi(selectedCover, `book-cover-${isbn.trim()}.jpg`)).url
+          : selectedCover;
 
       const copyCountParsed = parseInt(totalCopies, 10);
       const initialCopyCount = isNaN(copyCountParsed) || copyCountParsed < 1 ? 1 : copyCountParsed;
@@ -208,8 +215,8 @@ export const BookFormModal = ({
         publisher: publisher.trim() || undefined,
         edition: edition.trim() || undefined,
         publicationYear: publicationYear ? parseInt(publicationYear, 10) : undefined,
-        language: language.trim() || 'English',
-        categoryId: categoryId || categories[0]?.id || 'cat-1',
+        language: language.trim() || undefined,
+        categoryId,
         bookType: editingBook?.bookType || 'GENERAL',
         coverImage: finalCover || undefined,
         price: price.trim() || undefined,
@@ -218,7 +225,7 @@ export const BookFormModal = ({
         totalCopies: initialCopyCount,
       };
 
-      onSave(payload);
+      await onSave(payload);
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Failed to save book.');
     } finally {
@@ -619,7 +626,7 @@ export const BookFormModal = ({
               </View>
               <View style={[styles.formGroup, { flex: 1 }]}>
                 <Text style={styles.formLabel}>Language</Text>
-                <TextInput style={styles.formInput} value={language} onChangeText={setLanguage} placeholder="English" placeholderTextColor="#475569" />
+                <TextInput style={styles.formInput} value={language} onChangeText={setLanguage} placeholder="e.g. English" placeholderTextColor="#475569" />
               </View>
             </View>
 

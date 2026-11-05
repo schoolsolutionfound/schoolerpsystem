@@ -69,19 +69,22 @@ export const AccountsTallyView: React.FC = () => {
   // Category breakdowns
   const tuitionIncome = scopedIncome.filter((r) => r.category === 'student_fee' && r.status === 'paid').reduce((s, r) => s + r.amount, 0);
   const transportIncome = scopedIncome.filter((r) => r.category === 'bus_fee' && r.status === 'paid').reduce((s, r) => s + r.amount, 0);
-  const otherIncome = totalIncome - tuitionIncome - transportIncome;
+  const hostelIncome = scopedIncome.filter((r) => r.category === 'hostel_fee' && r.status === 'paid').reduce((s, r) => s + r.amount, 0);
+  const otherIncome = totalIncome - tuitionIncome - transportIncome - hostelIncome;
 
   const salaryExpense = scopedExpense.filter((r) => r.category === 'salary' && r.status === 'paid').reduce((s, r) => s + r.amount, 0);
   const fleetExpense = scopedExpense.filter((r) => (r.category === 'bus_fuel' || r.category === 'bus_maintenance' || r.category === 'bus_expense') && r.status === 'paid').reduce((s, r) => s + r.amount, 0);
-  const utilityExpense = totalExpenses - salaryExpense - fleetExpense;
+  const hostelExpense = scopedExpense.filter((r) => r.category === 'hostel_expense' && r.status === 'paid').reduce((s, r) => s + r.amount, 0);
+  const utilityExpense = scopedExpense.filter((r) => r.category === 'utility' && r.status === 'paid').reduce((s, r) => s + r.amount, 0);
+  const otherExpense = totalExpenses - salaryExpense - fleetExpense - hostelExpense - utilityExpense;
 
   // Health metrics
-  const collectionRatio = totalIncome + pendingReceivables > 0 ? Math.round((totalIncome / (totalIncome + pendingReceivables)) * 100) : 100;
+  const collectionRatio = totalIncome + pendingReceivables > 0 ? Math.round((totalIncome / (totalIncome + pendingReceivables)) * 100) : 0;
   const expenseRatio = totalIncome > 0 ? Math.round((totalExpenses / totalIncome) * 100) : 0;
   const netMargin = totalIncome > 0 ? Math.round((netBalance / totalIncome) * 100) : 0;
 
   const inflowPct =
-    totalIncome + totalExpenses > 0 ? (totalIncome / (totalIncome + totalExpenses)) * 100 : 50;
+    totalIncome + totalExpenses > 0 ? (totalIncome / (totalIncome + totalExpenses)) * 100 : 0;
 
   const sharePct = (part: number, total: number): number => {
     if (part <= 0 || total <= 0) return 0;
@@ -96,8 +99,8 @@ export const AccountsTallyView: React.FC = () => {
         totalIncome,
         totalExpense: totalExpenses,
         netTally: netBalance,
-        incomeRecords: scopedIncome,
-        expenseRecords: scopedExpense,
+        incomeRecords: scopedIncome.filter((record) => record.status === 'paid'),
+        expenseRecords: scopedExpense.filter((record) => record.status === 'paid'),
       });
     } catch (err: any) {
       showAlert('Export Failed', err?.message || 'Could not generate financial statement PDF.');
@@ -226,7 +229,8 @@ export const AccountsTallyView: React.FC = () => {
 
         {renderBreakdownRow('Student Tuition & Lab Fees', tuitionIncome, totalIncome, '#F4C430')}
         {renderBreakdownRow('Bus Transport Fees', transportIncome, totalIncome, '#B8860B')}
-        {renderBreakdownRow('Hostel Boarding & Misc', otherIncome, totalIncome, '#171717')}
+        {renderBreakdownRow('Hostel & Boarding Fees', hostelIncome, totalIncome, '#BE185D')}
+        {renderBreakdownRow('Other Income', otherIncome, totalIncome, '#171717')}
       </View>
 
       {/* Expenditure Breakdown */}
@@ -240,7 +244,9 @@ export const AccountsTallyView: React.FC = () => {
 
         {renderBreakdownRow('Faculty & Staff Payroll', salaryExpense, totalExpenses, '#171717')}
         {renderBreakdownRow('Fleet Fuel & Bus Maintenance', fleetExpense, totalExpenses, '#6B6B6B')}
-        {renderBreakdownRow('Campus Electricity & Utilities', utilityExpense, totalExpenses, '#B8860B')}
+        {renderBreakdownRow('Hostel Mess & Operations', hostelExpense, totalExpenses, '#BE185D')}
+        {renderBreakdownRow('Campus Utilities & Bills', utilityExpense, totalExpenses, '#B8860B')}
+        {renderBreakdownRow('Other Operating Expenses', otherExpense, totalExpenses, '#475569')}
       </View>
     </ScrollView>
   );

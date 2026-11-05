@@ -31,6 +31,7 @@ const METHOD_LABELS: Record<PaymentMethod, string> = {
   upi: 'UPI',
   cash: 'Cash',
   card: 'Card',
+  unknown: 'Not recorded',
 };
 
 const methodLabel = (m: PaymentMethod) => METHOD_LABELS[m] || m.toUpperCase();
@@ -121,8 +122,8 @@ export const StudentFeesView: React.FC = () => {
 
   const handleSendReminder = (item: IncomeRecord) => {
     showAlert(
-      'Fee Reminder Sent',
-      `SMS & WhatsApp payment reminder sent to parents of ${item.payerName} for ${item.title} (₹${item.amount.toLocaleString('en-IN')}).`
+      'Reminder Unavailable',
+      `No parent-recipient delivery workflow is configured for ${item.payerName}.`
     );
   };
 
@@ -394,7 +395,7 @@ export const StudentFeesView: React.FC = () => {
                       </>
                     )}
 
-                    {isPaid && (
+                    {isPaid && item.receiptNo && item.paymentDate && item.paymentMethod !== 'unknown' && (
                       <TouchableOpacity style={sharedFinanceStyles.actionIconBtn} onPress={() => setSelectedReceipt(item)}>
                         <MaterialCommunityIcons name="file-document-outline" size={14} color="#B8860B" />
                         <Text style={[sharedFinanceStyles.actionIconBtnText, { color: '#B8860B' }]}>Receipt</Text>

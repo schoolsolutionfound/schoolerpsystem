@@ -32,7 +32,7 @@ export function useLibraryBooks(initialFilters?: BookFilters) {
         publisher: b.publisher || undefined,
         edition: b.edition || undefined,
         publicationYear: b.publicationYear || undefined,
-        language: b.language || 'English',
+        language: b.language || undefined,
         categoryId: b.categoryId || '',
         subject: b.subject || undefined,
         description: b.description || undefined,

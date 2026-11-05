@@ -289,13 +289,13 @@ export function PlacementResultsView() {
                   <View style={styles.headerInfoCol}>
                     <View style={styles.nameRow}>
                       <Text style={styles.candidateName} numberOfLines={1}>
-                        {student?.fullName || 'Student'}
+                        {student?.fullName || 'Name unavailable'}
                       </Text>
                     </View>
 
                     <Text style={styles.usnBranchText} numberOfLines={1}>
                       {student?.rollNoOrUSN ? `${student.rollNoOrUSN} • ` : ''}
-                      {student?.branch || 'Computer Science'}
+                      {student?.branch || '—'}
                     </Text>
                   </View>
                 </View>
@@ -303,8 +303,8 @@ export function PlacementResultsView() {
                 {/* Company & Role Line */}
                 <View style={styles.companyRow}>
                   <Text style={styles.companyName} numberOfLines={1}>
-                    {drive?.companyName || 'Company'}{' '}
-                    <Text style={styles.roleTitle}>— {drive?.title || 'Open Position'}</Text>
+                    {drive?.companyName || 'Company unavailable'}{' '}
+                    <Text style={styles.roleTitle}>— {drive?.title || 'Role unavailable'}</Text>
                   </Text>
                   {drive?.ctcOrStipend ? (
                     <Text style={styles.packageText}>{drive.ctcOrStipend}</Text>
@@ -315,7 +315,7 @@ export function PlacementResultsView() {
                 <View style={styles.statusRow}>
                   {item.status === 'hired' || (item.status as string) === 'selected' ? (
                     <Text style={styles.hiredStatusText}>
-                      Hired • Selected & Offer Extended
+                      Hired
                     </Text>
                   ) : item.status === 'shortlisted' ? (
                     <Text style={styles.shortlistedStatusText}>
@@ -338,7 +338,9 @@ export function PlacementResultsView() {
                 <View style={styles.cardFooterRow}>
                   <Text style={styles.academicMetaText}>
                     CGPA {student?.cgpa != null ? student.cgpa : 'N/A'} •{' '}
-                    {student?.activeBacklogs ?? 0} backlogs
+                    {student?.activeBacklogs == null
+                      ? 'Backlogs not provided'
+                      : `${student.activeBacklogs} backlogs`}
                   </Text>
 
                   {item.resumeUrl ? (

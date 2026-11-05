@@ -92,6 +92,24 @@ function buildCertificateHtml(
     `;
   } else if (request.documentType === 'hall_ticket') {
     const examCenter = request.academicDetails?.examCenter || '';
+    const examCourses = request.academicDetails?.courses || [];
+    const scheduleRows = examCourses.length
+      ? examCourses.map((c) => `
+          <tr>
+            <td style="font-weight: 600;">${c.examDate || '—'}</td>
+            <td>${c.examTime || '—'}</td>
+            <td style="font-weight: 600;">${c.code}</td>
+            <td>${c.name}</td>
+            <td style="height: 38px;"></td>
+          </tr>
+        `).join('')
+      : `
+          <tr>
+            <td colspan="5" style="text-align: center; color: #6b7280;">
+              Examination schedule will be published by the examination cell.
+            </td>
+          </tr>
+        `;
     specificBodyHtml = `
       <div class="hall-ticket-grid">
         <div class="ht-info-col">
@@ -122,41 +140,7 @@ function buildCertificateHtml(
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td style="font-weight: 600;">02-Dec-2026</td>
-            <td>09:30 AM - 12:30 PM</td>
-            <td style="font-weight: 600;">CS501</td>
-            <td>Design & Analysis of Algorithms</td>
-            <td style="height: 38px;"></td>
-          </tr>
-          <tr>
-            <td style="font-weight: 600;">05-Dec-2026</td>
-            <td>09:30 AM - 12:30 PM</td>
-            <td style="font-weight: 600;">CS502</td>
-            <td>Database Management Systems</td>
-            <td style="height: 38px;"></td>
-          </tr>
-          <tr>
-            <td style="font-weight: 600;">09-Dec-2026</td>
-            <td>09:30 AM - 12:30 PM</td>
-            <td style="font-weight: 600;">CS503</td>
-            <td>Operating Systems & Architecture</td>
-            <td style="height: 38px;"></td>
-          </tr>
-          <tr>
-            <td style="font-weight: 600;">12-Dec-2026</td>
-            <td>09:30 AM - 12:30 PM</td>
-            <td style="font-weight: 600;">CS504</td>
-            <td>Automata Theory & Computability</td>
-            <td style="height: 38px;"></td>
-          </tr>
-          <tr>
-            <td style="font-weight: 600;">16-Dec-2026</td>
-            <td>09:30 AM - 12:30 PM</td>
-            <td style="font-weight: 600;">CS505</td>
-            <td>Software Engineering</td>
-            <td style="height: 38px;"></td>
-          </tr>
+          ${scheduleRows}
         </tbody>
       </table>
 
@@ -234,7 +218,7 @@ function buildCertificateHtml(
         </div>
 
         <div class="bonafide-statement">
-          The candidate is presently pursuing the Bachelor of Engineering / Technology Degree Program in the Department of 
+          The candidate is presently pursuing ${request.academicDetails?.program ? `<span style="font-weight: 700;">${request.academicDetails.program}</span>` : 'a degree programme'} in the Department of 
           <span style="font-weight: 700; color: #1e3a8a;">${request.department}</span> (${semester}), 
           during the Academic Year <span style="font-weight: 700;">${academicYear}</span>.
         </div>
@@ -259,8 +243,7 @@ function buildCertificateHtml(
           This is to certify that <span class="highlight-name">${request.studentName}</span>, 
           bearing Roll No / USN: <span class="highlight-code">${request.rollNoOrUSN}</span>, 
           has been a bonafide student of this institution in the Department of 
-          <span style="font-weight: 700;">${request.department}</span> from 
-          <span style="font-weight: 600;">August 2022</span> to <span style="font-weight: 600;">Current Session</span>.
+          <span style="font-weight: 700;">${request.department}</span>${request.academicDetails?.admissionDate ? ` from <span style="font-weight: 600;">${request.academicDetails.admissionDate}</span>` : ''}${request.academicDetails?.completionDate ? ` to <span style="font-weight: 600;">${request.academicDetails.completionDate}</span>` : ' to date'}.
         </div>
 
         <div class="bonafide-statement">
@@ -279,15 +262,26 @@ function buildCertificateHtml(
       </div>
     `;
   } else if (request.documentType === 'fee_clearance') {
+    const feeStatus = request.academicDetails?.feeStatus;
+    const feeStatusLabel =
+      feeStatus === 'paid' ? 'CLEARED (NIL DUE)' : feeStatus === 'due' ? 'PENDING' : 'NOT VERIFIED';
+    const feeStatusColor =
+      feeStatus === 'paid' ? '#059669' : feeStatus === 'due' ? '#DC2626' : '#6B7280';
+    const duesStatement =
+      feeStatus === 'paid'
+        ? 'has cleared all dues and financial liabilities payable to the institution'
+        : feeStatus === 'due'
+        ? 'has outstanding dues payable to the institution'
+        : 'has dues pending verification with the institution';
     specificBodyHtml = `
       <div class="bonafide-container">
-        <div class="salutation">NO DUES & FEE CLEARANCE CERTIFICATE</div>
+        <div class="salutation">FEE CLEARANCE CERTIFICATE</div>
         
         <div class="bonafide-statement">
           This is to officially certify that <span class="highlight-name">${request.studentName}</span> 
           (USN / Roll No: <span class="highlight-code">${request.rollNoOrUSN}</span>), student of 
           <span style="font-weight: 700;">${request.department}</span> (${semester}), 
-          has cleared all dues and financial liabilities payable to the institution for the Academic Year 
+          ${duesStatement} for the Academic Year 
           <span style="font-weight: 700;">${academicYear}</span>.
         </div>
 
@@ -301,29 +295,9 @@ function buildCertificateHtml(
           </thead>
           <tbody>
             <tr>
-              <td>Academic Tuition & Development Fee</td>
-              <td style="color: #059669; font-weight: 700;">CLEARED (NIL DUE)</td>
+              <td>Academic & Institutional Dues</td>
+              <td style="color: ${feeStatusColor}; font-weight: 700;">${feeStatusLabel}</td>
               <td>Finance Accounts Office</td>
-            </tr>
-            <tr>
-              <td>Central & Departmental Library</td>
-              <td style="color: #059669; font-weight: 700;">ALL BOOKS RETURNED (NIL)</td>
-              <td>Chief Librarian</td>
-            </tr>
-            <tr>
-              <td>Department Laboratories & Workshop</td>
-              <td style="color: #059669; font-weight: 700;">EQUIPMENT CLEARED (NIL)</td>
-              <td>Head of Department (HOD)</td>
-            </tr>
-            <tr>
-              <td>Campus Hostel & Mess Facilities</td>
-              <td style="color: #059669; font-weight: 700;">CLEARED (NIL DUE)</td>
-              <td>Chief Warden</td>
-            </tr>
-            <tr>
-              <td>Examination & Assessment Cell</td>
-              <td style="color: #059669; font-weight: 700;">ELIGIBLE & CLEARED</td>
-              <td>Controller of Examinations</td>
             </tr>
           </tbody>
         </table>
@@ -749,7 +723,7 @@ function buildCertificateHtml(
                   <td class="sm-label">Branch / Department:</td>
                   <td class="sm-val">${request.department}</td>
                   <td class="sm-label">Academic Program:</td>
-                  <td class="sm-val">Bachelor of Engineering (B.E)</td>
+                  <td class="sm-val">${request.academicDetails?.program || '—'}</td>
                 </tr>
               </table>
             </div>
@@ -788,7 +762,7 @@ function buildCertificateHtml(
 
 export async function generateAndShareCertificatePDF(
   request: DocumentRequest,
-  institutionName: string = 'APEX INSTITUTE OF SCIENCE & TECHNOLOGY'
+  institutionName: string
 ): Promise<void> {
   try {
     const html = buildCertificateHtml(request, institutionName);

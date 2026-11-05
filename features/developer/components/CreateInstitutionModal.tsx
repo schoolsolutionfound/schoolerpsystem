@@ -12,7 +12,6 @@ import {
 } from '../validation/developer.validation';
 import {
   buildTerms,
-  DEFAULT_STRUCTURE,
   DEFAULT_INSTITUTION_TYPE,
   normalizeInstitutionType,
 } from '../../shared/academicStructure';
@@ -59,20 +58,20 @@ export const CreateInstitutionModal: React.FC<CreateInstitutionModalProps> = ({
       .map((s) => s.trim())
       .filter(Boolean);
 
-  const [unitsText, setUnitsText] = useState(DEFAULT_STRUCTURE.school.units.join(', '));
-  const [levelsText, setLevelsText] = useState(DEFAULT_STRUCTURE.school.levels.join(', '));
+  const [unitsText, setUnitsText] = useState('');
+  const [levelsText, setLevelsText] = useState('');
   const [programsText, setProgramsText] = useState('');
-  const [sectionsText, setSectionsText] = useState(DEFAULT_STRUCTURE.school.sections.join(', '));
-  const [termsCount, setTermsCount] = useState('3');
+  const [sectionsText, setSectionsText] = useState('');
+  const [termsCount, setTermsCount] = useState('');
 
   useEffect(() => {
-    const defaults = DEFAULT_STRUCTURE[normalizeInstitutionType(institutionType)];
-    setUnitsText(defaults.units.join(', '));
-    setLevelsText(defaults.levels.join(', '));
-    setProgramsText(defaults.programs.join(', '));
-    setSectionsText(defaults.sections.join(', '));
-    setTermsCount(String(defaults.terms[0]?.terms.length || (normalizeInstitutionType(institutionType) === 'college' ? 2 : 3)));
-  }, [institutionType]);
+    if (!visible) return;
+    setUnitsText('');
+    setLevelsText('');
+    setProgramsText('');
+    setSectionsText('');
+    setTermsCount('');
+  }, [visible]);
 
   const handleFormSubmit = (data: CreateInstitutionFormValues) => {
     const units = splitList(unitsText);
@@ -89,7 +88,7 @@ export const CreateInstitutionModal: React.FC<CreateInstitutionModalProps> = ({
       yearsOfStudy: kind === 'college' ? levels : [],
       programs: kind === 'college' ? programs : [],
       sections,
-      terms: buildTerms(termsCount, undefined, kind),
+      terms: termsCount.trim() ? buildTerms(termsCount, undefined, kind) : [],
     });
     reset();
   };

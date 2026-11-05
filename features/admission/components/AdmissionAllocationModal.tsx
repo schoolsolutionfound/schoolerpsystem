@@ -45,14 +45,14 @@ export const AdmissionAllocationModal: React.FC<AdmissionAllocationModalProps> =
         if (match.quotas && match.quotas.length > 0) {
           setSelectedQuota(match.quotas[0].quotaName);
         } else {
-          setSelectedQuota('General');
+          setSelectedQuota('');
         }
       } else if (courses.length > 0) {
         setSelectedCourseId(courses[0].id);
         if (courses[0].quotas && courses[0].quotas.length > 0) {
           setSelectedQuota(courses[0].quotas[0].quotaName);
         } else {
-          setSelectedQuota('General');
+          setSelectedQuota('');
         }
       }
       setNotes('');
@@ -132,7 +132,7 @@ export const AdmissionAllocationModal: React.FC<AdmissionAllocationModalProps> =
                         if (course.quotas && course.quotas.length > 0) {
                           setSelectedQuota(course.quotas[0].quotaName);
                         } else {
-                          setSelectedQuota('General');
+                          setSelectedQuota('');
                         }
                       }}
                       activeOpacity={0.7}
@@ -158,12 +158,7 @@ export const AdmissionAllocationModal: React.FC<AdmissionAllocationModalProps> =
             {/* Step 2: Select Quota */}
             <Text style={[styles.fieldLabel, { marginTop: 16 }]}>2. SELECT QUOTA CATEGORY</Text>
             {quotas.length === 0 ? (
-              <TouchableOpacity
-                style={[styles.quotaOption, styles.quotaOptionSelected]}
-                onPress={() => setSelectedQuota('General')}
-              >
-                <Text style={styles.quotaNameSelected}>General Quota</Text>
-              </TouchableOpacity>
+              <Text style={styles.emptyText}>No quota categories are configured for this course.</Text>
             ) : (
               <View style={styles.quotaGrid}>
                 {quotas.map((q) => {

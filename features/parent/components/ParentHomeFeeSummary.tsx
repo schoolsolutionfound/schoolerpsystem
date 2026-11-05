@@ -580,16 +580,20 @@ export const ParentHomeFeeSummary: React.FC<ParentHomeFeeSummaryProps> = ({ onBa
                       </View>
                       <View style={styles.tableDividerVertical} />
                       <View style={[styles.tableCol, { width: 95 }]}>
-                        <TouchableOpacity
-                          style={styles.downloadActionBtn}
-                          activeOpacity={0.7}
-                          onPress={() => handleDownloadReceipt(item)}
-                          disabled={downloadingId === item.id}
-                        >
-                          <Text style={styles.downloadActionText}>
-                            {downloadingId === item.id ? 'Saving...' : 'Download'}
-                          </Text>
-                        </TouchableOpacity>
+                        {item.receiptNo && item.date && item.method && item.particulars ? (
+                          <TouchableOpacity
+                            style={styles.downloadActionBtn}
+                            activeOpacity={0.7}
+                            onPress={() => handleDownloadReceipt(item)}
+                            disabled={downloadingId === item.id}
+                          >
+                            <Text style={styles.downloadActionText}>
+                              {downloadingId === item.id ? 'Saving...' : 'Download'}
+                            </Text>
+                          </TouchableOpacity>
+                        ) : (
+                          <Text style={styles.tableBodyDateText}>Unavailable</Text>
+                        )}
                       </View>
                     </View>
                   </View>

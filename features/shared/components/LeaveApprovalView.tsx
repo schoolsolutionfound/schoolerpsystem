@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { FontFamily } from '../../../constants/fonts';
+import { useConfigStore } from '../../../store/useConfigStore';
 
 export type LeaveType = 'casual' | 'medical' | 'earned' | 'duty' | 'other';
 export type LeaveStatus = 'pending' | 'approved' | 'rejected';
@@ -90,16 +91,6 @@ const formatLeaveDuration = (start: string, end: string, days: number): string =
   return `${formatShortDate(start)} – ${formatShortDate(end)} · ${daysLabel}`;
 };
 
-const INSTITUTION_DEPARTMENTS = [
-  'Computer Science',
-  'AIML',
-  'Electronics & Comm',
-  'Mechanical Eng',
-  'Civil Eng',
-  'Commerce & Mgmt',
-  'Applied Sciences',
-];
-
 const DEPARTMENT_HODS: Record<string, { name: string; designation: string }> = {};
 
 
@@ -117,13 +108,23 @@ export const LeaveApprovalView: React.FC<LeaveApprovalViewProps> = ({
   const isPrincipal = userRole === 'principal' || userRole === 'admin';
   const isHOD = userRole === 'hod';
   const isFaculty = userRole === 'teacher' || userRole === 'faculty';
-  const effectiveDepartment = userDepartment || 'Computer Science';
+  const effectiveDepartment = (userDepartment || '').trim();
 
-  const [requests, setRequests] = useState<LeaveRequest[]>([]);
+  const [requests] = useState<LeaveRequest[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'pending' | 'approved' | 'rejected' | 'all'>('pending');
   const [selectedDept, setSelectedDept] = useState<string>(isHOD ? effectiveDepartment : 'all');
   const [refreshing, setRefreshing] = useState(false);
+
+  const institutionDepartments = useConfigStore((s) => s.institution.departments);
+  const departmentOptions = useMemo(() => {
+    const set = new Set<string>(institutionDepartments);
+    if (effectiveDepartment) set.add(effectiveDepartment);
+    requests.forEach((r) => {
+      if (r.department && r.department.trim()) set.add(r.department.trim());
+    });
+    return Array.from(set);
+  }, [institutionDepartments, effectiveDepartment, requests]);
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -320,117 +321,35 @@ export const LeaveApprovalView: React.FC<LeaveApprovalViewProps> = ({
   };
 
   // Handlers
-  const handleApprove = (id: string, name: string) => {
-    const today = new Date().toISOString().slice(0, 10);
-    const approverRoleTitle = isHOD ? `HOD (${effectiveDepartment})` : 'Principal';
-    const sanctionRemarks = isHOD
-      ? `Sanctioned by Reporting Manager (${reviewerName}, HOD - ${effectiveDepartment}). Visible to Principal.`
-      : `Sanctioned by Executive Authority (${reviewerName}, Principal).`;
-
-    setRequests((prev) =>
-      prev.map((r) =>
-        r.id === id
-          ? {
-              ...r,
-              status: 'approved',
-              reviewedBy: `${reviewerName} (${approverRoleTitle})`,
-              reviewDate: today,
-              reviewRemarks: sanctionRemarks,
-            }
-          : r
-      )
-    );
+  const handleApprove = (_id: string, _name: string) => {
     Alert.alert(
-      'Leave Approved',
-      `Leave request for ${name} has been sanctioned.${
-        isHOD ? ' Principal has been updated for institutional oversight.' : ''
-      }`
+      'Leave Workflow Unavailable',
+      'Staff leave approvals are not configured in the backend.'
     );
   };
 
-  const handleOpenReject = (id: string) => {
-    setRejectTargetId(id);
-    setRejectRemarks('');
-    setRejectModalVisible(true);
+  const handleOpenReject = (_id: string) => {
+    Alert.alert('Leave Workflow Unavailable', 'Staff leave approvals are not configured in the backend.');
   };
 
   const handleConfirmReject = () => {
-    if (!rejectTargetId) return;
-    const today = new Date().toISOString().slice(0, 10);
-    const approverRoleTitle = isHOD ? `HOD (${effectiveDepartment})` : 'Principal';
-    setRequests((prev) =>
-      prev.map((r) =>
-        r.id === rejectTargetId
-          ? {
-              ...r,
-              status: 'rejected',
-              reviewedBy: `${reviewerName} (${approverRoleTitle})`,
-              reviewDate: today,
-              reviewRemarks: rejectRemarks.trim() || 'Schedule conflicts / substitute not arranged.',
-            }
-          : r
-      )
-    );
     setRejectModalVisible(false);
     setRejectTargetId(null);
-    Alert.alert('Leave Rejected', 'Leave request has been marked as rejected.');
+    Alert.alert('Leave Workflow Unavailable', 'Staff leave approvals are not configured in the backend.');
   };
 
   const handleOpenApply = () => {
-    setApplyName(reviewerName || (isFaculty ? 'Faculty Member' : isHOD ? 'Head of Dept' : 'Institutional Staff'));
-    setApplyDept(effectiveDepartment);
-    setApplyType('casual');
-    setApplyStartDate(new Date().toISOString().slice(0, 10));
-    setApplyEndDate(new Date().toISOString().slice(0, 10));
-    setApplyReason('');
-    setApplyDeptDropdownOpen(false);
-    setApplyTypeDropdownOpen(false);
-    setApplyModalVisible(true);
+    Alert.alert(
+      'Leave Applications Unavailable',
+      'Staff leave requests and balances are not configured in the backend.'
+    );
   };
 
   const handleSubmitApplication = () => {
-    if (!applyStartDate.trim() || !applyReason.trim()) {
-      Alert.alert('Required Fields', 'Please specify the start date and reason for leave.');
-      return;
-    }
-
-    const start = new Date(applyStartDate).getTime();
-    const end = new Date(applyEndDate || applyStartDate).getTime();
-    const days = Math.max(1, Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1);
-
-    const newReq: LeaveRequest = {
-      id: `lr-${Date.now()}`,
-      applicantId: `emp-${Date.now()}`,
-      applicantName: applyName.trim() || 'Staff Member',
-      employeeCode: `EMP-${applyDept.slice(0, 3).toUpperCase()}-${Math.floor(100 + Math.random() * 900)}`,
-      designation: isHOD ? 'Head of Department' : isFaculty ? 'Assistant Professor' : 'Faculty / Staff',
-      department: applyDept,
-      leaveType: applyType,
-      approvalAuthority: autoApprover.authority,
-      startDate: applyStartDate.trim(),
-      endDate: (applyEndDate.trim() || applyStartDate.trim()),
-      totalDays: isNaN(days) ? 1 : days,
-      reason: applyReason.trim(),
-      substituteFaculty: 'Internal departmental handover arranged',
-      contactNumber: '+91 98450 00000',
-      appliedDate: new Date().toISOString().slice(0, 10),
-      leaveBalance: {
-        casualTaken: 2,
-        casualAvailable: 10,
-        medicalTaken: 0,
-        medicalAvailable: 10,
-        earnedTaken: 0,
-        earnedAvailable: 15,
-      },
-      status: 'pending',
-    };
-
-    setRequests((prev) => [newReq, ...prev]);
     setApplyModalVisible(false);
-
     Alert.alert(
-      'Leave Submitted',
-      `Your application has been routed to your auto-assigned Reporting Manager (${autoApprover.name}, ${autoApprover.designation}) for sanction.`
+      'Leave Applications Unavailable',
+      'Staff leave requests and balances are not configured in the backend.'
     );
   };
 
@@ -860,12 +779,12 @@ export const LeaveApprovalView: React.FC<LeaveApprovalViewProps> = ({
                       }}
                       activeOpacity={0.7}
                     >
-                      <Text style={styles.dropdownTriggerText}>{applyDept}</Text>
+                      <Text style={styles.dropdownTriggerText}>{applyDept || 'Select department'}</Text>
                       <Feather name={applyDeptDropdownOpen ? 'chevron-up' : 'chevron-down'} size={15} color="#6B7280" />
                     </TouchableOpacity>
                     {applyDeptDropdownOpen && (
                       <View style={styles.dropdownMenu}>
-                        {INSTITUTION_DEPARTMENTS.map((dept) => {
+                        {departmentOptions.map((dept) => {
                           const selected = applyDept === dept;
                           return (
                             <TouchableOpacity
@@ -889,7 +808,7 @@ export const LeaveApprovalView: React.FC<LeaveApprovalViewProps> = ({
                   </>
                 ) : (
                   <View style={styles.lockedDeptField}>
-                    <Text style={styles.lockedDeptText}>{applyDept}</Text>
+                    <Text style={styles.lockedDeptText}>{applyDept || 'Not assigned'}</Text>
                     <View style={styles.lockedDeptBadge}>
                       <Feather name="lock" size={11} color="#6B7280" />
                       <Text style={styles.lockedDeptBadgeText}>Your Department</Text>
@@ -1110,7 +1029,7 @@ export const LeaveApprovalView: React.FC<LeaveApprovalViewProps> = ({
               <Text style={styles.filterSectionLabel}>Department</Text>
               {isPrincipal ? (
                 <View style={styles.filterOptionsGrid}>
-                  {['all', ...INSTITUTION_DEPARTMENTS].map((dept) => {
+                  {['all', ...departmentOptions].map((dept) => {
                     const selected = tempDept.toLowerCase() === dept.toLowerCase();
                     return (
                       <TouchableOpacity

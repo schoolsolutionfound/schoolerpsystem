@@ -21,12 +21,13 @@ import { InlineSearchDropdown } from './common/InlineSearchDropdown';
 import { FontFamily } from '../../../constants/fonts';
 import {
   fetchExamsApi,
+  fetchExamApi,
   fetchClassSectionsApi,
   fetchSubjectsApi,
+  fetchMarksForClassApi,
   saveMarksApi,
   fetchTeacherTimetableApi,
 } from '../../../api/academics';
-import { useTeacherSettingsStore } from '../services/teacherSettingsStore';
 import { TeacherMarksSkeleton } from './skeletons';
 
 interface ParsedCsvStudent {
@@ -45,6 +46,8 @@ interface StudentMarkRecord {
 
 interface TeacherClassCard {
   id: string;
+  classSectionId: string;
+  subjectId: string;
   className: string;
   sectionName: string;
   subjectName?: string;
@@ -61,53 +64,29 @@ export const TeacherMarksView: React.FC = () => {
   const [teacherClasses, setTeacherClasses] = useState<TeacherClassCard[]>([]);
   const [classSearchQuery, setClassSearchQuery] = useState('');
 
-  // Top Filter Selections (Class, Section, Exam, List)
+  // Top filter selections.
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedSection, setSelectedSection] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedExam, setSelectedExam] = useState('');
-  const [selectedList, setSelectedList] = useState('');
 
   // Search in student roster
   const [searchQuery, setSearchQuery] = useState('');
 
   // Dropdown options
-  const [classesList, setClassesList] = useState<string[]>([]);
-  const [sectionsList, setSectionsList] = useState<string[]>([]);
-  const [subjectsList, setSubjectsList] = useState<string[]>([]);
   const [examsList, setExamsList] = useState<string[]>([]);
-  const [evalList, setEvalList] = useState<string[]>([]);
-
-  // Sync with Teacher Settings (Exam Types & List Types)
-  const storeExamTypes = useTeacherSettingsStore((s) => s.examTypes);
-  const storeListTypes = useTeacherSettingsStore((s) => s.listTypes);
-
-  useEffect(() => {
-    if (storeExamTypes && storeExamTypes.length > 0) {
-      const names = storeExamTypes.map((e) => e.name);
-      setExamsList(names);
-      if (!names.includes(selectedExam)) {
-        setSelectedExam(names[0]);
-      }
-    }
-  }, [storeExamTypes]);
-
-  useEffect(() => {
-    if (storeListTypes && storeListTypes.length > 0) {
-      const activeNames = storeListTypes.filter((l) => l.enabled).map((l) => l.name);
-      if (activeNames.length > 0) {
-        setEvalList(activeNames);
-        if (!activeNames.includes(selectedList)) {
-          setSelectedList(activeNames[0]);
-        }
-      }
-    }
-  }, [storeListTypes]);
+  const [examRecords, setExamRecords] = useState<any[]>([]);
+  const [activeExamSubject, setActiveExamSubject] = useState<any | null>(null);
+  const [dataError, setDataError] = useState('');
 
   // Active inline dropdown filter
-  const [openFilter, setOpenFilter] = useState<'exam' | 'list' | null>(null);
+  const [openFilter, setOpenFilter] = useState<'exam' | null>(null);
 
-  const currentKey = `${selectedClass}_${selectedSection}_${selectedSubject}_${selectedExam}_${selectedList}`;
+  const selectedExamRecord = useMemo(
+    () => examRecords.find((exam) => exam.name === selectedExam) || null,
+    [examRecords, selectedExam]
+  );
+  const currentKey = `${selectedClassCard?.classSectionId || ''}_${selectedClassCard?.subjectId || ''}_${selectedExamRecord?.id || ''}`;
 
   // CSV / Excel Import State
   const [showCsvModal, setShowCsvModal] = useState(false);
@@ -137,17 +116,7 @@ export const TeacherMarksView: React.FC = () => {
 
   const isEntered = enteredKeys.has(currentKey);
 
-  // Total Marks dynamic limit (e.g. from store config or 50/100 fallback)
-  const totalMarks = useMemo(() => {
-    const matched = storeExamTypes?.find((e) => e.name.toLowerCase() === selectedExam.toLowerCase());
-    if (matched) {
-      return matched.maxMarks;
-    }
-    if (selectedExam.toLowerCase().includes('final') || selectedExam.toLowerCase().includes('mid')) {
-      return 100;
-    }
-    return 50;
-  }, [selectedExam, storeExamTypes]);
+  const totalMarks = Number(activeExamSubject?.maxMarks || 0);
 
   const [marksDatabase, setMarksDatabase] = useState<Record<string, Record<string, number>>>({});
 
@@ -156,53 +125,70 @@ export const TeacherMarksView: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [rosterLoading, setRosterLoading] = useState(false);
 
   // Load API options and teacher's timetable classes if available
   const loadInitialData = useCallback(async () => {
+    setLoading(true);
     try {
       const [csRes, subRes, exRes, ttRes] = await Promise.all([
-        fetchClassSectionsApi().catch(() => null),
-        fetchSubjectsApi().catch(() => null),
-        fetchExamsApi().catch(() => null),
-        fetchTeacherTimetableApi().catch(() => null),
+        fetchClassSectionsApi(),
+        fetchSubjectsApi(),
+        fetchExamsApi(),
+        fetchTeacherTimetableApi(),
       ]);
-      if (Array.isArray(csRes) && csRes.length > 0) {
-        const cSet = new Set<string>();
-        const sSet = new Set<string>();
-        csRes.forEach((cs: any) => {
-          if (cs.name) {
-            const parts = cs.name.split('-');
-            if (parts[0]) cSet.add(parts[0].trim());
-            if (parts[1]) sSet.add(parts[1].trim());
-          }
-          if (cs.section) sSet.add(cs.section.trim());
-        });
-        setClassesList(Array.from(cSet));
-        setSectionsList(Array.from(sSet));
-      }
-      if (Array.isArray(subRes) && subRes.length > 0) {
-        const subNames = subRes.map((s: any) => s.name || s.subjectName).filter(Boolean);
-        if (subNames.length) setSubjectsList(Array.from(new Set(subNames)));
-      }
       if (Array.isArray(exRes) && exRes.length > 0) {
         const exNames = exRes.map((e: any) => e.name).filter(Boolean);
-        if (exNames.length) setExamsList(Array.from(new Set(exNames)));
+        const uniqueNames = Array.from(new Set(exNames)) as string[];
+        setExamRecords(exRes);
+        setExamsList(uniqueNames);
+        setSelectedExam((current) =>
+          current && uniqueNames.includes(current) ? current : uniqueNames[0] || ''
+        );
+      } else {
+        setExamRecords([]);
+        setExamsList([]);
+        setSelectedExam('');
       }
       // Populate teacher's dynamic classes from timetable
       if (ttRes?.periods && Array.isArray(ttRes.periods) && ttRes.periods.length > 0) {
         const cardMap = new Map<string, TeacherClassCard>();
-        ttRes.periods.forEach((p: any, idx: number) => {
+        const sectionByName = new Map(
+          (Array.isArray(csRes) ? csRes : [])
+            .filter((section: any) => section?.id && section?.name)
+            .map((section: any) => [String(section.name).toLowerCase(), String(section.id)])
+        );
+        const subjectByName = new Map(
+          (Array.isArray(subRes) ? subRes : [])
+            .filter((subject: any) => subject?.id && (subject?.name || subject?.subjectName))
+            .map((subject: any) => [
+              String(subject.name || subject.subjectName).toLowerCase(),
+              String(subject.id),
+            ])
+        );
+        ttRes.periods.forEach((p: any) => {
           const rawName = p.classSectionName || p.classSection?.name || '';
           const sub = p.subject?.name || p.subjectName || '';
-          if (rawName) {
+          const classSectionId = String(
+            p.classSection?.id ||
+              p.classSectionId ||
+              sectionByName.get(String(rawName).toLowerCase()) ||
+              ''
+          );
+          const subjectId = String(
+            p.subject?.id || p.subjectId || subjectByName.get(String(sub).toLowerCase()) || ''
+          );
+          if (rawName && classSectionId && subjectId) {
             const parts = rawName.split('-');
             const cName = parts[0]?.trim() || rawName;
             const sName = parts[1]?.trim() || '';
             const fullCls = cName.toLowerCase().startsWith('class') ? cName : `Class ${cName}`;
-            const key = `${fullCls}_${sName}`;
+            const key = `${classSectionId}_${subjectId}`;
             if (!cardMap.has(key)) {
               cardMap.set(key, {
-                id: p.id || `tc-dyn-${idx}`,
+                id: String(p.id || key),
+                classSectionId,
+                subjectId,
                 className: fullCls,
                 sectionName: sName,
                 subjectName: sub,
@@ -213,10 +199,18 @@ export const TeacherMarksView: React.FC = () => {
         });
         if (cardMap.size > 0) {
           setTeacherClasses(Array.from(cardMap.values()));
+        } else {
+          setTeacherClasses([]);
         }
+      } else {
+        setTeacherClasses([]);
       }
-    } catch {
-      // Fallback
+      setDataError('');
+    } catch (error: any) {
+      setTeacherClasses([]);
+      setExamRecords([]);
+      setExamsList([]);
+      setDataError(error?.message || 'Could not load marks setup data.');
     } finally {
       setLoading(false);
     }
@@ -232,11 +226,63 @@ export const TeacherMarksView: React.FC = () => {
     setRefreshing(false);
   }, [loadInitialData]);
 
-  useEffect(() => {
+  const loadMarksRoster = useCallback(async () => {
     setEditingStudentIds(new Set());
     setIsAllEditing(false);
     setStudents([]);
-  }, [selectedClass, selectedSection, currentKey]);
+    setActiveExamSubject(null);
+
+    if (!selectedClassCard || !selectedExamRecord) return;
+
+    setRosterLoading(true);
+    try {
+      const details: any = await fetchExamApi(selectedExamRecord.id);
+      const examSubject = (Array.isArray(details?.subjects) ? details.subjects : []).find(
+        (subject: any) => String(subject.subjectId) === selectedClassCard.subjectId
+      );
+      if (!examSubject?.id) {
+        throw new Error(`${selectedSubject || 'This subject'} is not configured for ${selectedExam}.`);
+      }
+
+      const rows: any[] = await fetchMarksForClassApi(
+        examSubject.id,
+        selectedClassCard.classSectionId
+      );
+      const rosterRows = Array.isArray(rows) ? rows : [];
+      const marks: Record<string, number> = {};
+      rosterRows.forEach((row) => {
+        if (row.entered) marks[row.studentId] = Number(row.marksObtained);
+      });
+
+      setActiveExamSubject(examSubject);
+      setStudents(
+        rosterRows.map((row) => ({
+          id: String(row.studentId),
+          rollNo: String(row.rollNoOrUSN || ''),
+          studentName: String(row.fullName || ''),
+          marksObtained: Number(row.marksObtained || 0),
+        }))
+      );
+      setMarksDatabase((prev) => ({ ...prev, [currentKey]: marks }));
+      setEnteredKeys((prev) => {
+        const next = new Set(prev);
+        if (rosterRows.some((row) => row.entered)) next.add(currentKey);
+        else next.delete(currentKey);
+        return next;
+      });
+      setDataError('');
+    } catch (error: any) {
+      setStudents([]);
+      setMarksDatabase((prev) => ({ ...prev, [currentKey]: {} }));
+      setDataError(error?.message || 'Could not load the marks register.');
+    } finally {
+      setRosterLoading(false);
+    }
+  }, [selectedClassCard, selectedExamRecord, selectedExam, selectedSubject, currentKey]);
+
+  useEffect(() => {
+    loadMarksRoster();
+  }, [loadMarksRoster]);
 
   // Current marks map for active key
   const activeMarksMap = useMemo(() => {
@@ -270,9 +316,7 @@ export const TeacherMarksView: React.FC = () => {
   const handleSelectClass = (item: TeacherClassCard) => {
     setSelectedClass(item.className);
     setSelectedSection(item.sectionName);
-    if (item.subjectName && subjectsList.includes(item.subjectName)) {
-      setSelectedSubject(item.subjectName);
-    }
+    setSelectedSubject(item.subjectName || '');
     setSelectedClassCard(item);
   };
 
@@ -291,17 +335,33 @@ export const TeacherMarksView: React.FC = () => {
 
   // Save Marks handler
   const handleSaveMarks = async () => {
+    if (!selectedClassCard || !activeExamSubject?.id) {
+      Alert.alert('Unable to Save', 'Select an exam that includes this subject.');
+      return;
+    }
+    if (students.length === 0) {
+      Alert.alert('Unable to Save', 'No student roster is available for this class.');
+      return;
+    }
+    const unmarked = students.filter((student) => activeMarksMap[student.id] === undefined);
+    if (unmarked.length > 0) {
+      Alert.alert(
+        'Marks Incomplete',
+        `Enter marks for all students. ${unmarked.length} still have no mark.`
+      );
+      return;
+    }
     setSaving(true);
     try {
       const entries = students.map((s) => ({
         studentId: s.id,
-        marksObtained: activeMarksMap[s.id] ?? 0,
+        marksObtained: activeMarksMap[s.id],
       }));
       await saveMarksApi({
-        examSubjectId: `${selectedExam}-${selectedSubject}`,
-        classSectionId: `${selectedClass}-${selectedSection}`,
+        examSubjectId: activeExamSubject.id,
+        classSectionId: selectedClassCard.classSectionId,
         entries,
-      }).catch(() => null);
+      });
 
       setEnteredKeys((prev) => {
         const next = new Set(prev);
@@ -313,7 +373,7 @@ export const TeacherMarksView: React.FC = () => {
 
       Alert.alert(
         'Marks Saved',
-        `Marks for ${selectedClass} - Section ${selectedSection} (${selectedSubject}) - ${selectedExam} [${selectedList}] have been saved successfully!`
+        `Marks for ${selectedClass} - Section ${selectedSection} (${selectedSubject}) - ${selectedExam} have been saved successfully!`
       );
     } catch (err: any) {
       Alert.alert('Error', err?.message || 'Could not save marks');
@@ -634,7 +694,9 @@ export const TeacherMarksView: React.FC = () => {
               <TeacherMarksSkeleton />
             ) : filteredTeacherClasses.length === 0 ? (
               <View style={styles.emptyClassesCard}>
-                <Text style={styles.emptyClassesText}>No matching classes found</Text>
+                <Text style={styles.emptyClassesText}>
+                  {dataError || 'No assigned classes are available for marks entry.'}
+                </Text>
               </View>
             ) : (
               filteredTeacherClasses.map((item) => (
@@ -723,11 +785,10 @@ export const TeacherMarksView: React.FC = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Exam & List Filters (Interchanged: Exam first, List second) */}
+        {/* Exam filter */}
         <View style={styles.filtersWrapper}>
           <View style={styles.filtersRow}>
-            {/* Exam Filter (First) */}
-            <View style={[styles.filterCol, { flex: 1.25 }]}>
+            <View style={styles.filterCol}>
               <Text style={styles.filterLabel}>Exam</Text>
               <TouchableOpacity
                 style={[
@@ -756,35 +817,6 @@ export const TeacherMarksView: React.FC = () => {
               </TouchableOpacity>
             </View>
 
-            {/* List Filter (Second - Interchanged) */}
-            <View style={[styles.filterCol, { flex: 1.25 }]}>
-              <Text style={styles.filterLabel}>List</Text>
-              <TouchableOpacity
-                style={[
-                  styles.filterBox,
-                  openFilter === 'list' && styles.filterBoxActive,
-                ]}
-                activeOpacity={0.8}
-                onPress={() => {
-                  setOpenFilter(openFilter === 'list' ? null : 'list');
-                }}
-              >
-                <Text
-                  style={[
-                    styles.filterVal,
-                    openFilter === 'list' && styles.filterValActive,
-                  ]}
-                  numberOfLines={1}
-                >
-                  {selectedList}
-                </Text>
-                <Feather
-                  name={openFilter === 'list' ? 'chevron-up' : 'chevron-down'}
-                  size={13}
-                  color={openFilter === 'list' ? '#0284C7' : '#4B5563'}
-                />
-              </TouchableOpacity>
-            </View>
           </View>
         </View>
 
@@ -795,12 +827,12 @@ export const TeacherMarksView: React.FC = () => {
               placeholder="Search exam..."
               selectedValue={selectedExam}
               options={examsList.map((e) => {
-                const isTerm = e.toLowerCase().includes('final') || e.toLowerCase().includes('mid');
+                const exam = examRecords.find((record) => record.name === e);
                 return {
                   label: e,
                   value: e,
-                  subtext: isTerm ? 'Term Examination' : 'Periodic Assessment',
-                  badge: isTerm ? 'Max 100' : 'Max 50',
+                  subtext: [exam?.term, exam?.academicYear].filter(Boolean).join(' • '),
+                  badge: exam?.status ? String(exam.status).toUpperCase() : undefined,
                   badgeColor: '#047857',
                 };
               })}
@@ -812,32 +844,6 @@ export const TeacherMarksView: React.FC = () => {
                 setOpenFilter(null);
               }}
               iconName="file-document-edit-outline"
-              iconType="material"
-            />
-          </View>
-        )}
-
-        {/* Inline Dropdown for List - Single Search with Dropdown */}
-        {openFilter === 'list' && (
-          <View style={styles.inlineFilterWrapper}>
-            <InlineSearchDropdown
-              placeholder="Search list..."
-              selectedValue={selectedList}
-              options={evalList.map((item) => ({
-                label: item,
-                value: item,
-                subtext: item === 'Test' ? 'Assessment' : 'Assignment / Submission',
-                badge: item === 'Test' ? 'Default' : undefined,
-                badgeColor: item === 'Test' ? '#0284C7' : undefined,
-              }))}
-              isOpen={true}
-              menuOnly={true}
-              onToggle={() => setOpenFilter(null)}
-              onSelect={(item) => {
-                setSelectedList(item);
-                setOpenFilter(null);
-              }}
-              iconName="format-list-bulleted"
               iconType="material"
             />
           </View>
@@ -918,13 +924,25 @@ export const TeacherMarksView: React.FC = () => {
           </View>
 
           {/* Table Rows */}
-          {filteredStudents.length === 0 ? (
+          {rosterLoading ? (
+            <View style={styles.emptyTableBox}>
+              <ActivityIndicator size="small" color="#171717" />
+              <Text style={styles.emptyTableText}>Loading marks register...</Text>
+            </View>
+          ) : dataError ? (
+            <View style={styles.emptyTableBox}>
+              <Text style={styles.emptyTableText}>{dataError}</Text>
+              <TouchableOpacity onPress={loadMarksRoster} style={styles.toolBtn}>
+                <Text style={styles.toolBtnText}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          ) : filteredStudents.length === 0 ? (
             <View style={styles.emptyTableBox}>
               <Text style={styles.emptyTableText}>No students found</Text>
             </View>
           ) : (
             filteredStudents.map((st) => {
-              const currentScore = activeMarksMap[st.id] ?? 0;
+              const currentScore = activeMarksMap[st.id];
               const isRowEditing = !isEntered || isAllEditing || editingStudentIds.has(st.id);
               const isSingleActive = editingStudentIds.has(st.id);
 
@@ -940,11 +958,11 @@ export const TeacherMarksView: React.FC = () => {
                   {/* Marks Column */}
                   <View style={[styles.colMarksWrap, styles.colMarksHeader]}>
                     {!isRowEditing ? (
-                      <Text style={styles.viewMarksText}>{currentScore}</Text>
+                      <Text style={styles.viewMarksText}>{currentScore ?? '—'}</Text>
                     ) : (
                       <TextInput
                         style={styles.marksInputBox}
-                        value={String(currentScore)}
+                        value={currentScore === undefined ? '' : String(currentScore)}
                         keyboardType="numeric"
                         maxLength={3}
                         onChangeText={(val) => handleMarkChange(st.id, val)}

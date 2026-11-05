@@ -178,6 +178,12 @@ export default function EditInstitutionAdminScreen() {
   if (adminsLoading) {
     return (
       <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => safeGoBack(navigation, '/(developer)/home')}>
+            <MaterialCommunityIcons name="arrow-left" size={24} color={Colors.light.text} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Edit Institution Admin</Text>
+        </View>
         <DeveloperDetailSkeleton />
       </SafeAreaView>
     );
@@ -186,6 +192,12 @@ export default function EditInstitutionAdminScreen() {
   if (adminsError || !admin) {
     return (
       <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => safeGoBack(navigation, '/(developer)/home')}>
+            <MaterialCommunityIcons name="arrow-left" size={24} color={Colors.light.text} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Edit Institution Admin</Text>
+        </View>
         <ErrorState
           title="Admin Not Found"
           message="Could not load admin details. The admin may have been removed."

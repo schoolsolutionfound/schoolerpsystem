@@ -34,8 +34,8 @@ export const CopyFormModal = ({
 }) => {
   const [accessionNumber, setAccessionNumber] = useState('');
   const [barcode, setBarcode] = useState('');
-  const [rack, setRack] = useState('Rack A');
-  const [shelf, setShelf] = useState('Shelf 1');
+  const [rack, setRack] = useState('');
+  const [shelf, setShelf] = useState('');
   const [status, setStatus] = useState<CopyStatus>('AVAILABLE');
   const [condition, setCondition] = useState<CopyCondition>('GOOD');
   const [submitting, setSubmitting] = useState(false);
@@ -44,26 +44,19 @@ export const CopyFormModal = ({
     if (editingCopy) {
       setAccessionNumber(editingCopy.accessionNumber || '');
       setBarcode(editingCopy.barcode || '');
-      setRack(editingCopy.rack || 'Rack A');
-      setShelf(editingCopy.shelf || 'Shelf 1');
+      setRack(editingCopy.rack || '');
+      setShelf(editingCopy.shelf || '');
       setStatus(editingCopy.status || 'AVAILABLE');
       setCondition(editingCopy.condition || 'GOOD');
     } else {
-      const randNum = String(Math.floor(100000 + Math.random() * 900000));
-      setAccessionNumber(`ACC-${randNum}`);
-      setBarcode(`BAR-${randNum}`);
-      setRack('Rack A');
-      setShelf('Shelf 1');
+      setAccessionNumber('');
+      setBarcode('');
+      setRack('');
+      setShelf('');
       setStatus('AVAILABLE');
       setCondition('GOOD');
     }
   }, [editingCopy, visible]);
-
-  const generateNewBarcode = () => {
-    const randNum = String(Math.floor(100000 + Math.random() * 900000));
-    setAccessionNumber(`ACC-${randNum}`);
-    setBarcode(`BAR-${randNum}`);
-  };
 
   const handleSave = () => {
     if (!accessionNumber.trim()) {
@@ -79,8 +72,8 @@ export const CopyFormModal = ({
     onSave({
       accessionNumber: accessionNumber.trim(),
       barcode: barcode.trim(),
-      rack: rack.trim() || 'Rack A',
-      shelf: shelf.trim() || 'Shelf 1',
+      rack: rack.trim() || undefined,
+      shelf: shelf.trim() || undefined,
       status,
       condition,
     });
@@ -111,18 +104,6 @@ export const CopyFormModal = ({
               nestedScrollEnabled={true}
               contentContainerStyle={{ paddingBottom: 40 }}
             >
-            {/* Auto-generate Barcode / Accession Card */}
-            <View style={copyFormStyles.barcodeCard}>
-              <View style={{ flex: 1 }}>
-                <Text style={copyFormStyles.barcodeTitle}>Inventory Tag Generator</Text>
-                <Text style={copyFormStyles.barcodeSub}>Auto-assign unique barcode & accession number</Text>
-              </View>
-              <TouchableOpacity style={copyFormStyles.genBtn} onPress={generateNewBarcode}>
-                <Feather name="refresh-cw" size={14} color="#121316" />
-                <Text style={copyFormStyles.genBtnText}>Generate</Text>
-              </TouchableOpacity>
-            </View>
-
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
               <View style={[styles.formGroup, { flex: 1 }]}>
                 <Text style={styles.formLabel}>Accession Number *</Text>

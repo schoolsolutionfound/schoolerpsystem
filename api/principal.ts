@@ -57,7 +57,103 @@ export interface StaffApiResponse {
     qualification?: string;
     experienceYears?: number;
     rank?: string;
+    attendanceToday?: string;
+    status?: string;
   };
+}
+
+export interface PrincipalFeeSummary {
+  institutionCode: string;
+  studentCount: number;
+  totals: {
+    expected: number;
+    collected: number;
+    pending: number;
+    collectionRate: number;
+  };
+  byDepartment: {
+    department: string;
+    expected: number;
+    collected: number;
+    pending: number;
+    collectionRate: number;
+    studentCount: number;
+    paidStudentCount: number;
+  }[];
+  terms: { term: string; expected: number; collected: number; pending: number }[];
+  academicYears: { academicYear: string; expected: number; collected: number; pending: number }[];
+  generatedAt: string;
+}
+
+export interface PrincipalTodayClassSlot {
+  id: string;
+  dayOfWeek: number;
+  room?: string;
+  subject: { id: string; name: string; code?: string } | null;
+  period: { id: string; label: string; startTime: string; endTime: string; sortOrder: number } | null;
+  teacher: { id: string; fullName: string } | null;
+}
+
+export interface PrincipalTodayClass {
+  classSectionId: string;
+  name: string;
+  department: string;
+  section: string;
+  academicYear: string;
+  studentCount: number;
+  classTeacherId: string;
+  classTeacherName: string;
+  slots: PrincipalTodayClassSlot[];
+}
+
+export interface PrincipalTodayClasses {
+  date: string;
+  dayOfWeek: number;
+  classes: PrincipalTodayClass[];
+  totals: { classes: number; periodsScheduled: number; teachersEngaged: number };
+}
+
+export interface UpcomingEvent {
+  id: string;
+  title: string;
+  content: string;
+  type: string;
+  priority: string;
+  status: string;
+  publishAt: string | null;
+  expiresAt: string | null;
+}
+
+export async function fetchPrincipalFeeSummaryApi(): Promise<PrincipalFeeSummary | null> {
+  try {
+    const res = await apiClient<any>('/admin/fees/summary');
+    return res?.data || res || null;
+  } catch (err) {
+    console.warn('[fetchPrincipalFeeSummaryApi] error:', err);
+    return null;
+  }
+}
+
+export async function fetchPrincipalTodayClassesApi(date?: string): Promise<PrincipalTodayClasses | null> {
+  try {
+    const qs = date ? `?date=${encodeURIComponent(date)}` : '';
+    const res = await apiClient<any>(`/admin/timetable/today${qs}`);
+    return res?.data || res || null;
+  } catch (err) {
+    console.warn('[fetchPrincipalTodayClassesApi] error:', err);
+    return null;
+  }
+}
+
+export async function fetchUpcomingEventsApi(limit = 10): Promise<UpcomingEvent[]> {
+  try {
+    const res = await apiClient<any>(`/announcements/upcoming-events?limit=${limit}`);
+    const items = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : [];
+    return items;
+  } catch (err) {
+    console.warn('[fetchUpcomingEventsApi] error:', err);
+    return [];
+  }
 }
 
 export async function fetchPrincipalKPIsApi(): Promise<PrincipalKPIs> {
@@ -77,12 +173,19 @@ export async function fetchPrincipalKPIsApi(): Promise<PrincipalKPIs> {
     const sectionsPresentStudents = sections.reduce((sum: number, sec: any) => sum + (sec.presentCount !== undefined ? Number(sec.presentCount) : Number(sec.studentCount) || 0), 0);
 
     const totalStudents = sectionsTotalStudents > 0 ? sectionsTotalStudents : (Number(rawStats.students ?? rawStats.totalStudents) || 0);
-    const presentStudents = sectionsTotalStudents > 0 ? sectionsPresentStudents : (rawStats.presentStudents !== undefined ? Number(rawStats.presentStudents) : Math.round(totalStudents * 0.92));
-    const studentAttPct = totalStudents > 0 ? Math.round((presentStudents / totalStudents) * 100) : (rawStats.studentAttendancePct ? Number(rawStats.studentAttendancePct) : 92);
+    const presentStudents = sectionsTotalStudents > 0
+      ? sectionsPresentStudents
+      : (rawStats.presentStudents !== undefined ? Number(rawStats.presentStudents) : 0);
+    const studentAttPct = totalStudents > 0
+      ? Math.round((presentStudents / totalStudents) * 100)
+      : (rawStats.studentAttendancePct !== undefined ? Number(rawStats.studentAttendancePct) : 0);
 
     const totalFaculty = Number(rawStats.teachers ?? rawStats.totalFaculty) || 0;
-    const presentFaculty = rawStats.presentFaculty !== undefined ? Number(rawStats.presentFaculty) : totalFaculty;
-    const facultyAttPct = totalFaculty > 0 ? Math.round((presentFaculty / totalFaculty) * 100) : 100;
+    const hasFacultyAttendance = rawStats.presentFaculty !== undefined;
+    const presentFaculty = hasFacultyAttendance ? Number(rawStats.presentFaculty) : 0;
+    const facultyAttPct = hasFacultyAttendance && totalFaculty > 0
+      ? Math.round((presentFaculty / totalFaculty) * 100)
+      : 0;
 
     const unassignedHomerooms = sections.filter((sec: any) => !sec.classTeacherId || sec.classTeacherId.trim() === '').length;
     const activeSectionsCount = sections.length > 0 ? sections.length : (rawStats.classSections ?? 0);
@@ -98,7 +201,7 @@ export async function fetchPrincipalKPIsApi(): Promise<PrincipalKPIs> {
       activeSections: activeSectionsCount,
       counselingCasesActive: activeCounseling,
       unassignedHomerooms,
-      periodCoveragePct: 100,
+      periodCoveragePct: 0,
     };
   } catch (err) {
     console.warn('[fetchPrincipalKPIsApi] error:', err);
@@ -112,7 +215,7 @@ export async function fetchPrincipalKPIsApi(): Promise<PrincipalKPIs> {
       activeSections: 0,
       counselingCasesActive: 0,
       unassignedHomerooms: 0,
-      periodCoveragePct: 100,
+      periodCoveragePct: 0,
     };
   }
 }
@@ -126,17 +229,17 @@ export async function fetchPrincipalHomeroomsApi(): Promise<HomeroomSection[]> {
       return [];
     }
 
-    return sections.map((sec, idx) => {
-      const rawName = sec.name || [sec.department, sec.academicYear, sec.section].filter(Boolean).join(' ') || `Class ${idx + 1}`;
+    return sections.map((sec) => {
+      const rawName = sec.name || [sec.department, sec.academicYear, sec.section].filter(Boolean).join(' ').trim() || 'Unnamed Class';
       const studentCount = Number(sec.studentCount) || 0;
-      const presentCount = sec.presentCount !== undefined ? Number(sec.presentCount) : studentCount;
+      const presentCount = sec.presentCount !== undefined ? Number(sec.presentCount) : 0;
       const attendanceRate = studentCount > 0 ? Math.round((presentCount / studentCount) * 100) : 0;
 
       return {
         id: sec.id,
         name: rawName,
         department: sec.department || '',
-        grade: sec.academicYear || sec.name?.replace(/[^0-9]/g, '') || `${idx + 1}`,
+        grade: sec.academicYear || sec.name?.replace(/[^0-9]/g, '') || '',
         section: sec.section || '',
         roomNumber: sec.roomNumber || undefined,
         homeroomTeacherId: sec.classTeacherId || undefined,
@@ -167,7 +270,7 @@ export async function fetchPrincipalStaffDirectoryApi(): Promise<PrincipalStaffM
       ? res.items
       : [];
 
-    return teachers.map((t, idx) => {
+    return teachers.map((t) => {
       const parsedScope = t.scope && typeof t.scope === 'object' ? t.scope : {};
       let desig: StaffDesignation = 'subject_teacher';
 
@@ -182,16 +285,22 @@ export async function fetchPrincipalStaffDirectoryApi(): Promise<PrincipalStaffM
       else if (rawDesig.includes('hod')) desig = 'hod';
       else if (t.assignedClass) desig = 'homeroom_teacher';
 
+      const rawAttendance = String(t.attendanceToday || parsedScope.attendanceToday || parsedScope.status || '').toLowerCase();
+      const attendanceToday: PrincipalStaffMember['attendanceToday'] =
+        rawAttendance === 'present' || rawAttendance === 'absent' || rawAttendance === 'on_leave'
+          ? rawAttendance
+          : 'unknown';
+
       return {
-        id: t.id || `stf-${idx}`,
-        fullName: t.fullName || t.name || `Faculty Member ${idx + 1}`,
+        id: t.id || t.email || '',
+        fullName: t.fullName || t.name || 'Unnamed Faculty',
         email: t.email || '',
         phone: t.phone || undefined,
         designation: desig,
         department: t.department || parsedScope.department || undefined,
         assignedClass: t.assignedClass || parsedScope.assignedClass || undefined,
-        attendanceToday: t.attendanceToday || 'present',
-        experienceYears: parsedScope.experienceYears || t.experienceYears || undefined,
+        attendanceToday,
+        experienceYears: parsedScope.experienceYears ?? t.experienceYears ?? undefined,
         qualification: parsedScope.qualification || t.qualification || undefined,
       };
     });
@@ -239,6 +348,31 @@ export async function updateCounselingStatusApi(id: string, status: CounselingRe
   return !!res;
 }
 
+function normalizeNoticePriority(raw: any): SchoolNotice['priority'] {
+  const value = String(raw || '').toLowerCase();
+  if (value === 'urgent') return 'urgent';
+  if (value === 'high' || value === 'important') return 'important';
+  return 'normal';
+}
+
+function deriveNoticeAudience(targets: any[]): SchoolNotice['targetAudience'] {
+  if (!Array.isArray(targets) || targets.length === 0) return 'all';
+  const roles = targets
+    .filter((target) => String(target?.targetType || '').toLowerCase() === 'role')
+    .map((target) => String(target?.targetRole || '').toLowerCase());
+  if (roles.includes('faculty') || roles.includes('teacher')) return 'teachers';
+  if (roles.includes('student')) return 'students';
+  if (roles.includes('parent')) return 'parents';
+  if (roles.includes('staff')) return 'staff';
+  return 'all';
+}
+
+function toIsoDateOnly(value: any): string {
+  if (!value) return '';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : date.toISOString().split('T')[0];
+}
+
 export async function fetchSchoolNoticesApi(): Promise<SchoolNotice[]> {
   const res = await apiClient<any>('/principal-notices');
   const items = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : [];
@@ -247,12 +381,12 @@ export async function fetchSchoolNoticesApi(): Promise<SchoolNotice[]> {
     id: a.id,
     title: a.title,
     content: a.content,
-    priority: a.priority || 'normal',
-    targetAudience: (a.targetAudience === 'faculty' ? 'teachers' : a.targetAudience) || 'all',
+    priority: normalizeNoticePriority(a.priority),
+    targetAudience: deriveNoticeAudience(a.targets),
     department: a.department || '',
-    publishedDate: a.createdAt ? new Date(a.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-    author: a.authorName || 'Principal Office',
-    acknowledgedCount: 0,
+    publishedDate: toIsoDateOnly(a.publishAt || a.createdAt),
+    author: a.authorName || a.createdByName || '',
+    acknowledgedCount: Number(a.readCount) || 0,
   }));
 }
 
@@ -272,14 +406,14 @@ export async function createSchoolNoticeApi(
 
   const a = res?.data || res;
   return {
-    id: a?.id || `notice-${Date.now()}`,
+    id: a?.id || '',
     title: a?.title || notice.title,
     content: a?.content || notice.content,
-    priority: a?.priority || notice.priority,
+    priority: normalizeNoticePriority(a?.priority || notice.priority),
     targetAudience: notice.targetAudience,
     department: a?.department || notice.department || '',
-    publishedDate: a?.createdAt ? new Date(a.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-    author: a?.authorName || 'Principal Office',
+    publishedDate: toIsoDateOnly(a?.publishAt || a?.createdAt),
+    author: a?.authorName || a?.createdByName || '',
     acknowledgedCount: 0,
   };
 }

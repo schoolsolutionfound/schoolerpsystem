@@ -13,7 +13,6 @@ import {
 } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '../common/Icons';
 import { Fine, StudentProfile, BookCopy, Book, DamageType, CopyCondition, CopyStatus, Loan } from '../../types';
-import { apiClient } from '../../../../api/client';
 
 export const DamageFineModal = ({
   visible,
@@ -22,7 +21,7 @@ export const DamageFineModal = ({
   books,
   loans = [],
   defaultPenalty,
-  defaultDueRate = 10,
+  defaultDueRate,
   onClose,
   onSaveDamageFine,
   modalStyles,
@@ -37,7 +36,12 @@ export const DamageFineModal = ({
   defaultPenalty: number;
   defaultDueRate?: number;
   onClose: () => void;
-  onSaveDamageFine: (newFine: Fine, updatedCopy?: BookCopy, paymentMode?: 'CASH' | 'ONLINE') => void;
+  onSaveDamageFine: (
+    newFine: Fine,
+    updatedCopy?: BookCopy,
+    paymentMode?: 'CASH' | 'ONLINE',
+    transactionRef?: string
+  ) => void;
   modalStyles: any;
   commonStyles: any;
   fineStyles: any;
@@ -56,10 +60,10 @@ export const DamageFineModal = ({
   const [copySearch, setCopySearch] = useState('');
 
   // Dynamic Fine Calculation State
-  const [dueRate, setDueRate] = useState(String(defaultDueRate || 10));
-  const [overdueDays, setOverdueDays] = useState('7');
-  const [bookPrice, setBookPrice] = useState('500');
-  const [damagePercentage, setDamagePercentage] = useState('25');
+  const [dueRate, setDueRate] = useState(String(defaultDueRate ?? ''));
+  const [overdueDays, setOverdueDays] = useState('');
+  const [bookPrice, setBookPrice] = useState('');
+  const [damagePercentage, setDamagePercentage] = useState(String(defaultPenalty ?? ''));
 
   // Dropdown states
   const [isMemberDropdownOpen, setIsMemberDropdownOpen] = useState(false);
@@ -82,12 +86,12 @@ export const DamageFineModal = ({
       setIsMemberDropdownOpen(false);
       setIsBookDropdownOpen(false);
       setIsDamageTypeDropdownOpen(false);
-      setDueRate(String(defaultDueRate || 10));
-      setOverdueDays('7');
-      setBookPrice('500');
-      setDamagePercentage('25');
+      setDueRate(String(defaultDueRate ?? ''));
+      setOverdueDays('');
+      setBookPrice('');
+      setDamagePercentage(String(defaultPenalty ?? ''));
     }
-  }, [visible, students, defaultDueRate]);
+  }, [visible, students, defaultDueRate, defaultPenalty]);
 
   const filteredMembers = useMemo(() => {
     if (!memberSearch.trim()) return students;
@@ -177,7 +181,7 @@ export const DamageFineModal = ({
       if (diffDays > 0) {
         setOverdueDays(String(diffDays));
       } else {
-        setOverdueDays('7');
+        setOverdueDays('0');
       }
     }
   }, [selectedLoan]);
@@ -232,6 +236,10 @@ export const DamageFineModal = ({
       Alert.alert('Required Field', 'Please enter a brief description.');
       return;
     }
+    if (paymentMode === 'ONLINE' && !onlineRef.trim()) {
+      Alert.alert('Required Field', 'Please enter the online payment reference.');
+      return;
+    }
 
     setSubmitting(true);
     const amt = calculatedFineAmount;
@@ -250,10 +258,8 @@ export const DamageFineModal = ({
       ? 'TOTAL_DESTRUCTION'
       : 'TORN_PAGES';
 
-    const fineId = `fine-${isLost ? 'lost' : isDue ? 'due' : 'dmg'}-${Math.floor(100000 + Math.random() * 900000)}`;
-
     const newFine: Fine = {
-      id: fineId,
+      id: '',
       studentId: selectedStudentId,
       bookCopyId: selectedCopyId || undefined,
       loanId: selectedLoanId || undefined,
@@ -265,17 +271,6 @@ export const DamageFineModal = ({
       status: 'PAID',
       createdAt: new Date().toISOString().split('T')[0],
       updatedAt: new Date().toISOString().split('T')[0],
-      paymentTransactions: [
-        {
-          id: `tx-${Date.now()}`,
-          fineId: fineId,
-          receiptNo: `REC-${Math.floor(100000 + Math.random() * 900000)}`,
-          amount: amt,
-          paymentMethod: paymentMode === 'ONLINE' ? 'UPI_ONLINE' : 'CASH',
-          paidAt: new Date().toISOString(),
-          cashier: 'Librarian Staff',
-        },
-      ],
     };
 
     let updatedCopy: BookCopy | undefined;
@@ -289,7 +284,7 @@ export const DamageFineModal = ({
     }
 
     setSubmitting(false);
-    onSaveDamageFine(newFine, updatedCopy, paymentMode);
+    onSaveDamageFine(newFine, updatedCopy, paymentMode, onlineRef.trim() || undefined);
   };
 
   const styles = commonStyles;

@@ -19,7 +19,7 @@ function formatRoom(room?: string, teacher?: string): string {
     }
     return `Room ${clean}`;
   }
-  return teacher ? teacher : 'Room 100';
+  return teacher || '';
 }
 
 function periodLabel(slot: any, index: number): string {
@@ -81,9 +81,9 @@ export const StudentHomePeriodsList: React.FC<StudentHomePeriodsListProps> = ({
       ) : (
         <View style={styles.periodsList}>
           {slots.map((slot, i) => {
-            const startTime = slot?.period?.startTime || '09:00';
-            const endTime = slot?.period?.endTime || '10:00';
-            const subjectName = slot?.subject?.name || 'Class';
+            const startTime = slot?.period?.startTime || '-';
+            const endTime = slot?.period?.endTime || '-';
+            const subjectName = slot?.subject?.name || slot?.subject?.code || '-';
             const roomText = formatRoom(slot?.room, slot?.teacher?.fullName);
 
             return (
@@ -109,7 +109,7 @@ export const StudentHomePeriodsList: React.FC<StudentHomePeriodsListProps> = ({
                     {subjectName}
                   </Text>
                   <Text style={styles.roomText} numberOfLines={1}>
-                    {roomText}
+                    {roomText || '-'}
                   </Text>
                 </View>
 

@@ -27,6 +27,7 @@ import {
 } from '../../../api/academics';
 import { AdminTimetableView } from './AdminTimetableView';
 import { AdminAttendanceView } from './AdminAttendanceView';
+import { currentAcademicYear } from '../../shared/academicStructure';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 const parseISODate = (value: string): Date | null => {
@@ -1303,8 +1304,8 @@ function SessionsTab({ sessions, onDataChange }: any) {
 
 function TermsTab({ terms, onDataChange }: any) {
   const [modalOpen, setModalOpen] = useState(false);
-  const [academicYear, setAcademicYear] = useState('2026-27');
-  const [termsInput, setTermsInput] = useState('Semester 1, Semester 2');
+  const [academicYear, setAcademicYear] = useState(() => currentAcademicYear('college'));
+  const [termsInput, setTermsInput] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const handleSave = async () => {
@@ -1360,7 +1361,7 @@ function TermsTab({ terms, onDataChange }: any) {
           <TextInput style={styles.input} value={academicYear} onChangeText={setAcademicYear} placeholder="2026-27" placeholderTextColor="#9CA3AF" />
         </FormGroup>
         <FormGroup label="Terms (comma separated)">
-          <TextInput style={styles.input} value={termsInput} onChangeText={setTermsInput} placeholder="Semester 1, Semester 2" placeholderTextColor="#9CA3AF" />
+          <TextInput style={styles.input} value={termsInput} onChangeText={setTermsInput} placeholder="e.g. Semester 1, Semester 2" placeholderTextColor="#9CA3AF" />
         </FormGroup>
       </ModalShell>
     </View>

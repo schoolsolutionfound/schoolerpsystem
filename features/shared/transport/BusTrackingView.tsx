@@ -46,8 +46,9 @@ export const BusTrackingView: React.FC<BusTrackingViewProps> = ({ audience }) =>
     } catch (err: any) {
       if (!mountedRef.current) return;
       setCanStream(false);
+      setData(null);
       const code = String(err?.code || '');
-      if (code === 'TRANSPORT_NOT_ASSIGNED' || /transport/i.test(err?.message || '')) {
+      if (code === 'TRANSPORT_NOT_ASSIGNED') {
         setError(
           audience === 'parent'
             ? 'No school bus is assigned to your child yet. Please contact the school office.'

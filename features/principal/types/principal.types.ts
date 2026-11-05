@@ -45,7 +45,7 @@ export interface PrincipalStaffMember {
   department?: string;
   assignedClass?: string; // e.g. "Grade 5-A" or "Grade 10-B"
   assignedSubjects?: string[];
-  attendanceToday: 'present' | 'absent' | 'on_leave';
+  attendanceToday: 'present' | 'absent' | 'on_leave' | 'unknown';
   experienceYears?: number;
   qualification?: string;
   avatarUrl?: string;

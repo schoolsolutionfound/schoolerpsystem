@@ -21,14 +21,16 @@ import { AdmissionSeatMatrixSkeleton } from './skeletons/AdmissionSkeletons';
 interface AdmissionSeatTrackingViewProps {
   onNavigateToStudents?: (branchId?: string, status?: string) => void;
   onOpenIntakeForm?: () => void;
+  activeBatch?: string;
 }
 
 export function AdmissionSeatTrackingView({
   onNavigateToStudents,
+  activeBatch = '',
 }: AdmissionSeatTrackingViewProps) {
   const [stats, setStats] = useState<AdmissionStats | null>(null);
   const [courses, setCourses] = useState<AdmissionCourse[]>([]);
-  const [selectedBatch, setSelectedBatch] = useState<string>('2026-2027');
+  const [selectedBatch, setSelectedBatch] = useState<string>(activeBatch);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [configModalVisible, setConfigModalVisible] = useState(false);
@@ -56,6 +58,10 @@ export function AdmissionSeatTrackingView({
   useEffect(() => {
     loadData(selectedBatch);
   }, [selectedBatch]);
+
+  useEffect(() => {
+    if (activeBatch && !selectedBatch) setSelectedBatch(activeBatch);
+  }, [activeBatch, selectedBatch]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -89,7 +95,7 @@ export function AdmissionSeatTrackingView({
         <View style={styles.batchSelector}>
           <Text style={styles.batchLabel}>INTAKE BATCH</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.batchPills}>
-            {(stats?.batches || ['2026-2027', '2025-2026']).map((b) => {
+            {Array.from(new Set([...(stats?.batches || []), ...(activeBatch ? [activeBatch] : [])])).map((b) => {
               const isSelected = selectedBatch === b;
               return (
                 <TouchableOpacity

@@ -44,8 +44,6 @@ const CRITERIA = [
   { id: 'interesting', label: 'Makes the subject interesting' },
 ];
 
-const SEMESTERS = ['Semester 1', 'Semester 2'];
-
 export default function StudentFeedbackScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -54,12 +52,10 @@ export default function StudentFeedbackScreen() {
   const [subjects, setSubjects] = useState<SubjectItem[]>([]);
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>('');
 
-  // Dynamic semester based on academic calendar
-  const currentMonth = new Date().getMonth();
-  const defaultSem = currentMonth >= 6 ? 'Semester 1' : 'Semester 2';
+  const [availableSemesters, setAvailableSemesters] = useState<string[]>([]);
 
   // Form state
-  const [semester, setSemester] = useState<string>(defaultSem);
+  const [semester, setSemester] = useState<string>('');
   const [showSemesterModal, setShowSemesterModal] = useState<boolean>(false);
   const [currentRatings, setCurrentRatings] = useState<Record<string, number>>({});
   const [description, setDescription] = useState<string>('');
@@ -75,6 +71,7 @@ export default function StudentFeedbackScreen() {
       const res = await fetchMyTimetableApi(today);
       const slots = res?.slots || [];
       const className = res?.classSection?.name || userDept || '';
+      const academicPeriod = String(res?.classSection?.academicYear || '');
 
       if (slots.length > 0) {
         const subjectMap = new Map<string, SubjectItem>();
@@ -89,7 +86,7 @@ export default function StudentFeedbackScreen() {
               classSection: className,
               teacherName: teacher,
               submitted: false,
-              semester: defaultSem,
+              semester: academicPeriod,
               ratings: {},
               description: '',
             });
@@ -97,6 +94,11 @@ export default function StudentFeedbackScreen() {
         });
         if (subjectMap.size > 0) {
           const dynamicList = Array.from(subjectMap.values());
+          const periods = Array.from(
+            new Set([academicPeriod, ...dynamicList.map((d) => d.semester)].filter(Boolean))
+          );
+          setAvailableSemesters(periods);
+          setSemester((prev) => prev || periods[0] || '');
           setSubjects((prev) => {
             return dynamicList.map((d) => {
               const foundPrev = prev.find((p) => p.name.toLowerCase() === d.name.toLowerCase());
@@ -111,7 +113,7 @@ export default function StudentFeedbackScreen() {
     } finally {
       setLoadingSubjects(false);
     }
-  }, [userDept, defaultSem]);
+  }, [userDept]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -130,7 +132,7 @@ export default function StudentFeedbackScreen() {
   // Navigate to Form screen for chosen subject
   const openSubjectForm = (subject: SubjectItem) => {
     setSelectedSubjectId(subject.id);
-    setSemester(subject.semester || 'Semester 1');
+    setSemester(subject.semester || '');
     setCurrentRatings(subject.ratings || {});
     setDescription(subject.description || '');
     setCurrentScreen('form');
@@ -315,7 +317,7 @@ export default function StudentFeedbackScreen() {
                     if (!activeSubject?.submitted) setShowSemesterModal(true);
                   }}
                 >
-                  <Text style={styles.semesterDropdownText}>{semester}</Text>
+                  <Text style={styles.semesterDropdownText}>{semester || '—'}</Text>
                   {!activeSubject?.submitted && (
                     <Feather name="chevron-down" size={18} color="#111827" />
                   )}
@@ -427,7 +429,10 @@ export default function StudentFeedbackScreen() {
         <Pressable style={styles.modalOverlay} onPress={() => setShowSemesterModal(false)}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Select Semester</Text>
-            {SEMESTERS.map((sem) => (
+            {availableSemesters.length === 0 && (
+              <Text style={styles.modalItemText}>No academic period available.</Text>
+            )}
+            {availableSemesters.map((sem) => (
               <TouchableOpacity
                 key={sem}
                 style={[styles.modalItem, semester === sem && styles.modalItemActive]}

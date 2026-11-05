@@ -66,7 +66,7 @@ export const FinesView: React.FC<FinesViewProps> = ({
   // Overdue Loans calculation
   const overdueItems = useMemo(() => {
     const today = new Date();
-    const activeLoans = (loans || []).filter((l) => l.status === 'ACTIVE');
+    const activeLoans = (loans || []).filter((l) => l.status === 'ACTIVE' || l.status === 'OVERDUE');
 
     const mapped = activeLoans
       .map((loan) => {
@@ -77,7 +77,6 @@ export const FinesView: React.FC<FinesViewProps> = ({
         const std = students.find((s) => s.id === loan.studentId);
         const cpy = copies.find((c) => c.id === loan.copyId);
         const bk = books.find((b) => b.id === (loan.bookId || cpy?.bookId));
-        const estFine = Math.max(0, diffDays * 1.0); // $1 per day
         return {
           id: loan.id,
           loan,
@@ -86,7 +85,6 @@ export const FinesView: React.FC<FinesViewProps> = ({
           book: bk,
           diffDays,
           isOverdue,
-          estFine,
         };
       })
       .filter((item) => item.isOverdue)
@@ -111,10 +109,6 @@ export const FinesView: React.FC<FinesViewProps> = ({
       );
     });
   }, [overdueItems, search]);
-
-  const totalOverdueFineEst = useMemo(() => {
-    return overdueItems.reduce((acc, curr) => acc + curr.estFine, 0);
-  }, [overdueItems]);
 
   const filteredFines = useMemo(() => {
     return fines.filter((f) => {
@@ -230,18 +224,6 @@ export const FinesView: React.FC<FinesViewProps> = ({
                 ) : undefined
               }
               renderItem={({ item }) => {
-                const finePayload: Fine = {
-                  id: `fine-od-${item.id}`,
-                  studentId: item.student?.id || item.loan.studentId,
-                  loanId: item.loan.id,
-                  fineType: 'OVERDUE',
-                  amount: item.estFine,
-                  paidAmount: 0,
-                  status: 'UNPAID',
-                  createdAt: new Date().toISOString().split('T')[0],
-                  updatedAt: new Date().toISOString().split('T')[0],
-                };
-
                 return (
                   <View style={fineStyles.fineCard}>
                     {/* Header Row: Student Avatar, Name, USN & Overdue Badge */}
@@ -273,9 +255,9 @@ export const FinesView: React.FC<FinesViewProps> = ({
                         </Text>
                       </View>
                       <View style={{ alignItems: 'flex-end' }}>
-                        <Text style={{ fontSize: 10, color: '#6B7280' }}>Accrued Fine</Text>
-                        <Text style={{ fontSize: 15, fontWeight: '900', color: '#DC2626' }}>
-                          ₹{item.estFine.toFixed(2)}
+                        <Text style={{ fontSize: 10, color: '#6B7280' }}>Fine Status</Text>
+                        <Text style={{ fontSize: 12, fontWeight: '800', color: '#6B7280' }}>
+                          Not assessed
                         </Text>
                       </View>
                     </View>
@@ -287,25 +269,10 @@ export const FinesView: React.FC<FinesViewProps> = ({
                       </Text>
                     </View>
 
-                    {/* Action Row: Accept in Green, Reject in Red */}
-                    <View style={fineStyles.actionRow}>
-                      <TouchableOpacity
-                        style={fineStyles.acceptBtn}
-                        onPress={() => onPayFine(finePayload)}
-                        activeOpacity={0.8}
-                      >
-                        <MaterialCommunityIcons name="check-circle-outline" size={15} color="#FFFFFF" />
-                        <Text style={fineStyles.acceptBtnText}>Accept / Settle Fine</Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={fineStyles.rejectBtn}
-                        onPress={() => onWaiveFine(finePayload)}
-                        activeOpacity={0.8}
-                      >
-                        <MaterialCommunityIcons name="close-circle-outline" size={15} color="#DC2626" />
-                        <Text style={fineStyles.rejectBtnText}>Reject / Waive</Text>
-                      </TouchableOpacity>
+                    <View style={{ backgroundColor: '#F8FAFC', borderRadius: 5, padding: 10 }}>
+                      <Text style={{ color: '#64748B', fontSize: 11, lineHeight: 16 }}>
+                        Settle or waive only after the overdue fine is assessed and appears under Fine Records.
+                      </Text>
                     </View>
                   </View>
                 );

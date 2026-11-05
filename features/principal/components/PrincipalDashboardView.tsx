@@ -17,6 +17,11 @@ import {
   SchoolNotice,
   PrincipalStaffMember,
 } from '../types/principal.types';
+import type {
+  PrincipalFeeSummary,
+  PrincipalTodayClasses,
+  UpcomingEvent,
+} from '../../../api/principal';
 
 interface PrincipalDashboardViewProps {
   fullName?: string;
@@ -24,6 +29,9 @@ interface PrincipalDashboardViewProps {
   homerooms: HomeroomSection[];
   staffList?: PrincipalStaffMember[];
   notices: SchoolNotice[];
+  feeSummary?: PrincipalFeeSummary | null;
+  todayClasses?: PrincipalTodayClasses | null;
+  upcomingEvents?: UpcomingEvent[];
   refreshing: boolean;
   onRefresh: () => void;
   onNavigateTab: (tab: PrincipalTab) => void;
@@ -79,6 +87,9 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
   homerooms,
   staffList,
   notices,
+  feeSummary,
+  todayClasses,
+  upcomingEvents,
   refreshing,
   onRefresh,
   onNavigateTab,
@@ -128,25 +139,65 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
   }, [dynamicTotalEnrolled, dynamicTotalPresent, kpis.studentAttendancePct]);
 
   type DeptFeePoint = { label: string; paid: number; unpaid: number };
-  const dynamicDeptFeeAnalytics = useMemo<{
+  const deptFeeAnalytics = useMemo<{
     term: DeptFeePoint[];
     annual: DeptFeePoint[];
-  }>(() => ({ term: [], annual: [] }), []);
+  }>(() => {
+    if (!feeSummary) return { term: [], annual: [] };
+    return {
+      term: feeSummary.terms.map((item) => ({
+        label: item.term,
+        paid: item.collected,
+        unpaid: item.pending,
+      })),
+      annual: feeSummary.byDepartment.map((item) => ({
+        label: item.department,
+        paid: item.collected,
+        unpaid: item.pending,
+      })),
+    };
+  }, [feeSummary]);
 
   // Department-wise Fees Paid vs Unpaid Analytics State
   const [chartPeriod, setChartPeriod] = useState<'term' | 'annual'>('term');
-  const chartData = chartPeriod === 'term' ? dynamicDeptFeeAnalytics.term : dynamicDeptFeeAnalytics.annual;
+  const chartData = chartPeriod === 'term' ? deptFeeAnalytics.term : deptFeeAnalytics.annual;
 
-  // Highlights: Upcoming Events & Today's Classes
-  const todayClasses: { subjectName: string; periodTime: string; studentCount: number }[] = [];
-  const upcomingEvents: { title: string; startDate: string; endDate?: string }[] = [];
+  // Highlights: upcoming EVENT announcements and today's scheduled periods
+  const todayClassItems = useMemo(
+    () =>
+      (todayClasses?.classes || [])
+        .flatMap((cls) =>
+          cls.slots.map((slot) => ({
+            subjectName: slot.subject?.name || 'Untitled Subject',
+            periodTime: slot.period ? `${slot.period.startTime} - ${slot.period.endTime}` : '',
+            studentCount: cls.studentCount,
+          }))
+        )
+        .sort((a, b) => a.periodTime.localeCompare(b.periodTime)),
+    [todayClasses]
+  );
 
-  const nextUpcomingEvent = upcomingEvents[0] || null;
+  const upcomingEventItems = useMemo(
+    () =>
+      (upcomingEvents || [])
+        .map((event) => ({
+          title: event.title,
+          startDate: event.publishAt ? event.publishAt.slice(0, 10) : '',
+          endDate: event.expiresAt ? event.expiresAt.slice(0, 10) : undefined,
+        }))
+        .filter((event) => !!event.startDate),
+    [upcomingEvents]
+  );
+
+  const todayClassesList = todayClassItems;
+  const upcomingEventsList = upcomingEventItems;
+
+  const nextUpcomingEvent = upcomingEventsList[0] || null;
   const hasUpcomingEvent = !!nextUpcomingEvent;
-  const hasTodayClasses = todayClasses.length > 0;
+  const hasTodayClasses = todayClassesList.length > 0;
   const bothCardsVisible = hasUpcomingEvent && hasTodayClasses;
   const showHighlightsRow = hasUpcomingEvent || hasTodayClasses;
-  const firstClass = todayClasses[0] || null;
+  const firstClass = todayClassesList[0] || null;
 
   return (
     <ScrollView
@@ -275,6 +326,9 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
 
         {/* Chart Bars Area */}
         <View style={styles.chartContainer}>
+          {chartData.length === 0 && (
+            <Text style={styles.chartEmptyText}>No fee records yet</Text>
+          )}
           {chartData.map((item) => {
             const maxVal = Math.max(...chartData.map((d) => Math.max(d.paid, d.unpaid)));
             const maxBarHeight = 95;
@@ -364,7 +418,7 @@ export const PrincipalDashboardView: React.FC<PrincipalDashboardViewProps> = ({
               >
                 <View style={styles.highlightBodySection}>
                   <Text style={styles.highlightMainTitle} numberOfLines={1}>
-                    {todayClasses.length} {todayClasses.length === 1 ? 'Class' : 'Classes'} Scheduled
+                    {todayClassesList.length} {todayClassesList.length === 1 ? 'Class' : 'Classes'} Scheduled
                   </Text>
                   <Text style={styles.highlightSubText} numberOfLines={1}>
                     Next: {firstClass.subjectName}
@@ -795,6 +849,14 @@ const styles = StyleSheet.create({
     height: 135,
     paddingHorizontal: 6,
     paddingBottom: 4,
+  },
+  chartEmptyText: {
+    flex: 1,
+    textAlign: 'center',
+    alignSelf: 'center',
+    fontFamily: FontFamily.medium,
+    fontSize: 13,
+    color: '#64748B',
   },
   dayColumn: {
     alignItems: 'center',

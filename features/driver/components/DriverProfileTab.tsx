@@ -188,9 +188,6 @@ export const DriverProfileTab: React.FC<DriverProfileTabProps> = ({
                 <Text style={styles.avatarInitials}>{initials}</Text>
               </View>
             )}
-            <View style={styles.verifiedBadge}>
-              <MaterialCommunityIcons name="check-decagram" size={20} color="#F4C430" />
-            </View>
           </View>
           <Text style={styles.name}>{displayName}</Text>
           <Text style={styles.roleTitle}>{displayDesignation}</Text>
@@ -378,19 +375,6 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.extrabold,
     color: '#171717',
     letterSpacing: 0.5,
-  },
-  verifiedBadge: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 2,
-    shadowColor: '#171717',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 2,
   },
   name: { fontSize: 20, fontFamily: FontFamily.extrabold, color: '#171717', textAlign: 'center' },
   roleTitle: {

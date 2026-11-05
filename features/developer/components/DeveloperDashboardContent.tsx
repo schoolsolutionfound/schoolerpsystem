@@ -29,7 +29,12 @@ export function DeveloperDashboardContent() {
   const router = useRouter();
   const [createModalVisible, setCreateModalVisible] = useState(false);
 
-  const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useDeveloperStatsQuery();
+  const {
+    data: stats,
+    isLoading: statsLoading,
+    isError: statsError,
+    refetch: refetchStats,
+  } = useDeveloperStatsQuery();
   // Only the 3 "recent institutions" rows are rendered — never fetch the full list.
   const { data: institutions = [], isLoading: instLoading, refetch: refetchInst } = useInstitutionsQuery({ limit: 3 });
   const { data: admins = [], isLoading: adminsLoading, refetch: refetchAdmins } = useAdminsQuery();
@@ -71,7 +76,7 @@ export function DeveloperDashboardContent() {
             <MaterialCommunityIcons name="office-building" size={22} color={PURPLE} />
           </View>
           <View style={styles.statTextContainer}>
-            <Text style={styles.statValue}>{stats?.totalInstitutions ?? institutions.length}</Text>
+            <Text style={styles.statValue}>{statsError ? '—' : (stats?.totalInstitutions ?? '—')}</Text>
             <Text style={styles.statLabel} numberOfLines={2}>Total Institutions</Text>
           </View>
         </View>
@@ -80,7 +85,7 @@ export function DeveloperDashboardContent() {
             <MaterialCommunityIcons name="check-circle-outline" size={22} color="#16A34A" />
           </View>
           <View style={styles.statTextContainer}>
-            <Text style={styles.statValue}>{stats?.activeInstitutions ?? institutions.filter(i => i.subscriptionStatus === 'active').length}</Text>
+            <Text style={styles.statValue}>{statsError ? '—' : (stats?.activeInstitutions ?? '—')}</Text>
             <Text style={styles.statLabel} numberOfLines={2}>Active Institutions</Text>
           </View>
         </View>
@@ -89,7 +94,7 @@ export function DeveloperDashboardContent() {
             <MaterialCommunityIcons name="account-group-outline" size={22} color={PURPLE} />
           </View>
           <View style={styles.statTextContainer}>
-            <Text style={styles.statValue}>{stats?.institutionAdmins ?? admins.length}</Text>
+            <Text style={styles.statValue}>{statsError ? '—' : (stats?.institutionAdmins ?? '—')}</Text>
             <Text style={styles.statLabel} numberOfLines={2}>Institution Admins</Text>
           </View>
         </View>
@@ -130,7 +135,12 @@ export function DeveloperDashboardContent() {
               <Text style={styles.feedTitle} numberOfLines={1}>{item.institutionName}</Text>
               <Text style={styles.feedSubtitle}>{item.institutionCode}  {item.institutionType.toUpperCase()}</Text>
             </View>
-            <AppBadge label={item.subscriptionStatus || 'Active'} type={item.subscriptionStatus === 'inactive' ? 'inactive' : 'active'} />
+            {item.subscriptionStatus ? (
+              <AppBadge
+                label={item.subscriptionStatus}
+                type={item.subscriptionStatus === 'inactive' ? 'inactive' : 'active'}
+              />
+            ) : null}
           </View>
         </View>
       ))}
@@ -152,7 +162,6 @@ export function DeveloperDashboardContent() {
               <Text style={styles.feedTitle} numberOfLines={1}>{admin.fullName}</Text>
               <Text style={styles.feedSubtitle}>{admin.title}  {admin.institutionName}</Text>
             </View>
-            <AppBadge label="Active" type="active" />
           </View>
         </View>
       ))}

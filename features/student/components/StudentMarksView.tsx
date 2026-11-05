@@ -37,6 +37,7 @@ export interface ActivityMark {
 export interface ExamItem {
   id: string;
   name: string;
+  academicYear: string;
   dateStr: string;
   term: string;
   totalMax: number;
@@ -46,18 +47,12 @@ export interface ExamItem {
   activities: ActivityMark[];
 }
 
-const currentYear = new Date().getFullYear();
-const ACADEMIC_YEARS = [
-  `${currentYear - 1} - ${currentYear}`,
-  `${currentYear} - ${currentYear + 1}`,
-  `${currentYear - 2} - ${currentYear - 1}`,
-];
-
 export const StudentMarksView: React.FC<StudentMarksViewProps> = ({ onBack }) => {
   const router = useRouter();
 
   // State
-  const [selectedYear, setSelectedYear] = useState(() => ACADEMIC_YEARS[0]);
+  const [selectedYear, setSelectedYear] = useState('');
+  const [academicYears, setAcademicYears] = useState<string[]>([]);
   const [showYearModal, setShowYearModal] = useState(false);
   const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
   const [showExamDropdownModal, setShowExamDropdownModal] = useState(false);
@@ -65,102 +60,76 @@ export const StudentMarksView: React.FC<StudentMarksViewProps> = ({ onBack }) =>
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [examsData, setExamsData] = useState<ExamItem[]>([]);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  // Load marks from API (merges real data with fallback)
+  // Load the grouped marks shape returned by the student marks endpoint.
   const loadMarks = useCallback(async () => {
     try {
-      const [marksRes, subjectsRes] = await Promise.allSettled([
+      const [marksRes, subjectsRes] = await Promise.all([
         fetchStudentMarksApi(),
-        fetchSubjectsApi(),
+        fetchSubjectsApi().catch(() => []),
       ]);
-
-      const marksList: any[] =
-        marksRes.status === 'fulfilled' &&
-        marksRes.value &&
-        marksRes.value.data &&
-        Array.isArray(marksRes.value.data)
-          ? marksRes.value.data
+      const subjectsList: any[] = Array.isArray(subjectsRes)
+        ? subjectsRes
+        : Array.isArray((subjectsRes as any)?.data)
+          ? (subjectsRes as any).data
           : [];
+      const subjectNames = new Map<string, string>();
+      subjectsList.forEach((subject) => {
+        if (subject?.id && subject?.name) subjectNames.set(String(subject.id), subject.name);
+      });
 
-      const subjectsList: any[] =
-        subjectsRes.status === 'fulfilled' &&
-        subjectsRes.value &&
-        subjectsRes.value.data &&
-        Array.isArray(subjectsRes.value.data)
-          ? subjectsRes.value.data
-          : [];
-
-      if (marksList.length > 0) {
-        const subNameMap = new Map<string, string>();
-        subjectsList.forEach((s) => {
-          if (s.id && s.name) subNameMap.set(String(s.id), s.name);
-        });
-
-        // Group by exam name
-        const examMap = new Map<string, {
-          name: string;
-          dateStr: string;
-          term: string;
-          subjects: ExamSubjectMark[];
-        }>();
-
-        marksList.forEach((m) => {
-          const examName = m.examName || m.exam?.name || m.title || 'Examination';
-          const subjName =
-            subNameMap.get(String(m.subjectId)) ||
-            m.subject?.name ||
-            m.subjectName ||
-            'General Subject';
-          const maxMarks = Number(m.maxMarks || m.totalMarks || 100);
-          const obtained = Number(m.marksObtained ?? m.obtainedMarks ?? 0);
-          const pct = maxMarks > 0 ? Math.round((obtained / maxMarks) * 100) : 0;
-
-          if (!examMap.has(examName)) {
-            examMap.set(examName, {
-              name: examName,
-              dateStr: m.date || '',
-              term: m.term || '',
-              subjects: [],
-            });
+      const responseExams: any[] = Array.isArray((marksRes as any)?.exams)
+        ? (marksRes as any).exams
+        : [];
+      const builtExams: ExamItem[] = responseExams.map((row, index) => {
+        const subjects: ExamSubjectMark[] = (Array.isArray(row?.subjects) ? row.subjects : []).map(
+          (subject: any) => {
+            const maxMarks = Number(subject?.maxMarks ?? 0);
+            const obtained = Number(subject?.marksObtained ?? 0);
+            return {
+              name:
+                subjectNames.get(String(subject?.subjectId || '')) ||
+                String(subject?.subjectId || 'Unnamed subject'),
+              obtained,
+              maxMarks,
+              percentage: maxMarks > 0 ? Math.round((obtained / maxMarks) * 100) : 0,
+            };
           }
-
-          examMap.get(examName)!.subjects.push({
-            name: subjName,
-            obtained,
-            maxMarks,
-            percentage: pct,
-          });
-        });
-
-        const builtExams: ExamItem[] = [];
-        examMap.forEach((val, key) => {
-          const totMax = val.subjects.reduce((sum, s) => sum + s.maxMarks, 0);
-          const totObt = val.subjects.reduce((sum, s) => sum + s.obtained, 0);
-          const pct = totMax > 0 ? Number(((totObt / totMax) * 100).toFixed(1)) : 0;
-
-          builtExams.push({
-            id: `exam-${key}`,
-            name: val.name,
-            dateStr: val.dateStr,
-            term: val.term,
-            totalMax: totMax,
-            totalObtained: totObt,
-            percentage: pct,
-            subjects: val.subjects,
-            activities: [],
-          });
-        });
-
-        if (builtExams.length > 0) {
-          setExamsData(builtExams);
-        } else {
-          setExamsData([]);
-        }
-      } else {
-        setExamsData([]);
-      }
-    } catch {
+        );
+        const totalMax = Number(row?.totalMax ?? subjects.reduce((sum, item) => sum + item.maxMarks, 0));
+        const totalObtained = Number(
+          row?.totalObtained ?? subjects.reduce((sum, item) => sum + item.obtained, 0)
+        );
+        const academicYear = String(row?.exam?.academicYear || '');
+        return {
+          id: String(row?.exam?.id || `exam-${index}`),
+          name: String(row?.exam?.name || 'Unnamed exam'),
+          academicYear,
+          dateStr: academicYear,
+          term: String(row?.exam?.term || ''),
+          totalMax,
+          totalObtained,
+          percentage:
+            totalMax > 0
+              ? Number(row?.percentage ?? ((totalObtained / totalMax) * 100).toFixed(1))
+              : 0,
+          subjects,
+          activities: [],
+        };
+      });
+      const years = Array.from(
+        new Set(builtExams.map((exam) => exam.academicYear).filter(Boolean))
+      );
+      setExamsData(builtExams);
+      setAcademicYears(years);
+      setSelectedYear((current) => (current && years.includes(current) ? current : years[0] || ''));
+      setErrorMessage('');
+    } catch (error: any) {
       setExamsData([]);
+      setAcademicYears([]);
+      setSelectedYear('');
+      setErrorMessage(error?.message || 'Could not load marks.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -183,14 +152,19 @@ export const StudentMarksView: React.FC<StudentMarksViewProps> = ({ onBack }) =>
     }
   }, [selectedExamId]);
 
-  // Overall calculations for Image 1 Top Summary Card
+  const visibleExams = useMemo(
+    () => (selectedYear ? examsData.filter((exam) => exam.academicYear === selectedYear) : examsData),
+    [examsData, selectedYear]
+  );
+
+  // Overall calculations for the selected academic year.
   const overallSummary = useMemo(() => {
     // Unique subjects count across all exams
     const subjectNames = new Set<string>();
     let totalObt = 0;
     let totalMax = 0;
 
-    examsData.forEach((exam) => {
+    visibleExams.forEach((exam) => {
       exam.subjects.forEach((s) => subjectNames.add(s.name));
       totalObt += exam.totalObtained;
       totalMax += exam.totalMax;
@@ -198,18 +172,18 @@ export const StudentMarksView: React.FC<StudentMarksViewProps> = ({ onBack }) =>
 
     const avg = totalMax > 0 ? Number(((totalObt / totalMax) * 100).toFixed(1)) : 0;
     return {
-      totalSubjects: subjectNames.size || 5,
+      totalSubjects: subjectNames.size,
       totalObtained: totalObt,
-      totalMax: totalMax || 500,
+      totalMax,
       averagePct: avg,
     };
-  }, [examsData]);
+  }, [visibleExams]);
 
   // Selected Exam for Image 2
   const activeExam = useMemo(() => {
     if (!selectedExamId) return null;
-    return examsData.find((e) => e.id === selectedExamId) || examsData[0] || null;
-  }, [selectedExamId, examsData]);
+    return visibleExams.find((e) => e.id === selectedExamId) || null;
+  }, [selectedExamId, visibleExams]);
 
 
   if (loading) {
@@ -253,12 +227,24 @@ export const StudentMarksView: React.FC<StudentMarksViewProps> = ({ onBack }) =>
             activeOpacity={0.8}
             onPress={() => setShowYearModal(true)}
           >
-            <Text style={styles.yearPillText}>{selectedYear}</Text>
+            <Text style={styles.yearPillText}>{selectedYear || 'Academic year'}</Text>
             <MaterialCommunityIcons name="chevron-down" size={18} color="#111827" />
           </TouchableOpacity>
         )}
 
-        {activeExam === null ? (
+        {errorMessage ? (
+          <View style={styles.statusCard}>
+            <MaterialCommunityIcons name="alert-circle-outline" size={30} color="#B91C1C" />
+            <Text style={styles.statusTitle}>Marks unavailable</Text>
+            <Text style={styles.statusText}>{errorMessage}</Text>
+          </View>
+        ) : visibleExams.length === 0 ? (
+          <View style={styles.statusCard}>
+            <MaterialCommunityIcons name="file-document-outline" size={30} color="#6B7280" />
+            <Text style={styles.statusTitle}>No marks published</Text>
+            <Text style={styles.statusText}>Published exam results will appear here.</Text>
+          </View>
+        ) : activeExam === null ? (
           /* ══════════════════════════════════════════════════════════════════
              SCREEN 1: All Exams Overview (Image 1)
              ══════════════════════════════════════════════════════════════════ */
@@ -297,7 +283,7 @@ export const StudentMarksView: React.FC<StudentMarksViewProps> = ({ onBack }) =>
 
             {/* List of Exam Cards */}
             <View style={styles.examCardsList}>
-              {examsData.map((exam) => (
+              {visibleExams.map((exam) => (
                 <TouchableOpacity
                   key={exam.id}
                   style={styles.examCard}
@@ -459,12 +445,13 @@ export const StudentMarksView: React.FC<StudentMarksViewProps> = ({ onBack }) =>
               </TouchableOpacity>
             </View>
 
-            {ACADEMIC_YEARS.map((year) => (
+            {academicYears.map((year) => (
               <TouchableOpacity
                 key={year}
                 style={[styles.modalItem, selectedYear === year && styles.modalItemActive]}
                 onPress={() => {
                   setSelectedYear(year);
+                  setSelectedExamId(null);
                   setShowYearModal(false);
                 }}
               >
@@ -514,7 +501,7 @@ export const StudentMarksView: React.FC<StudentMarksViewProps> = ({ onBack }) =>
               </Text>
             </TouchableOpacity>
 
-            {examsData.map((exam) => (
+            {visibleExams.map((exam) => (
               <TouchableOpacity
                 key={exam.id}
                 style={[
@@ -917,5 +904,26 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.regular,
     color: '#6B7280',
     marginTop: 2,
+  },
+  statusCard: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 6,
+    marginTop: 20,
+    padding: 24,
+  },
+  statusTitle: {
+    color: '#111827',
+    fontFamily: FontFamily.bold,
+    fontSize: 16,
+  },
+  statusText: {
+    color: '#6B7280',
+    fontFamily: FontFamily.regular,
+    fontSize: 12,
+    textAlign: 'center',
   },
 });

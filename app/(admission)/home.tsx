@@ -14,6 +14,7 @@ import { AdmissionStudentsView } from '../../features/admission/components/Admis
 import { AdmissionProfileView } from '../../features/admission/components/AdmissionProfileView';
 import { AdmissionStudentFormModal } from '../../features/admission/components/AdmissionStudentFormModal';
 import { AdmissionCourse, getAdmissionCourses } from '../../api/admission';
+import { fetchAcademicSessionsApi } from '../../api/academics';
 import { TransportManagementView } from '../../features/shared/transport/TransportManagementView';
 import { FontFamily } from '../../constants/fonts';
 
@@ -34,6 +35,7 @@ export default function AdmissionHomeScreen() {
   // New Student Modal (+)
   const [intakeModalVisible, setIntakeModalVisible] = useState(false);
   const [courses, setCourses] = useState<AdmissionCourse[]>([]);
+  const [activeBatch, setActiveBatch] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
 
   const fullName = useUserStore((state) => state.fullName) || 'Admission Officer';
@@ -60,6 +62,16 @@ export default function AdmissionHomeScreen() {
       .then((c) => setCourses(c))
       .catch(() => {});
   }, [refreshKey]);
+
+  useEffect(() => {
+    fetchAcademicSessionsApi()
+      .then((res: any) => {
+        const list = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : [];
+        const current = list.find((session: any) => session?.isCurrent) || list[0];
+        setActiveBatch(current?.name || '');
+      })
+      .catch(() => {});
+  }, []);
 
   const handleNavigateToStudents = (branchId?: string, status?: string) => {
     setTargetBranchId(branchId);
@@ -132,6 +144,7 @@ export default function AdmissionHomeScreen() {
               <AdmissionSeatTrackingView
                 key={`tracking_${refreshKey}`}
                 onNavigateToStudents={handleNavigateToStudents}
+                activeBatch={activeBatch}
               />
             )}
           </View>
@@ -211,7 +224,7 @@ export default function AdmissionHomeScreen() {
         visible={intakeModalVisible}
         onClose={() => setIntakeModalVisible(false)}
         courses={courses}
-        activeBatch="2026-2027"
+        activeBatch={activeBatch}
         onSuccess={() => setRefreshKey((k) => k + 1)}
       />
     </View>

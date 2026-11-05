@@ -68,7 +68,7 @@ export interface DriveApplication {
     branch?: string;
     year?: string;
     cgpa?: number | null;
-    activeBacklogs?: number;
+    activeBacklogs?: number | null;
     portfolioUrl?: string;
     linkedinUrl?: string;
     githubUrl?: string;
@@ -177,7 +177,7 @@ export interface PlacementStudent {
   cgpa: number | null;
   tenthPercent: number | null;
   twelfthPercent: number | null;
-  activeBacklogs: number;
+  activeBacklogs: number | null;
   resumeUrl: string;
   portfolioUrl?: string;
   linkedinUrl?: string;
@@ -233,7 +233,7 @@ export interface PlacementResultItem {
     branch: string;
     year: string;
     cgpa: number | null;
-    activeBacklogs: number;
+    activeBacklogs: number | null;
     profilePicUrl?: string;
   };
 }

@@ -15,7 +15,7 @@ export type ExpenseCategory =
   | 'maintenance'
   | 'other';
 
-export type PaymentMethod = 'upi' | 'cash' | 'card' | 'bank_transfer' | 'cheque';
+export type PaymentMethod = 'upi' | 'cash' | 'card' | 'bank_transfer' | 'cheque' | 'unknown';
 
 export type PaymentStatus = 'paid' | 'pending' | 'overdue';
 

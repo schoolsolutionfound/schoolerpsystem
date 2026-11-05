@@ -16,14 +16,12 @@ interface StudentDrawerProps {
 }
 
 const PRIMARY = [
-  { key: 'home', label: 'Home', icon: 'home-outline', route: '/(student)/home' },
+  { key: 'home', label: 'Home', icon: 'home-outline', tab: 'home' },
   { key: 'attendance', label: 'Attendance', icon: 'book-outline', tab: 'attendance' },
   { key: 'homework', label: 'Assignment', icon: 'book-plus-outline', tab: 'homework' },
   { key: 'bus', label: 'Bus Tracking', icon: 'bus', tab: 'bus' },
   { key: 'marks', label: 'Marks', icon: 'certificate-outline', tab: 'marks' },
   { key: 'fees', label: 'Fee Summary', icon: 'cash', tab: 'fees' },
-  { key: 'documents', label: 'Certificates & Documents', icon: 'file-certificate-outline', tab: 'documents' },
-  { key: 'feedback', label: 'Teacher Feedback', icon: 'star-box-outline', tab: 'feedback' },
   { key: 'schedule', label: 'Schedule', icon: 'calendar-outline', tab: 'schedule' },
   { key: 'library', label: 'Library', icon: 'book-open-page-variant-outline', tab: 'library' },
   { key: 'feedback-page', label: 'Feedback', icon: 'message-draw', route: '/(student)/feedback' },

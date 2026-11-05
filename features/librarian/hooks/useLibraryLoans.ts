@@ -26,18 +26,20 @@ export function useLibraryLoans(initialFilters?: LoanFilters) {
       const itemsList = Array.isArray(rawList) ? rawList : [];
       const totalCount = Array.isArray(res) ? res.length : (res?.total ?? itemsList.length);
 
-      const mapped: Loan[] = itemsList.map((l: any) => ({
+      const mapped: Loan[] = itemsList
+        .filter((l: any) => l?.id && l?.copyId && l?.studentId && l?.status && l?.dueDate)
+        .map((l: any) => ({
         id: l.id,
         copyId: l.copyId,
         bookId: l.bookId,
         studentId: l.studentId,
-        issuedBy: l.issuedBy || 'Staff',
+        issuedBy: l.issuedBy || '',
         issueDate: l.issuedAt ? String(l.issuedAt).split('T')[0] : (l.issueDate || ''),
         issuedAt: l.issuedAt ? String(l.issuedAt) : undefined,
         dueDate: l.dueDate ? String(l.dueDate).split('T')[0] : '',
         returnDate: l.returnedAt ? String(l.returnedAt).split('T')[0] : (l.returnDate || undefined),
         returnedAt: l.returnedAt ? String(l.returnedAt) : undefined,
-        status: (l.status as LoanStatus) || 'ACTIVE',
+        status: l.status as LoanStatus,
         renewalCount: l.renewalCount || 0,
         createdAt: l.createdAt ? String(l.createdAt) : undefined,
         updatedAt: l.updatedAt ? String(l.updatedAt) : undefined,

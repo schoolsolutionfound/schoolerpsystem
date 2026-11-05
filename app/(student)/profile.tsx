@@ -17,6 +17,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { auth } from '../../firebaseConfig';
 import { useUserStore } from '../../store/useUserStore';
 import { uploadProfilePictureApi } from '../../api/upload';
+import { getProfileApi, updateMyProfileApi } from '../../api/users';
 import { FontFamily } from '../../constants/fonts';
 
 export default function StudentProfileScreen() {
@@ -37,12 +38,24 @@ export default function StudentProfileScreen() {
   const setUserProfile = useUserStore((s) => s.setUserProfile);
 
   const [refreshing, setRefreshing] = useState(false);
-  const onRefresh = useCallback(() => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    setTimeout(() => {
+    try {
+      const profile: any = await getProfileApi();
+      setUserProfile({
+        fullName: profile?.fullName || '',
+        phone: profile?.phone || '',
+        parentPhone: profile?.parentPhone || '',
+        rollNoOrUSN: profile?.rollNoOrUSN || '',
+        tenthPercentage: profile?.tenthPercentage || '',
+        profilePic: profile?.profilePicUrl || '',
+      });
+    } catch (error: any) {
+      Alert.alert('Refresh Failed', error?.message || 'Could not refresh profile.');
+    } finally {
       setRefreshing(false);
-    }, 600);
-  }, []);
+    }
+  }, [setUserProfile]);
 
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to log out?', [
@@ -72,6 +85,7 @@ export default function StudentProfileScreen() {
     const uri = result.assets[0].uri;
     try {
       const url = await uploadProfilePictureApi(uri);
+      await updateMyProfileApi({ profilePicUrl: url });
       setUserProfile({ profilePic: url });
       Alert.alert('Success', 'Profile photo updated!');
     } catch (err: any) {

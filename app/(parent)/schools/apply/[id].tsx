@@ -19,7 +19,7 @@ export default function AdmissionFormScreen() {
   const [formData, setFormData] = useState({
     childFullName: '',
     childAge: '',
-    childGender: 'male' as 'male' | 'female' | 'other',
+    childGender: '' as '' | 'male' | 'female' | 'other',
     previousSchool: '',
     gradeApplyingFor: '',
     parentName: storeFullName || auth.currentUser?.displayName || '',
@@ -28,8 +28,18 @@ export default function AdmissionFormScreen() {
   });
 
   const handleSubmit = async () => {
-    if (!formData.childFullName.trim() || !formData.childAge.trim() || !formData.gradeApplyingFor.trim()) {
+    if (
+      !formData.childFullName.trim() ||
+      !formData.childAge.trim() ||
+      !formData.childGender ||
+      !formData.gradeApplyingFor.trim()
+    ) {
       Alert.alert('Required Fields', 'Please fill in all required student details.');
+      return;
+    }
+
+    if (!formData.parentName.trim()) {
+      Alert.alert('Parent Name Required', 'Please enter the parent or guardian name.');
       return;
     }
 
@@ -48,7 +58,7 @@ export default function AdmissionFormScreen() {
     try {
       await createAdmissionApi({
         parentId: user.uid,
-        parentName: formData.parentName.trim() || user.displayName || 'Parent/Guardian',
+        parentName: formData.parentName.trim(),
         parentPhone: formData.parentPhone.trim(),
         parentEmail: formData.parentEmail.trim() || undefined,
         schoolId: id as string,

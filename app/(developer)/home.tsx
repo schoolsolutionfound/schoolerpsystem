@@ -17,11 +17,16 @@ import { updateMyProfileApi } from '../../api/users';
 
 type DevTab = 'home' | 'institutions' | 'admins' | 'profile';
 
-const TABS: { key: DevTab; label: string; icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'] }[] = [
-  { key: 'home', label: 'Home', icon: 'home-variant-outline' },
-  { key: 'institutions', label: 'Institutions', icon: 'domain' },
-  { key: 'admins', label: 'Admins', icon: 'account-group-outline' },
-  { key: 'profile', label: 'Profile', icon: 'account-circle-outline' },
+const TABS: {
+  key: DevTab;
+  label: string;
+  icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
+  iconFilled: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
+}[] = [
+  { key: 'home', label: 'Home', icon: 'home-variant-outline', iconFilled: 'home-variant' },
+  { key: 'institutions', label: 'Institutions', icon: 'domain', iconFilled: 'domain' },
+  { key: 'admins', label: 'Admins', icon: 'account-group-outline', iconFilled: 'account-group' },
+  { key: 'profile', label: 'Profile', icon: 'account-circle-outline', iconFilled: 'account-circle' },
 ];
 
 export default function DeveloperHomeScreen() {

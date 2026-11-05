@@ -48,7 +48,7 @@ export const AdmissionStudentFormModal: React.FC<AdmissionStudentFormModalProps>
   const [address, setAddress] = useState('');
   const [bloodGroup, setBloodGroup] = useState('');
   const [preferredCourseId, setPreferredCourseId] = useState('');
-  const [programType, setProgramType] = useState('engineering');
+  const [programType, setProgramType] = useState('');
   const [notes, setNotes] = useState('');
 
   // Dynamic Custom Fields Pipeline
@@ -58,8 +58,10 @@ export const AdmissionStudentFormModal: React.FC<AdmissionStudentFormModalProps>
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (visible) {
+    if (visible && programType) {
       loadFormConfigs();
+    } else if (!programType) {
+      setDynamicFields([]);
     }
   }, [visible, programType]);
 
@@ -85,6 +87,7 @@ export const AdmissionStudentFormModal: React.FC<AdmissionStudentFormModalProps>
     setAddress('');
     setBloodGroup('');
     setPreferredCourseId('');
+    setProgramType('');
     setNotes('');
     setCustomFieldValues({});
   };
@@ -98,13 +101,21 @@ export const AdmissionStudentFormModal: React.FC<AdmissionStudentFormModalProps>
       Alert.alert('Required', 'Please enter parent phone number');
       return;
     }
+    if (!programType) {
+      Alert.alert('Required', 'Please select an admission program type');
+      return;
+    }
+    if (!activeBatch) {
+      Alert.alert('Batch Not Loaded', 'Could not resolve the active admission batch. Please retry.');
+      return;
+    }
 
     try {
       setSubmitting(true);
       const preferredCourse = courses.find((c) => c.id === preferredCourseId);
 
       await createAdmissionApplication({
-        academicYear: activeBatch || '2026-2027',
+        academicYear: activeBatch,
         fullName: fullName.trim(),
         parentPhone: parentPhone.trim(),
         dob: dob.trim(),
@@ -140,7 +151,7 @@ export const AdmissionStudentFormModal: React.FC<AdmissionStudentFormModalProps>
           <View style={styles.sheetHeader}>
             <View>
               <Text style={styles.title}>New Student Admission</Text>
-              <Text style={styles.subtitle}>Enters Waiting List • Batch {activeBatch || '2026-2027'}</Text>
+              <Text style={styles.subtitle}>Enters Waiting List • Batch {activeBatch || '—'}</Text>
             </View>
             <TouchableOpacity style={styles.closeBtn} onPress={onClose} hitSlop={10}>
               <Feather name="x" size={20} color="#171717" />

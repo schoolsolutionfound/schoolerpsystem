@@ -61,11 +61,11 @@ export const TeacherLibraryView: React.FC<TeacherLibraryViewProps> = ({ onBack }
   const [refreshing, setRefreshing] = useState(false);
 
   // Received Books State
-  const [receivedBooks, setReceivedBooks] = useState<ReceivedBookItem[]>([]);
+  const [receivedBooks] = useState<ReceivedBookItem[]>([]);
   const [bookSearch, setBookSearch] = useState('');
 
   // Fines State
-  const [fines, setFines] = useState<LibraryFineItem[]>([]);
+  const [fines] = useState<LibraryFineItem[]>([]);
   const [fineFilter, setFineFilter] = useState<'ALL' | 'UNPAID' | 'PAID'>('ALL');
 
   // Payment & Receipt Modals
@@ -103,56 +103,19 @@ export const TeacherLibraryView: React.FC<TeacherLibraryViewProps> = ({ onBack }
   }, [fines, fineFilter]);
 
   // Renewal Handler
-  const handleRequestRenewal = (book: ReceivedBookItem) => {
+  const handleRequestRenewal = (_book: ReceivedBookItem) => {
     Alert.alert(
-      'Confirm Book Renewal',
-      `Extend return due date for "${book.title}" (${book.accessionNo}) by 14 days?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Confirm Renewal',
-          onPress: () => {
-            setReceivedBooks((prev) =>
-              prev.map((b) =>
-                b.id === book.id
-                  ? {
-                      ...b,
-                      renewCount: b.renewCount + 1,
-                      dueDate: '19 Nov 2026',
-                      status: 'IN_HAND',
-                    }
-                  : b
-              )
-            );
-            Alert.alert(
-              'Renewal Confirmed',
-              `"${book.title}" has been successfully renewed. New due date is 19 Nov 2026.`
-            );
-          },
-        },
-      ]
+      'Renewal Unavailable',
+      'Teacher self-service renewals are not configured. Please contact library staff.'
     );
   };
 
   // Fine Payment Handler
-  const handleConfirmPayFine = (fine: LibraryFineItem) => {
-    setFines((prev) =>
-      prev.map((f) =>
-        f.id === fine.id
-          ? {
-              ...f,
-              status: 'PAID',
-              paidDate: '22 Oct 2026',
-              receiptNo: `REC-LIB-${Math.floor(10000 + Math.random() * 90000)}`,
-              paymentMode: 'Online ERP Settlement',
-            }
-          : f
-      )
-    );
+  const handleConfirmPayFine = (_fine: LibraryFineItem) => {
     setPayingFine(null);
     Alert.alert(
-      'Payment Successful',
-      `Fine of â‚¹${fine.amount} for "${fine.bookTitle}" has been cleared.`
+      'Payment Unavailable',
+      'Teacher fine payments are not configured. Please pay through library staff.'
     );
   };
 
@@ -298,8 +261,8 @@ export const TeacherLibraryView: React.FC<TeacherLibraryViewProps> = ({ onBack }
               {filteredBooks.length === 0 ? (
                 <View style={styles.emptyCard}>
                   <MaterialCommunityIcons name="book-open-page-variant-outline" size={40} color="#9CA3AF" />
-                  <Text style={styles.emptyTitle}>No Received Books</Text>
-                  <Text style={styles.emptySub}>No books match your search criteria.</Text>
+                  <Text style={styles.emptyTitle}>Library self-service unavailable</Text>
+                  <Text style={styles.emptySub}>Loan records are currently managed by library staff.</Text>
                 </View>
               ) : (
                 filteredBooks.map((book) => (
@@ -380,8 +343,8 @@ export const TeacherLibraryView: React.FC<TeacherLibraryViewProps> = ({ onBack }
               {filteredFines.length === 0 ? (
                 <View style={styles.emptyCard}>
                   <MaterialCommunityIcons name="cash-check" size={40} color="#9CA3AF" />
-                  <Text style={styles.emptyTitle}>No Fines Found</Text>
-                  <Text style={styles.emptySub}>No fine records under this filter.</Text>
+                  <Text style={styles.emptyTitle}>Library self-service unavailable</Text>
+                  <Text style={styles.emptySub}>Fine records and payments are currently managed by library staff.</Text>
                 </View>
               ) : (
                 filteredFines.map((fine) => {

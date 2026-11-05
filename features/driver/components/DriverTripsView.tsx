@@ -21,6 +21,7 @@ import { DriverTripHero } from './DriverTripHero';
 import { DriverTripBroadcastCard } from './DriverTripBroadcastCard';
 import { DriverTripStopsTimeline } from './DriverTripStopsTimeline';
 import { DriverTripsSkeleton } from './skeletons/DriverSkeletons';
+import { SHOW_DRIVER_SIMULATOR } from '../../../constants/featureFlags';
 
 const EARTH_RADIUS_KM = 6371;
 
@@ -69,6 +70,7 @@ export const DriverTripsView: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [assignment, setAssignment] = useState<DriverAssignmentData | null>(null);
+  const [assignmentError, setAssignmentError] = useState('');
   const [activeTripId, setActiveTripId] = useState<string | null>(null);
   const [currentStopIndex, setCurrentStopIndex] = useState(0);
   const [autoBroadcast, setAutoBroadcast] = useState(false);
@@ -80,12 +82,14 @@ export const DriverTripsView: React.FC = () => {
     try {
       const data = await getDriverAssignmentApi();
       setAssignment(data);
+      setAssignmentError('');
       if (data.hasLiveTrip && data.liveTrip) {
         setActiveTripId(data.liveTrip.id);
       } else {
         setActiveTripId(null);
       }
     } catch (err: any) {
+      setAssignmentError(err?.message || 'Could not load the driver assignment.');
       console.warn('[DriverTripsView] Failed to fetch assignment:', err.message);
     } finally {
       setLoading(false);
@@ -98,12 +102,13 @@ export const DriverTripsView: React.FC = () => {
 
   const isLive = !!activeTripId;
   const stops: BusStop[] = assignment?.stops || [];
+  const simulatorActive = SHOW_DRIVER_SIMULATOR && autoBroadcast;
 
   // Real GPS broadcasting via expo-location (paused when autoBroadcast is ON)
-  const gps = useDriverLocationBroadcast(activeTripId, isLive && !autoBroadcast);
+  const gps = useDriverLocationBroadcast(activeTripId, isLive && !simulatorActive);
 
   // Derive the bus location to display: prefer sim coords when autoBroadcast is active, else real GPS
-  const displayLocation = autoBroadcast && simCoords
+  const displayLocation = simulatorActive && simCoords
     ? { latitude: simCoords.lat, longitude: simCoords.lng, speed: simCoords.speed }
     : gps.lastFix
     ? {
@@ -112,12 +117,12 @@ export const DriverTripsView: React.FC = () => {
         speed: gps.lastFix.speed,
         heading: gps.lastFix.heading,
       }
-    : simCoords
+    : SHOW_DRIVER_SIMULATOR && simCoords
     ? { latitude: simCoords.lat, longitude: simCoords.lng, speed: simCoords.speed }
     : null;
 
   // Display speed: prefer sim speed when auto-moving, else real GPS fix
-  const displaySpeed = autoBroadcast && simCoords
+  const displaySpeed = simulatorActive && simCoords
     ? simCoords.speed
     : (gps.lastFix?.speed ?? simCoords?.speed ?? null);
 
@@ -140,7 +145,7 @@ export const DriverTripsView: React.FC = () => {
   // Manual simulation location sender (fallback for dev / web)
   const broadcastSimLocation = useCallback(
     async (lat: number, lng: number, speed: number = 28) => {
-      if (!activeTripId) return;
+      if (!SHOW_DRIVER_SIMULATOR || !activeTripId) return;
       try {
         await updateDriverLocationApi(activeTripId, {
           latitude: lat,
@@ -169,7 +174,7 @@ export const DriverTripsView: React.FC = () => {
 
   // Advance simulation to next stop along the route
   const handleNextStop = useCallback(() => {
-    if (stops.length === 0) return;
+    if (!SHOW_DRIVER_SIMULATOR || stops.length === 0) return;
     const nextIdx = (currentStopIndex + 1) % stops.length;
     setCurrentStopIndex(nextIdx);
     const stop = stops[nextIdx];
@@ -178,7 +183,7 @@ export const DriverTripsView: React.FC = () => {
 
   // Auto-broadcast simulation loop when enabled
   useEffect(() => {
-    if (isLive && autoBroadcast && stops.length > 0) {
+    if (SHOW_DRIVER_SIMULATOR && isLive && autoBroadcast && stops.length > 0) {
       const initial = stops[currentStopIndex] || stops[0];
       broadcastSimLocation(initial.latitude, initial.longitude, 32);
 
@@ -233,6 +238,18 @@ export const DriverTripsView: React.FC = () => {
     return <DriverTripsSkeleton />;
   }
 
+  if (assignmentError && !assignment) {
+    return (
+      <View style={styles.errorCard}>
+        <Text style={styles.errorTitle}>Assignment unavailable</Text>
+        <Text style={styles.errorText}>{assignmentError}</Text>
+        <TouchableOpacity style={styles.retryBtn} onPress={fetchAssignment}>
+          <Text style={styles.retryBtnText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   const routeName = assignment?.route?.name || 'No route assigned';
   const regNo = assignment?.vehicle?.registrationNo || 'N/A';
 
@@ -278,8 +295,10 @@ export const DriverTripsView: React.FC = () => {
       {/* Live GPS / Simulator Control Card */}
       <DriverTripBroadcastCard
         isLive={isLive}
-        autoBroadcast={autoBroadcast}
-        onToggleAutoBroadcast={setAutoBroadcast}
+        autoBroadcast={simulatorActive}
+        onToggleAutoBroadcast={(enabled) => {
+          if (SHOW_DRIVER_SIMULATOR) setAutoBroadcast(enabled);
+        }}
         stops={stops}
         currentStopIndex={currentStopIndex}
         displaySpeed={displaySpeed}
@@ -310,6 +329,19 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   loadingText: { fontSize: 13, color: '#6B7280', fontFamily: FontFamily.medium },
+  errorCard: {
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FECACA',
+    borderRadius: 6,
+    borderWidth: 1,
+    gap: 7,
+    padding: 20,
+  },
+  errorTitle: { color: '#991B1B', fontFamily: FontFamily.bold, fontSize: 15 },
+  errorText: { color: '#7F1D1D', fontFamily: FontFamily.regular, fontSize: 12, textAlign: 'center' },
+  retryBtn: { backgroundColor: '#991B1B', borderRadius: 5, paddingHorizontal: 18, paddingVertical: 9 },
+  retryBtnText: { color: '#FFFFFF', fontFamily: FontFamily.bold, fontSize: 12 },
 
   trackBtn: {
     flexDirection: 'row',

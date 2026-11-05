@@ -11,6 +11,10 @@ export interface UnifiedHeaderProps {
   showProfile?: boolean;
   userName?: string;
   profilePic?: string;
+  /** Shows a back chevron instead of the menu button. */
+  onBackPress?: () => void;
+  /** Replaces the logo with a page title (used with onBackPress). */
+  title?: string;
 }
 
 const getGreeting = (): string => {
@@ -27,6 +31,8 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
   showProfile = false,
   userName,
   profilePic,
+  onBackPress,
+  title,
 }) => {
   const firstName = userName ? userName.split(' ')[0] : 'User';
   const greeting = getGreeting();
@@ -51,18 +57,22 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
       <View style={styles.topHeader}>
         <TouchableOpacity
           style={styles.headerBtn}
-          onPress={handleMenuPress}
+          onPress={onBackPress || handleMenuPress}
           activeOpacity={0.7}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Feather name="menu" size={24} color="#111827" />
+          <Feather name={onBackPress ? 'chevron-left' : 'menu'} size={onBackPress ? 28 : 24} color="#111827" />
         </TouchableOpacity>
 
-        <Image
-          source={require('../../../../assets/text-logo.png')}
-          style={styles.logoImage}
-          resizeMode="contain"
-        />
+        {title ? (
+          <Text style={styles.headerTitle} numberOfLines={1}>{title}</Text>
+        ) : (
+          <Image
+            source={require('../../../../assets/text-logo.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
+        )}
 
         <TouchableOpacity
           style={styles.headerBtn}
@@ -117,6 +127,14 @@ const styles = StyleSheet.create({
   logoImage: {
     height: 34,
     width: 140,
+  },
+  headerTitle: {
+    flex: 1,
+    textAlign: 'center',
+    marginHorizontal: 8,
+    fontSize: 17,
+    fontFamily: FontFamily.bold,
+    color: '#111827',
   },
   headerBtn: {
     width: 36,

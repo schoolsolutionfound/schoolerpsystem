@@ -58,31 +58,33 @@ export const DriverTripBroadcastCard: React.FC<DriverTripBroadcastCardProps> = (
         </View>
       </View>
 
-      {/* Broadcast Mode Segment Control (Live GPS vs Auto-Simulation) */}
-      <View style={styles.modeSegmentContainer}>
-        <TouchableOpacity
-          style={[styles.modeSegmentBtn, !autoBroadcast && styles.modeSegmentBtnActive]}
-          onPress={() => onToggleAutoBroadcast(false)}
-          activeOpacity={0.8}
-        >
-          <Text style={[styles.modeSegmentText, !autoBroadcast && styles.modeSegmentTextActive]}>
-            Real GPS
-          </Text>
-        </TouchableOpacity>
+      {/* Simulation can only be selected in development builds. */}
+      {SHOW_DRIVER_SIMULATOR && (
+        <View style={styles.modeSegmentContainer}>
+          <TouchableOpacity
+            style={[styles.modeSegmentBtn, !autoBroadcast && styles.modeSegmentBtnActive]}
+            onPress={() => onToggleAutoBroadcast(false)}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.modeSegmentText, !autoBroadcast && styles.modeSegmentTextActive]}>
+              Real GPS
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.modeSegmentBtn, autoBroadcast && styles.modeSegmentBtnActive]}
-          onPress={() => onToggleAutoBroadcast(true)}
-          activeOpacity={0.8}
-        >
-          <Text style={[styles.modeSegmentText, autoBroadcast && styles.modeSegmentTextActive]}>
-            Auto Simulation
-          </Text>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            style={[styles.modeSegmentBtn, autoBroadcast && styles.modeSegmentBtnActive]}
+            onPress={() => onToggleAutoBroadcast(true)}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.modeSegmentText, autoBroadcast && styles.modeSegmentTextActive]}>
+              Auto Simulation
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Auto-Simulation Status Banner */}
-      {autoBroadcast && (
+      {SHOW_DRIVER_SIMULATOR && autoBroadcast && (
         <View style={[styles.broadcastCard, { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' }]}>
           <View style={styles.broadcastHeader}>
             <View style={styles.broadcastHeaderLeft}>
@@ -107,7 +109,7 @@ export const DriverTripBroadcastCard: React.FC<DriverTripBroadcastCardProps> = (
       )}
 
       {/* Live GPS Status Card */}
-      {!autoBroadcast && USE_REAL_DRIVER_GPS && (
+      {(!autoBroadcast || !SHOW_DRIVER_SIMULATOR) && USE_REAL_DRIVER_GPS && (
         <View style={styles.broadcastCard}>
           <View style={styles.broadcastHeader}>
             <View style={styles.broadcastHeaderLeft}>

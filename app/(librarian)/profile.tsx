@@ -38,7 +38,15 @@ export default function LibrarianProfileScreen() {
     <View style={styles.container}>
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
+          <TouchableOpacity
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/(librarian)/home'))}
+            style={styles.headerBack}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <MaterialCommunityIcons name="arrow-left" size={22} color="#171717" />
+          </TouchableOpacity>
           <Text style={styles.headerTitle}>Profile</Text>
+          <View style={styles.headerBack} />
         </View>
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           <View style={styles.card}>
@@ -120,8 +128,9 @@ export default function LibrarianProfileScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFFDF7' },
   safe: { flex: 1 },
-  header: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E8E5DC', backgroundColor: '#FFFFFF' },
-  headerTitle: { fontSize: 17, fontWeight: '700', color: '#171717' },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E8E5DC', backgroundColor: '#FFFFFF' },
+  headerBack: { width: 32, alignItems: 'center' },
+  headerTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '700', color: '#171717' },
   scroll: { padding: 16, gap: 14, paddingBottom: 40 },
   card: { backgroundColor: '#FFFFFF', borderRadius: BorderRadius.card, padding: 18, borderWidth: 1, borderColor: '#E8E5DC', gap: 14 },
   avatarRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },

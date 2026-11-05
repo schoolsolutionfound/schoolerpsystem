@@ -124,6 +124,7 @@ const AppLayout = function Layout() {
   const isSplashHidden = useRef(false);
   const appStateRef = useRef(AppState.currentState);
   const setMaintenance = useConfigStore((state) => state.setMaintenance);
+  const setInstitutionConfig = useConfigStore((state) => state.setInstitutionConfig);
   const maintenanceConfigFetchedRef = useRef(false);
 
   const CURRENT_APP_VERSION = Constants.expoConfig?.version || '1.0.0';
@@ -292,6 +293,16 @@ const AppLayout = function Layout() {
             data.maintenanceEnabled ?? false,
             data.maintenanceMinVersion || '0.0.0'
           );
+          setInstitutionConfig({
+            institutionCode: data.institutionCode || '',
+            institutionName: data.institutionName || '',
+            institutionType: data.institutionType || '',
+            departments: Array.isArray(data.departments) ? data.departments : [],
+            academicYears: Array.isArray(data.academicYears) ? data.academicYears : [],
+            yearsOfStudy: Array.isArray(data.yearsOfStudy) ? data.yearsOfStudy : [],
+            courses: Array.isArray(data.courses) ? data.courses : [],
+            sections: Array.isArray(data.sections) ? data.sections : [],
+          });
         }
       } catch (error) {
         if (__DEV__) console.warn('[BOOT] maintenance fetch failed, continuing', error);

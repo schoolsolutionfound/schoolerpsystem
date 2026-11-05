@@ -98,22 +98,7 @@ export const SchoolDiscoveryFeed = () => {
       return matched;
     }
 
-    // Fallback if the affiliated school was not in the default list
-    if (effectiveName || effectiveCode) {
-      const fallbackSchool: Institution = {
-        id: effectiveCode || '',
-        institutionCode: effectiveCode || '',
-        institutionName: effectiveName || '',
-        institutionType: 'school',
-        subscriptionStatus: 'active',
-        description: '',
-        averageRating: 0,
-        totalReviews: 0,
-      };
-      return [fallbackSchool];
-    }
-
-    return schools;
+    return [];
   }, [schools, isAffiliated, effectiveCode, effectiveName]);
 
   if (loading) {

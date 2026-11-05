@@ -53,3 +53,37 @@ export async function resendVerificationEmailApi(): Promise<ResendVerificationEm
     body: JSON.stringify({}),
   });
 }
+
+// ── Forgot Password (OTP — no links) ────────────────────────────────────────
+
+export interface ForgotPasswordResponse {
+  sent: boolean;
+  // Present only when the server is in dev/no-SES mode: the 6-digit code, so
+  // the flow can be completed without email delivery.
+  devCode?: string;
+}
+
+export async function forgotPasswordApi(email: string): Promise<ForgotPasswordResponse> {
+  return apiClient<ForgotPasswordResponse>('/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+export interface ResetPasswordRequest {
+  email: string;
+  code: string;
+  newPassword: string;
+}
+
+export interface ResetPasswordResponse {
+  success: boolean;
+  message: string;
+}
+
+export async function resetPasswordApi(data: ResetPasswordRequest): Promise<ResetPasswordResponse> {
+  return apiClient<ResetPasswordResponse>('/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}

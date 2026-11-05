@@ -28,9 +28,6 @@ interface AdminDashboardViewProps {
 }
 
 export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ fullName, stats, onNavigateTab, onAddRole, refreshing = false, onRefresh }) => {
-  const institutionCode = stats?.institutionCode || 'INST';
-  const institutionName = stats?.institutionName || 'My Institution';
-
   const statItems = [
     { label: 'Students', value: stats?.students ?? 0 },
     { label: 'Teachers', value: stats?.teachers ?? 0 },

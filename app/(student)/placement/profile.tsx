@@ -91,7 +91,14 @@ export default function PlacementProfileScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backBtn} onPress={handleBack} activeOpacity={0.7}>
+            <Feather name="arrow-left" size={22} color="#171717" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Placement Profile</Text>
+          <View style={{ width: 36 }} />
+        </View>
         <PlacementProfileSkeleton />
       </SafeAreaView>
     );
@@ -121,11 +128,11 @@ export default function PlacementProfileScreen() {
             <View style={styles.readOnlyGrid}>
               <View style={styles.gridItem}>
                 <Text style={styles.itemLabel}>Branch / Stream</Text>
-                <Text style={styles.itemVal}>{profile.branch || 'General'}</Text>
+                <Text style={styles.itemVal}>{profile.branch || 'Not provided'}</Text>
               </View>
               <View style={styles.gridItem}>
                 <Text style={styles.itemLabel}>Academic Year</Text>
-                <Text style={styles.itemVal}>{profile.year || 'Current'}</Text>
+                <Text style={styles.itemVal}>{profile.year || 'Not provided'}</Text>
               </View>
             </View>
 

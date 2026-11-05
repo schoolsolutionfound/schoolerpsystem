@@ -18,6 +18,7 @@ import { Feather } from '@expo/vector-icons';
 import { FontFamily } from '../../../constants/fonts';
 import { SchoolNotice } from '../types/principal.types';
 import { PrincipalNoticesSkeleton } from './skeletons/PrincipalSkeletons';
+import { useConfigStore } from '../../../store/useConfigStore';
 
 interface PrincipalNoticesViewProps {
   notices: SchoolNotice[];
@@ -29,16 +30,6 @@ interface PrincipalNoticesViewProps {
 }
 
 type AudienceFilterKey = 'all' | 'urgent' | 'teachers' | 'students' | 'parents';
-
-const INSTITUTION_DEPARTMENTS = [
-  'Computer Science',
-  'AIML',
-  'Electronics & Comm',
-  'Mechanical Eng',
-  'Civil Eng',
-  'Commerce & Mgmt',
-  'Applied Sciences',
-];
 
 export const PrincipalNoticesView: React.FC<PrincipalNoticesViewProps> = ({
   notices,
@@ -60,6 +51,15 @@ export const PrincipalNoticesView: React.FC<PrincipalNoticesViewProps> = ({
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState<AudienceFilterKey>('all');
   const [localDeletedIds, setLocalDeletedIds] = useState<string[]>([]);
+
+  const institutionDepartments = useConfigStore((s) => s.institution.departments);
+  const departmentOptions = useMemo(() => {
+    const set = new Set<string>(institutionDepartments);
+    localNotices.forEach((n) => {
+      if (n.department && n.department.trim()) set.add(n.department.trim());
+    });
+    return Array.from(set);
+  }, [institutionDepartments, localNotices]);
 
   // Edit Modal State
   const [editingNotice, setEditingNotice] = useState<SchoolNotice | null>(null);
@@ -532,7 +532,7 @@ export const PrincipalNoticesView: React.FC<PrincipalNoticesViewProps> = ({
                 <View style={styles.modalChipsWrap}>
                   {[
                     { key: '', label: 'All Departments' },
-                    ...INSTITUTION_DEPARTMENTS.map((d) => ({ key: d, label: d })),
+                    ...departmentOptions.map((d) => ({ key: d, label: d })),
                   ].map((dept) => {
                     const active = (editDepartment || '').toLowerCase() === dept.key.toLowerCase();
                     return (

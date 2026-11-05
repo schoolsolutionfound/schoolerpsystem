@@ -23,7 +23,7 @@ interface HODStudentsViewProps {
   onNavigateToEligibility?: () => void;
 }
 
-const SEMESTER_FILTERS = ['All', 'Semester 1', 'Semester 3', 'Semester 5', 'Semester 7'];
+const SEMESTER_FILTER_ALL = 'All';
 
 export const HODStudentsView: React.FC<HODStudentsViewProps> = ({
   students = [],
@@ -33,9 +33,18 @@ export const HODStudentsView: React.FC<HODStudentsViewProps> = ({
   onNavigateToEligibility,
 }) => {
   const [search, setSearch] = useState('');
-  const [selectedSemester, setSelectedSemester] = useState('All');
+  const [selectedSemester, setSelectedSemester] = useState(SEMESTER_FILTER_ALL);
   const [statusFilter, setStatusFilter] = useState<'all' | 'eligible' | 'risk'>('all');
   const [selectedStudent, setSelectedStudent] = useState<HODDepartmentStudent | null>(null);
+
+  const semesterFilters = useMemo(() => {
+    const set = new Set<string>();
+    students.forEach((s) => {
+      const semester = (s.semester || '').trim();
+      if (semester) set.add(semester);
+    });
+    return [SEMESTER_FILTER_ALL, ...Array.from(set)];
+  }, [students]);
 
   // Filtered students
   const filteredStudents = useMemo(() => {
@@ -46,8 +55,8 @@ export const HODStudentsView: React.FC<HODStudentsViewProps> = ({
       }
 
       // Status filter
-      if (statusFilter === 'eligible' && s.attendancePct < 75) return false;
-      if (statusFilter === 'risk' && s.attendancePct >= 75) return false;
+      if (statusFilter === 'eligible' && (s.attendancePct == null || s.attendancePct < 75)) return false;
+      if (statusFilter === 'risk' && (s.attendancePct == null || s.attendancePct >= 75)) return false;
 
       // Search query
       if (search.trim()) {
@@ -65,12 +74,13 @@ export const HODStudentsView: React.FC<HODStudentsViewProps> = ({
 
   // Overall statistics
   const totalCount = students.length;
-  const eligibleCount = students.filter((s) => s.attendancePct >= 75).length;
-  const detentionRiskCount = students.filter((s) => s.attendancePct < 75).length;
+  const eligibleCount = students.filter((s) => s.attendancePct != null && s.attendancePct >= 75).length;
+  const detentionRiskCount = students.filter((s) => s.attendancePct != null && s.attendancePct < 75).length;
+  const studentsWithCgpa = students.filter((s) => s.cgpa != null);
   const avgCgpa =
-    totalCount > 0
-      ? (students.reduce((sum, s) => sum + (s.cgpa || 0), 0) / totalCount).toFixed(2)
-      : '0.00';
+    studentsWithCgpa.length > 0
+      ? (studentsWithCgpa.reduce((sum, s) => sum + Number(s.cgpa), 0) / studentsWithCgpa.length).toFixed(2)
+      : 'N/A';
 
   const handleCall = (phoneNumber: string) => {
     if (!phoneNumber) return;
@@ -158,7 +168,7 @@ export const HODStudentsView: React.FC<HODStudentsViewProps> = ({
         style={styles.semesterScroll}
         contentContainerStyle={styles.semesterScrollContent}
       >
-        {SEMESTER_FILTERS.map((sem) => {
+        {semesterFilters.map((sem) => {
           const isSelected = selectedSemester === sem;
           return (
             <TouchableOpacity
@@ -223,15 +233,18 @@ export const HODStudentsView: React.FC<HODStudentsViewProps> = ({
           </View>
         ) : (
           filteredStudents.map((std) => {
-            const isAtRisk = std.attendancePct < 75;
-            const badgeBg = isAtRisk ? '#FEE2E2' : '#DCFCE7';
-            const badgeText = isAtRisk ? '#DC2626' : '#16A34A';
+            const hasAttendance = std.attendancePct != null;
+            const isAtRisk = std.attendancePct != null && std.attendancePct < 75;
+            const badgeBg = !hasAttendance ? '#F3F4F6' : isAtRisk ? '#FEE2E2' : '#DCFCE7';
+            const badgeText = !hasAttendance ? '#6B7280' : isAtRisk ? '#DC2626' : '#16A34A';
             const statusLabel =
               std.hallTicketStatus === 'detained'
                 ? 'DETAINED'
                 : std.hallTicketStatus === 'condonation_needed'
                 ? 'CONDONATION'
-                : 'ELIGIBLE';
+                : std.hallTicketStatus === 'eligible'
+                ? 'ELIGIBLE'
+                : 'NOT EVALUATED';
 
             return (
               <View key={std.id} style={styles.studentCard}>
@@ -247,7 +260,9 @@ export const HODStudentsView: React.FC<HODStudentsViewProps> = ({
                       </View>
                       <Text style={styles.metaDot}>•</Text>
                       <Text style={styles.metaText}>
-                        {std.semester} (Sec {std.section})
+                        {[std.semester, std.section ? `Sec ${std.section}` : '']
+                          .filter(Boolean)
+                          .join(' • ') || '—'}
                       </Text>
                     </View>
                   </View>
@@ -255,7 +270,7 @@ export const HODStudentsView: React.FC<HODStudentsViewProps> = ({
                   {/* Attendance Badge */}
                   <View style={[styles.attendanceBadge, { backgroundColor: badgeBg }]}>
                     <Text style={[styles.attendanceVal, { color: badgeText }]}>
-                      {std.attendancePct}%
+                      {std.attendancePct != null ? `${std.attendancePct}%` : '—'}
                     </Text>
                     <Text style={[styles.attendanceStatusText, { color: badgeText }]}>
                       {statusLabel}
@@ -275,7 +290,7 @@ export const HODStudentsView: React.FC<HODStudentsViewProps> = ({
                   <View style={styles.infoCol}>
                     <Text style={styles.infoLabel}>PARENT / GUARDIAN</Text>
                     <Text style={styles.infoVal} numberOfLines={1}>
-                      {std.parentName}
+                      {std.parentName || '—'}
                     </Text>
                   </View>
 
@@ -283,7 +298,7 @@ export const HODStudentsView: React.FC<HODStudentsViewProps> = ({
 
                   <View style={styles.infoCol}>
                     <Text style={styles.infoLabel}>BATCH YEAR</Text>
-                    <Text style={styles.infoVal}>{std.batchYear}</Text>
+                    <Text style={styles.infoVal}>{std.batchYear || '—'}</Text>
                   </View>
                 </View>
 
@@ -339,7 +354,12 @@ export const HODStudentsView: React.FC<HODStudentsViewProps> = ({
                   <View style={styles.modalHeaderLeft}>
                     <Text style={styles.modalTitle}>{selectedStudent.fullName}</Text>
                     <Text style={styles.modalSub}>
-                      {selectedStudent.usn} • {selectedStudent.semester} (Sec {selectedStudent.section})
+                      {selectedStudent.usn}
+                      {selectedStudent.semester || selectedStudent.section
+                        ? ` • ${[selectedStudent.semester, selectedStudent.section ? `Sec ${selectedStudent.section}` : '']
+                            .filter(Boolean)
+                            .join(' • ')}`
+                        : ''}
                     </Text>
                   </View>
                   <TouchableOpacity
@@ -361,26 +381,35 @@ export const HODStudentsView: React.FC<HODStudentsViewProps> = ({
                           style={[
                             styles.dossierGridVal,
                             {
-                              color: selectedStudent.attendancePct >= 75 ? '#16A34A' : '#DC2626',
+                              color:
+                                selectedStudent.attendancePct == null
+                                  ? '#6B7280'
+                                  : selectedStudent.attendancePct >= 75
+                                  ? '#16A34A'
+                                  : '#DC2626',
                             },
                           ]}
                         >
-                          {selectedStudent.attendancePct}%
+                          {selectedStudent.attendancePct != null ? `${selectedStudent.attendancePct}%` : '—'}
                         </Text>
                       </View>
                       <View style={styles.dossierGridItem}>
                         <Text style={styles.dossierGridLabel}>Cumulative GPA</Text>
-                        <Text style={styles.dossierGridVal}>{selectedStudent.cgpa} / 10.0</Text>
+                        <Text style={styles.dossierGridVal}>
+                          {selectedStudent.cgpa != null ? `${selectedStudent.cgpa} / 10.0` : 'N/A'}
+                        </Text>
                       </View>
                       <View style={styles.dossierGridItem}>
                         <Text style={styles.dossierGridLabel}>Hall Ticket Status</Text>
                         <Text style={styles.dossierGridVal}>
-                          {selectedStudent.hallTicketStatus.toUpperCase()}
+                          {selectedStudent.hallTicketStatus
+                            ? selectedStudent.hallTicketStatus.replace('_', ' ').toUpperCase()
+                            : 'NOT EVALUATED'}
                         </Text>
                       </View>
                       <View style={styles.dossierGridItem}>
                         <Text style={styles.dossierGridLabel}>Batch Cohort</Text>
-                        <Text style={styles.dossierGridVal}>{selectedStudent.batchYear}</Text>
+                        <Text style={styles.dossierGridVal}>{selectedStudent.batchYear || '—'}</Text>
                       </View>
                     </View>
 
@@ -399,23 +428,31 @@ export const HODStudentsView: React.FC<HODStudentsViewProps> = ({
                     <Text style={styles.dossierSectionTitle}>Contact & Parent Details</Text>
                     <View style={styles.dossierRow}>
                       <Text style={styles.dossierRowLabel}>Parent / Guardian:</Text>
-                      <Text style={styles.dossierRowVal}>{selectedStudent.parentName}</Text>
+                      <Text style={styles.dossierRowVal}>{selectedStudent.parentName || '—'}</Text>
                     </View>
                     <View style={styles.dossierRow}>
                       <Text style={styles.dossierRowLabel}>Parent Phone:</Text>
-                      <TouchableOpacity onPress={() => handleCall(selectedStudent.parentPhone)}>
-                        <Text style={[styles.dossierRowVal, { color: '#2563EB' }]}>
-                          {selectedStudent.parentPhone}
-                        </Text>
-                      </TouchableOpacity>
+                      {selectedStudent.parentPhone ? (
+                        <TouchableOpacity onPress={() => handleCall(selectedStudent.parentPhone)}>
+                          <Text style={[styles.dossierRowVal, { color: '#2563EB' }]}>
+                            {selectedStudent.parentPhone}
+                          </Text>
+                        </TouchableOpacity>
+                      ) : (
+                        <Text style={styles.dossierRowVal}>—</Text>
+                      )}
                     </View>
                     <View style={styles.dossierRow}>
                       <Text style={styles.dossierRowLabel}>Student Phone:</Text>
-                      <TouchableOpacity onPress={() => handleCall(selectedStudent.phone)}>
-                        <Text style={[styles.dossierRowVal, { color: '#2563EB' }]}>
-                          {selectedStudent.phone}
-                        </Text>
-                      </TouchableOpacity>
+                      {selectedStudent.phone ? (
+                        <TouchableOpacity onPress={() => handleCall(selectedStudent.phone)}>
+                          <Text style={[styles.dossierRowVal, { color: '#2563EB' }]}>
+                            {selectedStudent.phone}
+                          </Text>
+                        </TouchableOpacity>
+                      ) : (
+                        <Text style={styles.dossierRowVal}>—</Text>
+                      )}
                     </View>
                     <View style={styles.dossierRow}>
                       <Text style={styles.dossierRowLabel}>Official Email:</Text>

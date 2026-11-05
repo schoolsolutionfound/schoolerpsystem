@@ -288,6 +288,7 @@ export default function PlacementAdminApplicantsScreen() {
           userName={fullName}
           profilePic={profilePic}
           onMenuPress={handleBack}
+          onBackPress={handleBack}
           onNotificationsPress={() => router.push('/notifications')}
           onProfilePress={() => router.push({ pathname: '/(placement)/home', params: { tab: 'profile' } } as any)}
           showProfile
@@ -308,6 +309,7 @@ export default function PlacementAdminApplicantsScreen() {
         userName={fullName}
         profilePic={profilePic}
         onMenuPress={handleBack}
+        onBackPress={handleBack}
         onNotificationsPress={() => router.push('/notifications')}
         onProfilePress={() => router.push({ pathname: '/(placement)/home', params: { tab: 'profile' } } as any)}
         showProfile

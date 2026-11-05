@@ -51,41 +51,16 @@ export const STRUCTURE_LABELS: Record<InstitutionType, StructureLabels> = {
   },
 };
 
-export interface StructureDefaults {
-  units: string[];
-  levels: string[];
-  programs: string[];
-  sections: string[];
-  terms: TermPlanEntry[];
+export function currentAcademicYear(
+  institutionType: InstitutionType = 'school',
+  reference: Date = new Date()
+): string {
+  const year = reference.getFullYear();
+  const startYear = reference.getMonth() >= 5 ? year : year - 1;
+  return normalizeInstitutionType(institutionType) === 'college'
+    ? `${startYear}-${String((startYear + 1) % 100).padStart(2, '0')}`
+    : `${startYear}-${startYear + 1}`;
 }
-
-export const DEFAULT_STRUCTURE: Record<InstitutionType, StructureDefaults> = {
-  school: {
-    units: ['English', 'Mathematics', 'Science'],
-    levels: [
-      'Class 1',
-      'Class 2',
-      'Class 3',
-      'Class 4',
-      'Class 5',
-      'Class 6',
-      'Class 7',
-      'Class 8',
-      'Class 9',
-      'Class 10',
-    ],
-    programs: [],
-    sections: ['A', 'B', 'C'],
-    terms: [{ academicYear: '2026-2027', terms: ['Term 1', 'Term 2', 'Term 3'] }],
-  },
-  college: {
-    units: ['CSE', 'ECE', 'Civil', 'Mechanical', 'AIML'],
-    levels: ['1st Year', '2nd Year', '3rd Year', '4th Year'],
-    programs: ['B.Tech', 'M.Tech'],
-    sections: ['A', 'B'],
-    terms: [{ academicYear: '2026-27', terms: ['Semester 1', 'Semester 2'] }],
-  },
-};
 
 export interface RoleOption {
   key: string;
@@ -222,7 +197,8 @@ export interface TermPlanEntry {
 
 /**
  * Builds the terms plan from a numeric count (1–12). Schools use "Term N",
- * colleges use "Semester N" to match the seeded defaults.
+ * colleges use "Semester N". No count means no terms; the academic year is
+ * whatever the caller supplies, otherwise the current one.
  */
 export function buildTerms(
   count: number | string,
@@ -230,10 +206,9 @@ export function buildTerms(
   type?: InstitutionType | string | null
 ): TermPlanEntry[] {
   const kind = normalizeInstitutionType(type);
-  const defaults = DEFAULT_STRUCTURE[kind].terms[0];
-  const year = String(academicYear || defaults?.academicYear || '').trim();
+  const year = String(academicYear || currentAcademicYear(kind)).trim();
   const parsed = Math.floor(Number(count));
-  const total = Number.isFinite(parsed) ? Math.min(Math.max(parsed, 1), 12) : kind === 'college' ? 2 : 3;
+  const total = Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 12) : 0;
   const prefix = kind === 'college' ? 'Semester' : 'Term';
   return [
     {
@@ -243,14 +218,12 @@ export function buildTerms(
   ];
 }
 
-/** Number of terms currently configured (falls back to the per-type default). */
+/** Number of terms currently configured (0 when none are). */
 export function termCountFromPlan(
-  terms: TermPlanEntry[] | undefined | null,
-  type?: InstitutionType | string | null
+  terms: TermPlanEntry[] | undefined | null
 ): number {
   const first = Array.isArray(terms) ? terms.find((t) => Array.isArray(t?.terms) && t.terms.length > 0) : undefined;
-  if (first) return first.terms.length;
-  return normalizeInstitutionType(type) === 'college' ? 2 : 3;
+  return first ? first.terms.length : 0;
 }
 
 /** "Class 10" + "A" -> "Class 10 A" / "10" + "A" -> "10A". */

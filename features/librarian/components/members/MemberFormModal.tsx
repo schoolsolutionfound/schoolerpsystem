@@ -25,7 +25,7 @@ export const MemberFormModal = ({
   visible: boolean;
   editingStudent: StudentProfile | null;
   onClose: () => void;
-  onSave: (studentData: Partial<StudentProfile>) => void;
+  onSave: (studentData: Partial<StudentProfile>) => Promise<void>;
   modalStyles: any;
   commonStyles: any;
 }) => {
@@ -45,15 +45,14 @@ export const MemberFormModal = ({
       setPhone(editingStudent.phone || '');
     } else {
       setFullName('');
-      const randNo = String(Math.floor(100 + Math.random() * 900));
-      setAdmissionNo(`ADM-2026-${randNo}`);
-      setClassSection('Class 10-A');
+      setAdmissionNo('');
+      setClassSection('');
       setEmail('');
       setPhone('');
     }
   }, [editingStudent, visible]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!fullName.trim()) {
       Alert.alert('Required Field', 'Member full name is required.');
       return;
@@ -64,14 +63,19 @@ export const MemberFormModal = ({
     }
 
     setSubmitting(true);
-    onSave({
-      fullName: fullName.trim(),
-      admissionNo: admissionNo.trim(),
-      classSection: classSection.trim() || 'General',
-      email: email.trim() || `${fullName.toLowerCase().replace(/\s+/g, '.')}@school.com`,
-      phone: phone.trim() || undefined,
-    });
-    setSubmitting(false);
+    try {
+      await onSave({
+        fullName: fullName.trim(),
+        admissionNo: admissionNo.trim(),
+        classSection: classSection.trim() || undefined,
+        email: email.trim() || undefined,
+        phone: phone.trim() || undefined,
+      });
+    } catch (err: any) {
+      Alert.alert('Update Failed', err?.message || 'Could not update this member.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const styles = commonStyles;
@@ -126,7 +130,7 @@ export const MemberFormModal = ({
                 <TextInput
                   style={styles.formInput}
                   value={classSection}
-                  onChangeText={setClassSection}
+                  editable={false}
                   placeholder="e.g. Class 10-A"
                   placeholderTextColor="#475569"
                 />
@@ -138,7 +142,7 @@ export const MemberFormModal = ({
               <TextInput
                 style={styles.formInput}
                 value={email}
-                onChangeText={setEmail}
+                editable={false}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 placeholder="e.g. student@school.com"

@@ -75,6 +75,7 @@ export const StudentTimetableView: React.FC = () => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const weekDays = useMemo(() => getWeekDays(baseDate), [baseDate]);
   const activeDay = weekDays[selectedDayIndex] || weekDays[0];
@@ -84,7 +85,10 @@ export const StudentTimetableView: React.FC = () => {
     try {
       const res = await fetchMyTimetableApi(activeDay?.dateString);
       setData(res);
+      setErrorMessage('');
     } catch (err: any) {
+      setData(null);
+      setErrorMessage(err?.message || 'Could not load the timetable.');
       console.warn('[StudentTimetableView] error:', err?.message);
     } finally {
       setLoading(false);
@@ -122,13 +126,13 @@ export const StudentTimetableView: React.FC = () => {
       slotsFromApi.forEach((s: any) => {
         const pId = s.period?.id || s.periodId;
         if (pId && !periodMap.has(pId)) {
-          const startTime = s.period?.startTime || '09:00';
-          const endTime = s.period?.endTime || '10:00';
+          const startTime = s.period?.startTime || '';
+          const endTime = s.period?.endTime || '';
           const label = s.period?.label || `Period ${periodMap.size + 1}`;
           periodMap.set(pId, {
             id: pId,
             label,
-            timeRange: `${startTime} – ${endTime}`,
+            timeRange: startTime && endTime ? `${startTime} – ${endTime}` : 'Time not set',
             startTime,
             endTime,
           });
@@ -240,6 +244,20 @@ export const StudentTimetableView: React.FC = () => {
             <MaterialCommunityIcons name="chevron-right" size={20} color="#111827" />
           </TouchableOpacity>
         </View>
+
+        {errorMessage ? (
+          <View style={styles.statusCard}>
+            <MaterialCommunityIcons name="alert-circle-outline" size={28} color="#B91C1C" />
+            <Text style={styles.statusTitle}>Timetable unavailable</Text>
+            <Text style={styles.statusText}>{errorMessage}</Text>
+          </View>
+        ) : periods.length === 0 ? (
+          <View style={styles.statusCard}>
+            <MaterialCommunityIcons name="calendar-blank-outline" size={28} color="#6B7280" />
+            <Text style={styles.statusTitle}>No timetable published</Text>
+            <Text style={styles.statusText}>No periods are configured for this date.</Text>
+          </View>
+        ) : null}
 
         {/* ─── View Switcher Segmented Control (Day View / Week View) ───── */}
         <View style={styles.viewToggleRow}>
@@ -772,6 +790,23 @@ const styles = StyleSheet.create({
     color: '#000000',
     textAlign: 'center',
     lineHeight: 14,
+  },
+
+  statusCard: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E5E7EB',
+    borderRadius: 6,
+    borderWidth: 1,
+    gap: 5,
+    padding: 20,
+  },
+  statusTitle: { color: '#111827', fontFamily: FontFamily.bold, fontSize: 15 },
+  statusText: {
+    color: '#6B7280',
+    fontFamily: FontFamily.regular,
+    fontSize: 12,
+    textAlign: 'center',
   },
 
   /* ─── Modal Styles ───────────────────────────────────────────────── */

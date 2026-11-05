@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { FontFamily } from '../../../constants/fonts';
+import { currentAcademicYear } from '../academicStructure';
 import {
   StudentReviewCycle,
   FacultyReviewSubmission,
@@ -42,22 +43,6 @@ import {
   fetchStudentAllocationsApi,
   matchesDepartment,
 } from '../../../api/studentFeedback';
-
-const INSTITUTION_DEPARTMENTS = [
-  'Mathematics & Science',
-  'Humanities & Languages',
-  'Computer Science & Engineering',
-  'Computer Science',
-  'Artificial Intelligence & Machine Learning',
-  'AIML',
-  'Electronics & Comm',
-  'Mechanical Eng',
-  'Civil Eng',
-  'Commerce & Mgmt',
-  'Applied Sciences',
-];
-
-const SAMPLE_FACULTY_MEMBERS: Array<{ id: string; name: string; department: string; subject: string }> = [];
 
 export function getRatingLabel(score: number): string {
   const rounded = Math.round(score);
@@ -190,12 +175,16 @@ export const StudentFeedbackReviewManagerView: React.FC<StudentFeedbackReviewMan
 
   // Form State: Create Cycle
   const [newCycleTitle, setNewCycleTitle] = useState('');
-  const [newCycleAcadYear, setNewCycleAcadYear] = useState('2025-2026');
+  const [newCycleAcadYear, setNewCycleAcadYear] = useState(currentAcademicYear('college'));
   const [newCycleSemester, setNewCycleSemester] = useState('Odd Semester (V / VII)');
   const [newCycleScope, setNewCycleScope] = useState<'both' | 'faculty_only' | 'college_only'>('both');
   const [newCycleDept, setNewCycleDept] = useState('all');
   const [newCycleDeptDropdownOpen, setNewCycleDeptDropdownOpen] = useState(false);
-  const [newCycleEndDate, setNewCycleEndDate] = useState('2026-11-30');
+  const [newCycleEndDate, setNewCycleEndDate] = useState(() => {
+    const end = new Date();
+    end.setDate(end.getDate() + 30);
+    return end.toISOString().slice(0, 10);
+  });
   const [newCycleDesc, setNewCycleDesc] = useState('');
 
   // Form State: Rate Faculty (Student)
@@ -277,7 +266,6 @@ export const StudentFeedbackReviewManagerView: React.FC<StudentFeedbackReviewMan
   // Dynamically derived faculty list
   const facultyMembersList = useMemo(() => {
     const map = new Map<string, { id: string; name: string; department: string }>();
-    SAMPLE_FACULTY_MEMBERS.forEach((f) => map.set(f.id, { id: f.id, name: f.name, department: f.department }));
     facultyReviews.forEach((r) => {
       if (!map.has(r.facultyId)) {
         map.set(r.facultyId, { id: r.facultyId, name: r.facultyName, department: r.facultyDepartment });
@@ -285,6 +273,33 @@ export const StudentFeedbackReviewManagerView: React.FC<StudentFeedbackReviewMan
     });
     return Array.from(map.values());
   }, [facultyReviews]);
+
+  const departmentOptions = useMemo(() => {
+    const set = new Set<string>();
+    const add = (value?: string | null) => {
+      const trimmed = String(value || '').trim();
+      if (trimmed && trimmed.toLowerCase() !== 'all') set.add(trimmed);
+    };
+    add(userDepartment);
+    add(teacherSummary?.department);
+    cycles.forEach((cycle) => cycle.targetDepartments?.forEach(add));
+    facultyReviews.forEach((review) => {
+      add(review.facultyDepartment);
+      add(review.studentDepartment);
+    });
+    collegeReviews.forEach((review) => add(review.studentDepartment));
+    studentAllocations.forEach((allocation) => add(allocation.facultyDepartment));
+    instSummary?.departmentRankings.forEach((ranking) => add(ranking.department));
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [
+    userDepartment,
+    teacherSummary,
+    cycles,
+    facultyReviews,
+    collegeReviews,
+    studentAllocations,
+    instSummary,
+  ]);
 
   // Overall Faculty Performance Summary for Principal
   const facultySummaries = useMemo(() => {
@@ -595,7 +610,7 @@ export const StudentFeedbackReviewManagerView: React.FC<StudentFeedbackReviewMan
         studentName: 'Anonymous Student',
         studentUSN: 'Confidential',
         studentDepartment: userDepartment,
-        studentSemester: 'Semester 5',
+        studentSemester: selectedAllocation?.semester || activeCycle.semester || '',
         isAnonymous: true,
         facultyId: selectedFaculty.id,
         facultyName: selectedFaculty.name,
@@ -664,7 +679,7 @@ export const StudentFeedbackReviewManagerView: React.FC<StudentFeedbackReviewMan
         studentName: 'Anonymous Student',
         studentUSN: 'Confidential',
         studentDepartment: userDepartment,
-        studentSemester: 'Semester 5',
+        studentSemester: activeCycle.semester || '',
         isAnonymous: true,
         ratings: colRatings,
         overallRating: avg,
@@ -980,30 +995,39 @@ export const StudentFeedbackReviewManagerView: React.FC<StudentFeedbackReviewMan
       {userRole === 'student' && (
         <View style={styles.studentSection}>
           {/* Active Survey Banner */}
-          <View style={styles.actionBanner}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.actionBannerTitle}>Subject Faculty Feedback Campaign</Text>
-              <Text style={styles.actionBannerDesc}>
-                {cycles[0]?.title || 'Mid-Semester Faculty & Campus Survey 2026'}
-              </Text>
-              <Text style={styles.actionBannerDeadline}>
-                Deadline:{' '}
-                <Text style={{ fontFamily: FontFamily.bold, color: '#DC2626' }}>
-                  {cycles[0]?.endDate || '15 Nov 2026'}
+          {cycles[0] ? (
+            <View style={styles.actionBanner}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.actionBannerTitle}>Subject Faculty Feedback Campaign</Text>
+                <Text style={styles.actionBannerDesc}>{cycles[0].title}</Text>
+                <Text style={styles.actionBannerDeadline}>
+                  Deadline:{' '}
+                  <Text style={{ fontFamily: FontFamily.bold, color: '#DC2626' }}>
+                    {cycles[0].endDate}
+                  </Text>
                 </Text>
-              </Text>
+              </View>
+              <View style={styles.actionBtnGroup}>
+                <TouchableOpacity
+                  style={styles.neutralActionBtn}
+                  onPress={() => setRateCollegeModalVisible(true)}
+                  activeOpacity={0.85}
+                >
+                  <MaterialCommunityIcons name="office-building-marker" size={16} color="#0F172A" />
+                  <Text style={styles.neutralActionBtnText}>Review Campus Facilities</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-            <View style={styles.actionBtnGroup}>
-              <TouchableOpacity
-                style={styles.neutralActionBtn}
-                onPress={() => setRateCollegeModalVisible(true)}
-                activeOpacity={0.85}
-              >
-                <MaterialCommunityIcons name="office-building-marker" size={16} color="#0F172A" />
-                <Text style={styles.neutralActionBtnText}>Review Campus Facilities</Text>
-              </TouchableOpacity>
+          ) : (
+            <View style={styles.actionBanner}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.actionBannerTitle}>Feedback not configured</Text>
+                <Text style={styles.actionBannerDesc}>
+                  No active feedback cycle is available for your institution.
+                </Text>
+              </View>
             </View>
-          </View>
+          )}
 
           {/* Assigned Subjects & Teachers to Review */}
           <View style={styles.allocSection}>
@@ -1042,7 +1066,9 @@ export const StudentFeedbackReviewManagerView: React.FC<StudentFeedbackReviewMan
                           <View style={styles.reviewedBadge}>
                             <MaterialCommunityIcons name="check-circle" size={13} color="#15803D" />
                             <Text style={styles.reviewedBadgeText}>
-                              Reviewed ({alloc.studentReviewRating?.toFixed(1) || '4.8'}★)
+                              {alloc.studentReviewRating == null
+                                ? 'Reviewed'
+                                : `Reviewed (${alloc.studentReviewRating.toFixed(1)}★)`}
                             </Text>
                           </View>
                         ) : (
@@ -2317,7 +2343,7 @@ export const StudentFeedbackReviewManagerView: React.FC<StudentFeedbackReviewMan
                         <Feather name="check" size={14} color="#0F172A" />
                       )}
                     </TouchableOpacity>
-                    {INSTITUTION_DEPARTMENTS.map((dept) => (
+                    {departmentOptions.map((dept) => (
                       <TouchableOpacity
                         key={dept}
                         style={[
@@ -2396,33 +2422,47 @@ export const StudentFeedbackReviewManagerView: React.FC<StudentFeedbackReviewMan
             <ScrollView style={{ maxHeight: 480 }} showsVerticalScrollIndicator={false}>
               <Text style={styles.inputLabel}>Select Professor / Lecturer</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
-                {SAMPLE_FACULTY_MEMBERS.map((f) => (
-                  <TouchableOpacity
-                    key={f.id}
-                    style={[
-                      styles.facultyChip,
-                      selectedFaculty.id === f.id && styles.facultyChipActive,
-                    ]}
-                    onPress={() => setSelectedFaculty(f)}
-                  >
-                    <Text
-                      style={[
-                        styles.facultyChipName,
-                        selectedFaculty.id === f.id && styles.facultyChipNameActive,
-                      ]}
-                    >
-                      {f.name}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.facultyChipSubject,
-                        selectedFaculty.id === f.id && styles.facultyChipSubjectActive,
-                      ]}
-                    >
-                      {f.subject}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                {studentAllocations.length === 0 ? (
+                  <Text style={{ color: '#64748B', fontSize: 12 }}>
+                    No faculty allocations available for review.
+                  </Text>
+                ) : (
+                  studentAllocations.map((alloc) => {
+                    const isSelected = selectedAllocation?.id === alloc.id;
+                    return (
+                      <TouchableOpacity
+                        key={alloc.id}
+                        style={[styles.facultyChip, isSelected && styles.facultyChipActive]}
+                        onPress={() => {
+                          setSelectedAllocation(alloc);
+                          setSelectedFaculty({
+                            id: alloc.facultyId,
+                            name: alloc.facultyName,
+                            department: alloc.facultyDepartment,
+                            subject: alloc.subjectName,
+                          });
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.facultyChipName,
+                            isSelected && styles.facultyChipNameActive,
+                          ]}
+                        >
+                          {alloc.facultyName}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.facultyChipSubject,
+                            isSelected && styles.facultyChipSubjectActive,
+                          ]}
+                        >
+                          {alloc.subjectName}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })
+                )}
               </View>
 
               {/* Anonymous Toggle */}
@@ -2785,7 +2825,7 @@ export const StudentFeedbackReviewManagerView: React.FC<StudentFeedbackReviewMan
                   <Feather name="check" size={16} color="#0F172A" />
                 )}
               </TouchableOpacity>
-              {INSTITUTION_DEPARTMENTS.map((dept) => (
+              {departmentOptions.map((dept) => (
                 <TouchableOpacity
                   key={dept}
                   style={[

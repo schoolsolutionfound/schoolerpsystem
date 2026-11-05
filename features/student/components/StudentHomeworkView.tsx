@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, StyleSheet, Text, ScrollView, RefreshControl, TouchableOpacity, Alert } from 'react-native';
+import { View, StyleSheet, Text, ScrollView, RefreshControl } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../constants/theme';
 import { FontFamily } from '../../../constants/fonts';
@@ -20,12 +20,16 @@ export const StudentHomeworkView: React.FC = () => {
   const [homework, setHomework] = useState<HomeworkItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const fetchData = useCallback(async () => {
     try {
       const res = await fetchStudentHomeworkApi();
       setHomework(res || []);
-    } catch {}
+      setErrorMessage('');
+    } catch (error: any) {
+      setErrorMessage(error?.message || 'Could not load assignments.');
+    }
   }, []);
 
   useEffect(() => {
@@ -38,23 +42,6 @@ export const StudentHomeworkView: React.FC = () => {
     await fetchData();
     setRefreshing(false);
   }, [fetchData]);
-
-  const handleClearAll = () => {
-    Alert.alert(
-      'Clear All Assignments',
-      'Are you sure you want to clear all assignments?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Clear All',
-          style: 'destructive',
-          onPress: () => {
-            setHomework([]);
-          },
-        },
-      ]
-    );
-  };
 
   const priorityColor = (p: string) => {
     switch (p) {
@@ -80,15 +67,6 @@ export const StudentHomeworkView: React.FC = () => {
           </View>
         </View>
 
-        {homework.length > 0 && (
-          <TouchableOpacity
-            onPress={handleClearAll}
-            activeOpacity={0.6}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Text style={styles.clearText}>Clear</Text>
-          </TouchableOpacity>
-        )}
       </View>
 
       <ScrollView
@@ -99,6 +77,12 @@ export const StudentHomeworkView: React.FC = () => {
         {loading ? (
           <View style={styles.emptyWrap}>
             <Text style={styles.emptyText}>Loading...</Text>
+          </View>
+        ) : errorMessage ? (
+          <View style={styles.emptyWrap}>
+            <MaterialCommunityIcons name="alert-circle-outline" size={48} color="#B91C1C" />
+            <Text style={styles.emptyTitle}>Assignments unavailable</Text>
+            <Text style={styles.emptySub}>{errorMessage}</Text>
           </View>
         ) : homework.length === 0 ? (
           <View style={styles.emptyWrap}>

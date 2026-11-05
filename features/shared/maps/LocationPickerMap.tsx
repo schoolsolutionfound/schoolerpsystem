@@ -28,7 +28,7 @@ export interface LocationPickerMapProps {
   searchEnabled?: boolean;
 }
 
-const DEFAULT_CENTER: PickedCoordinate = { latitude: 12.9716, longitude: 77.5946 };
+const DEFAULT_CENTER: PickedCoordinate = { latitude: 0, longitude: 0 };
 
 const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 const IS_EXPO_GO = Constants.executionEnvironment === 'storeClient';
@@ -65,6 +65,7 @@ const NativePicker: React.FC<LocationPickerMapProps> = ({
   }
 
   const sorted = [...stops].sort((a, b) => a.sequence - b.sequence);
+  const hasConfiguredCenter = Boolean(sorted[0] || pendingPoint || initialCenter);
   const center = sorted[0] || pendingPoint || initialCenter || DEFAULT_CENTER;
   const coordinates = sorted.map((s) => ({
     latitude: Number(s.latitude),
@@ -119,8 +120,8 @@ const NativePicker: React.FC<LocationPickerMapProps> = ({
         initialRegion={{
           latitude: Number(center.latitude),
           longitude: Number(center.longitude),
-          latitudeDelta: 0.05,
-          longitudeDelta: 0.05,
+          latitudeDelta: hasConfiguredCenter ? 0.05 : 120,
+          longitudeDelta: hasConfiguredCenter ? 0.05 : 180,
         }}
         onPress={(event: any) => {
           const coordinate = event?.nativeEvent?.coordinate;

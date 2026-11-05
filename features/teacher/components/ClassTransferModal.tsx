@@ -16,9 +16,12 @@ import { FontFamily } from '../../../constants/fonts';
 import {
   useClassTransferStore,
   getTeachersBySubject,
+  isRequestForTeacher,
+  isRequestFromTeacher,
   TeacherDirectoryItem,
   ClassTransferRequest,
 } from '../services/classTransferStore';
+import { useUserStore } from '../../../store/useUserStore';
 
 interface TransferTargetSlot {
   periodId: string;
@@ -42,10 +45,16 @@ export const ClassTransferModal: React.FC<ClassTransferModalProps> = ({
   visible,
   onClose,
   targetSlot,
-  currentTeacherName = 'You (Teacher)',
+  currentTeacherName,
 }) => {
   const { requests, sendTransferRequest, respondToRequest, cancelTransferRequest } =
     useClassTransferStore();
+
+  const employeeId = useUserStore((s) => s.employeeId);
+  const email = useUserStore((s) => s.email);
+  const fullName = useUserStore((s) => s.fullName);
+  const currentTeacherId = employeeId || email;
+  const teacherName = (currentTeacherName || fullName || email || '').trim();
 
   // Mode: 'send' (transferring a specific slot) or 'manage' (viewing incoming / outgoing requests)
   const [activeTab, setActiveTab] = useState<'incoming' | 'sent'>('incoming');
@@ -88,8 +97,8 @@ export const ClassTransferModal: React.FC<ClassTransferModalProps> = ({
 
     // Filter out teachers who previously rejected this slot for this date, and current teacher
     const available = list.filter((t) => {
-      if (t.id === 'current-user') return false;
-      if (currentTeacherName && t.name.trim().toLowerCase() === currentTeacherName.trim().toLowerCase()) return false;
+      if (t.id && t.id === currentTeacherId) return false;
+      if (teacherName && t.name.trim().toLowerCase() === teacherName.toLowerCase()) return false;
       if (rejectedTeacherIdentifiers.has(t.id)) return false;
       if (rejectedTeacherIdentifiers.has(t.name.trim().toLowerCase())) return false;
       return true;
@@ -103,7 +112,7 @@ export const ClassTransferModal: React.FC<ClassTransferModalProps> = ({
         t.subject.toLowerCase().includes(q) ||
         t.department.toLowerCase().includes(q)
     );
-  }, [targetSlot?.subject, targetSlot?.date, targetSlot?.periodId, targetSlot?.periodLabel, searchTeacher, rejectedTeacherIdentifiers, currentTeacherName]);
+  }, [targetSlot?.subject, targetSlot?.date, targetSlot?.periodId, targetSlot?.periodLabel, searchTeacher, rejectedTeacherIdentifiers, teacherName, currentTeacherId]);
 
   const selectedTeacher = useMemo(() => {
     return eligibleTeachers.find((t) => t.id === selectedTeacherId);
@@ -111,16 +120,20 @@ export const ClassTransferModal: React.FC<ClassTransferModalProps> = ({
 
   // Outgoing requests sent by this teacher
   const outgoingRequests = useMemo(() => {
-    return requests.filter((r) => r.fromTeacherName === currentTeacherName || r.fromTeacherId === 'current-user');
-  }, [requests, currentTeacherName]);
+    return requests.filter((r) => isRequestFromTeacher(r, currentTeacherId, teacherName));
+  }, [requests, currentTeacherId, teacherName]);
 
   // Incoming requests received by this teacher from other teachers
   const incomingRequests = useMemo(() => {
-    return requests.filter((r) => r.toTeacherId === 'current-user' || r.toTeacherName.includes('You'));
-  }, [requests]);
+    return requests.filter((r) => isRequestForTeacher(r, currentTeacherId, teacherName));
+  }, [requests, currentTeacherId, teacherName]);
 
   const handleSend = () => {
     if (!targetSlot) return;
+    if (!currentTeacherId && !teacherName) {
+      Alert.alert('Profile Incomplete', 'Your teacher identity could not be determined. Please complete your profile and try again.');
+      return;
+    }
     if (!selectedTeacher) {
       Alert.alert('Select Teacher', 'Please choose a substitute teacher for this class transfer.');
       return;
@@ -135,8 +148,8 @@ export const ClassTransferModal: React.FC<ClassTransferModalProps> = ({
       className: targetSlot.className,
       subject: targetSlot.subject,
       room: targetSlot.room,
-      fromTeacherId: 'current-user',
-      fromTeacherName: currentTeacherName,
+      fromTeacherId: currentTeacherId,
+      fromTeacherName: teacherName,
       toTeacherId: selectedTeacher.id,
       toTeacherName: selectedTeacher.name,
       toTeacherSubject: selectedTeacher.subject,

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, Text, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { FontFamily } from '../../../constants/fonts';
 
 interface LoginFormProps {
@@ -26,6 +27,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   loading,
   errorMessage,
 }) => {
+  const router = useRouter();
+
   return (
     <View style={styles.form}>
       {errorMessage ? (
@@ -76,7 +79,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
       </View>
 
       {/* Forgot password link */}
-      <TouchableOpacity style={styles.forgotBtn}>
+      <TouchableOpacity style={styles.forgotBtn} onPress={() => router.push('/forgot-password')}>
         <Text style={styles.forgotText}>Forgot password?</Text>
       </TouchableOpacity>
 

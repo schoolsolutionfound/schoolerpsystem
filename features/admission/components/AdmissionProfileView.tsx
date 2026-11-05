@@ -19,7 +19,7 @@ import { auth } from '../../../firebaseConfig';
 import { useUserStore } from '../../../store/useUserStore';
 import { useRouter } from 'expo-router';
 import { uploadProfilePictureApi } from '../../../api/upload';
-import { completeProfileApi } from '../../../api/users';
+import { updateMyProfileApi } from '../../../api/users';
 
 export function AdmissionProfileView() {
   const fullName = useUserStore((state) => state.fullName);
@@ -62,13 +62,8 @@ export function AdmissionProfileView() {
       setUploadingPhoto(true);
 
       const url = await uploadProfilePictureApi(uri);
+      await updateMyProfileApi({ profilePicUrl: url });
       setUserProfile({ profilePic: url });
-
-      try {
-        await completeProfileApi({ profilePicUrl: url });
-      } catch (err) {
-        console.warn('Failed to sync profile pic to backend:', err);
-      }
 
       if (Platform.OS === 'web') {
         window.alert('Profile photo updated successfully!');
@@ -104,7 +99,8 @@ export function AdmissionProfileView() {
 
     try {
       setSavingProfile(true);
-      await completeProfileApi({
+      await updateMyProfileApi({
+        fullName: editName.trim(),
         phone: editPhone.trim(),
       });
 

@@ -18,6 +18,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { Feather, MaterialCommunityIcons } from '../common/Icons';
 import { QuestionPaper, ExamType } from '../../types';
 import { FontFamily } from '../../../../constants/fonts';
+import { currentAcademicYear } from '../../../shared/academicStructure';
 
 interface PYQsViewProps {
   questionPapers: QuestionPaper[];
@@ -39,8 +40,17 @@ export function PYQsView({ questionPapers, onUploadPYQ, onPreviewPYQ, onDeletePY
 
   const isAnyFilterActive = selectedYear !== 'ALL' || selectedClass !== 'ALL' || selectedExam !== 'ALL';
 
-  const yearOptions = ['ALL', '2024-2025', '2023-2024', '2022-2023'];
-  const classOptions = ['ALL', 'Class 9', 'Class 10', 'Class 11', 'Class 12'];
+  const yearOptions = useMemo(() => {
+    const start = parseInt(currentAcademicYear('school').slice(0, 4), 10);
+    return ['ALL', ...[0, 1, 2].map((offset) => `${start - offset}-${start - offset + 1}`)];
+  }, []);
+  const classOptions = useMemo(() => {
+    const grades = new Set<string>();
+    questionPapers.forEach((paper) => {
+      if (paper.classGrade) grades.add(paper.classGrade);
+    });
+    return ['ALL', ...Array.from(grades).sort((a, b) => a.localeCompare(b))];
+  }, [questionPapers]);
   const examOptions = ['ALL', 'FINAL', 'MIDTERM', 'ANNUAL', 'UNIT_TEST', 'SUPPLEMENTARY'];
 
   const totalDownloads = useMemo(() => {
@@ -430,11 +440,11 @@ export function UploadPYQModal({
 }) {
   const [title, setTitle] = useState('');
   const [subject, setSubject] = useState('');
-  const [academicYear, setAcademicYear] = useState('2024-2025');
-  const [classGrade, setClassGrade] = useState('Class 10');
-  const [examType, setExamType] = useState<ExamType>('FINAL');
-  const [totalMarks, setTotalMarks] = useState('80');
-  const [durationMinutes, setDurationMinutes] = useState('180');
+  const [academicYear, setAcademicYear] = useState(() => currentAcademicYear('school'));
+  const [classGrade, setClassGrade] = useState('');
+  const [examType, setExamType] = useState<ExamType | ''>('');
+  const [totalMarks, setTotalMarks] = useState('');
+  const [durationMinutes, setDurationMinutes] = useState('');
   const [attachedFileName, setAttachedFileName] = useState<string | null>(null);
   const [attachedFileUri, setAttachedFileUri] = useState<string | null>(null);
   const [attachedFileSize, setAttachedFileSize] = useState<string | null>(null);
@@ -454,11 +464,11 @@ export function UploadPYQModal({
     if (visible) {
       setTitle('');
       setSubject('');
-      setAcademicYear('2024-2025');
-      setClassGrade('Class 10');
-      setExamType('FINAL');
-      setTotalMarks('80');
-      setDurationMinutes('180');
+      setAcademicYear(currentAcademicYear('school'));
+      setClassGrade('');
+      setExamType('');
+      setTotalMarks('');
+      setDurationMinutes('');
       setAttachedFileName(null);
       setAttachedFileUri(null);
       setAttachedFileSize(null);
@@ -523,6 +533,20 @@ export function UploadPYQModal({
       Alert.alert('Validation Error', 'Please enter subject name.');
       return;
     }
+    if (!attachedFileUri) {
+      Alert.alert('Validation Error', 'Please attach the question paper PDF.');
+      return;
+    }
+    if (!examType) {
+      Alert.alert('Validation Error', 'Please select the exam type.');
+      return;
+    }
+    const marks = parseInt(totalMarks, 10);
+    const duration = parseInt(durationMinutes, 10);
+    if (!Number.isFinite(marks) || marks <= 0 || !Number.isFinite(duration) || duration <= 0) {
+      Alert.alert('Validation Error', 'Please enter valid total marks and duration.');
+      return;
+    }
 
     onSave({
       title: title.trim(),
@@ -530,10 +554,10 @@ export function UploadPYQModal({
       academicYear: academicYear.trim(),
       classGrade: classGrade.trim(),
       examType: examType,
-      totalMarks: parseInt(totalMarks, 10) || 100,
-      durationMinutes: parseInt(durationMinutes, 10) || 180,
-      fileUrl: attachedFileUri || 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
-      fileSize: attachedFileSize || (attachedFileName ? '1.5 MB' : undefined),
+      totalMarks: marks,
+      durationMinutes: duration,
+      fileUrl: attachedFileUri,
+      fileSize: attachedFileSize || undefined,
     });
   };
 
@@ -618,7 +642,7 @@ export function UploadPYQModal({
                 activeOpacity={0.8}
               >
                 <Text style={{ fontSize: 13, color: '#171717', fontFamily: FontFamily.semibold }}>
-                  {EXAM_TYPE_DISPLAY[examType] || examType}
+                  {examType ? EXAM_TYPE_DISPLAY[examType] : 'Select exam type'}
                 </Text>
                 <Feather
                   name={isExamDropdownOpen ? 'chevron-up' : 'chevron-down'}
@@ -698,7 +722,7 @@ export function UploadPYQModal({
                 <TextInput
                   style={[styles.formInput, { borderRadius: 5 }]}
                   keyboardType="numeric"
-                  placeholder="100"
+                  placeholder="e.g. 100"
                   placeholderTextColor="#475569"
                   value={totalMarks}
                   onChangeText={setTotalMarks}
@@ -710,7 +734,7 @@ export function UploadPYQModal({
                 <TextInput
                   style={[styles.formInput, { borderRadius: 5 }]}
                   keyboardType="numeric"
-                  placeholder="180"
+                  placeholder="e.g. 180"
                   placeholderTextColor="#475569"
                   value={durationMinutes}
                   onChangeText={setDurationMinutes}

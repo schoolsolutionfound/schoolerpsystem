@@ -43,15 +43,18 @@ function formatINR(amount: number): string {
 export async function generateParentFeeReceiptPdf(receipt: FeeReceiptData): Promise<void> {
   const userStore = useUserStore.getState();
   const institutionName = userStore.institutionName || userStore.schoolName || '';
-  const childName = receipt.studentName || userStore.childName || userStore.fullName || '';
+  const childName = receipt.studentName || userStore.childName || '';
   const parentName = receipt.payerName || userStore.fullName || '';
   const rollNo = receipt.rollNo || userStore.linkedStudentUSN || userStore.rollNoOrUSN || '—';
   const classSection = receipt.classSection || '';
-  const receiptNo = receipt.receiptNo || (receipt.id ? `REC-${receipt.id.slice(-6).toUpperCase()}` : `REC-${Date.now().toString().slice(-6)}`);
-  const dateStr = receipt.date || receipt.paidDate || receipt.paymentDate || new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  const receiptNo = receipt.receiptNo?.trim();
+  const dateStr = (receipt.date || receipt.paidDate || receipt.paymentDate || '').trim();
   const generatedTimestamp = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
-  const method = (receipt.method || receipt.paymentMethod || 'UPI').toUpperCase();
-  const particulars = receipt.particulars || receipt.title || 'Tuition & Academic Fees';
+  const method = (receipt.method || receipt.paymentMethod || '').trim().toUpperCase();
+  const particulars = (receipt.particulars || receipt.title || '').trim();
+  if (!receiptNo || !dateStr || !method || !particulars || !childName) {
+    throw new Error('Official receipt data is incomplete for this payment.');
+  }
 
   const html = `
 <!DOCTYPE html>
@@ -234,9 +237,8 @@ export async function generateParentFeeReceiptPdf(receipt: FeeReceiptData): Prom
     </table>
 
     <div class="footer">
-      <div class="verified-badge">&#10003; Digitally Verified &amp; Signed</div>
       <div>${escapeHtml(institutionName)} &bull; Official Fee Receipt</div>
-      <div>Generated on ${escapeHtml(generatedTimestamp)} &bull; Valid without physical signature</div>
+      <div>Generated from recorded payment data on ${escapeHtml(generatedTimestamp)}</div>
     </div>
   </div>
 </body>

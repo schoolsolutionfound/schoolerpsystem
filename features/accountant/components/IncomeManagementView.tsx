@@ -13,7 +13,7 @@
  *  - Zero-overlap responsive card layout
  */
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -33,6 +33,7 @@ import {
 } from '../utils/financeUtils';
 import { showAlert } from '../../shared/utils/showAlert';
 import { sharedFinanceStyles } from './financeStyles';
+import { useUserStore } from '../../../store/useUserStore';
 
 const METHOD_LABELS: Record<PaymentMethod, string> = {
   bank_transfer: 'Bank Transfer',
@@ -40,6 +41,7 @@ const METHOD_LABELS: Record<PaymentMethod, string> = {
   upi: 'UPI',
   cash: 'Cash',
   card: 'Card',
+  unknown: 'Not recorded',
 };
 
 const methodLabel = (m: PaymentMethod) => METHOD_LABELS[m] || m.toUpperCase();
@@ -47,9 +49,9 @@ const methodLabel = (m: PaymentMethod) => METHOD_LABELS[m] || m.toUpperCase();
 export const IncomeManagementView: React.FC = () => {
   // Store selectors
   const incomeRecords = useFinanceStore((s) => s.incomeRecords);
-  const addIncome = useFinanceStore((s) => s.addIncome);
   const updateIncomeRecord = useFinanceStore((s) => s.updateIncomeRecord);
   const deleteIncome = useFinanceStore((s) => s.deleteIncome);
+  const institutionName = useUserStore((s) => s.institutionName) || '';
 
   // Filter & search state
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -60,7 +62,7 @@ export const IncomeManagementView: React.FC = () => {
   // Add modal state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState<IncomeCategory>('student_fee');
+  const [category, setCategory] = useState<IncomeCategory | ''>('');
   const [payerName, setPayerName] = useState('');
   const [studentId, setStudentId] = useState('');
   const [classSection, setClassSection] = useState('');
@@ -80,14 +82,20 @@ export const IncomeManagementView: React.FC = () => {
   // Receipt modal state
   const [selectedReceipt, setSelectedReceipt] = useState<IncomeRecord | null>(null);
 
-  // Category filter options (dropdown)
-  const categories: { label: string; value: string }[] = [
-    { label: 'All Incomes', value: 'all' },
-    { label: 'Student Fees', value: 'student_fee' },
-    { label: 'Bus Transport', value: 'bus_fee' },
-    { label: 'Hostel Fees', value: 'hostel_fee' },
-    { label: 'Miscellaneous', value: 'misc' },
-  ];
+  // Category filter options derived from the records actually in this institution
+  const categories = useMemo(() => {
+    const seen = new Set<string>();
+    incomeRecords.forEach((record) => {
+      if (record.category) seen.add(record.category);
+    });
+    return [
+      { label: 'All Incomes', value: 'all' },
+      ...Array.from(seen).map((value) => ({
+        label: getIncomeCategoryLabel(value),
+        value,
+      })),
+    ];
+  }, [incomeRecords]);
   const filterLabel = categories.find((c) => c.value === selectedCategory)?.label || 'All Incomes';
 
   // Filter logic
@@ -141,43 +149,15 @@ export const IncomeManagementView: React.FC = () => {
   };
 
   const handleAddSubmit = () => {
-    if (!title.trim() || !payerName.trim() || !amount.trim()) {
-      showAlert('Missing Fields', 'Please fill in all required fields (Title, Payer Name, Amount).');
+    if (!category) {
+      showAlert('Select Category', 'Choose an income category before continuing.');
       return;
     }
-
-    const numAmount = parseFloat(amount);
-    if (isNaN(numAmount) || numAmount <= 0) {
-      showAlert('Invalid Amount', 'Please enter a valid positive number for the amount.');
-      return;
-    }
-
-    addIncome({
-      title: title.trim(),
-      category,
-      payerName: payerName.trim(),
-      studentId: studentId.trim() || undefined,
-      classSection: classSection.trim() || undefined,
-      amount: numAmount,
-      paymentMethod,
-      paymentDate: new Date().toISOString().split('T')[0],
-      status,
-      notes: notes.trim() || undefined,
-    });
-
-    // Reset form
-    setTitle('');
-    setCategory('student_fee');
-    setPayerName('');
-    setStudentId('');
-    setClassSection('');
-    setAmount('');
-    setPaymentMethod('upi');
-    setStatus('paid');
-    setNotes('');
     setIsAddModalOpen(false);
-
-    showAlert('Success', 'Income payment statement recorded successfully.');
+    showAlert(
+      'Income Recording Unavailable',
+      'Miscellaneous income persistence is not configured. Use a student fee payment for fee collections.'
+    );
   };
 
   return (
@@ -221,7 +201,12 @@ export const IncomeManagementView: React.FC = () => {
 
         <TouchableOpacity
           style={[sharedFinanceStyles.addBtn, styles.addBtnIncome]}
-          onPress={() => setIsAddModalOpen(true)}
+          onPress={() =>
+            showAlert(
+              'Income Recording Unavailable',
+              'Miscellaneous income persistence is not configured. Use a student fee payment for fee collections.'
+            )
+          }
         >
           <MaterialCommunityIcons name="plus" size={18} color="#171717" />
           <Text style={sharedFinanceStyles.addBtnText}>Record Income</Text>
@@ -284,7 +269,7 @@ export const IncomeManagementView: React.FC = () => {
             <MaterialCommunityIcons name="cash-remove" size={48} color="#9A9A9A" />
             <Text style={sharedFinanceStyles.emptyTitle}>No Incomes Found</Text>
             <Text style={sharedFinanceStyles.emptySubtitle}>
-              Try adjusting your search query or record a new income above.
+              Try adjusting your search query.
             </Text>
           </View>
         ) : (
@@ -357,13 +342,15 @@ export const IncomeManagementView: React.FC = () => {
                       <Text style={[sharedFinanceStyles.actionIconBtnText, { color: '#171717' }]}>Update</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity
-                      style={sharedFinanceStyles.actionIconBtn}
-                      onPress={() => setSelectedReceipt(item)}
-                    >
-                      <MaterialCommunityIcons name="file-document-outline" size={14} color="#B8860B" />
-                      <Text style={[sharedFinanceStyles.actionIconBtnText, { color: '#B8860B' }]}>Receipt</Text>
-                    </TouchableOpacity>
+                    {isPaid && item.receiptNo ? (
+                      <TouchableOpacity
+                        style={sharedFinanceStyles.actionIconBtn}
+                        onPress={() => setSelectedReceipt(item)}
+                      >
+                        <MaterialCommunityIcons name="file-document-outline" size={14} color="#B8860B" />
+                        <Text style={[sharedFinanceStyles.actionIconBtnText, { color: '#B8860B' }]}>Receipt</Text>
+                      </TouchableOpacity>
+                    ) : null}
 
                     <TouchableOpacity
                       style={sharedFinanceStyles.actionIconBtn}
@@ -499,7 +486,7 @@ export const IncomeManagementView: React.FC = () => {
                 >
                   <MaterialCommunityIcons name="tag-outline" size={16} color="#6B6B6B" />
                   <Text style={styles.dropdownText} numberOfLines={1}>
-                    {getIncomeCategoryLabel(category)}
+                    {category ? getIncomeCategoryLabel(category) : 'Select category'}
                   </Text>
                   <MaterialCommunityIcons
                     name={catOpen ? 'chevron-up' : 'chevron-down'}
@@ -609,7 +596,9 @@ export const IncomeManagementView: React.FC = () => {
             <View style={sharedFinanceStyles.documentContent}>
               <View style={sharedFinanceStyles.documentHeader}>
                 <MaterialCommunityIcons name="school" size={32} color="#171717" />
-                <Text style={sharedFinanceStyles.documentSchoolName}>SchoolHub Academy</Text>
+                {institutionName ? (
+                  <Text style={sharedFinanceStyles.documentSchoolName}>{institutionName}</Text>
+                ) : null}
                 <Text style={sharedFinanceStyles.documentSubHeader}>Official Fee Receipt</Text>
               </View>
 

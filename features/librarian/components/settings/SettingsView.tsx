@@ -14,7 +14,6 @@ import {
 } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '../common/Icons';
 import { LibrarySettings } from '../../types';
-import { apiClient } from '../../../../api/client';
 import { FontFamily } from '../../../../constants/fonts';
 
 export const SettingsView = ({
@@ -25,44 +24,44 @@ export const SettingsView = ({
   isRefreshing,
 }: {
   settings: LibrarySettings;
-  onSaveSettings: (newSettings: LibrarySettings) => void;
+  onSaveSettings: (newSettings: LibrarySettings) => Promise<void>;
   commonStyles: any;
   onRefresh?: () => void;
   isRefreshing?: boolean;
 }) => {
-  const [borrowingLimit, setBorrowingLimit] = useState(String(settings.borrowingLimit || 3));
-  const [loanPeriodDays, setLoanPeriodDays] = useState(String(settings.loanPeriodDays || 14));
-  const [gracePeriodDays, setGracePeriodDays] = useState(String(settings.gracePeriodDays || 2));
-  const [finePerDay, setFinePerDay] = useState(String(settings.finePerDay || 1.0));
-  const [maxFine, setMaxFine] = useState(String(settings.maxFine || 100.0));
-  const [renewalLimit, setRenewalLimit] = useState(String(settings.renewalLimit || 2));
-  const [lostBookPenalty, setLostBookPenalty] = useState(String(settings.lostBookPenalty || 50.0));
-  const [damagedBookPenalty, setDamagedBookPenalty] = useState(String(settings.damagedBookPenalty || 25.0));
-  const [reservationExpiryDays, setReservationExpiryDays] = useState(String(settings.reservationExpiryDays || 7));
-  const [unpaidFineLockThreshold, setUnpaidFineLockThreshold] = useState(String(settings.unpaidFineLockThreshold || 20.0));
+  const [borrowingLimit, setBorrowingLimit] = useState(String(settings.borrowingLimit ?? ''));
+  const [loanPeriodDays, setLoanPeriodDays] = useState(String(settings.loanPeriodDays ?? ''));
+  const [gracePeriodDays, setGracePeriodDays] = useState(String(settings.gracePeriodDays ?? ''));
+  const [finePerDay, setFinePerDay] = useState(String(settings.finePerDay ?? ''));
+  const [maxFine, setMaxFine] = useState(String(settings.maxFine ?? ''));
+  const [renewalLimit, setRenewalLimit] = useState(String(settings.renewalLimit ?? ''));
+  const [lostBookPenalty, setLostBookPenalty] = useState(String(settings.lostBookPenalty ?? ''));
+  const [damagedBookPenalty, setDamagedBookPenalty] = useState(String(settings.damagedBookPenalty ?? ''));
+  const [reservationExpiryDays, setReservationExpiryDays] = useState(String(settings.reservationExpiryDays ?? ''));
+  const [unpaidFineLockThreshold, setUnpaidFineLockThreshold] = useState(String(settings.unpaidFineLockThreshold ?? ''));
 
   const [allowReservation, setAllowReservation] = useState(settings.allowReservation ?? true);
-  const [openOnWeekends, setOpenOnWeekends] = useState(settings.openOnWeekends ?? true);
-  const [openingHours, setOpeningHours] = useState(settings.openingHours || '08:00 AM');
-  const [closingHours, setClosingHours] = useState(settings.closingHours || '06:00 PM');
+  const [openOnWeekends, setOpenOnWeekends] = useState(settings.openOnWeekends ?? false);
+  const [openingHours, setOpeningHours] = useState(settings.openingHours || '');
+  const [closingHours, setClosingHours] = useState(settings.closingHours || '');
 
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    setBorrowingLimit(String(settings.borrowingLimit || 3));
-    setLoanPeriodDays(String(settings.loanPeriodDays || 14));
-    setGracePeriodDays(String(settings.gracePeriodDays || 2));
-    setFinePerDay(String(settings.finePerDay || 1.0));
-    setMaxFine(String(settings.maxFine || 100.0));
-    setRenewalLimit(String(settings.renewalLimit || 2));
-    setLostBookPenalty(String(settings.lostBookPenalty || 50.0));
-    setDamagedBookPenalty(String(settings.damagedBookPenalty || 25.0));
-    setReservationExpiryDays(String(settings.reservationExpiryDays || 7));
-    setUnpaidFineLockThreshold(String(settings.unpaidFineLockThreshold || 20.0));
+    setBorrowingLimit(String(settings.borrowingLimit ?? ''));
+    setLoanPeriodDays(String(settings.loanPeriodDays ?? ''));
+    setGracePeriodDays(String(settings.gracePeriodDays ?? ''));
+    setFinePerDay(String(settings.finePerDay ?? ''));
+    setMaxFine(String(settings.maxFine ?? ''));
+    setRenewalLimit(String(settings.renewalLimit ?? ''));
+    setLostBookPenalty(String(settings.lostBookPenalty ?? ''));
+    setDamagedBookPenalty(String(settings.damagedBookPenalty ?? ''));
+    setReservationExpiryDays(String(settings.reservationExpiryDays ?? ''));
+    setUnpaidFineLockThreshold(String(settings.unpaidFineLockThreshold ?? ''));
     setAllowReservation(settings.allowReservation ?? true);
-    setOpenOnWeekends(settings.openOnWeekends ?? true);
-    setOpeningHours(settings.openingHours || '08:00 AM');
-    setClosingHours(settings.closingHours || '06:00 PM');
+    setOpenOnWeekends(settings.openOnWeekends ?? false);
+    setOpeningHours(settings.openingHours || '');
+    setClosingHours(settings.closingHours || '');
   }, [settings]);
 
   const handleSave = async () => {
@@ -74,6 +73,8 @@ export const SettingsView = ({
     const rLimit = parseInt(renewalLimit, 10);
     const lostPen = parseFloat(lostBookPenalty);
     const dmgPen = parseFloat(damagedBookPenalty);
+    const expiryDays = parseInt(reservationExpiryDays, 10);
+    const lockThreshold = parseFloat(unpaidFineLockThreshold);
 
     if (isNaN(bLimit) || bLimit <= 0) {
       Alert.alert('Invalid Input', 'Borrowing limit must be a positive integer.');
@@ -87,6 +88,25 @@ export const SettingsView = ({
       Alert.alert('Invalid Input', 'Fine per day rate must be 0 or greater.');
       return;
     }
+    if (
+      isNaN(gPeriod) ||
+      gPeriod < 0 ||
+      isNaN(mFine) ||
+      mFine < 0 ||
+      isNaN(rLimit) ||
+      rLimit < 0 ||
+      isNaN(lostPen) ||
+      lostPen < 0 ||
+      isNaN(dmgPen) ||
+      dmgPen < 0 ||
+      isNaN(expiryDays) ||
+      expiryDays <= 0 ||
+      isNaN(lockThreshold) ||
+      lockThreshold < 0
+    ) {
+      Alert.alert('Invalid Input', 'Enter valid non-negative policy values.');
+      return;
+    }
 
     setSaving(true);
 
@@ -94,31 +114,28 @@ export const SettingsView = ({
       ...settings,
       borrowingLimit: bLimit,
       loanPeriodDays: lPeriod,
-      gracePeriodDays: isNaN(gPeriod) ? 0 : gPeriod,
+      gracePeriodDays: gPeriod,
       finePerDay: fRate,
-      maxFine: isNaN(mFine) ? 100 : mFine,
-      renewalLimit: isNaN(gPeriod) ? 2 : gPeriod,
+      maxFine: mFine,
+      renewalLimit: rLimit,
       allowReservation,
-      lostBookPenalty: isNaN(lostPen) ? 50 : lostPen,
-      damagedBookPenalty: isNaN(dmgPen) ? 25 : dmgPen,
-      reservationExpiryDays: parseInt(reservationExpiryDays, 10) || 7,
-      unpaidFineLockThreshold: parseFloat(unpaidFineLockThreshold) || 20.0,
+      lostBookPenalty: lostPen,
+      damagedBookPenalty: dmgPen,
+      reservationExpiryDays: expiryDays,
+      unpaidFineLockThreshold: lockThreshold,
       openingHours,
       closingHours,
       openOnWeekends,
     };
 
     try {
-      await apiClient('/library/settings', {
-        method: 'POST',
-        body: JSON.stringify(updated),
-      });
-    } catch {
-      // Silent catch for offline fallback
+      await onSaveSettings(updated);
+      Alert.alert('Settings Updated', 'Library configuration saved successfully.');
+    } catch (error: any) {
+      Alert.alert('Update Failed', error?.message || 'Could not save library settings.');
+    } finally {
+      setSaving(false);
     }
-
-    setSaving(false);
-    onSaveSettings(updated);
   };
 
   const handleResetDefaults = () => {
@@ -130,9 +147,9 @@ export const SettingsView = ({
         {
           text: 'Reset Defaults',
           style: 'destructive',
-          onPress: () => {
+          onPress: async () => {
             const defaults: LibrarySettings = {
-              id: settings.id || 'set-1',
+              ...(settings.id ? { id: settings.id } : {}),
               borrowingLimit: 3,
               loanPeriodDays: 14,
               gracePeriodDays: 2,
@@ -148,8 +165,12 @@ export const SettingsView = ({
               closingHours: '06:00 PM',
               openOnWeekends: true,
             };
-            onSaveSettings(defaults);
-            Alert.alert('Settings Reset', 'Restored default system settings.');
+            try {
+              await onSaveSettings(defaults);
+              Alert.alert('Settings Reset', 'Restored default system settings.');
+            } catch (error: any) {
+              Alert.alert('Reset Failed', error?.message || 'Could not reset library settings.');
+            }
           },
         },
       ]

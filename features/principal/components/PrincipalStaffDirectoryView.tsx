@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { FontFamily } from '../../../constants/fonts';
+import { fetchTeacherTimetableByIdApi } from '../../../api/academics';
 import { PrincipalStaffSkeleton } from './skeletons/PrincipalSkeletons';
 import {
   PrincipalStaffMember,
@@ -22,6 +23,7 @@ import {
   DESIGNATION_LABELS,
   DESIGNATION_BADGE_COLORS,
 } from '../types/principal.types';
+import { useConfigStore } from '../../../store/useConfigStore';
 
 interface PrincipalStaffDirectoryViewProps {
   staffList: PrincipalStaffMember[];
@@ -60,7 +62,7 @@ function getFacultyDossierDetails(staff: PrincipalStaffMember) {
     totalTaken: 0,
     totalAvailable: 0,
     totalEntitled: 0,
-    attendanceRate: '0',
+    attendanceRate: '',
     totalWorkingDays: 0,
     presentDays: 0,
     punchInTime:
@@ -68,7 +70,9 @@ function getFacultyDossierDetails(staff: PrincipalStaffMember) {
         ? 'Present'
         : staff.attendanceToday === 'on_leave'
           ? 'On Approved Leave'
-          : 'Absent',
+          : staff.attendanceToday === 'absent'
+            ? 'Absent'
+            : 'Attendance Not Marked',
     cabinRoom: staff.cabinNumber || '',
     dateOfJoining: '',
     weeklyHours: 0,
@@ -76,17 +80,7 @@ function getFacultyDossierDetails(staff: PrincipalStaffMember) {
   };
 }
 
-export const INSTITUTION_DEPARTMENTS = [
-  'Computer Science',
-  'AIML',
-  'Electronics & Comm',
-  'Mechanical Eng',
-  'Civil Eng',
-  'Commerce & Mgmt',
-  'Applied Sciences',
-] as const;
-
-export const SCHEDULE_DAYS = [
+const SCHEDULE_DAYS = [
   { dayIndex: 1, label: 'Mon', fullName: 'Monday' },
   { dayIndex: 2, label: 'Tue', fullName: 'Tuesday' },
   { dayIndex: 3, label: 'Wed', fullName: 'Wednesday' },
@@ -110,94 +104,56 @@ export interface FacultyPeriodSlot {
   status: 'completed' | 'ongoing' | 'upcoming';
 }
 
-// Generate realistic deterministic weekly timetable for any faculty member
-export function getFacultyDailySchedule(staff: PrincipalStaffMember, dayIndex: number): FacultyPeriodSlot[] {
-  let hash = 0;
-  const key = `${staff.fullName}_${staff.id || ''}_${dayIndex}`;
-  for (let i = 0; i < key.length; i++) {
-    hash = (hash << 5) - hash + key.charCodeAt(i);
-    hash |= 0;
-  }
-  const posHash = Math.abs(hash);
-
-  const dept = staff.department || 'Computer Science';
-  const subjects = staff.assignedSubjects && staff.assignedSubjects.length > 0
-    ? staff.assignedSubjects
-    : [
-        dept.includes('AI') ? 'Machine Learning Fundamentals' : 'Data Structures & Algorithms',
-        dept.includes('AI') ? 'Deep Learning & Neural Networks' : 'Database Management Systems',
-        dept.includes('AI') ? 'Applied AI Laboratory' : 'Algorithms & Programming Lab',
-      ];
-
-  const primaryClass = staff.assignedClass || `${dept.slice(0, 4).toUpperCase()} 3rd Year · Sec A`;
-  const secondaryClass = `${dept.slice(0, 4).toUpperCase()} 2nd Year · Sec B`;
-  const thirdClass = `${dept.slice(0, 4).toUpperCase()} 4th Year · Sec A`;
-
-  const roomBlock = posHash % 2 === 0 ? 'Tech Block' : 'Science Block';
-  const defaultRoom = `${roomBlock}`;
-  const labRoom = `${roomBlock} · Department Lab`;
-
-  const schedulePatterns: Record<number, number[]> = {
-    1: [1, 2, 4],
-    2: [2, 3, 5, 6],
-    3: [1, 3, 4],
-    4: [2, 4, 5],
-    5: [1, 2, 5],
-    6: [1, 3],
-  };
-
-  const periodNums = schedulePatterns[dayIndex] || [1, 3, 4];
-
-  // Current day and local hour calculation
+function dateForDayIndex(dayIndex: number): string {
   const now = new Date();
-  const currentDayIndex = now.getDay();
-  const currentHour = now.getHours() + now.getMinutes() / 60;
-  const isViewingToday = currentDayIndex === dayIndex;
+  const currentDay = now.getDay() === 0 ? 7 : now.getDay();
+  let offset = dayIndex - currentDay;
+  if (offset < 0) offset += 7;
+  const target = new Date(now);
+  target.setDate(now.getDate() + offset);
+  const year = target.getFullYear();
+  const month = String(target.getMonth() + 1).padStart(2, '0');
+  const day = String(target.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
-  const PERIOD_DEFINITIONS = [
-    { num: 1, label: '1st Period', time: '09:00 AM - 09:50 AM', start: 9.0, end: 9.83 },
-    { num: 2, label: '2nd Period', time: '10:00 AM - 10:50 AM', start: 10.0, end: 10.83 },
-    { num: 3, label: '3rd Period', time: '11:15 AM - 12:05 PM', start: 11.25, end: 12.08 },
-    { num: 4, label: '4th Period', time: '12:10 PM - 01:00 PM', start: 12.16, end: 13.0 },
-    { num: 5, label: '5th Period', time: '01:45 PM - 02:35 PM', start: 13.75, end: 14.58 },
-    { num: 6, label: '6th Period', time: '02:45 PM - 03:35 PM', start: 14.75, end: 15.58 },
-  ];
+function toMinutes(time: string): number | null {
+  const parts = (time || '').split(':').map(Number);
+  if (parts.length < 2 || parts.some((value) => Number.isNaN(value))) return null;
+  return parts[0] * 60 + parts[1];
+}
 
-  return periodNums.map((pNum, idx) => {
-    const def = PERIOD_DEFINITIONS.find((d) => d.num === pNum)!;
-    const isLab = pNum === 5 || pNum === 6;
-    const subjIndex = isLab ? 2 : (idx % subjects.length);
-    const subjName = subjects[subjIndex % subjects.length] || subjects[0];
-    const subjCode = `${dept.slice(0, 2).toUpperCase()}${100 + pNum * 10 + (posHash % 9)}${isLab ? 'L' : ''}`;
-    const targetClass = idx === 0 ? primaryClass : idx === 1 ? secondaryClass : thirdClass;
-    const room = isLab ? labRoom : defaultRoom;
+function mapTeacherTimetableSlot(slot: any, dayIndex: number): FacultyPeriodSlot {
+  const startTime = slot?.period?.startTime || '';
+  const endTime = slot?.period?.endTime || '';
+  const today = new Date();
+  const todayIndex = today.getDay() === 0 ? 7 : today.getDay();
 
-    let status: 'completed' | 'ongoing' | 'upcoming' = 'upcoming';
-    if (isViewingToday) {
-      if (currentHour >= def.end) {
-        status = 'completed';
-      } else if (currentHour >= def.start && currentHour < def.end) {
-        status = 'ongoing';
-      } else {
-        status = 'upcoming';
-      }
-    }
+  let status: 'completed' | 'ongoing' | 'upcoming' = 'upcoming';
+  const startMinutes = toMinutes(startTime);
+  const endMinutes = toMinutes(endTime);
+  if (dayIndex === todayIndex && startMinutes !== null && endMinutes !== null) {
+    const nowMinutes = today.getHours() * 60 + today.getMinutes();
+    if (nowMinutes >= endMinutes) status = 'completed';
+    else if (nowMinutes >= startMinutes) status = 'ongoing';
+  }
 
-    return {
-      id: `slot_${staff.id}_${dayIndex}_${pNum}`,
-      periodNum: pNum,
-      periodLabel: def.label,
-      timeSlot: def.time,
-      startTime: def.time.split(' - ')[0],
-      endTime: def.time.split(' - ')[1],
-      subjectName: subjName,
-      subjectCode: subjCode,
-      classSection: targetClass,
-      room,
-      type: isLab ? 'lab' : idx % 3 === 0 ? 'tutorial' : 'lecture',
-      status,
-    };
-  });
+  const isLab = /lab/i.test(slot?.subject?.name || '') || /lab/i.test(slot?.room || '');
+
+  return {
+    id: slot?.id || '',
+    periodNum: Number(slot?.period?.sortOrder) || 0,
+    periodLabel: slot?.period?.label || '',
+    timeSlot: startTime && endTime ? `${startTime} - ${endTime}` : '',
+    startTime,
+    endTime,
+    subjectName: slot?.subject?.name || '',
+    subjectCode: slot?.subject?.code || '',
+    classSection: slot?.classSection?.name || '',
+    room: slot?.room || '',
+    type: isLab ? 'lab' : 'lecture',
+    status,
+  };
 }
 
 export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewProps> = ({
@@ -225,6 +181,8 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
     [staffList, restrictDepartment]
   );
 
+  const institutionDepartments = useConfigStore((s) => s.institution.departments);
+
   // Search & Filter State
   const [search, setSearch] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState<string>('all');
@@ -239,6 +197,31 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
     const d = new Date().getDay();
     return d === 0 ? 1 : d;
   });
+  const [facultySchedule, setFacultySchedule] = useState<FacultyPeriodSlot[]>([]);
+  const [facultyScheduleLoading, setFacultyScheduleLoading] = useState(false);
+
+  useEffect(() => {
+    if (!selectedStaff || staffModalTab !== 'schedule') return;
+    let cancelled = false;
+    setFacultyScheduleLoading(true);
+    fetchTeacherTimetableByIdApi(selectedStaff.id, dateForDayIndex(selectedScheduleDay))
+      .then((res: any) => {
+        const data = res?.data || res;
+        const periods = Array.isArray(data?.periods) ? data.periods : [];
+        if (!cancelled) {
+          setFacultySchedule(periods.map((slot: any) => mapTeacherTimetableSlot(slot, selectedScheduleDay)));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setFacultySchedule([]);
+      })
+      .finally(() => {
+        if (!cancelled) setFacultyScheduleLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedStaff, selectedScheduleDay, staffModalTab]);
 
   // Dynamic filter lists - include relevant departments
   const availableDepartments = useMemo(() => {
@@ -251,14 +234,14 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
       });
       return ['all', ...Array.from(set)];
     }
-    const set = new Set<string>(INSTITUTION_DEPARTMENTS);
+    const set = new Set<string>(institutionDepartments);
     activeStaffList.forEach((s) => {
       if (s.department && s.department.trim()) {
         set.add(s.department.trim());
       }
     });
     return ['all', ...Array.from(set)];
-  }, [activeStaffList, restrictDepartment]);
+  }, [activeStaffList, restrictDepartment, institutionDepartments]);
 
   const availableDesignations = useMemo(() => {
     const set = new Set<StaffDesignation>();
@@ -295,7 +278,7 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
       }
 
       if (statusFilter === 'present' && m.attendanceToday !== 'present') return false;
-      if (statusFilter === 'absent' && m.attendanceToday === 'present') return false;
+      if (statusFilter === 'absent' && m.attendanceToday !== 'absent') return false;
 
       return true;
     });
@@ -322,11 +305,9 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
   // Group paginated staff department-wise
   const departmentSections = useMemo(() => {
     const map = new Map<string, PrincipalStaffMember[]>();
-    // Pre-populate with standard institutional departments
-    INSTITUTION_DEPARTMENTS.forEach((dept) => map.set(dept, []));
 
     paginatedStaff.forEach((staff) => {
-      const dept = staff.department || 'Applied Sciences';
+      const dept = staff.department || 'Unassigned';
       if (!map.has(dept)) {
         map.set(dept, []);
       }
@@ -345,10 +326,13 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
 
   const { presentCount, absentCount } = useMemo(() => {
     let present = 0;
+    let absent = 0;
     for (let i = 0; i < activeStaffList.length; i++) {
-      if (activeStaffList[i].attendanceToday === 'present') present++;
+      const status = activeStaffList[i].attendanceToday;
+      if (status === 'present') present++;
+      else if (status === 'absent') absent++;
     }
-    return { presentCount: present, absentCount: activeStaffList.length - present };
+    return { presentCount: present, absentCount: absent };
   }, [activeStaffList]);
 
   const handleCall = async (phone?: string) => {
@@ -453,7 +437,7 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
     const isPresent = selectedStaff.attendanceToday === 'present';
     const selectedDayConfig =
       SCHEDULE_DAYS.find((d) => d.dayIndex === selectedScheduleDay) || SCHEDULE_DAYS[0];
-    const selectedDaySchedule = getFacultyDailySchedule(selectedStaff, selectedScheduleDay);
+    const selectedDaySchedule = facultySchedule;
 
     return (
       <Modal
@@ -487,7 +471,16 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
                   <View
                     style={[
                       styles.modalStatusDot,
-                      { backgroundColor: isPresent ? '#10B981' : '#EF4444' },
+                      {
+                        backgroundColor:
+                          selectedStaff.attendanceToday === 'present'
+                            ? '#10B981'
+                            : selectedStaff.attendanceToday === 'absent'
+                              ? '#EF4444'
+                              : selectedStaff.attendanceToday === 'on_leave'
+                                ? '#F59E0B'
+                                : '#9CA3AF',
+                      },
                     ]}
                   />
                 </View>
@@ -677,7 +670,9 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
                         {selectedDayConfig.fullName} Classes
                       </Text>
                       <Text style={styles.scheduleHeaderSub}>
-                        {selectedDaySchedule.length} session{selectedDaySchedule.length === 1 ? '' : 's'} scheduled • {selectedStaff.department || 'Faculty'}
+                        {facultyScheduleLoading
+                          ? 'Loading timetable...'
+                          : `${selectedDaySchedule.length} session${selectedDaySchedule.length === 1 ? '' : 's'} scheduled - ${selectedStaff.department || 'Faculty'}`}
                       </Text>
                     </View>
                     <View style={styles.scheduleCountBadge}>
@@ -791,7 +786,14 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
                       <View
                         style={[
                           styles.attBannerDot,
-                          { backgroundColor: isPresent ? '#F4C430' : '#9CA3AF' },
+                          {
+                            backgroundColor:
+                              selectedStaff.attendanceToday === 'present'
+                                ? '#F4C430'
+                                : selectedStaff.attendanceToday === 'absent'
+                                  ? '#EF4444'
+                                  : '#9CA3AF',
+                          },
                         ]}
                       />
                       <Text
@@ -800,10 +802,18 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
                           { color: '#111827' },
                         ]}
                       >
-                        {isPresent ? 'Present on Campus' : 'Absent / On Leave'}
+                        {selectedStaff.attendanceToday === 'present'
+                          ? 'Present on Campus'
+                          : selectedStaff.attendanceToday === 'absent'
+                            ? 'Absent'
+                            : selectedStaff.attendanceToday === 'on_leave'
+                              ? 'On Approved Leave'
+                              : 'Attendance Not Marked'}
                       </Text>
                     </View>
-                    <Text style={styles.attRateNumber}>{details.attendanceRate}%</Text>
+                    <Text style={styles.attRateNumber}>
+                      {details.attendanceRate ? `${details.attendanceRate}%` : 'Not tracked'}
+                    </Text>
                   </View>
 
                   {/* Leaves Ledger */}
@@ -1210,7 +1220,6 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
                     text: '#374151',
                     border: '#E5E7EB',
                   };
-                const isPresent = staff.attendanceToday === 'present';
                 const details = getFacultyDossierDetails(staff);
 
                 return (
@@ -1229,7 +1238,16 @@ export const PrincipalStaffDirectoryView: React.FC<PrincipalStaffDirectoryViewPr
                         <View
                           style={[
                             styles.statusDot,
-                            { backgroundColor: isPresent ? '#10B981' : '#EF4444' },
+                            {
+                              backgroundColor:
+                                staff.attendanceToday === 'present'
+                                  ? '#10B981'
+                                  : staff.attendanceToday === 'absent'
+                                    ? '#EF4444'
+                                    : staff.attendanceToday === 'on_leave'
+                                      ? '#F59E0B'
+                                      : '#9CA3AF',
+                            },
                           ]}
                         />
                       </View>

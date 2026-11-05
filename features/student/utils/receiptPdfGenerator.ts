@@ -37,8 +37,11 @@ export async function generateStudentFeeReceiptPdf(receipt: StudentFeeReceiptDat
   const studentName = receipt.studentName || userStore.fullName || '';
   const rollNo = receipt.rollNo || userStore.rollNoOrUSN || '—';
   const classSection = receipt.classSection || '';
-  const receiptNo = receipt.receiptNo || `REC-${Date.now().toString().slice(-6)}`;
-  const dateStr = receipt.date || new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  const receiptNo = receipt.receiptNo?.trim();
+  const dateStr = receipt.date?.trim();
+  if (!receiptNo || !dateStr || !receipt.method?.trim() || !receipt.particulars?.trim()) {
+    throw new Error('Official receipt data is incomplete for this payment.');
+  }
   const generatedTimestamp = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
 
   const html = `
@@ -222,9 +225,8 @@ export async function generateStudentFeeReceiptPdf(receipt: StudentFeeReceiptDat
     </table>
 
     <div class="footer">
-      <div class="verified-badge">&#10003; Digitally Verified &amp; Signed</div>
       <div>${escapeHtml(institutionName)} &bull; Official Student Fee Receipt</div>
-      <div>Generated on ${escapeHtml(generatedTimestamp)} &bull; Valid without physical signature</div>
+      <div>Generated from recorded payment data on ${escapeHtml(generatedTimestamp)}</div>
     </div>
   </div>
 </body>

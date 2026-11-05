@@ -51,13 +51,24 @@ export default function DriveDetailsScreen() {
     }
   }, [id]);
 
-  if (loading) {
-    return <PlacementDriveDetailSkeleton />;
-  }
-
   const handleBack = () => {
     safeGoBack(navigation, '/(student)/placement');
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backBtn} onPress={handleBack} activeOpacity={0.7}>
+            <Feather name="arrow-left" size={22} color="#171717" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle} numberOfLines={1}>Drive Details</Text>
+          <View style={{ width: 36 }} />
+        </View>
+        <PlacementDriveDetailSkeleton />
+      </SafeAreaView>
+    );
+  }
 
   if (!drive) {
     return (
@@ -179,7 +190,7 @@ export default function DriveDetailsScreen() {
                 ]}
               >
                 {isHired
-                  ? 'HIRED / OFFERED'
+                  ? 'HIRED'
                   : isShortlisted
                   ? `SHORTLISTED: ROUND ${application.currentRoundIndex || 1}`
                   : 'APPLIED'}
@@ -210,7 +221,7 @@ export default function DriveDetailsScreen() {
           <View style={styles.detailRow}>
             <View style={{ flex: 1 }}>
               <Text style={styles.detailLabel}>CTC / Compensation</Text>
-              <Text style={styles.detailVal}>{drive.ctcOrStipend || 'Competitive / As per industry'}</Text>
+              <Text style={styles.detailVal}>{drive.ctcOrStipend || 'Not provided'}</Text>
             </View>
           </View>
 
@@ -219,7 +230,7 @@ export default function DriveDetailsScreen() {
           <View style={styles.detailRow}>
             <View style={{ flex: 1 }}>
               <Text style={styles.detailLabel}>Job Location</Text>
-              <Text style={styles.detailVal}>{drive.location || 'Hybrid / Remote / TBD'}</Text>
+              <Text style={styles.detailVal}>{drive.location || 'Not provided'}</Text>
             </View>
           </View>
 

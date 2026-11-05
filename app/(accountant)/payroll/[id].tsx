@@ -40,6 +40,7 @@ const METHOD_LABELS: Record<PaymentMethod, string> = {
   upi: 'UPI',
   cash: 'Cash',
   card: 'Card',
+  unknown: 'Not recorded',
 };
 
 const METHOD_OPTIONS: PaymentMethod[] = ['upi', 'cash', 'bank_transfer', 'card', 'cheque'];

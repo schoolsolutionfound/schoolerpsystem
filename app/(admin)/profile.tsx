@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, StyleSheet, Text, Alert } from 'react-native';
+import { View, StyleSheet, Text, Alert, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { performLogout } from '../../utils/logout';
 import { useUserStore } from '../../store/useUserStore';
 import { AdminProfileView } from '../../features/admin/components/AdminProfileView';
@@ -60,7 +61,15 @@ export default function AdminProfileScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/(admin)/home'))}
+          style={styles.headerBack}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <MaterialCommunityIcons name="arrow-left" size={22} color="#171717" />
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Profile</Text>
+        <View style={styles.headerBack} />
       </View>
       <AdminProfileView
         fullName={fullName}
@@ -80,6 +89,7 @@ export default function AdminProfileScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFFDF7' },
-  header: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E8E5DC', backgroundColor: '#FFFFFF' },
-  headerTitle: { fontSize: 17, fontWeight: '700', color: '#171717' },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E8E5DC', backgroundColor: '#FFFFFF' },
+  headerBack: { width: 32, alignItems: 'center' },
+  headerTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '700', color: '#171717' },
 });

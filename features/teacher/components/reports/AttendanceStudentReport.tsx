@@ -226,25 +226,8 @@ export const AttendanceStudentReport: React.FC<AttendanceStudentReportProps> = (
     }
   };
 
-  const subjects = report?.subjects || [
-    { subjectName: 'Mathematics', percentage: 88, present: 22, total: 25 },
-    { subjectName: 'Science', percentage: 85, present: 21, total: 25 },
-    { subjectName: 'English', percentage: 92, present: 23, total: 25 },
-    { subjectName: 'Social Science', percentage: 84, present: 21, total: 25 },
-    { subjectName: 'Hindi', percentage: 89, present: 22, total: 25 },
-    { subjectName: 'Computer Science', percentage: 95, present: 24, total: 25 },
-  ];
-
-  const dailyTrend = report?.dailyTrend || [
-    { date: '2026-10-12', percentage: 92 },
-    { date: '2026-10-13', percentage: 88 },
-    { date: '2026-10-14', percentage: 95 },
-    { date: '2026-10-15', percentage: 84 },
-    { date: '2026-10-16', percentage: 90 },
-    { date: '2026-10-17', percentage: 79 },
-    { date: '2026-10-19', percentage: 93 },
-    { date: '2026-10-20', percentage: 87 },
-  ];
+  const subjects = report?.subjects || [];
+  const dailyTrend = report?.dailyTrend || [];
 
   const chartHeight = 85;
   const barWidth = 24;

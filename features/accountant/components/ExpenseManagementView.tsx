@@ -53,6 +53,7 @@ const METHOD_LABELS: Record<PaymentMethod, string> = {
   upi: 'UPI',
   cash: 'Cash',
   card: 'Card',
+  unknown: 'Not recorded',
 };
 
 const methodLabel = (m: PaymentMethod) => METHOD_LABELS[m] || m.toUpperCase();

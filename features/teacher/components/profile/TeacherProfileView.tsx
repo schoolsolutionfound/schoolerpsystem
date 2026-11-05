@@ -19,7 +19,8 @@ import { MaterialCommunityIcons, Feather } from '../common/Icons';
 import { auth } from '../../../../firebaseConfig';
 import { useUserStore } from '../../../../store/useUserStore';
 import { FontFamily } from '../../../../constants/fonts';
-import { apiClient } from '../../../../api/client';
+import { uploadProfilePictureApi } from '../../../../api/upload';
+import { updateMyProfileApi } from '../../../../api/users';
 import { TeacherProfileSkeleton } from '../skeletons/TeacherProfileSkeleton';
 
 let ImagePicker: any = null;
@@ -139,35 +140,31 @@ export const TeacherProfileView: React.FC<TeacherProfileViewProps> = ({ showBack
   const handleSaveProfile = async () => {
     setSaving(true);
     try {
-      setUserProfile({
-        fullName: name,
-        phone,
-        employeeId,
-        department,
-        designation,
-        qualification,
-        experience,
-        profilePic: profilePicUrl,
+      const persistedProfilePic =
+        profilePicUrl && profilePicUrl !== storedProfilePic
+          ? await uploadProfilePictureApi(profilePicUrl)
+          : profilePicUrl;
+      await updateMyProfileApi({
+        fullName: name.trim(),
+        phone: phone.trim(),
+        designation: designation.trim(),
+        qualification: qualification.trim(),
+        experience: experience.trim(),
+        profilePicUrl: persistedProfilePic || undefined,
       });
-
-      await apiClient('/users/complete-profile', {
-        method: 'POST',
-        body: JSON.stringify({
-          phone,
-          employeeId,
-          department,
-          designation,
-          qualification,
-          experience,
-          profilePicUrl,
-        }),
-      }).catch(() => null);
+      setUserProfile({
+        fullName: name.trim(),
+        phone: phone.trim(),
+        designation: designation.trim(),
+        qualification: qualification.trim(),
+        experience: experience.trim(),
+        profilePic: persistedProfilePic,
+      });
 
       setIsEditing(false);
       Alert.alert('Profile Updated', 'Your teacher profile details have been saved successfully.');
     } catch (err: any) {
-      setIsEditing(false);
-      Alert.alert('Profile Saved', 'Profile updated locally.');
+      Alert.alert('Profile Update Failed', err?.message || 'Could not save your profile.');
     } finally {
       setSaving(false);
     }
@@ -234,9 +231,6 @@ export const TeacherProfileView: React.FC<TeacherProfileViewProps> = ({ showBack
                 <Text style={styles.avatarInitials}>{initials}</Text>
               </View>
             )}
-            <View style={styles.badge}>
-              <MaterialCommunityIcons name="check-decagram" size={22} color="#F4C430" />
-            </View>
           </View>
 
           <Text style={styles.name}>{name}</Text>
@@ -323,7 +317,7 @@ export const TeacherProfileView: React.FC<TeacherProfileViewProps> = ({ showBack
               <TextInput
                 style={styles.formInput}
                 value={employeeId}
-                onChangeText={setEmployeeId}
+                editable={false}
                 placeholder="e.g. TCH-2024-8891"
                 placeholderTextColor="#9CA3AF"
               />
@@ -335,7 +329,7 @@ export const TeacherProfileView: React.FC<TeacherProfileViewProps> = ({ showBack
               <TextInput
                 style={styles.formInput}
                 value={department}
-                onChangeText={setDepartment}
+                editable={false}
                 placeholder="e.g. Mathematics & Science"
                 placeholderTextColor="#9CA3AF"
               />
@@ -587,19 +581,6 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.extrabold,
     color: '#171717',
     letterSpacing: 0.5,
-  },
-  badge: {
-    position: 'absolute',
-    bottom: 2,
-    right: 2,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 1.5,
-    shadowColor: '#171717',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 2,
-    elevation: 2,
   },
   name: {
     fontSize: 20,

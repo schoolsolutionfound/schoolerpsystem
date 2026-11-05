@@ -45,7 +45,7 @@ export const AdminInstitutionView: React.FC<AdminInstitutionViewProps> = ({ conf
   const [academicYears, setAcademicYears] = useState<string[]>(levelsForInstitution(config));
   const [courses, setCourses] = useState<string[]>(config.courses || []);
   const [sections, setSections] = useState<string[]>(config.sections || []);
-  const [termCount, setTermCount] = useState(String(termCountFromPlan(config.terms, config.institutionType)));
+  const [termCount, setTermCount] = useState(String(termCountFromPlan(config.terms)));
 
   const [newDept, setNewDept] = useState('');
   const [newSection, setNewSection] = useState('');
@@ -96,7 +96,7 @@ export const AdminInstitutionView: React.FC<AdminInstitutionViewProps> = ({ conf
     const hasSubjects = isSchool && (classSubjects[className]?.length || 0) > 0;
     Alert.alert(
       'Remove',
-      `Remove "${className}"${hasSubjects ? ' and its subjects' : ''}? Existing class sections and student records are kept.`,
+      `Remove "${className}"${hasSubjects ? ' and its subjects' : ''}? Its class sections are removed on save; students and other records must be moved first.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -247,11 +247,15 @@ export const AdminInstitutionView: React.FC<AdminInstitutionViewProps> = ({ conf
         classSubjects?: Record<string, string[]>;
         terms: { academicYear: string; terms: string[] }[];
         defaultTempPassword?: string;
+        clearStructure: boolean;
       } = {
         departments,
         courses,
         sections,
         terms,
+        // This editor submits the complete structure, so empty lists are
+        // intentional clears (and removed classes are deleted server-side).
+        clearStructure: true,
         // Schools store classes + per-class subjects; colleges store years of
         // study in yearsOfStudy (2026-27 sessions are managed separately).
         ...(isSchool

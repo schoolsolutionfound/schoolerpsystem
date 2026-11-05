@@ -6,13 +6,20 @@ import { useUserStore } from '../../../store/useUserStore';
 import { performLogout } from '../../../utils/logout';
 import { UnifiedHeader } from '../../shared/components/layout/UnifiedHeader';
 import { DriverDrawer } from './DriverDrawer';
-import { DriverBottomNav, DriverTab } from './DriverBottomNav';
+import type { DriverTab } from './DriverDrawer';
+import { FloatingFooter } from '../../shared/components/layout/FloatingFooter';
 
 const ROUTES: Record<DriverTab, string> = {
   trips: '/(driver)/home',
   announcements: '/(driver)/announcements',
   profile: '/(driver)/profile',
 };
+
+const TABS: { key: DriverTab; label: string; icon: string; iconFilled: string }[] = [
+  { key: 'trips', label: 'My Trips', icon: 'bus', iconFilled: 'bus-clock' },
+  { key: 'announcements', label: 'Announcements', icon: 'bullhorn-outline', iconFilled: 'bullhorn' },
+  { key: 'profile', label: 'Profile', icon: 'account-outline', iconFilled: 'account' },
+];
 
 export const DriverShell: React.FC<{ activeTab: DriverTab; children: React.ReactNode }> = ({
   activeTab,
@@ -46,12 +53,12 @@ export const DriverShell: React.FC<{ activeTab: DriverTab; children: React.React
       <SafeAreaView style={styles.safe} edges={['top']}>
         <UnifiedHeader
           onMenuPress={() => setDrawerOpen(true)}
-          onNotificationsPress={() => {}}
+          onNotificationsPress={() => router.push('/notifications')}
         />
 
         <View style={styles.content}>{children}</View>
 
-        <DriverBottomNav activeTab={activeTab} />
+        <FloatingFooter tabs={TABS} activeKey={activeTab} onTabPress={handleNavigate} />
       </SafeAreaView>
 
       <DriverDrawer
@@ -73,5 +80,5 @@ export const DriverShell: React.FC<{ activeTab: DriverTab; children: React.React
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F9FAFB' },
   safe: { flex: 1 },
-  content: { flex: 1, paddingBottom: 76 },
+  content: { flex: 1 },
 });

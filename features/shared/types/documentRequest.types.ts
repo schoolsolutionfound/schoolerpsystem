@@ -24,11 +24,14 @@ export interface DocumentCourseRecord {
   maxMarks: number;
   grade: string;
   gradePoints: number;
+  examDate?: string;
+  examTime?: string;
 }
 
 export interface DocumentAcademicDetails {
   semester?: string;
   academicYear?: string;
+  program?: string;
   sgpa?: number;
   cgpa?: number;
   totalCredits?: number;

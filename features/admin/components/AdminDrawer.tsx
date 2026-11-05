@@ -13,8 +13,8 @@ interface AdminDrawerProps {
   router?: any;
 }
 
-const PRIMARY: { key: AdminTab; label: string; icon: string; route?: string; adminOnly?: boolean }[] = [
-  { key: 'dashboard', label: 'Dashboard', icon: 'view-dashboard-outline', route: '/(admin)' },
+const PRIMARY: { key: AdminTab; label: string; icon: string; adminOnly?: boolean }[] = [
+  { key: 'dashboard', label: 'Dashboard', icon: 'view-dashboard-outline' },
   { key: 'announcements', label: 'Announcements', icon: 'bullhorn-outline' },
   { key: 'institution', label: 'Institution', icon: 'office-building' },
   { key: 'students', label: 'Students', icon: 'account-school-outline' },
@@ -48,8 +48,7 @@ export const AdminDrawer: React.FC<AdminDrawerProps> = ({
   const menuItems = PRIMARY.filter((item) => !item.adminOnly || userRole === 'admin');
 
   const selectPrimary = (item: typeof PRIMARY[number]) => {
-    if (item.route) localRouter.push(item.route as any);
-    else onNavigate(item.key);
+    onNavigate(item.key);
   };
 
   const sections: UnifiedDrawerSection[] = [

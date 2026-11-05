@@ -12,6 +12,9 @@ import PrincipalHomeScreen from './(principal)/home';
 import ParentHomeScreen from './(parent)/home';
 import DriverHomeScreen from './(driver)/home';
 import DeveloperHomeScreen from './(developer)/home';
+import AccountantHomeScreen from './(accountant)/home';
+import HODHomeScreen from './(hod)/home';
+import LibrarianHomeScreen from './(librarian)/home';
 
 export default function RootHomeScreen() {
   const router = useRouter();
@@ -58,6 +61,15 @@ export default function RootHomeScreen() {
   }
   if (role === 'driver') {
     return <DriverHomeScreen />;
+  }
+  if (role === 'accountant') {
+    return <AccountantHomeScreen />;
+  }
+  if (role === 'hod') {
+    return <HODHomeScreen />;
+  }
+  if (role === 'librarian') {
+    return <LibrarianHomeScreen />;
   }
   if (role === 'dev' || role === 'developer') {
     return <DeveloperHomeScreen />;

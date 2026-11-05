@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { FontFamily } from '../../../constants/fonts';
+import { useConfigStore } from '../../../store/useConfigStore';
 
 export type EventType =
   | 'academic'
@@ -45,16 +46,6 @@ interface AcademicCalendarEventsViewProps {
   canManageAll?: boolean;
   canManageDeptOnly?: boolean;
 }
-
-const INSTITUTION_DEPARTMENTS = [
-  'Computer Science',
-  'AIML',
-  'Electronics & Comm',
-  'Mechanical Eng',
-  'Civil Eng',
-  'Commerce & Mgmt',
-  'Applied Sciences',
-];
 
 const EVENT_TYPE_LABELS: Record<EventType, string> = {
   academic: 'Academic Schedule',
@@ -134,8 +125,16 @@ export const AcademicCalendarEventsView: React.FC<AcademicCalendarEventsViewProp
   const cardWidth = isDesktop ? Math.floor((maxContentWidth - 32 - cardGap) / 2) : '100%';
 
   const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [search, setSearch] = useState('');
-  const [activeScopeFilter, setActiveScopeFilter] = useState<'all' | 'institution' | 'department' | 'exam' | 'holiday'>('all');
+  const institutionDepartments = useConfigStore((s) => s.institution.departments);
+  const departmentOptions = useMemo(() => {
+    const set = new Set<string>(institutionDepartments);
+    events.forEach((e) => {
+      if (e.department && e.department.trim()) set.add(e.department.trim());
+    });
+    if (userDepartment && userDepartment.trim()) set.add(userDepartment.trim());
+    return Array.from(set);
+  }, [institutionDepartments, events, userDepartment]);
+  const [search, setSearch] = useState('');  const [activeScopeFilter, setActiveScopeFilter] = useState<'all' | 'institution' | 'department' | 'exam' | 'holiday'>('all');
   const [selectedDept, setSelectedDept] = useState<string>('all');
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const hasActiveFilters = activeScopeFilter !== 'all' || selectedDept !== 'all';
@@ -173,20 +172,10 @@ export const AcademicCalendarEventsView: React.FC<AcademicCalendarEventsViewProp
   };
 
   const handleOpenCreate = () => {
-    setEditingEventId(null);
-    setFormTitle('');
-    setFormType('academic');
-    setFormScope(canManageDeptOnly && !isPrincipalOrAdmin ? 'department' : 'institution');
-    setFormDept(userDepartment || '');
-    setScopeDropdownOpen(false);
-    setDeptDropdownOpen(false);
-    setFormStartDate(new Date().toISOString().slice(0, 10));
-    setFormEndDate(new Date().toISOString().slice(0, 10));
-    setFormTime('09:30 AM - 04:30 PM');
-    setFormVenue('Main Auditorium');
-    setFormOrganizer(userRole === 'hod' ? `HOD ${userDepartment || 'Department'}` : 'Principal Office');
-    setFormDescription('');
-    setModalVisible(true);
+    Alert.alert(
+      'Calendar Management Unavailable',
+      'Persisted calendar event management is not configured. Use an event announcement instead.'
+    );
   };
 
   const handleOpenEdit = (evt: CalendarEvent) => {
@@ -660,7 +649,7 @@ export const AcademicCalendarEventsView: React.FC<AcademicCalendarEventsViewProp
 
                     {deptDropdownOpen && (
                       <View style={styles.formDropdownMenu}>
-                        {INSTITUTION_DEPARTMENTS.map((dept) => {
+                        {departmentOptions.map((dept) => {
                           const active = formDept.toLowerCase() === dept.toLowerCase();
                           return (
                             <TouchableOpacity
@@ -839,7 +828,7 @@ export const AcademicCalendarEventsView: React.FC<AcademicCalendarEventsViewProp
               {/* Department Filter */}
               <Text style={[styles.filterGroupTitle, { marginTop: 14 }]}>DEPARTMENT</Text>
               <View style={styles.filterChipsWrap}>
-                {['all', ...INSTITUTION_DEPARTMENTS].map((dept) => {
+                {['all', ...departmentOptions].map((dept) => {
                   const active = selectedDept === dept;
                   return (
                     <TouchableOpacity

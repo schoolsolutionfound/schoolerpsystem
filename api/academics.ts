@@ -180,6 +180,18 @@ export async function fetchTeacherTimetableApi(date?: string) {
   return apiClient(`/admin/timetable/teacher${qs.toString() ? `?${qs.toString()}` : ''}`);
 }
 
+export async function fetchTeacherTimetableByIdApi(teacherId: string, date?: string) {
+  const qs = new URLSearchParams();
+  if (date) qs.set('date', date);
+  return apiClient(`/admin/timetable/teacher/${encodeURIComponent(teacherId)}${qs.toString() ? `?${qs.toString()}` : ''}`);
+}
+
+export async function fetchTodayClassesApi(date?: string) {
+  const qs = new URLSearchParams();
+  if (date) qs.set('date', date);
+  return apiClient(`/admin/timetable/today${qs.toString() ? `?${qs.toString()}` : ''}`);
+}
+
 export async function fetchMyTimetableApi(date?: string) {
   const qs = new URLSearchParams();
   if (date) qs.set('date', date);

@@ -9,7 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import {
   useAdminsQuery,
   useInstitutionsQuery,
@@ -73,6 +73,13 @@ export default function DeveloperAdminsScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
+          <TouchableOpacity
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/(developer)/home'))}
+            style={{ marginRight: 10, padding: 2 }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <MaterialCommunityIcons name="chevron-left" size={28} color={Colors.light.text} />
+          </TouchableOpacity>
           <View style={styles.iconContainer}>
             <MaterialCommunityIcons name="account-group" size={24} color={Colors.light.primary} />
           </View>
@@ -81,8 +88,12 @@ export default function DeveloperAdminsScreen() {
             <Text style={styles.headerSubtitle}>{admins.length} Total Admins Configured</Text>
           </View>
         </View>
-        <TouchableOpacity style={styles.iconButton}>
-          <MaterialCommunityIcons name="bell-outline" size={22} color={Colors.light.text} />
+        <TouchableOpacity
+          style={styles.iconButton}
+          onPress={() => router.push('/notifications')}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Feather name="bell" size={22} color="#111827" />
         </TouchableOpacity>
       </View>
 

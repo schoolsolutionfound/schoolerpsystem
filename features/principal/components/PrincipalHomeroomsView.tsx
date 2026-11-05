@@ -70,7 +70,7 @@ function detectClassProgram(sec: HomeroomSection): string {
   if (text.includes('b.tech') || text.includes('btech')) return 'B.Tech';
   if (text.includes('mba')) return 'MBA';
   if (text.includes('diploma')) return 'Diploma';
-  return 'B.Tech';
+  return '';
 }
 
 function getDepartmentIcon(deptName: string): keyof typeof Feather.glyphMap {
@@ -200,8 +200,23 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
     return ['all', ...Array.from(set)];
   }, [effectiveHomerooms]);
 
-  const availableYears = ['all', '1st Year', '2nd Year', '3rd Year', '4th Year'];
-  const availablePrograms = ['all', 'B.Tech', 'M.Tech', 'MBA', 'Diploma'];
+  const availableYears = useMemo(() => {
+    const set = new Set<string>();
+    effectiveHomerooms.forEach((h) => {
+      const year = detectClassYear(h);
+      if (year) set.add(year);
+    });
+    return ['all', ...Array.from(set)];
+  }, [effectiveHomerooms]);
+
+  const availablePrograms = useMemo(() => {
+    const set = new Set<string>();
+    effectiveHomerooms.forEach((h) => {
+      const program = detectClassProgram(h);
+      if (program) set.add(program);
+    });
+    return ['all', ...Array.from(set)];
+  }, [effectiveHomerooms]);
 
   // Has active class filters
   const hasActiveClassFilters =
@@ -1045,7 +1060,8 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
                       ₹{selectedStudent.fees.pendingFee.toLocaleString()}
                     </Text>
                     <Text style={styles.feeDuesBannerStatus}>
-                      Status: {selectedStudent.fees.status.toUpperCase()} · Due by {selectedStudent.fees.dueDate || '15 Nov 2026'}
+                      Status: {selectedStudent.fees.status.toUpperCase()}
+                      {selectedStudent.fees.dueDate ? ` · Due by ${selectedStudent.fees.dueDate}` : ''}
                     </Text>
                   </View>
 
@@ -1079,10 +1095,6 @@ export const PrincipalHomeroomsView: React.FC<PrincipalHomeroomsViewProps> = ({
                       </Text>
                     </View>
 
-                    <View style={[(isDesktop || isTablet) ? styles.dossierItemHalf : styles.dossierRow]}>
-                      <Text style={styles.dossierLabel}>Fee Category</Text>
-                      <Text style={styles.dossierVal}>Merit Tuition & Laboratory</Text>
-                    </View>
                   </View>
                 </View>
               )}

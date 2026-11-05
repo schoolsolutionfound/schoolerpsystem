@@ -120,7 +120,7 @@ export default function DriverHomeScreen() {
       <SafeAreaView style={styles.safe}>
         <UnifiedHeader
           onMenuPress={() => setDrawerOpen(true)}
-          onNotificationsPress={() => {}}
+          onNotificationsPress={() => router.push('/notifications')}
         />
 
         <View style={styles.content}>
@@ -141,8 +141,11 @@ export default function DriverHomeScreen() {
         email={email}
         profilePic={profilePic}
         institutionName={institutionName}
-          onLogout={logoutNow}
-        />
+        activeTab={activeTab}
+        onNavigate={setActiveTab}
+        onChangePassword={() => router.push('/change-password')}
+        onLogout={logoutNow}
+      />
     </View>
   );
 }

@@ -85,11 +85,11 @@ export interface HODDepartmentStudent {
   semester: string;
   section: string;
   batchYear: string;
-  attendancePct: number;
-  cgpa: number;
+  attendancePct?: number | null;
+  cgpa?: number | null;
   parentName: string;
   parentPhone: string;
-  hallTicketStatus: HallTicketStatus;
+  hallTicketStatus?: HallTicketStatus;
   condonationReason?: string;
   remarks?: string;
 }

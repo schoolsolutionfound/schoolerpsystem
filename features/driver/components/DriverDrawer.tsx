@@ -1,6 +1,7 @@
 import React from 'react';
-import type { DriverTab } from './DriverBottomNav';
 import { UnifiedDrawer, UnifiedDrawerSection } from '../../shared/components/layout/UnifiedDrawer';
+
+export type DriverTab = 'trips' | 'announcements' | 'profile';
 
 interface DriverDrawerProps {
   visible: boolean;

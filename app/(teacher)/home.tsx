@@ -75,6 +75,9 @@ const TABS: { key: Tab; label: string; icon: string; iconFilled: string }[] = [
   { key: 'profile', label: 'Profile', icon: 'account-circle-outline', iconFilled: 'account-circle' },
 ];
 
+// These tabs render their own top bar, so the shared header is hidden to avoid stacking two bars.
+const SELF_HEADERED_TABS: Tab[] = ['library', 'leave', 'teacher-attendance', 'settings'];
+
 export default function TeacherHomeScreen() {
   const router = useRouter();
   const fullName = useUserStore((state) => state.fullName) || 'Teacher';
@@ -320,10 +323,16 @@ export default function TeacherHomeScreen() {
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-        <UnifiedHeader
-          onMenuPress={() => setDrawerOpen(true)}
-          onNotificationsPress={() => router.push('/notifications')}
-        />
+        {!SELF_HEADERED_TABS.includes(activeTab) && (
+          <UnifiedHeader
+            userName={fullName}
+            profilePic={profilePic}
+            onMenuPress={() => setDrawerOpen(true)}
+            onNotificationsPress={() => router.push('/notifications')}
+            onProfilePress={() => setActiveTab('profile')}
+            showProfile={activeTab === 'home'}
+          />
+        )}
 
         <TeacherShimmerProvider>
           <View style={styles.content}>
