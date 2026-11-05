@@ -22,7 +22,9 @@ import {
   updateHolidaysHandler,
   createTimetableHandler,
   getClassTimetableHandler,
+  getTodayClassesHandler,
   getTeacherTimetableHandler,
+  getTeacherTimetableByIdHandler,
   getMyTimetableHandler,
   getMyClassSectionHandler,
   getAllTimetablesForClassHandler,
@@ -93,7 +95,9 @@ export async function academicsRoutes(fastify: FastifyInstance) {
   // Timetable
   fastify.post('/timetable', { preHandler: [requireTeacherOrAdmin] }, (req, reply) => createTimetableHandler(req, reply));
   fastify.get('/timetable/class', { preHandler: [requireTeacherOrAdmin] }, (req, reply) => getClassTimetableHandler(req, reply));
+  fastify.get('/timetable/today', { preHandler: [requireRole('admin', 'principal', 'hod')] }, (req, reply) => getTodayClassesHandler(req, reply));
   fastify.get('/timetable/teacher', { preHandler: [authenticate] }, (req, reply) => getTeacherTimetableHandler(req, reply));
+  fastify.get('/timetable/teacher/:id', { preHandler: [requireRole('admin', 'principal', 'hod')] }, (req, reply) => getTeacherTimetableByIdHandler(req as any, reply));
   fastify.get('/timetable/me', { preHandler: [authenticate] }, (req, reply) => getMyTimetableHandler(req, reply));
   fastify.get('/timetable/my-class', { preHandler: [authenticate] }, (req, reply) => getMyClassSectionHandler(req, reply));
   fastify.get('/timetable/class/:id/versions', { preHandler: [requireTeacherOrAdmin] }, (req, reply) => getAllTimetablesForClassHandler(req as any, reply));

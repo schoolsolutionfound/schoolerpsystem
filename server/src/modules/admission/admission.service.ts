@@ -251,9 +251,6 @@ export class AdmissionService {
     const batchSet = new Set<string>();
     courses.forEach((c) => batchSet.add(c.academicYear));
     allApps.forEach((a) => batchSet.add(a.academicYear));
-    if (batchSet.size === 0) {
-      batchSet.add('2026-2027');
-    }
     const batches = Array.from(batchSet).sort().reverse();
 
     return {
@@ -510,20 +507,26 @@ export class AdmissionService {
         (q: QuotaAllocationItem) => q.quotaName.toLowerCase().trim() === payload.quota.toLowerCase().trim()
       );
 
-      if (targetQuota) {
-        const occupiedQuota = appsInCourse.filter(
-          (a: AdmissionApplicationRecord) =>
-            a.id !== id &&
-            (a.allocatedQuota || '').toLowerCase().trim() === payload.quota.toLowerCase().trim()
-        ).length;
+      if (!targetQuota) {
+        throw {
+          statusCode: 400,
+          code: 'INVALID_QUOTA',
+          message: `Quota "${payload.quota}" is not configured for ${course.courseName}.`,
+        };
+      }
 
-        if (occupiedQuota >= targetQuota.seats) {
-          throw {
-            statusCode: 400,
-            code: 'QUOTA_FULL',
-            message: `All ${targetQuota.seats} seats in quota "${targetQuota.quotaName}" for ${course.courseName} are occupied.`,
-          };
-        }
+      const occupiedQuota = appsInCourse.filter(
+        (a: AdmissionApplicationRecord) =>
+          a.id !== id &&
+          (a.allocatedQuota || '').toLowerCase().trim() === payload.quota.toLowerCase().trim()
+      ).length;
+
+      if (occupiedQuota >= targetQuota.seats) {
+        throw {
+          statusCode: 400,
+          code: 'QUOTA_FULL',
+          message: `All ${targetQuota.seats} seats in quota "${targetQuota.quotaName}" for ${course.courseName} are occupied.`,
+        };
       }
 
       const [updated] = await tx

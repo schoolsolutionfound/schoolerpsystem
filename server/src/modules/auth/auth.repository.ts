@@ -1,13 +1,18 @@
-import { InMemoryUser, dbFindByUid, dbUpsertUser } from '../shared/db/index.js';
+import { InMemoryUser, dbFindByUid, dbFindByEmail, dbUpsertUser } from '../shared/db/index.js';
 
 export interface IAuthRepository {
   findByUid(uid: string): Promise<InMemoryUser | undefined> | InMemoryUser | undefined;
+  findByEmail(email: string): Promise<InMemoryUser | undefined> | InMemoryUser | undefined;
   upsertUser(user: Partial<InMemoryUser> & { firebaseUid: string; email: string }): Promise<InMemoryUser> | InMemoryUser;
 }
 
 export class AuthRepository implements IAuthRepository {
   public async findByUid(uid: string): Promise<InMemoryUser | undefined> {
     return dbFindByUid(uid);
+  }
+
+  public async findByEmail(email: string): Promise<InMemoryUser | undefined> {
+    return dbFindByEmail(email);
   }
 
   public async upsertUser(user: Partial<InMemoryUser> & { firebaseUid: string; email: string }): Promise<InMemoryUser> {

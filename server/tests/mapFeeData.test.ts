@@ -66,14 +66,10 @@ describe('mapFeeData', () => {
     expect(paid!.classSection).toBe('10-A');
   });
 
-  it('creates pending dues for students without a payment', () => {
+  it('does not synthesize pending dues without an authoritative student ledger', () => {
     const records = mapFeeData(fees as any, payments as any, students as any);
     const pendingForStu2 = records.filter((r) => r.studentId === 'stu_2' && r.status === 'pending');
-    expect(pendingForStu2.length).toBeGreaterThanOrEqual(1);
-    const due = pendingForStu2.find((r) => r.feeStructureId === 'fs_1');
-    expect(due).toBeDefined();
-    expect(due!.amount).toBe(15000);
-    expect(due!.paymentId).toBeNull();
+    expect(pendingForStu2).toEqual([]);
   });
 
   it('skips archived fee structures for pending dues', () => {
@@ -108,7 +104,7 @@ describe('mapFeeData', () => {
       []
     );
     expect(records[0].category).toBe('student_fee');
-    expect(records[0].paymentMethod).toBe('upi');
+    expect(records[0].paymentMethod).toBe('unknown');
     expect(records[0].status).toBe('pending');
   });
 });

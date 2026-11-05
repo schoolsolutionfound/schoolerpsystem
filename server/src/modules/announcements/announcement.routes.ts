@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import {
   listAnnouncementsHandler,
   listUserFeedHandler,
+  listUpcomingEventsHandler,
   getUnreadCountHandler,
   getAnnouncementByIdHandler,
   createAnnouncementHandler,
@@ -16,6 +17,7 @@ import { authenticate, requireStaff } from '../shared/middleware/auth.js';
 export async function announcementRoutes(fastify: FastifyInstance) {
   // Feed & Read Status (User-facing)
   fastify.get('/feed', { preHandler: [authenticate] }, (req, reply) => listUserFeedHandler(req, reply));
+  fastify.get('/upcoming-events', { preHandler: [authenticate] }, (req, reply) => listUpcomingEventsHandler(req, reply));
   fastify.get('/unread-count', { preHandler: [authenticate] }, (req, reply) => getUnreadCountHandler(req, reply));
   fastify.post('/:id/read', { preHandler: [authenticate] }, (req: any, reply) => markAnnouncementReadHandler(req, reply));
 

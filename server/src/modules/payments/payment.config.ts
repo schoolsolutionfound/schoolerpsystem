@@ -103,6 +103,30 @@ export interface MerchantContext extends MerchantCredentials {
   gateway: string;
 }
 
+type PaymentMode = 'test' | 'live';
+
+/**
+ * PAYMENT_MODE must be explicit in production. Outside production an unset
+ * mode is treated as test so local dev and the test suite keep working.
+ */
+function resolvePaymentMode(): PaymentMode {
+  const raw = (process.env.PAYMENT_MODE || '').trim().toLowerCase();
+  if (raw === 'test' || raw === 'live') return raw;
+  if (raw) {
+    throw Object.assign(
+      new Error(`Invalid PAYMENT_MODE "${raw}" — expected "test" or "live".`),
+      { statusCode: 503, code: 'PAYMENT_MODE_INVALID' }
+    );
+  }
+  if (process.env.NODE_ENV === 'production') {
+    throw Object.assign(
+      new Error('PAYMENT_MODE is not configured.'),
+      { statusCode: 503, code: 'PAYMENT_MODE_NOT_CONFIGURED' }
+    );
+  }
+  return 'test';
+}
+
 export async function getMerchantCredentials(institutionCode: string): Promise<MerchantContext> {
   const row = await getPaymentConfigRow(institutionCode);
   if (!row || !row.isActive) {
@@ -111,7 +135,7 @@ export async function getMerchantCredentials(institutionCode: string): Promise<M
       { statusCode: 404, code: 'PAYMENT_NOT_CONFIGURED' }
     );
   }
-  const isTestMode = (process.env.PAYMENT_MODE || 'test') !== 'live';
+  const isTestMode = resolvePaymentMode() === 'test';
   if (isTestMode && row.keyId.startsWith('rzp_live_')) {
     throw Object.assign(
       new Error('Live gateway keys are disabled (PAYMENT_MODE=test).'),

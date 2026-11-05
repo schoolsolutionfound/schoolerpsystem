@@ -548,6 +548,16 @@ export async function getFeesHandler(request: FastifyRequest, reply: FastifyRepl
   }
 }
 
+export async function getFeesSummaryHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const instCode = extractInstCode(request);
+    const data = await adminService.getFeesSummary(instCode);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return reply.status(err.statusCode || 500).send({ success: false, error: { message: err.message } });
+  }
+}
+
 export async function createFeeHandler(request: FastifyRequest, reply: FastifyReply) {
   try {
     const instCode = extractInstCode(request);

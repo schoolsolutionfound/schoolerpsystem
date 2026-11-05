@@ -6,8 +6,8 @@ import {
   dbFindUsersByInstitution,
   dbUpdateUser,
 } from '../shared/db/index.js';
-import { classSections, subjects, users as usersTable } from '../shared/db/schema.js';
-import { eq } from 'drizzle-orm';
+import { classSections, institutions, subjects, studentClasses, subjectTeachers, users as usersTable } from '../shared/db/schema.js';
+import { and, eq, inArray } from 'drizzle-orm';
 import {
   institutionRepository,
   IInstitutionRepository,
@@ -21,6 +21,7 @@ import {
   structureFromRecord,
   structureToRecordFields,
   buildClassSectionFields,
+  uniqueStrings,
   type NormalizedStructure,
   type InstitutionType,
 } from '../shared/academicStructure.js';
@@ -48,7 +49,9 @@ function newSubjectId(): string {
  */
 async function seedClassSectionsForInstitution(
   institutionCode: string,
-  structure: NormalizedStructure
+  structure: NormalizedStructure,
+  executor: any = db,
+  strict = false
 ): Promise<number> {
   const { institutionType: type, units, levels, sections } = structure;
   const rows: {
@@ -83,23 +86,25 @@ async function seedClassSectionsForInstitution(
   }
 
   if (rows.length === 0) return 0;
-  if (!db) return 0;
+  if (!executor) return 0;
 
   try {
-    const existing = await db
+    const existing = await executor
       .select({ name: classSections.name })
       .from(classSections)
       .where(eq(classSections.institutionCode, institutionCode));
-    const existingNames = new Set(existing.map((r) => r.name));
+    const existingNames = new Set(existing.map((r: any) => r.name));
     const byName = new Map<string, (typeof rows)[number]>();
     for (const row of rows) {
       if (!existingNames.has(row.name) && !byName.has(row.name)) byName.set(row.name, row);
     }
     const toInsert = Array.from(byName.values());
     if (toInsert.length === 0) return 0;
-    await db.insert(classSections).values(toInsert).onConflictDoNothing();
+    await executor.insert(classSections).values(toInsert).onConflictDoNothing();
     return toInsert.length;
   } catch (err: any) {
+    // Inside a conversion transaction a failure must abort, not be swallowed.
+    if (strict) throw err;
     // If the DB is unavailable (in-memory dev mode) the createInstitution still succeeds.
     console.warn('[Institution Seed Warning] could not seed class_sections:', err?.message);
     return 0;
@@ -111,25 +116,163 @@ async function seedClassSectionsForInstitution(
  * Academics module reads the `subjects` table. Mirror the catalogue so the two
  * stay consistent. Colleges manage subjects explicitly and are not synced.
  */
-async function syncSchoolSubjects(institutionCode: string, structure: NormalizedStructure): Promise<void> {
-  if (structure.institutionType !== 'school' || !db) return;
+async function syncSchoolSubjects(
+  institutionCode: string,
+  structure: NormalizedStructure,
+  executor: any = db,
+  strict = false
+): Promise<void> {
+  if (structure.institutionType !== 'school' || !executor) return;
   const names = structure.units.filter(Boolean);
   if (names.length === 0) return;
   try {
-    const existing = await db
+    const existing = await executor
       .select({ name: subjects.name })
       .from(subjects)
       .where(eq(subjects.institutionCode, institutionCode));
-    const seen = new Set(existing.map((r) => r.name.toLowerCase()));
+    const seen = new Set(existing.map((r: any) => r.name.toLowerCase()));
     const toInsert = names
       .filter((name) => !seen.has(name.toLowerCase()))
       .map((name) => ({ id: newSubjectId(), institutionCode, name, code: '' }));
     if (toInsert.length > 0) {
-      await db.insert(subjects).values(toInsert).onConflictDoNothing();
+      await executor.insert(subjects).values(toInsert).onConflictDoNothing();
     }
   } catch (err: any) {
+    if (strict) throw err;
     console.warn('[Institution Subject Sync Warning] could not sync subjects:', err?.message);
   }
+}
+
+/**
+ * The class_sections row names a structure implies. Mirrors
+ * seedClassSectionsForInstitution so an update can diff the stored rows
+ * against the new configuration.
+ */
+function impliedClassSectionNames(structure: NormalizedStructure): string[] {
+  const { institutionType: type, units, levels, sections } = structure;
+  const names = new Set<string>();
+  if (type === 'school') {
+    for (const level of levels) {
+      for (const section of sections.length > 0 ? sections : ['']) {
+        names.add(buildClassSectionFields(type, level, section).name);
+      }
+    }
+    return Array.from(names);
+  }
+  for (const unit of units) {
+    for (const level of levels) {
+      for (const section of sections.length > 0 ? sections : ['']) {
+        names.add(buildClassSectionFields(type, level, section, unit).name);
+      }
+    }
+  }
+  return Array.from(names);
+}
+
+function structureRemoveBlocked(institutionCode: string, detail: string) {
+  return {
+    statusCode: 409,
+    code: 'STRUCTURE_CHANGE_BLOCKED',
+    message:
+      `Cannot remove ${detail} from "${institutionCode}": existing records still reference ` +
+      'them. Move or clear those records first, then save the structure.',
+  };
+}
+
+/**
+ * Deletes the class_sections (and, for schools, subject) rows the new
+ * configuration no longer contains. Enrollment and teacher-assignment links
+ * cascade silently in the schema, so they are refused instead of being
+ * dropped as a side effect of editing the class list. Other restricted
+ * references (timetable, marks, fees, ...) abort the transaction with
+ * 23001/23503 and surface as a clean 409 at the call site.
+ */
+async function removeStaleStructureRows(
+  tx: any,
+  institutionCode: string,
+  previous: NormalizedStructure,
+  next: NormalizedStructure
+): Promise<void> {
+  const nextNames = new Set(impliedClassSectionNames(next));
+  const nextLevels = new Set(next.levels);
+  const staleNames = new Set<string>();
+  for (const name of impliedClassSectionNames(previous)) {
+    if (!nextNames.has(name)) staleNames.add(name);
+  }
+  // The admin editor stores the full class-section name (e.g. "Class 1 A") as
+  // the level, so a removed level is itself a row name even when the
+  // level × section expansion does not reproduce it.
+  for (const level of previous.levels) {
+    if (!nextLevels.has(level)) staleNames.add(level);
+  }
+  const staleList = Array.from(staleNames);
+
+  if (staleList.length > 0) {
+    const staleRows: { id: string }[] = await tx
+      .select({ id: classSections.id })
+      .from(classSections)
+      .where(and(eq(classSections.institutionCode, institutionCode), inArray(classSections.name, staleList)));
+    const staleIds = staleRows.map((row) => row.id);
+
+    if (staleIds.length > 0) {
+      const [enrollments, assignments] = await Promise.all([
+        tx
+          .select({ id: studentClasses.id })
+          .from(studentClasses)
+          .where(
+            and(
+              eq(studentClasses.institutionCode, institutionCode),
+              inArray(studentClasses.classSectionId, staleIds)
+            )
+          ),
+        tx
+          .select({ id: subjectTeachers.id })
+          .from(subjectTeachers)
+          .where(
+            and(
+              eq(subjectTeachers.institutionCode, institutionCode),
+              inArray(subjectTeachers.classSectionId, staleIds)
+            )
+          ),
+      ]);
+      if (enrollments.length > 0 || assignments.length > 0) {
+        throw structureRemoveBlocked(institutionCode, 'the selected classes/sections');
+      }
+      await tx
+        .delete(classSections)
+        .where(and(eq(classSections.institutionCode, institutionCode), inArray(classSections.id, staleIds)));
+    }
+  }
+
+  // College `subjects` are course subjects managed elsewhere, not departments,
+  // so only schools mirror their subject catalogue into the subjects table.
+  if (next.institutionType !== 'school') return;
+  const nextUnits = new Set(next.units.map((unit) => unit.toLowerCase()));
+  const removedSubjects = previous.units.filter((unit) => !nextUnits.has(unit.toLowerCase()));
+  if (removedSubjects.length === 0) return;
+
+  const staleSubjectRows: { id: string }[] = await tx
+    .select({ id: subjects.id })
+    .from(subjects)
+    .where(and(eq(subjects.institutionCode, institutionCode), inArray(subjects.name, removedSubjects)));
+  const staleSubjectIds = staleSubjectRows.map((row) => row.id);
+  if (staleSubjectIds.length === 0) return;
+
+  const subjectAssignments = await tx
+    .select({ id: subjectTeachers.id })
+    .from(subjectTeachers)
+    .where(
+      and(
+        eq(subjectTeachers.institutionCode, institutionCode),
+        inArray(subjectTeachers.subjectId, staleSubjectIds)
+      )
+    );
+  if (subjectAssignments.length > 0) {
+    throw structureRemoveBlocked(institutionCode, 'the selected subjects');
+  }
+  await tx
+    .delete(subjects)
+    .where(and(eq(subjects.institutionCode, institutionCode), inArray(subjects.id, staleSubjectIds)));
 }
 
 /**
@@ -169,61 +312,8 @@ export function toPublicInstitution<T extends object | null | undefined>(row: T)
   return rest as StripPasswordField<T>;
 }
 
-const SCHOOL_METADATA: Record<string, any> = {
-  TST001: {
-    averageRating: 4.8,
-    totalReviews: 142,
-    logoUrl: 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=800&auto=format&fit=crop&q=80',
-    description: 'Greenfield International is a premier CBSE institution offering world-class academics, vibrant sports programs, and robotics labs from Kindergarten through Grade 12.',
-    facilities: ['Smart Classrooms', 'Olympic Swimming Pool', 'Robotics & AI Lab', 'Basketball & Cricket Turf', 'AC Transport'],
-  },
-  OAK002: {
-    averageRating: 4.9,
-    totalReviews: 98,
-    logoUrl: 'https://images.unsplash.com/photo-1541829070764-84a7d30dd3f3?w=800&auto=format&fit=crop&q=80',
-    description: 'An authorized IB World School fostering inquisitive young minds through experiential global curricula, performing arts, and international exchange opportunities.',
-    facilities: ['IB Curriculum', 'Auditorium & Amphitheater', 'Indoor Badminton Court', 'Organic Cafeteria', 'Day Boarding'],
-  },
-  DPS003: {
-    averageRating: 4.7,
-    totalReviews: 215,
-    logoUrl: 'https://images.unsplash.com/photo-1562774053-701939374585?w=800&auto=format&fit=crop&q=80',
-    description: 'Excellence in education since 1995. Emphasizing disciplined learning, national competitive exam prep (JEE/NEET), and leadership skills.',
-    facilities: ['Science Innovation Park', 'Digital Library', 'Hostel Facilities', 'Football Ground', 'Medical Center'],
-  },
-  STX004: {
-    averageRating: 4.6,
-    totalReviews: 180,
-    logoUrl: 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=800&auto=format&fit=crop&q=80',
-    description: 'Holistic character building and ICSE curriculum with century-old heritage, distinguished alumni, and championship athletics.',
-    facilities: ['Heritage Campus', 'Music Conservatory', 'Tennis Courts', 'Chapel & Meditation Hall'],
-  },
-  HCS005: {
-    averageRating: 4.9,
-    totalReviews: 165,
-    logoUrl: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?w=800&auto=format&fit=crop&q=80',
-    description: 'Global benchmark education offering Cambridge IGCSE and A-Levels with modern STEAM research centers, equestrian training, and dual-language immersion.',
-    facilities: ['Cambridge IGCSE & A-Levels', 'STEAM Research Hub', 'Horse Riding Academy', 'All-Weather Athletics Track'],
-  },
-  LEM006: {
-    averageRating: 4.8,
-    totalReviews: 88,
-    logoUrl: 'https://images.unsplash.com/photo-1577896851231-70ef18881754?w=800&auto=format&fit=crop&q=80',
-    description: 'Nurturing discovery-based learning from Toddlers to Grade 5 with authentic Montessori apparatus, organic kitchen garden, and child-centric creative studios.',
-    facilities: ['Montessori Apparatus Labs', 'Child Splash Pool', 'Sensory Discovery Garden', 'Day Care & Nutritionist'],
-  },
-};
-
 function enrichInstitution(inst: any) {
-  if (!inst) return inst;
-  const meta = SCHOOL_METADATA[inst.institutionCode] || SCHOOL_METADATA[inst.id] || {
-    averageRating: 4.5,
-    totalReviews: 50,
-    logoUrl: 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=800&auto=format&fit=crop&q=80',
-    description: `${inst.institutionName} provides comprehensive education with modern infrastructure and student-centered curriculum.`,
-    facilities: ['Smart Classrooms', 'Library', 'Science Lab', 'Sports Ground'],
-  };
-  return { ...meta, ...inst };
+  return inst;
 }
 
 const STRUCTURE_KEYS = [
@@ -241,25 +331,28 @@ export class InstitutionService {
   constructor(private repo: IInstitutionRepository = institutionRepository) {}
 
   public async createInstitution(input: CreateInstitutionInput) {
-    const existing = await this.repo.findByCode(input.institutionCode);
+    // Normalize once so duplicate detection and the insert agree (a code
+    // arriving with padding/spaces used to bypass the check and 500 on the
+    // unique constraint instead of returning a clean 409).
+    const institutionCode = input.institutionCode.toUpperCase().trim();
+    const existing = await this.repo.findByCode(institutionCode);
     if (existing) {
       throw {
         statusCode: 409,
         code: 'INSTITUTION_CODE_EXISTS',
-        message: `An institution with code "${input.institutionCode}" already exists.`,
+        message: `An institution with code "${institutionCode}" already exists.`,
       };
     }
 
-    // Empty forms fall back to the per-type defaults instead of leaving the
-    // institution with `[]` (which used to bypass the admin defaults because
-    // an empty array is truthy).
-    const structure = normalizeStructure(input, { applyDefaults: true });
+    // Persist exactly what the caller supplies. No structure is invented here:
+    // an empty form creates an institution with no subjects/classes/sections.
+    const structure = normalizeStructure(input);
 
     const created = await this.repo.create({
-      institutionCode: input.institutionCode.toUpperCase().trim(),
+      institutionCode,
       institutionName: input.institutionName.trim(),
       subscriptionStatus: input.subscriptionStatus || 'active',
-      terms: input.terms ?? structure.terms,
+      terms: structure.terms,
       blockedDates: input.blockedDates ?? [],
       ...structureToRecordFields(structure),
     });
@@ -369,7 +462,9 @@ export class InstitutionService {
     const currentType = existing.institutionType as InstitutionType;
     const nextType = (input.institutionType || currentType) as InstitutionType;
     const typeChanged = nextType !== currentType;
-    const explicitStructure = STRUCTURE_KEYS.some((key) => (input as any)[key] !== undefined);
+    const clearStructure = input.clearStructure === true;
+    const explicitStructure =
+      clearStructure || STRUCTURE_KEYS.some((key) => (input as any)[key] !== undefined);
 
     if (typeChanged) {
       const [userCount, classSectionCount, subjectCount] = await Promise.all([
@@ -391,35 +486,52 @@ export class InstitutionService {
       }
     }
 
+    // The alias that belongs to the selected type is authoritative. Editors
+    // submit every alias, sending `[]` for the ones that do not apply; those
+    // empty foreign aliases must never override the stored dimension. An
+    // all-empty alias set only clears a dimension when the caller opts in via
+    // `clearStructure`; otherwise the stored value is kept.
+    const pickAlias = (...candidates: unknown[]): string[] | undefined => {
+      const supplied = candidates.filter((candidate) => candidate !== undefined);
+      if (supplied.length === 0) return undefined;
+      for (const candidate of supplied) {
+        const values = uniqueStrings(candidate);
+        if (values.length > 0) return values;
+      }
+      return clearStructure ? [] : undefined;
+    };
     const base = structureFromRecord(existing);
-    const units = (input as any).subjects ?? (input as any).departments ?? base.units;
+    const units =
+      (nextType === 'school'
+        ? pickAlias((input as any).subjects, (input as any).departments)
+        : pickAlias((input as any).departments, (input as any).subjects)) ?? base.units;
     const levels =
+      (nextType === 'school'
+        ? pickAlias((input as any).classes, (input as any).academicYears)
+        : pickAlias((input as any).yearsOfStudy, (input as any).academicYears, (input as any).classes)) ??
+      base.levels;
+    const programs =
       nextType === 'school'
-        ? (input as any).classes ?? (input as any).academicYears ?? base.levels
-        : (input as any).yearsOfStudy ?? (input as any).academicYears ?? base.levels;
-    const programs = (input as any).programs ?? (input as any).courses ?? base.programs;
-    const sections = input.sections ?? base.sections;
+        ? []
+        : pickAlias((input as any).programs, (input as any).courses) ?? base.programs;
+    const sections = pickAlias(input.sections) ?? base.sections;
     const terms = input.terms ?? base.terms;
 
-    const structure = normalizeStructure(
-      typeChanged && !explicitStructure
-        ? { institutionType: nextType }
-        : {
-            institutionType: nextType,
-            subjects: nextType === 'school' ? units : undefined,
-            classes: nextType === 'school' ? levels : undefined,
-            departments: nextType === 'college' ? units : undefined,
-            yearsOfStudy: nextType === 'college' ? levels : undefined,
-            academicYears: nextType === 'school' ? levels : undefined,
-            programs: nextType === 'college' ? programs : [],
-            sections,
-            terms,
-          },
-      { applyDefaults: typeChanged && !explicitStructure }
-    );
+    const structure = normalizeStructure({
+      institutionType: nextType,
+      subjects: nextType === 'school' ? units : undefined,
+      classes: nextType === 'school' ? levels : undefined,
+      departments: nextType === 'college' ? units : undefined,
+      yearsOfStudy: nextType === 'college' ? levels : undefined,
+      academicYears: nextType === 'school' ? levels : undefined,
+      programs: nextType === 'college' ? programs : [],
+      sections,
+      terms,
+    });
 
     const {
       convert: _convert,
+      clearStructure: _clearStructure,
       subjects: _subjects,
       classes: _classes,
       programs: _programs,
@@ -429,19 +541,67 @@ export class InstitutionService {
     const updateData: Record<string, any> = { ...rest };
     if (typeChanged || explicitStructure) {
       Object.assign(updateData, structureToRecordFields(structure));
-      if (input.terms === undefined && typeChanged && !explicitStructure) updateData.terms = structure.terms;
     }
     // Never persist the alias fields themselves.
     delete updateData.subjects;
     delete updateData.classes;
     delete updateData.programs;
 
-    const updated = await this.repo.update(id, updateData);
-    if (updated && (typeChanged || explicitStructure)) {
-      await seedClassSectionsForInstitution(updated.institutionCode, structure);
-      await syncSchoolSubjects(updated.institutionCode, structure);
+    if (!db || !(typeChanged || explicitStructure)) {
+      const updated = await this.repo.update(id, updateData);
+      if (updated && (typeChanged || explicitStructure)) {
+        await seedClassSectionsForInstitution(updated.institutionCode, structure);
+        await syncSchoolSubjects(updated.institutionCode, structure);
+      }
+      return updated;
     }
-    return updated;
+
+    try {
+      return await db.transaction(async (tx) => {
+        const [updated] = await tx
+          .update(institutions)
+          .set({ ...updateData, updatedAt: new Date() })
+          .where(eq(institutions.id, id))
+          .returning();
+        if (!updated) return undefined;
+
+        if (typeChanged) {
+          // A conversion rebuilds the structure: rows of the previous type must
+          // not linger next to the new ones.
+          await tx.delete(classSections).where(eq(classSections.institutionCode, updated.institutionCode));
+          await tx.delete(subjects).where(eq(subjects.institutionCode, updated.institutionCode));
+        } else {
+          // Same type: treat the payload as the full new set and drop only the
+          // rows it no longer contains.
+          await removeStaleStructureRows(tx, updated.institutionCode, base, structure);
+        }
+
+        await seedClassSectionsForInstitution(updated.institutionCode, structure, tx, true);
+        await syncSchoolSubjects(updated.institutionCode, structure, tx, true);
+        return updated;
+      });
+    } catch (err: any) {
+      // RESTRICT raises 23001; NO ACTION raises 23503.
+      if (err?.code === '23001' || err?.code === '23503') {
+        if (typeChanged) {
+          throw {
+            statusCode: 409,
+            code: 'TYPE_CHANGE_BLOCKED',
+            message:
+              `Cannot convert "${existing.institutionCode}": existing records reference the old ` +
+              'structure. Clear them first, then convert.',
+          };
+        }
+        throw {
+          statusCode: 409,
+          code: 'STRUCTURE_CHANGE_BLOCKED',
+          message:
+            `Cannot remove the selected classes/sections/subjects from "${existing.institutionCode}": ` +
+            'existing records reference them. Move or clear those records first.',
+        };
+      }
+      throw err;
+    }
   }
 
   public async deleteInstitution(id: string) {
@@ -454,22 +614,47 @@ export class InstitutionService {
       };
     }
 
-    const [userCount, classSectionCount, subjectCount] = await Promise.all([
-      dbCountUsersByInstitution(existing.institutionCode),
-      dbCountClassSectionsByInstitution(existing.institutionCode),
-      dbCountSubjectsByInstitution(existing.institutionCode),
-    ]);
-    if (userCount > 0 || classSectionCount > 0 || subjectCount > 0) {
+    const userCount = await dbCountUsersByInstitution(existing.institutionCode);
+    // Seeded class_sections/subjects are derived config, not user data, so they
+    // must not block deletion of a never-used tenant. Any user, however, means
+    // real records (attendance, fees, exams) exist and deletion is refused.
+    if (userCount > 0) {
       throw {
         statusCode: 409,
         code: 'INSTITUTION_HAS_DATA',
         message:
-          `Cannot delete "${existing.institutionCode}": it still has ${userCount} user(s), ` +
-          `${classSectionCount} class section(s) and ${subjectCount} subject(s). Remove or reassign them first.`,
+          `Cannot delete "${existing.institutionCode}": it still has ${userCount} user(s). ` +
+          'Suspend it instead to keep its records recoverable.',
       };
     }
 
-    await this.repo.delete(id);
+    if (db) {
+      // Atomic cleanup: drop the seeded catalogue and the institution together.
+      // Cascading FKs clean up most dependents, but timetable/marks/exam/fee
+      // rows are ON DELETE RESTRICT — if any survived (e.g. users were removed
+      // after they were created) the transaction aborts, so report it cleanly.
+      try {
+        await db.transaction(async (tx) => {
+          await tx.delete(classSections).where(eq(classSections.institutionCode, existing.institutionCode));
+          await tx.delete(subjects).where(eq(subjects.institutionCode, existing.institutionCode));
+          await tx.delete(institutions).where(eq(institutions.id, id));
+        });
+      } catch (err: any) {
+        // RESTRICT raises 23001; NO ACTION raises 23503.
+        if (err?.code === '23001' || err?.code === '23503') {
+          throw {
+            statusCode: 409,
+            code: 'INSTITUTION_HAS_DATA',
+            message:
+              `Cannot delete "${existing.institutionCode}": dependent records still reference it. ` +
+              'Suspend it instead to keep its records recoverable.',
+          };
+        }
+        throw err;
+      }
+    } else {
+      await this.repo.delete(id);
+    }
     return { message: 'Institution deleted successfully' };
   }
 }

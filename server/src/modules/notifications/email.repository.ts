@@ -26,14 +26,32 @@ export interface InsertTokenInput {
 
 export async function insertToken(input: InsertTokenInput): Promise<void> {
   const d = requireDb();
-  await d.insert(schema.emailVerificationTokens).values({
+  const values = {
     institutionCode: input.institutionCode,
     email: input.email,
     firebaseUid: input.firebaseUid,
     tokenHash: input.tokenHash,
     sentAt: new Date(),
     expiresAt: input.expiresAt,
-  });
+  };
+
+  try {
+    await d.insert(schema.emailVerificationTokens).values(values);
+  } catch (err: any) {
+    // token_hash is unique. Random codes never collide, but the fixed dev
+    // EMAIL_OTP_TEST_CODE produces the same hash on every send — drop the dead
+    // row and retry once. Rate-limit history (other hashes) is preserved.
+    if (err?.code !== '23505') throw err;
+    await d
+      .delete(schema.emailVerificationTokens)
+      .where(
+        and(
+          eq(schema.emailVerificationTokens.email, input.email),
+          eq(schema.emailVerificationTokens.tokenHash, input.tokenHash)
+        )
+      );
+    await d.insert(schema.emailVerificationTokens).values({ ...values, sentAt: new Date() });
+  }
 }
 
 /** Count sends for an address within the last hour (resend rate limit). */
@@ -150,6 +168,7 @@ export async function failOtpAttempt(id: string, maxAttempts: number): Promise<n
 }
 
 /** Invalidate every live code for an address (latest-code-only semantics). */
+/** Supersede every live code for an address; rows stay for rate-limit history. */
 export async function invalidateOtpsForEmail(email: string): Promise<void> {
   const d = requireDb();
   await d

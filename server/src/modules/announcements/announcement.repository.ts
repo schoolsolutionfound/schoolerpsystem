@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gt, ilike, inArray, isNull, lte, or } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gt, gte, ilike, inArray, isNull, lte, or } from 'drizzle-orm';
 import { db } from '../shared/db/index.js';
 import * as schema from '../shared/db/schema.js';
 import { AnnouncementQueryInput, TargetInput } from './announcement.schema.js';
@@ -185,9 +185,18 @@ export class AnnouncementRepository {
       targetsMap.set(target.announcementId, list);
     }
 
+    const readCountRows = await db
+      .select({ announcementId: schema.announcementReads.announcementId, value: count() })
+      .from(schema.announcementReads)
+      .where(inArray(schema.announcementReads.announcementId, annIds))
+      .groupBy(schema.announcementReads.announcementId);
+    const readCountMap = new Map<string, number>();
+    readCountRows.forEach((row) => readCountMap.set(row.announcementId, Number(row.value)));
+
     const items: AnnouncementWithTargetsAndReadStatus[] = rows.map((r) => ({
       ...r,
       targets: targetsMap.get(r.id) || [],
+      readCount: readCountMap.get(r.id) || 0,
     }));
 
     return { items, total };
@@ -267,6 +276,28 @@ export class AnnouncementRepository {
 
       return res.length > 0;
     });
+  }
+
+  /**
+   * Upcoming EVENT announcements (scheduled or published) whose publish time
+   * has not passed yet. Used by dashboards to render a real events feed.
+   */
+  async listUpcomingEvents(institutionCode: string, from: Date, limit: number) {
+    if (!db) return [];
+    return await db
+      .select()
+      .from(schema.announcements)
+      .where(
+        and(
+          eq(schema.announcements.institutionCode, institutionCode),
+          eq(schema.announcements.type, 'EVENT'),
+          inArray(schema.announcements.status, ['PUBLISHED', 'SCHEDULED']),
+          gte(schema.announcements.publishAt, from),
+          or(isNull(schema.announcements.expiresAt), gte(schema.announcements.expiresAt, from))
+        )
+      )
+      .orderBy(asc(schema.announcements.publishAt))
+      .limit(limit);
   }
 
   /**

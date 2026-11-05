@@ -1,5 +1,6 @@
 import { institutionService, InstitutionService, toPublicInstitution } from '../institutions/institution.service.js';
-import { CreateInstitutionInput, UpdateInstitutionInput } from '../institutions/institution.schema.js';
+import { CreateInstitutionInput, UpdateInstitutionInput, CreateInstitutionSchema } from '../institutions/institution.schema.js';
+import type { InstitutionPage } from '../institutions/institution.repository.js';
 import { DEFAULT_INSTITUTION_TYPE, isRoleAllowedForInstitution } from '../shared/academicStructure.js';
 import { CreateAdminInput, UpdateAdminInput } from './developer.schema.js';
 import {
@@ -176,6 +177,9 @@ export class DeveloperService {
         if (!code) throw new Error('institutionCode is required');
         if (!name) throw new Error('institutionName is required');
         if (code.length > 50) throw new Error('institutionCode exceeds 50 characters');
+        if (!/^[A-Z0-9][A-Z0-9_-]*$/.test(code)) {
+          throw new Error('institutionCode may use only letters, numbers, hyphens and underscores');
+        }
         if (name.length > 200) throw new Error('institutionName exceeds 200 characters');
         if (seenCodes.has(code)) throw new Error(`duplicate code within CSV ("${code}")`);
         seenCodes.add(code);
@@ -207,31 +211,33 @@ export class DeveloperService {
                 .slice(0, 100)
             : [];
 
-        await this.instService.createInstitution({
+        // Validate with the same schema as the create API so CSV rows cannot
+        // bypass section/name/array rules that JSON requests must satisfy.
+        const input = CreateInstitutionSchema.parse({
           institutionCode: code,
           institutionName: name,
           institutionType: type,
           subscriptionStatus: status,
           departments: splitList(deptsI),
           academicYears: type === 'school' ? splitList(yearsI) : [],
-          yearsOfStudy:
-            type === 'college'
-              ? splitList(studyYearsI).length > 0
-                ? splitList(studyYearsI)
-                : splitList(yearsI)
-              : [],
-          courses: splitList(coursesI),
+          yearsOfStudy: type === 'college' ? splitList(studyYearsI).length > 0 ? splitList(studyYearsI) : splitList(yearsI) : [],
+          courses: type === 'college' ? splitList(coursesI) : [],
           sections: splitList(sectionsI),
           terms: [],
           blockedDates: [],
         });
+
+        await this.instService.createInstitution(input);
 
         summary.imported++;
       } catch (err: any) {
         summary.skipped++;
         summary.errors.push({
           row: rowNo,
-          message: err?.code === 'INSTITUTION_CODE_EXISTS' ? `code already exists: "${(row[codeI] || '').trim()}"` : err?.message || 'Invalid row',
+          message:
+            err?.code === 'INSTITUTION_CODE_EXISTS'
+              ? `code already exists: "${(row[codeI] || '').trim()}"`
+              : err?.issues?.[0]?.message || err?.message || 'Invalid row',
         });
       }
     }
@@ -255,7 +261,15 @@ export class DeveloperService {
       sort?: 'newest' | 'oldest' | 'name_asc' | 'name_desc';
     } = {}
   ): Promise<string> {
-    const page = await this.instService.listInstitutions({ ...opts, limit: 5000, offset: 0 });
+    const pageSize = 500;
+    const items: InstitutionPage['items'] = [];
+    let offset = 0;
+    for (;;) {
+      const page = await this.instService.listInstitutions({ ...opts, limit: pageSize, offset });
+      items.push(...page.items);
+      offset += page.items.length;
+      if (page.items.length < pageSize || offset >= page.total) break;
+    }
     const header = [
       'institutionCode',
       'institutionName',
@@ -265,8 +279,9 @@ export class DeveloperService {
       'academicYears',
       'yearsOfStudy',
       'courses',
+      'sections',
     ];
-    const rows = page.items.map((i) => [
+    const rows = items.map((i) => [
       i.institutionCode,
       i.institutionName,
       i.institutionType,
@@ -275,6 +290,7 @@ export class DeveloperService {
       (i.institutionType === 'college' ? [] : i.academicYears || []).join('; '),
       (i.yearsOfStudy || []).join('; '),
       (i.courses || []).join('; '),
+      (i.sections || []).join('; '),
     ]);
     return toCsv([header, ...rows]);
   }
@@ -363,7 +379,6 @@ export class DeveloperService {
         institutionCode: u.institutionCode,
         institutionName: inst?.institutionName || u.institutionName || u.institutionCode,
         institutionType: inst?.institutionType || u.institutionType || DEFAULT_INSTITUTION_TYPE,
-        status: 'active',
         scope: parsedScope,
         permissions: parsedPermissions,
         createdAt: u.createdAt,
@@ -404,7 +419,7 @@ export class DeveloperService {
     }
 
     let firebaseUid: string;
-    let authStatus: 'created' | 'skipped';
+    const authStatus = 'created' as const;
     if (isFirebaseAdminInitialized) {
       try {
         const fbUser = await admin.auth().createUser({
@@ -413,7 +428,6 @@ export class DeveloperService {
           displayName: stripHtml(payload.fullName, 100),
         });
         firebaseUid = fbUser.uid;
-        authStatus = 'created';
       } catch (err: any) {
         if (err?.code === 'auth/email-already-in-use') {
           throw {
@@ -430,9 +444,11 @@ export class DeveloperService {
         };
       }
     } else {
-      firebaseUid = `adm_uid_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-      authStatus = 'skipped';
-      console.warn('[Developer Console] Firebase Admin not initialized — admin created without an auth account. Email/password login will NOT work until the server has Firebase credentials.');
+      throw {
+        statusCode: 503,
+        code: 'FIREBASE_ADMIN_UNAVAILABLE',
+        message: 'Firebase Admin is not configured, so an authenticated admin account cannot be created.',
+      };
     }
 
     const scope = {
@@ -472,7 +488,6 @@ export class DeveloperService {
       institutionCode: createdUser.institutionCode,
       institutionName: createdUser.institutionName,
       institutionType: createdUser.institutionType,
-      status: 'active',
       scope,
       permissions: payload.permissions || [],
       authStatus,

@@ -43,7 +43,7 @@ const RESEND_LIMIT_PER_HOUR = 3;
 const RESEND_WINDOW_MS = 60 * 60 * 1000;
 
 const DEFAULT_FROM_EMAIL = process.env.EMAIL_FROM || '';
-const DEFAULT_FROM_NAME = process.env.EMAIL_FROM_NAME || 'School ERP';
+const DEFAULT_FROM_NAME = process.env.EMAIL_FROM_NAME || '';
 
 let warnedMissingSecret = false;
 let warnedTestOtp = false;
@@ -125,7 +125,7 @@ export function renderOtpEmail(opts: {
   const safeName = escapeHtml(fullName || 'there');
   const safeInst = escapeHtml(institutionName || 'Your institution');
 
-  const subject = `Your ${institutionName || 'School ERP'} verification code`;
+  const subject = institutionName ? `Your ${institutionName} verification code` : 'Your verification code';
 
   const html = `<!DOCTYPE html>
 <html>
@@ -156,6 +156,56 @@ export function renderOtpEmail(opts: {
 </html>`;
 
   const text = `${institutionName || 'School ERP'} — verify your email\n\nHi ${fullName || 'there'},\n\nYour verification code is: ${code}\n\nIt expires in ${expiresMinutes} minutes and can only be used once. If you didn't request it, ignore this email.`;
+
+  return { subject, html, text };
+}
+
+/**
+ * Password-reset OTP email. Same code mechanics as verification, different
+ * copy — the recipient is told a reset was requested, not that an account is
+ * being activated.
+ */
+export function renderPasswordResetEmail(opts: {
+  institutionName: string;
+  fullName: string;
+  code: string;
+  expiresMinutes: number;
+}): { subject: string; html: string; text: string } {
+  const { institutionName, fullName, code, expiresMinutes } = opts;
+  const safeName = escapeHtml(fullName || 'there');
+  const safeInst = escapeHtml(institutionName || 'Your institution');
+
+  const subject = institutionName ? `Reset your ${institutionName} password` : 'Reset your password';
+
+  const html = `<!DOCTYPE html>
+<html>
+  <body style="margin:0;padding:0;background:#FFFDF7;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FFFDF7;padding:32px 16px;">
+      <tr><td align="center">
+        <table role="presentation" width="520" cellpadding="0" cellspacing="0" style="background:#FFFFFF;border:1px solid #E8E5DC;border-radius:12px;overflow:hidden;">
+          <tr><td style="background:#171717;padding:24px 28px;">
+            <div style="color:#F4C430;font-size:18px;font-weight:700;">${safeInst}</div>
+          </td></tr>
+          <tr><td style="padding:28px;">
+            <h1 style="margin:0 0 12px;font-size:20px;color:#171717;">Reset your password</h1>
+            <p style="margin:0 0 20px;font-size:15px;color:#3F3F46;line-height:1.5;">
+              Hi ${safeName}, use this code to choose a new password:
+            </p>
+            <div style="margin:0 0 20px;padding:16px;background:#FFF4C7;border:1px dashed #F4C430;border-radius:10px;text-align:center;">
+              <span style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:34px;font-weight:700;letter-spacing:12px;color:#171717;">${escapeHtml(code)}</span>
+            </div>
+            <p style="margin:0 0 8px;font-size:13px;color:#71717A;">This code expires in ${expiresMinutes} minutes and can only be used once. If you didn't request a password reset, you can ignore this email — your password will not change.</p>
+          </td></tr>
+          <tr><td style="border-top:1px solid #E8E5DC;padding:16px 28px;">
+            <p style="margin:0;font-size:12px;color:#A1A1AA;">Never share this code. ${safeInst} will never ask for it by phone or chat.</p>
+          </td></tr>
+        </table>
+      </td></tr>
+    </table>
+  </body>
+</html>`;
+
+  const text = `${institutionName || 'School ERP'} — reset your password\n\nHi ${fullName || 'there'},\n\nYour password reset code is: ${code}\n\nIt expires in ${expiresMinutes} minutes and can only be used once. If you didn't request a reset, ignore this email; your password will not change.`;
 
   return { subject, html, text };
 }
@@ -195,8 +245,17 @@ export async function requestVerification(input: {
   firebaseUid?: string;
   institutionName?: string;
   fullName?: string;
+  /** Chooses the email copy; the OTP mechanics are identical. */
+  purpose?: 'verification' | 'password_reset';
 }): Promise<RequestResult> {
-  const { institutionCode, email, firebaseUid = '', institutionName = '', fullName = '' } = input;
+  const {
+    institutionCode,
+    email,
+    firebaseUid = '',
+    institutionName = '',
+    fullName = '',
+    purpose = 'verification',
+  } = input;
   const normalizedEmail = email.trim().toLowerCase();
   if (!normalizedEmail) {
     return { ok: false, code: 'USER_NOT_FOUND', message: 'No email address on file.' };
@@ -249,7 +308,8 @@ export async function requestVerification(input: {
     return { ok: false, code: 'SES_NOT_CONFIGURED', message: 'Email delivery is not configured.' };
   }
 
-  const { subject, html, text } = renderOtpEmail({
+  const renderOtp = purpose === 'password_reset' ? renderPasswordResetEmail : renderOtpEmail;
+  const { subject, html, text } = renderOtp({
     institutionName,
     fullName,
     code,
@@ -269,7 +329,8 @@ export async function requestVerification(input: {
     });
   } catch (err: any) {
     if (err instanceof EmailSendError && err.kind === 'permanent') {
-      // A permanent send failure (bad address etc.) suppresses the destination
+      // Only the account-level suppression list is recipient-permanent; config
+      // and transient failures must never poison a deliverable address.
       // so we stop retrying and stop paying for it.
       await addSuppression({
         institutionCode,
@@ -283,6 +344,69 @@ export async function requestVerification(input: {
   }
 
   return { ok: true };
+}
+
+export type OtpCheckResult =
+  | { ok: true; email: string; institutionCode: string; firebaseUid: string }
+  | {
+      ok: false;
+      code: 'OTP_INVALID' | 'OTP_EXPIRED' | 'OTP_LOCKED';
+      message: string;
+      attemptsLeft?: number;
+    };
+
+/**
+ * Validate and consume a 6-digit code without changing account state.
+ *
+ * Password reset uses this: proving mailbox control is enough to authorize a
+ * password change, but it must not also flip the account's email-verified flag.
+ */
+export async function verifyOtpCode(email: string, code: string): Promise<OtpCheckResult> {
+  const normalizedEmail = (email || '').trim().toLowerCase();
+  const submitted = (code || '').trim();
+
+  if (!normalizedEmail) {
+    return { ok: false, code: 'OTP_INVALID', message: 'No email address on file.' };
+  }
+  if (!new RegExp(`^\\d{${OTP_LENGTH}}$`).test(submitted)) {
+    return { ok: false, code: 'OTP_INVALID', message: `Enter the ${OTP_LENGTH}-digit code from your email.` };
+  }
+
+  const record = await findActiveOtp(normalizedEmail);
+  if (!record) {
+    return { ok: false, code: 'OTP_EXPIRED', message: 'This code has expired or was already used. Request a new one.' };
+  }
+
+  const expected = otpHmac(normalizedEmail, submitted);
+  if (!constantTimeEquals(expected, record.tokenHash)) {
+    const attempts = await failOtpAttempt(record.id, MAX_OTP_ATTEMPTS);
+    if (attempts >= MAX_OTP_ATTEMPTS) {
+      return {
+        ok: false,
+        code: 'OTP_LOCKED',
+        message: 'Too many incorrect attempts. This code is no longer valid — request a new one.',
+      };
+    }
+    return {
+      ok: false,
+      code: 'OTP_INVALID',
+      message: `Incorrect code. ${MAX_OTP_ATTEMPTS - attempts} attempt${MAX_OTP_ATTEMPTS - attempts === 1 ? '' : 's'} remaining.`,
+      attemptsLeft: MAX_OTP_ATTEMPTS - attempts,
+    };
+  }
+
+  // Guarded consume — two concurrent submits with the right code: one wins.
+  const consumed = await consumeToken(record.tokenHash);
+  if (!consumed) {
+    return { ok: false, code: 'OTP_INVALID', message: 'This code was already used. Request a new one.' };
+  }
+
+  return {
+    ok: true,
+    email: record.email,
+    institutionCode: record.institutionCode,
+    firebaseUid: record.firebaseUid,
+  };
 }
 
 /**
@@ -317,41 +441,15 @@ export async function verifyOtp(email: string, code: string, firebaseUid = ''): 
     return { ok: true, email: normalizedEmail, institutionCode: owner?.institutionCode || '' };
   }
 
-  const record = await findActiveOtp(normalizedEmail);
-  if (!record) {
-    return { ok: false, code: 'OTP_EXPIRED', message: 'This code has expired or was already used. Request a new one.' };
-  }
+  const check = await verifyOtpCode(normalizedEmail, submitted);
+  if (!check.ok) return check;
 
-  const expected = otpHmac(normalizedEmail, submitted);
-  if (!constantTimeEquals(expected, record.tokenHash)) {
-    const attempts = await failOtpAttempt(record.id, MAX_OTP_ATTEMPTS);
-    if (attempts >= MAX_OTP_ATTEMPTS) {
-      return {
-        ok: false,
-        code: 'OTP_LOCKED',
-        message: 'Too many incorrect attempts. This code is no longer valid — request a new one.',
-      };
-    }
-    return {
-      ok: false,
-      code: 'OTP_INVALID',
-      message: `Incorrect code. ${MAX_OTP_ATTEMPTS - attempts} attempt${MAX_OTP_ATTEMPTS - attempts === 1 ? '' : 's'} remaining.`,
-      attemptsLeft: MAX_OTP_ATTEMPTS - attempts,
-    };
-  }
-
-  // Guarded consume — two concurrent submits with the right code: one wins.
-  const consumed = await consumeToken(record.tokenHash);
-  if (!consumed) {
-    return { ok: false, code: 'OTP_INVALID', message: 'This code was already used. Request a new one.' };
-  }
-
-  const uid = record.firebaseUid || firebaseUid || (await findUserByEmail(record.institutionCode, record.email))?.firebaseUid || '';
+  const uid = check.firebaseUid || firebaseUid || (await findUserByEmail(check.institutionCode, check.email))?.firebaseUid || '';
   if (uid) {
     await markUserEmailVerified(uid);
   }
 
-  return { ok: true, email: record.email, institutionCode: record.institutionCode };
+  return { ok: true, email: check.email, institutionCode: check.institutionCode };
 }
 
 /** Report the verification state for an account (used by the client gate). */
@@ -375,7 +473,7 @@ export function renderParentInviteEmail(opts: {
     ? opts.childNames.map((n) => `<li style="margin:4px 0;color:#3F3F46;">${escapeHtml(n)}</li>`).join('')
     : '';
 
-  const subject = `Your ${opts.institutionName || 'School ERP'} parent account`;
+  const subject = opts.institutionName ? `Your ${opts.institutionName} parent account` : 'Your parent account';
   const html = `<!DOCTYPE html>
 <html>
   <body style="margin:0;padding:0;background:#FFFDF7;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
@@ -450,7 +548,7 @@ export async function sendLoginCredentialsInvite(input: {
   const safePassword = escapeHtml(input.tempPassword);
   const roleLabel = escapeHtml(input.role || 'user');
 
-  const subject = `Your ${input.institutionName || 'School ERP'} account credentials`;
+  const subject = input.institutionName ? `Your ${input.institutionName} account credentials` : 'Your account credentials';
   const html = `<!DOCTYPE html>
 <html>
   <body style="margin:0;padding:0;background:#FFFDF7;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
@@ -561,6 +659,8 @@ export async function sendParentInvite(input: {
 export const emailVerificationService = {
   requestVerification,
   verifyOtp,
+  verifyOtpCode,
   getVerificationStatus,
   renderOtpEmail,
+  renderPasswordResetEmail,
 };

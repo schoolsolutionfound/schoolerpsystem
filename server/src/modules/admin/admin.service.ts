@@ -41,10 +41,8 @@ import {
   COLLEGE_ROLES,
   DEFAULT_INSTITUTION_TYPE,
   normalizeInstitutionType,
-  normalizeStructure,
   SCHOOL_ROLES,
   structureFromRecord,
-  structureToRecordFields,
 } from '../shared/academicStructure.js';
 
 /**
@@ -340,16 +338,6 @@ export class AdminService {
   }
 
   // --- Academic Configuration ---
-  private getDefaultAcademicConfig(institutionType: string) {
-    const structure = normalizeStructure(
-      { institutionType },
-      { applyDefaults: true, fallbackType: DEFAULT_INSTITUTION_TYPE }
-    );
-    return {
-      ...structureToRecordFields(structure),
-      terms: structure.terms,
-    };
-  }
 
   public async getInstitutionConfig(institutionCode: string) {
     const inst = await institutionService.getInstitutions().then((list) =>
@@ -357,32 +345,30 @@ export class AdminService {
     );
 
     if (!inst) {
-      return {
-        institutionCode: institutionCode || 'DEFAULT',
-        institutionName: 'My Institution',
-        ...this.getDefaultAcademicConfig(DEFAULT_INSTITUTION_TYPE),
-        blockedDates: [],
+      throw {
+        statusCode: 404,
+        code: 'INSTITUTION_NOT_FOUND',
+        message: `Institution "${institutionCode}" was not found.`,
       };
     }
 
     const instType = normalizeInstitutionType(inst.institutionType);
     const structure = structureFromRecord(inst);
-    const defaults = this.getDefaultAcademicConfig(instType);
     const isSchool = instType === 'school';
     return {
       institutionCode: inst.institutionCode,
       institutionName: inst.institutionName,
       institutionType: inst.institutionType,
       subscriptionStatus: inst.subscriptionStatus,
-      departments: structure.units.length ? structure.units : defaults.departments,
+      departments: structure.units,
       // Schools: classes. Colleges: 2026-27-style sessions are separate, so
       // academicYears is empty and years of study live in yearsOfStudy.
-      academicYears: !isSchool ? [] : structure.levels.length ? structure.levels : defaults.academicYears,
-      yearsOfStudy: isSchool ? [] : structure.levels.length ? structure.levels : defaults.yearsOfStudy,
-      courses: structure.programs.length ? structure.programs : defaults.courses,
-      sections: structure.sections.length ? structure.sections : defaults.sections,
+      academicYears: isSchool ? structure.levels : [],
+      yearsOfStudy: isSchool ? [] : structure.levels,
+      courses: structure.programs,
+      sections: structure.sections,
       classSubjects: inst.classSubjects || {},
-      terms: inst.terms?.length ? inst.terms : defaults.terms,
+      terms: inst.terms || [],
       blockedDates: inst.blockedDates || [],
       // Boolean only — the default password value itself never leaves the server.
       hasDefaultPassword: Boolean(inst.defaultTempPassword),
@@ -393,7 +379,7 @@ export class AdminService {
 
   public async updateInstitutionConfig(
     institutionCode: string,
-    payload: { departments?: string[]; academicYears?: string[]; yearsOfStudy?: string[]; courses?: string[]; sections?: string[]; classSubjects?: Record<string, string[]>; terms?: any[]; blockedDates?: any[]; defaultTempPassword?: string; maintenanceEnabled?: boolean; maintenanceMinVersion?: string },
+    payload: { departments?: string[]; academicYears?: string[]; yearsOfStudy?: string[]; courses?: string[]; sections?: string[]; classSubjects?: Record<string, string[]>; terms?: any[]; blockedDates?: any[]; defaultTempPassword?: string; maintenanceEnabled?: boolean; maintenanceMinVersion?: string; clearStructure?: boolean },
     actorRole?: string
   ) {
     const inst = await institutionService.getInstitutions().then((list) =>
@@ -425,6 +411,7 @@ export class AdminService {
       }
       if (payload.maintenanceEnabled !== undefined) update.maintenanceEnabled = payload.maintenanceEnabled;
       if (payload.maintenanceMinVersion !== undefined) update.maintenanceMinVersion = payload.maintenanceMinVersion;
+      if (payload.clearStructure !== undefined) update.clearStructure = payload.clearStructure;
       await institutionService.updateInstitution(inst.id, update as any);
     }
 
@@ -497,7 +484,7 @@ export class AdminService {
 
     return {
       institutionCode,
-      institutionName: inst?.institutionName || 'My Institution',
+      institutionName: inst?.institutionName || '',
       institutionType: inst?.institutionType || DEFAULT_INSTITUTION_TYPE,
       subscriptionStatus: inst?.subscriptionStatus || 'active',
       students,
@@ -2264,6 +2251,139 @@ export class AdminService {
     if (!db) return [];
     const result = await db.select().from(feePayments).where(eqSql(feePayments.institutionCode, institutionCode));
     return result;
+  }
+
+  /**
+   * Fee collection summary consumed by the principal, admin and accountant
+   * dashboards. Expected revenue is the fee-structure amount multiplied by the
+   * number of active students in the target class/section (or the whole
+   * institution for structures without a class). Collected revenue is the sum
+   * of payments whose status is `paid`; pending is the difference. Everything
+   * is derived from the database, never from a percentage constant.
+   */
+  async getFeesSummary(institutionCode: string) {
+    const [structures, payments, rawSections, studentTotal] = await Promise.all([
+      this.getFees(institutionCode),
+      this.getFeePayments(institutionCode),
+      academicsRepository.listClassSections(institutionCode).catch(() => [] as any[]),
+      dbCountUsersByInstitution(institutionCode, 'student'),
+    ]);
+
+    const sectionMeta = new Map<string, { department: string; studentCount: number }>();
+    for (const section of (rawSections as any[]) || []) {
+      sectionMeta.set(section.id, {
+        department: (section.department || '').trim() || 'General',
+        studentCount: Number(section.studentCount) || 0,
+      });
+    }
+
+    const structureMeta = new Map<string, { department: string; term: string; academicYear: string }>();
+    const departmentBuckets = new Map<
+      string,
+      { expected: number; collected: number; studentCount: number; paidStudents: Set<string> }
+    >();
+
+    const bucketFor = (department: string) => {
+      let bucket = departmentBuckets.get(department);
+      if (!bucket) {
+        bucket = { expected: 0, collected: 0, studentCount: 0, paidStudents: new Set<string>() };
+        departmentBuckets.set(department, bucket);
+      }
+      return bucket;
+    };
+
+    for (const structure of structures as any[]) {
+      const section = structure.classSectionId ? sectionMeta.get(structure.classSectionId) : undefined;
+      const department = section?.department || 'General';
+      const students = structure.classSectionId ? section?.studentCount || 0 : Number(studentTotal) || 0;
+      const expected = (Number(structure.amount) || 0) * students;
+
+      structureMeta.set(structure.id, {
+        department,
+        term: (structure.term || '').trim() || 'Unspecified',
+        academicYear: (structure.academicYear || '').trim() || 'Unspecified',
+      });
+
+      const bucket = bucketFor(department);
+      bucket.expected += expected;
+      bucket.studentCount += students;
+    }
+
+    for (const payment of payments as any[]) {
+      if (String(payment.status || '').toLowerCase() !== 'paid') continue;
+      const meta = structureMeta.get(payment.feeStructureId);
+      const department = meta?.department || 'General';
+      const amount = Number(payment.amount) || 0;
+      const bucket = bucketFor(department);
+      bucket.collected += amount;
+      if (payment.studentId) bucket.paidStudents.add(payment.studentId);
+    }
+
+    const byDepartment = Array.from(departmentBuckets.entries())
+      .map(([department, bucket]) => ({
+        department,
+        expected: Math.round(bucket.expected),
+        collected: Math.round(bucket.collected),
+        pending: Math.max(Math.round(bucket.expected - bucket.collected), 0),
+        collectionRate: bucket.expected > 0 ? Math.round((bucket.collected / bucket.expected) * 100) : 0,
+        studentCount: bucket.studentCount,
+        paidStudentCount: bucket.paidStudents.size,
+      }))
+      .sort((a, b) => b.expected - a.expected);
+
+    const groupBy = (key: 'term' | 'academicYear') => {
+      const buckets = new Map<string, { expected: number; collected: number }>();
+      const ensure = (label: string) => {
+        let bucket = buckets.get(label);
+        if (!bucket) {
+          bucket = { expected: 0, collected: 0 };
+          buckets.set(label, bucket);
+        }
+        return bucket;
+      };
+
+      for (const structure of structures as any[]) {
+        const meta = structureMeta.get(structure.id);
+        if (!meta) continue;
+        const section = structure.classSectionId ? sectionMeta.get(structure.classSectionId) : undefined;
+        const students = structure.classSectionId ? section?.studentCount || 0 : Number(studentTotal) || 0;
+        ensure(meta[key]).expected += (Number(structure.amount) || 0) * students;
+      }
+
+      for (const payment of payments as any[]) {
+        if (String(payment.status || '').toLowerCase() !== 'paid') continue;
+        const meta = structureMeta.get(payment.feeStructureId);
+        if (!meta) continue;
+        ensure(meta[key]).collected += Number(payment.amount) || 0;
+      }
+
+      return Array.from(buckets.entries())
+        .map(([label, bucket]) => ({
+          label,
+          expected: Math.round(bucket.expected),
+          collected: Math.round(bucket.collected),
+          pending: Math.max(Math.round(bucket.expected - bucket.collected), 0),
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label));
+    };
+
+    const expected = byDepartment.reduce((sum, d) => sum + d.expected, 0);
+    const collected = byDepartment.reduce((sum, d) => sum + d.collected, 0);
+
+    return {
+      institutionCode,
+      studentCount: Number(studentTotal) || 0,
+      totals: {
+        expected,
+        collected,
+        pending: Math.max(expected - collected, 0),
+        collectionRate: expected > 0 ? Math.round((collected / expected) * 100) : 0,
+      },
+      byDepartment,
+      terms: groupBy('term').map(({ label, ...rest }) => ({ term: label, ...rest })),
+      academicYears: groupBy('academicYear').map(({ label, ...rest }) => ({ academicYear: label, ...rest })),
+      generatedAt: new Date().toISOString(),
+    };
   }
 
   async createFeePayment(institutionCode: string, data: any) {

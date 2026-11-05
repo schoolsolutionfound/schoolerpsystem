@@ -33,8 +33,16 @@ const blockedDateSchema = z.object({
  */
 export const CreateInstitutionSchema = z
   .object({
-    institutionCode: z.string().min(1, 'Institution code is required').max(50),
-    institutionName: z.string().min(1, 'Institution name is required').max(200),
+    institutionCode: z
+      .string()
+      .trim()
+      .min(1, 'Institution code is required')
+      .max(50)
+      .regex(
+        /^[A-Za-z0-9][A-Za-z0-9_-]*$/,
+        'Institution code may use only letters, numbers, hyphens and underscores'
+      ),
+    institutionName: z.string().trim().min(1, 'Institution name is required').max(200),
     institutionType: z.enum(['school', 'college']),
     subscriptionStatus: z.enum(['active', 'inactive', 'suspended', 'trial']).default('active'),
     subjects: optionalStringArray,
@@ -69,7 +77,7 @@ export const CreateInstitutionSchema = z
 
 export const UpdateInstitutionSchema = z
   .object({
-    institutionName: z.string().min(1, 'Institution name cannot be empty').max(200).optional(),
+    institutionName: z.string().trim().min(1, 'Institution name cannot be empty').max(200).optional(),
     institutionType: z.enum(['school', 'college']).optional(),
     subscriptionStatus: z.enum(['active', 'inactive', 'suspended', 'trial']).optional(),
     subjects: optionalStringArray,
@@ -87,6 +95,14 @@ export const UpdateInstitutionSchema = z
      * service refuses to change type once users/classes/subjects exist.
      */
     convert: z.boolean().optional(),
+    /**
+     * Opt-in for clearing a dimension with an empty list. Without it an empty
+     * alias keeps the stored value, because editors send `[]` for the aliases
+     * that do not apply to the selected type. A populated list is always
+     * treated as the full new set: removed classes/sections/subjects are
+     * deleted (or rejected with 409 if records still reference them).
+     */
+    clearStructure: z.boolean().optional(),
   })
   .superRefine((value, ctx) => {
     if (value.institutionType !== 'school') return;

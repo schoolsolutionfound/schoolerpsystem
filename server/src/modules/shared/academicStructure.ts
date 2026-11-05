@@ -119,41 +119,16 @@ export const STRUCTURE_LABELS: Record<InstitutionType, StructureLabels> = {
   },
 };
 
-export interface StructureDefaults {
-  units: string[];
-  levels: string[];
-  programs: string[];
-  sections: string[];
-  terms: TermEntry[];
+export function currentAcademicYear(
+  institutionType: InstitutionType = 'school',
+  reference: Date = new Date()
+): string {
+  const year = reference.getFullYear();
+  const startYear = reference.getMonth() >= 5 ? year : year - 1;
+  return normalizeInstitutionType(institutionType) === 'college'
+    ? `${startYear}-${String((startYear + 1) % 100).padStart(2, '0')}`
+    : `${startYear}-${startYear + 1}`;
 }
-
-export const DEFAULT_STRUCTURE: Record<InstitutionType, StructureDefaults> = {
-  school: {
-    units: ['English', 'Mathematics', 'Science'],
-    levels: [
-      'Class 1',
-      'Class 2',
-      'Class 3',
-      'Class 4',
-      'Class 5',
-      'Class 6',
-      'Class 7',
-      'Class 8',
-      'Class 9',
-      'Class 10',
-    ],
-    programs: [],
-    sections: ['A', 'B', 'C'],
-    terms: [{ academicYear: '2026-2027', terms: ['Term 1', 'Term 2', 'Term 3'] }],
-  },
-  college: {
-    units: ['Computer Science', 'Electronics', 'Mechanical', 'Civil'],
-    levels: ['1st Year', '2nd Year', '3rd Year', '4th Year'],
-    programs: ['B.Tech', 'M.Tech'],
-    sections: ['A', 'B'],
-    terms: [{ academicYear: '2026-27', terms: ['Semester 1', 'Semester 2'] }],
-  },
-};
 
 export interface NormalizedStructure {
   institutionType: InstitutionType;
@@ -203,11 +178,21 @@ export function uniqueStrings(values: unknown, max = 100): string[] {
   return out;
 }
 
-function normalizeTerms(
-  terms: TermEntry[] | undefined,
-  type: InstitutionType,
-  applyDefaults: boolean
-): TermEntry[] {
+/**
+ * Returns the first candidate that actually contains values. Alias resolution
+ * must skip empty arrays: clients (and the developer console) send `[]` for the
+ * aliases that do not apply to the selected type, and that empty array must not
+ * mask a populated alias or the stored value.
+ */
+export function firstPopulatedList(...candidates: unknown[]): string[] {
+  for (const candidate of candidates) {
+    const values = uniqueStrings(candidate);
+    if (values.length > 0) return values;
+  }
+  return [];
+}
+
+function normalizeTerms(terms: TermEntry[] | undefined): TermEntry[] {
   const cleaned: TermEntry[] = [];
   if (Array.isArray(terms)) {
     for (const entry of terms) {
@@ -220,63 +205,48 @@ function normalizeTerms(
       if (cleaned.length >= 20) break;
     }
   }
-  if (cleaned.length === 0 && applyDefaults) {
-    return DEFAULT_STRUCTURE[type].terms.map((entry) => ({
-      academicYear: entry.academicYear,
-      terms: [...entry.terms],
-    }));
-  }
   return cleaned;
 }
 
 /**
- * Normalizes any accepted structure input into the canonical shape. The
- * canonical aliases (`subjects`/`classes`/`programs`) win; storage-shaped
- * aliases are accepted so older clients keep working.
+ * Normalizes any accepted structure input into the canonical shape. Both the
+ * canonical aliases (`subjects`/`classes`/`programs`) and the storage-shaped
+ * aliases (`departments`/`academicYears`/`courses`) are accepted so older
+ * clients keep working. Resolution skips empty arrays, so a client that sends
+ * `subjects: []` for a college cannot mask its populated `departments`.
  *
- * `applyDefaults` fills empty dimensions with DEFAULT_STRUCTURE (used on
- * create/update so an empty form never silently wipes the admin defaults).
+ * Nothing is invented: dimensions that are not supplied stay empty.
  */
 export function normalizeStructure(
   input: StructureInput = {},
-  opts: { applyDefaults?: boolean; fallbackType?: InstitutionType } = {}
+  opts: { fallbackType?: InstitutionType } = {}
 ): NormalizedStructure {
   const type = normalizeInstitutionType(input.institutionType ?? opts.fallbackType);
-  const applyDefaults = opts.applyDefaults === true;
 
   const units =
     type === 'school'
-      ? uniqueStrings(input.subjects ?? input.departments)
-      : uniqueStrings(input.departments ?? input.subjects);
+      ? firstPopulatedList(input.subjects, input.departments)
+      : firstPopulatedList(input.departments, input.subjects);
   // College levels are years of study. `academicYears` is accepted as a legacy
   // alias so rows written before the yearsOfStudy column keep working. Take the
   // first alias that actually has values (an empty array must not mask a
   // populated fallback).
-  const pickLevels = (...candidates: unknown[]): string[] => {
-    for (const candidate of candidates) {
-      const values = uniqueStrings(candidate);
-      if (values.length > 0) return values;
-    }
-    return [];
-  };
   const levels =
     type === 'school'
-      ? pickLevels(input.classes, input.academicYears)
-      : pickLevels(input.yearsOfStudy, input.academicYears, input.classes);
+      ? firstPopulatedList(input.classes, input.academicYears)
+      : firstPopulatedList(input.yearsOfStudy, input.academicYears, input.classes);
   const programs =
-    type === 'school' ? [] : uniqueStrings(input.programs ?? input.courses);
+    type === 'school' ? [] : firstPopulatedList(input.programs, input.courses);
   const sections = uniqueStrings(input.sections, 50);
 
-  const defaults = DEFAULT_STRUCTURE[type];
-  const resolvedLevels = levels.length > 0 || !applyDefaults ? levels : [...defaults.levels];
   return {
     institutionType: type,
-    units: units.length > 0 || !applyDefaults ? units : [...defaults.units],
-    levels: resolvedLevels,
-    yearsOfStudy: type === 'college' ? resolvedLevels : [],
-    programs: programs.length > 0 || !applyDefaults ? programs : [...defaults.programs],
-    sections: sections.length > 0 || !applyDefaults ? sections : [...defaults.sections],
-    terms: normalizeTerms(input.terms, type, applyDefaults),
+    units,
+    levels,
+    yearsOfStudy: type === 'college' ? levels : [],
+    programs,
+    sections,
+    terms: normalizeTerms(input.terms),
   };
 }
 
@@ -324,8 +294,7 @@ export function structureFromRecord(inst: InstitutionStructureSource): Normalize
       courses: Array.isArray(inst?.courses) ? (inst.courses as string[]) : [],
       sections: Array.isArray(inst?.sections) ? (inst.sections as string[]) : [],
       terms: Array.isArray(inst?.terms) ? (inst.terms as TermEntry[]) : [],
-    },
-    { applyDefaults: false }
+    }
   );
 }
 

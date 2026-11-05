@@ -645,8 +645,8 @@ export class PlacementService {
         const p = profileMap.get(app.studentId);
         const drive = driveMap.get(app.driveId);
 
-        let branch = 'Computer Science';
-        let year = '2026 Batch';
+        let branch = '';
+        let year = '';
         try {
           const classSectionId = await dbFindStudentClassSectionId(app.studentId);
           if (classSectionId) {
@@ -654,8 +654,8 @@ export class PlacementService {
               where: eq(classSections.id, classSectionId),
             });
             if (classRow) {
-              branch = classRow.department || branch;
-              year = classRow.academicYear || year;
+              branch = classRow.department || '';
+              year = classRow.academicYear || '';
             }
           }
         } catch (e) {
@@ -678,23 +678,23 @@ export class PlacementService {
           appliedAt: app.appliedAt,
           drive: {
             id: drive?.id,
-            companyName: drive?.companyName || 'Recruitment Partner',
-            title: drive?.title || 'Open Role',
+            companyName: drive?.companyName || '',
+            title: drive?.title || '',
             logoUrl: drive?.logoUrl || '',
-            ctcOrStipend: drive?.ctcOrStipend || 'Competitive',
+            ctcOrStipend: drive?.ctcOrStipend || '',
             rounds: rounds,
           },
           student: {
             id: app.studentId,
-            fullName: u?.fullName || snapshot.fullName || 'Student',
+            fullName: u?.fullName || snapshot.fullName || '',
             email: u?.email || snapshot.email || '',
             phone: u?.phone || snapshot.phone || '',
             rollNoOrUSN: u?.rollNoOrUSN || snapshot.rollNoOrUSN || '',
             profilePicUrl: u?.profilePicUrl || snapshot.photoUrl || '',
-            branch: branch !== 'N/A' ? branch : (snapshot.branch || 'Computer Science'),
-            year: year !== 'N/A' ? year : (snapshot.year || '2026 Batch'),
+            branch: branch || snapshot.branch || '',
+            year: year || snapshot.year || '',
             cgpa: p?.cgpa != null ? Number(p.cgpa) : (snapshot.cgpa != null ? Number(snapshot.cgpa) : null),
-            activeBacklogs: p?.activeBacklogs != null ? Number(p.activeBacklogs) : (snapshot.activeBacklogs != null ? Number(snapshot.activeBacklogs) : 0),
+            activeBacklogs: p?.activeBacklogs != null ? Number(p.activeBacklogs) : (snapshot.activeBacklogs != null ? Number(snapshot.activeBacklogs) : null),
           },
         };
       })
@@ -790,17 +790,18 @@ export class PlacementService {
     });
     const userMap = new Map(userList.map((u) => [u.id, u]));
 
-    return members.map((m) => {
+    return members.flatMap((m) => {
       const u = userMap.get(m.userId);
-      return {
-        id: u?.id || m.userId,
-        fullName: u?.fullName || 'Placement Officer',
-        email: u?.email || '',
-        role: u?.role || 'placement_officer',
-        profilePic: u?.profilePicUrl || '',
+      if (!u) return [];
+      return [{
+        id: u.id,
+        fullName: u.fullName || '',
+        email: u.email || '',
+        role: u.role,
+        profilePic: u.profilePicUrl || '',
         accessLevel: m.accessLevel,
         addedAt: m.createdAt,
-      };
+      }];
     });
   }
 
@@ -862,12 +863,12 @@ export class PlacementService {
           phone: st.phone || profile?.phone || '',
           rollNoOrUSN: st.rollNoOrUSN || '',
           profilePic: st.profilePicUrl || profile?.photoUrl || '',
-          branch: branch || 'General',
-          academicYear: year || 'N/A',
+          branch,
+          academicYear: year,
           cgpa: profile?.cgpa ? parseFloat(profile.cgpa) : null,
           tenthPercent: profile?.tenthPercent ? parseFloat(profile.tenthPercent) : (st.tenthPercentage ? parseFloat(st.tenthPercentage) : null),
           twelfthPercent: profile?.twelfthOrDiplomaPercent ? parseFloat(profile.twelfthOrDiplomaPercent) : (st.twelfthPercentage ? parseFloat(st.twelfthPercentage) : null),
-          activeBacklogs: profile?.activeBacklogs ?? 0,
+          activeBacklogs: profile?.activeBacklogs ?? null,
           resumeUrl: profile?.resumeUrl || '',
           portfolioUrl: profile?.portfolioUrl || '',
           linkedinUrl: profile?.linkedinUrl || '',

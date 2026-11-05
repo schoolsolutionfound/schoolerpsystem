@@ -31,7 +31,7 @@ import { notifyFeePaid } from '../notifications/notification.triggers.js';
 const GATEWAYS: Record<string, PaymentGateway> = { razorpay: razorpayGateway };
 
 function resolveGateway(name: string): PaymentGateway {
-  const gw = GATEWAYS[name] || GATEWAYS[(process.env.PAYMENT_GATEWAY || 'razorpay').toLowerCase()];
+  const gw = GATEWAYS[(name || '').trim().toLowerCase()];
   if (!gw) {
     throw Object.assign(new Error('Unsupported payment gateway.'), {
       statusCode: 500,

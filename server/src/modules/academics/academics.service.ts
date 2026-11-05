@@ -1,7 +1,7 @@
 import { academicsRepository } from './academics.repository.js';
 import { institutionService } from '../institutions/institution.service.js';
 import { adaptLegacySchoolClassSection } from '../shared/academicStructure.js';
-import { db, withTransaction, dbFindUsersByInstitution, dbFindUserByIdOrUid, dbFindStudentByUsnInInstitution, dbFindStudentsByClassScope, dbCountStudentsByClassScope } from '../shared/db/index.js';
+import { db, withTransaction, dbFindUsersByInstitution, dbFindUserByIdOrUid, dbFindStudentByUsnInInstitution, dbFindStudentsByClassScope, dbFindStudentClassSectionId } from '../shared/db/index.js';
 import { getPrimaryParentChild } from '../users/parent-links.js';
 import { eq as eqSql, and as andSql, sql as sqlDrizzle, inArray as inArraySql } from 'drizzle-orm';
 import {
@@ -686,6 +686,102 @@ export class AcademicsService {
     return { classSection, effective, slots: enriched };
   }
 
+  /**
+   * Aggregate every class/section's schedule for a given day so staff
+   * dashboards can show real "today's classes" instead of placeholders.
+   * Effective timetables are resolved per class; subjects, periods and
+   * teachers are cached so a large institution does not fan out into
+   * thousands of identical lookups.
+   */
+  public async getTodayClasses(institutionCode: string, dateStr: string) {
+    const sections = (await this.listClassSections(institutionCode)) as any[];
+    const dayOfWeek = new Date(`${dateStr}T00:00:00Z`).getUTCDay();
+
+    const subjectCache = new Map<string, any>();
+    const periodCache = new Map<string, any>();
+    const userCache = new Map<string, any>();
+
+    const loadSubject = async (id: string) => {
+      if (!subjectCache.has(id)) subjectCache.set(id, await academicsRepository.getSubjectById(id));
+      return subjectCache.get(id);
+    };
+    const loadPeriod = async (id: string) => {
+      if (!periodCache.has(id)) periodCache.set(id, await academicsRepository.getPeriodById(id));
+      return periodCache.get(id);
+    };
+    const loadUser = async (id: string) => {
+      if (!userCache.has(id)) userCache.set(id, await this.findUser(institutionCode, id));
+      return userCache.get(id);
+    };
+
+    const classes: any[] = [];
+    const teacherIds = new Set<string>();
+    let scheduledPeriods = 0;
+
+    for (const section of Array.isArray(sections) ? sections : []) {
+      const effective = await academicsRepository.getEffectiveTimetable(section.id, dateStr);
+      if (!effective) continue;
+
+      const slots = await academicsRepository.listSlotsForTimetable(effective.id);
+      const daySlots = slots.filter((slot) => Number(slot.dayOfWeek) === dayOfWeek);
+      if (daySlots.length === 0) continue;
+
+      const enriched = [];
+      for (const slot of daySlots) {
+        const [subject, period, teacher] = await Promise.all([
+          loadSubject(slot.subjectId),
+          loadPeriod(slot.periodId),
+          slot.teacherId ? loadUser(slot.teacherId) : Promise.resolve(null),
+        ]);
+        if (slot.teacherId) teacherIds.add(slot.teacherId);
+
+        enriched.push({
+          id: slot.id,
+          dayOfWeek: slot.dayOfWeek,
+          room: slot.room || '',
+          subject: subject ? { id: subject.id, name: subject.name, code: subject.code } : null,
+          period: period
+            ? { id: period.id, label: period.label, startTime: period.startTime, endTime: period.endTime, sortOrder: period.sortOrder }
+            : null,
+          teacher: teacher ? { id: teacher.id, fullName: teacher.fullName } : null,
+        });
+      }
+
+      enriched.sort((a: any, b: any) => {
+        const ao = a?.period?.sortOrder ?? Number.MAX_SAFE_INTEGER;
+        const bo = b?.period?.sortOrder ?? Number.MAX_SAFE_INTEGER;
+        if (ao !== bo) return ao - bo;
+        return (a?.period?.startTime || '').localeCompare(b?.period?.startTime || '');
+      });
+
+      scheduledPeriods += enriched.length;
+      classes.push({
+        classSectionId: section.id,
+        name: section.name,
+        department: section.department || '',
+        section: section.section || '',
+        academicYear: section.academicYear || '',
+        studentCount: Number(section.studentCount) || 0,
+        classTeacherId: section.classTeacherId || '',
+        classTeacherName: section.classTeacherName || '',
+        timetable: { id: effective.id, version: effective.version, effectiveFrom: effective.effectiveFrom },
+        slots: enriched,
+      });
+    }
+
+    classes.sort((a, b) => a.name.localeCompare(b.name));
+    return {
+      date: dateStr,
+      dayOfWeek,
+      classes,
+      totals: {
+        classes: classes.length,
+        periodsScheduled: scheduledPeriods,
+        teachersEngaged: teacherIds.size,
+      },
+    };
+  }
+
   public async getTeacherTimetable(institutionCode: string, userId: string, dateStr: string) {
     const user = await this.findUser(institutionCode, userId);
     if (!user) {
@@ -698,10 +794,14 @@ export class AcademicsService {
     const timetablesById = new Map<string, any>();
     const classVersions = new Map<string, any>();
     const classCache = new Map<string, any[]>();
+    const classSectionCache = new Map<string, any>();
     for (const slot of slotsForDay) {
       if (!timetablesById.has(slot.timetableId)) {
         const tt = await academicsRepository.getTimetableById(slot.timetableId);
         timetablesById.set(slot.timetableId, tt);
+      }
+      if (!classSectionCache.has(slot.classSectionId)) {
+        classSectionCache.set(slot.classSectionId, await academicsRepository.getClassSectionById(slot.classSectionId));
       }
       if (!classCache.has(slot.classSectionId)) {
         classCache.set(slot.classSectionId, await academicsRepository.listTimetablesForClass(slot.classSectionId));
@@ -720,7 +820,19 @@ export class AcademicsService {
       if (timetable.effectiveFrom > dateStr) continue;
       if (classVersions.get(slot.classSectionId) !== timetable.id) continue;
 
-      enriched.push(await this.enrichSlot(slot, timetable));
+      const baseSlot = await this.enrichSlot(slot, timetable);
+      const classSection = classSectionCache.get(slot.classSectionId);
+      enriched.push({
+        ...baseSlot,
+        classSection: classSection
+          ? {
+              id: classSection.id,
+              name: classSection.name,
+              department: classSection.department,
+              section: classSection.section,
+            }
+          : null,
+      });
     }
 
     const periodSort = (a: any, b: any) => {
@@ -785,6 +897,15 @@ export class AcademicsService {
 
     // 1) Check if teacher is assigned as class teacher of any class
     const classSections = await academicsRepository.listClassSections(institutionCode);
+
+    // Students resolve by canonical enrollment (student_classes), not scope.
+    // Scope matching below remains the fallback for pre-migration records.
+    if ((user.role || '').toLowerCase() === 'student') {
+      const enrolledId = await dbFindStudentClassSectionId(user.id);
+      const enrolled = enrolledId ? classSections.find((cs) => cs.id === enrolledId) : undefined;
+      if (enrolled) return enrolled;
+    }
+
     const asClassTeacher = classSections.find((cs) => cs.classTeacherId === user.id);
     if (asClassTeacher) return asClassTeacher;
 
@@ -939,14 +1060,10 @@ export class AcademicsService {
     const lateMarks = studentStats.reduce((s, x) => s + (Number(x.late) || 0), 0);
     const excusedMarks = studentStats.reduce((s, x) => s + (Number(x.excused) || 0), 0);
 
-    const scope = {
-      department: cls.department || undefined,
-      academicYear: cls.academicYear || undefined,
-      section: cls.section || undefined,
-    };
-    const totalStudents = await dbCountStudentsByClassScope(institutionCode, scope);
+    const studentsForClass = await this.getStudentsForClassSection(resolvedClassSectionId);
+    const totalStudents = studentsForClass.length;
     const page = opts || { limit: 100, offset: 0 };
-    const roster = await dbFindStudentsByClassScope(institutionCode, scope, page);
+    const roster = studentsForClass.slice(page.offset, page.offset + page.limit);
     const statsById = new Map(
       studentStats.map((s) => [
         s.studentId,

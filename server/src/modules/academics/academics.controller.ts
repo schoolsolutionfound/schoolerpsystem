@@ -336,11 +336,36 @@ export async function getClassTimetableHandler(request: FastifyRequest, reply: F
   }
 }
 
+export async function getTodayClassesHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const query = request.query as { date?: string };
+    const date = query.date || new Date().toISOString().slice(0, 10);
+    const data = await academicsService.getTodayClasses(getInstCode(request), date);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to fetch today’s classes');
+  }
+}
+
 export async function getTeacherTimetableHandler(request: FastifyRequest, reply: FastifyReply) {
   try {
     const query = request.query as { date?: string };
     const date = query.date || new Date().toISOString().slice(0, 10);
     const data = await academicsService.getTeacherTimetable(getInstCode(request), getUserId(request), date);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to fetch teacher timetable');
+  }
+}
+
+export async function getTeacherTimetableByIdHandler(
+  request: FastifyRequest<{ Params: { id: string } }>,
+  reply: FastifyReply
+) {
+  try {
+    const query = request.query as { date?: string };
+    const date = query.date || new Date().toISOString().slice(0, 10);
+    const data = await academicsService.getTeacherTimetable(getInstCode(request), request.params.id, date);
     return reply.send({ success: true, data });
   } catch (err: any) {
     return sendError(reply, err, 'Failed to fetch teacher timetable');

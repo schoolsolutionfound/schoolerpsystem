@@ -8,7 +8,6 @@ import {
   isLegacySchoolClassSection,
   isRoleAllowedForInstitution,
   rolesForInstitutionType,
-  DEFAULT_STRUCTURE,
   DEFAULT_INSTITUTION_TYPE,
 } from '../academicStructure.js';
 import { CreateInstitutionSchema, UpdateInstitutionSchema } from '../../institutions/institution.schema.js';
@@ -65,23 +64,46 @@ describe('normalizeStructure', () => {
     expect(structure.levels).toEqual(['Class 1']);
   });
 
-  it('applies per-type defaults only when asked', () => {
+  it('ignores empty aliases instead of letting them mask populated ones', () => {
+    const college = normalizeStructure({
+      institutionType: 'college',
+      subjects: [],
+      departments: ['CSE'],
+      yearsOfStudy: [],
+      academicYears: ['1st Year'],
+      programs: [],
+      courses: ['B.Tech'],
+    });
+    expect(college.units).toEqual(['CSE']);
+    expect(college.levels).toEqual(['1st Year']);
+    expect(college.programs).toEqual(['B.Tech']);
+
+    const school = normalizeStructure({
+      institutionType: 'school',
+      subjects: [],
+      departments: ['Math'],
+      classes: [],
+      academicYears: ['Class 1'],
+    });
+    expect(school.units).toEqual(['Math']);
+    expect(school.levels).toEqual(['Class 1']);
+  });
+
+  it('never invents structure for empty input', () => {
     const empty = normalizeStructure({ institutionType: 'school' });
     expect(empty.units).toEqual([]);
     expect(empty.levels).toEqual([]);
-
-    const withDefaults = normalizeStructure({ institutionType: 'school' }, { applyDefaults: true });
-    expect(withDefaults.units).toEqual(DEFAULT_STRUCTURE.school.units);
-    expect(withDefaults.levels).toEqual(DEFAULT_STRUCTURE.school.levels);
-    expect(withDefaults.sections).toEqual(DEFAULT_STRUCTURE.school.sections);
-    expect(withDefaults.terms.length).toBeGreaterThan(0);
+    expect(empty.programs).toEqual([]);
+    expect(empty.sections).toEqual([]);
+    expect(empty.terms).toEqual([]);
   });
 
-  it('keeps explicit values when defaults are requested (no overwrite)', () => {
-    const structure = normalizeStructure(
-      { institutionType: 'college', departments: ['CSE'], academicYears: ['1st Year'] },
-      { applyDefaults: true }
-    );
+  it('keeps explicit values untouched', () => {
+    const structure = normalizeStructure({
+      institutionType: 'college',
+      departments: ['CSE'],
+      academicYears: ['1st Year'],
+    });
     expect(structure.units).toEqual(['CSE']);
     expect(structure.levels).toEqual(['1st Year']);
   });
@@ -272,5 +294,16 @@ describe('institution schemas', () => {
   it('accepts the convert flag on update', () => {
     const result = UpdateInstitutionSchema.safeParse({ institutionType: 'college', convert: true });
     expect(result.success).toBe(true);
+  });
+
+  it('trims institution names and rejects whitespace-only names', () => {
+    const trimmed = CreateInstitutionSchema.safeParse({ ...base, institutionName: '  Test School  ' });
+    expect(trimmed.success && trimmed.data.institutionName).toBe('Test School');
+
+    const blankCreate = CreateInstitutionSchema.safeParse({ ...base, institutionName: '   ' });
+    expect(blankCreate.success).toBe(false);
+
+    const blankUpdate = UpdateInstitutionSchema.safeParse({ institutionName: '   ' });
+    expect(blankUpdate.success).toBe(false);
   });
 });

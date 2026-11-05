@@ -521,26 +521,33 @@ export class HODService {
       const usn = parsedScope.usn || parsedScope.admissionNo || u.id.slice(0, 10).toUpperCase();
       const elg = eligMap.get(u.id) || eligMap.get(usn.toLowerCase());
 
-      const attendancePct = Number(parsedScope.attendance) || (elg ? Number(elg.overallAttendancePct) : 85);
-      const sem = parsedScope.semester || parsedScope.className || 'Semester 1';
-      const section = parsedScope.section || 'A';
-      const cgpa = Number(parsedScope.cgpa) || (attendancePct > 90 ? 8.8 : attendancePct > 80 ? 7.9 : 6.5);
+      const rawAttendance = parsedScope.attendance ?? elg?.overallAttendancePct;
+      const attendanceNum =
+        rawAttendance === null || rawAttendance === undefined || rawAttendance === ''
+          ? NaN
+          : Number(rawAttendance);
+      const attendancePct = Number.isFinite(attendanceNum) ? attendanceNum : null;
+
+      const rawCgpa = parsedScope.cgpa;
+      const cgpaNum =
+        rawCgpa === null || rawCgpa === undefined || rawCgpa === '' ? NaN : Number(rawCgpa);
+      const cgpa = Number.isFinite(cgpaNum) ? cgpaNum : null;
 
       return {
         id: u.id,
         fullName: u.fullName,
         email: u.email,
-        phone: u.phone || parsedScope.phone || '+91 98450 12345',
+        phone: u.phone || parsedScope.phone || '',
         department: userDept,
         usn,
-        semester: sem,
-        section,
-        batchYear: parsedScope.batch || '2024-2028',
+        semester: parsedScope.semester || parsedScope.className || '',
+        section: parsedScope.section || '',
+        batchYear: parsedScope.batch || '',
         attendancePct,
         cgpa,
-        parentName: parsedScope.parentName || 'Parent / Guardian',
-        parentPhone: parsedScope.parentPhone || '+91 98450 99999',
-        hallTicketStatus: elg?.hallTicketStatus || (attendancePct < 75 ? 'detained' : 'eligible'),
+        parentName: parsedScope.parentName || '',
+        parentPhone: parsedScope.parentPhone || '',
+        hallTicketStatus: elg?.hallTicketStatus || undefined,
         condonationReason: elg?.condonationReason || undefined,
         remarks: elg?.remarks || undefined,
       };

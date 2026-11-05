@@ -31,6 +31,7 @@ import {
   bulkFeedHandler,
   bulkCreateUsersHandler,
   getFeesHandler,
+  getFeesSummaryHandler,
   createFeeHandler,
   updateFeeHandler,
   deleteFeeHandler,
@@ -94,7 +95,8 @@ export async function adminRoutes(fastify: FastifyInstance) {
   fastify.patch('/users/:id', { preHandler: [requireAdminOrPrincipal], config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, updateUserHandler);
   fastify.post('/users/:id/reset-password', { preHandler: [requireAdmin], config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, resetUserPasswordHandler);
 
-  // Fee Management (admin + accountant)
+  // Fee Management (admin + accountant; principal reads the summary for dashboards)
+  fastify.get('/fees/summary', { preHandler: [requireRole('admin', 'accountant', 'principal')] }, getFeesSummaryHandler);
   fastify.get('/fees', { preHandler: [requireFinance] }, getFeesHandler);
   fastify.post('/fees', { preHandler: [requireFinance], config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, createFeeHandler);
   fastify.put('/fees/:id', { preHandler: [requireFinance], config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, updateFeeHandler);

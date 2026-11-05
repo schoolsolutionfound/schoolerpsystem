@@ -86,6 +86,21 @@ export async function listUserFeedHandler(request: FastifyRequest, reply: Fastif
 }
 
 /**
+  GET /api/v1/announcements/upcoming-events
+  Upcoming EVENT announcements for dashboard highlights.
+ */
+export async function listUpcomingEventsHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const query = request.query as { limit?: string };
+    const limit = Math.min(Math.max(Number(query.limit) || 10, 1), 50);
+    const data = await announcementService.listUpcomingEvents(getInstCode(request), new Date(), limit);
+    return reply.send({ success: true, data });
+  } catch (err) {
+    return sendError(reply, err, 'Failed to fetch upcoming events');
+  }
+}
+
+/**
   GET /api/v1/announcements/unread-count
   Get count of unread announcements for current user.
  */

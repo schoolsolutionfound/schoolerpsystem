@@ -31,6 +31,19 @@ async function createSchool(code: string) {
   } as any);
 }
 
+async function createCollege(code: string) {
+  return service.createInstitution({
+    institutionCode: code,
+    institutionName: `${code} College`,
+    institutionType: 'college',
+    subscriptionStatus: 'active',
+    departments: ['CSE'],
+    yearsOfStudy: ['1st Year'],
+    programs: ['B.Tech'],
+    sections: ['A'],
+  } as any);
+}
+
 describe('InstitutionService structure', () => {
   beforeEach(() => {
     dbState.users = 0;
@@ -80,16 +93,17 @@ describe('InstitutionService structure', () => {
     expect(legacy.academicYears).toEqual([]);
   });
 
-  it('applies per-type defaults instead of storing empty arrays', async () => {
+  it('stores an empty structure when nothing is supplied', async () => {
     const created = await service.createInstitution({
       institutionCode: 'STR102',
-      institutionName: 'Defaults School',
+      institutionName: 'Bare School',
       institutionType: 'school',
       subscriptionStatus: 'active',
     } as any);
-    expect(created.departments!.length).toBeGreaterThan(0);
-    expect(created.academicYears!.length).toBeGreaterThan(0);
-    expect(created.sections!.length).toBeGreaterThan(0);
+    expect(created.departments).toEqual([]);
+    expect(created.academicYears).toEqual([]);
+    expect(created.sections).toEqual([]);
+    expect(created.terms).toEqual([]);
   });
 
   it('refuses a type change when the institution has data and convert is not set', async () => {
@@ -120,6 +134,20 @@ describe('InstitutionService structure', () => {
     expect(updated?.institutionType).toBe('college');
   });
 
+  it('deletes an institution created without any structure', async () => {
+    const created = await service.createInstitution({
+      institutionCode: 'STR112',
+      institutionName: 'Empty School',
+      institutionType: 'school',
+      subscriptionStatus: 'active',
+    } as any);
+
+    await expect(service.deleteInstitution(created.id)).resolves.toEqual({
+      message: 'Institution deleted successfully',
+    });
+    await expect(service.getInstitutionByCode('STR112')).resolves.toBeUndefined();
+  });
+
   it('refuses to delete an institution that still has users', async () => {
     const created = await createSchool('STR106');
     dbState.users = 1;
@@ -127,6 +155,16 @@ describe('InstitutionService structure', () => {
       code: 'INSTITUTION_HAS_DATA',
       statusCode: 409,
     });
+  });
+
+  it('deletes an unused institution even though its structure was auto-seeded', async () => {
+    const created = await createSchool('STR114');
+    dbState.sections = 1;
+    dbState.subjects = 1;
+    await expect(service.deleteInstitution(created.id)).resolves.toEqual({
+      message: 'Institution deleted successfully',
+    });
+    await expect(service.getInstitutionByCode('STR114')).resolves.toBeUndefined();
   });
 
   it('updates the class catalogue only through the canonical aliases', async () => {
@@ -140,5 +178,58 @@ describe('InstitutionService structure', () => {
     expect(updated?.departments).toEqual(['Physics']);
     expect(updated?.academicYears).toEqual(['Class 2']);
     expect(updated?.sections).toEqual(['B']);
+  });
+
+  it('keeps college departments when the editor submits empty school aliases', async () => {
+    const created = await createCollege('STR110');
+    const updated = await service.updateInstitution(created.id, {
+      institutionType: 'college',
+      subjects: [],
+      classes: [],
+      departments: ['CSE'],
+      yearsOfStudy: ['1st Year'],
+      programs: ['B.Tech'],
+      sections: ['A'],
+    } as any);
+
+    expect(updated?.departments).toEqual(['CSE']);
+    expect(updated?.yearsOfStudy).toEqual(['1st Year']);
+    expect(updated?.courses).toEqual(['B.Tech']);
+    expect(updated?.sections).toEqual(['A']);
+  });
+
+  it('honours an explicit clear sent through the type-appropriate aliases', async () => {
+    const created = await createCollege('STR111');
+    const updated = await service.updateInstitution(created.id, {
+      clearStructure: true,
+      subjects: [],
+      classes: [],
+      departments: [],
+      yearsOfStudy: [],
+      programs: [],
+      sections: [],
+    } as any);
+
+    expect(updated?.departments).toEqual([]);
+    expect(updated?.yearsOfStudy).toEqual([]);
+    expect(updated?.courses).toEqual([]);
+    expect(updated?.sections).toEqual([]);
+  });
+
+  it('keeps stored dimensions when every alias is empty and clearStructure is absent', async () => {
+    const created = await createCollege('STR113');
+    const updated = await service.updateInstitution(created.id, {
+      subjects: [],
+      classes: [],
+      departments: [],
+      yearsOfStudy: [],
+      programs: [],
+      sections: [],
+    } as any);
+
+    expect(updated?.departments).toEqual(['CSE']);
+    expect(updated?.yearsOfStudy).toEqual(['1st Year']);
+    expect(updated?.courses).toEqual(['B.Tech']);
+    expect(updated?.sections).toEqual(['A']);
   });
 });

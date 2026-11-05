@@ -52,7 +52,14 @@ export function isSesConfigured(): boolean {
 
 function getClient(): SESv2Client {
   if (!client) {
-    const region = process.env.SES_REGION || process.env.AWS_REGION || 'us-east-1';
+    const region = process.env.SES_REGION || process.env.AWS_REGION;
+    if (!region) {
+      throw new EmailSendError(
+        'SES region not configured — set SES_REGION or AWS_REGION',
+        'config',
+        'SES_REGION_MISSING'
+      );
+    }
     client = new SESv2Client({
       region,
       credentials: {

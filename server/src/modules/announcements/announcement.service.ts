@@ -434,6 +434,13 @@ export class AnnouncementService {
   }
 
   /**
+   * Upcoming EVENT announcements for dashboards.
+   */
+  async listUpcomingEvents(institutionCode: string, from: Date, limit: number) {
+    return await announcementRepository.listUpcomingEvents(institutionCode, from, limit);
+  }
+
+  /**
    * Resolve the class-section IDs the viewer should receive class/section-targeted
    * announcements for. The auth middleware does not carry class membership, so it is
    * derived from the database here (feed + unread-count only).
