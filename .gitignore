@@ -51,6 +51,18 @@ yarn-error.*
 /server/gen-token-*.ps1
 /neon.ts
 
+# local scratch, one-off verification artifacts and captured browser state
+/scratch/
+/website/.chrome-cdp/
+/server/scratch-*.mjs
+/server/inst-stderr.txt
+/server/inst-testout.txt
+/server/testout.txt
+/test-email.js
+/server/scripts/create-student.ts
+/server/scripts/seed-tst001.mjs
+/server/scripts/tst001-verify.mjs
+
 # typescript
 *.tsbuildinfo
 
