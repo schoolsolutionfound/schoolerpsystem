@@ -426,6 +426,18 @@ export class InstitutionService {
     return map[role as ConfigurableRole] || [];
   }
 
+  /** Same as `getRoleProfileFormFields` for a caller that already loaded the institution. */
+  public getRoleProfileFormFieldsFrom(
+    institution: { profileFormFields?: unknown } | undefined | null,
+    role: string
+  ): ProfileFormField[] {
+    if (!isConfigurableRole(role)) return [];
+    const raw: any = institution?.profileFormFields;
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return [];
+    const parsed = RoleProfileFieldsSchema.safeParse(raw[role]);
+    return parsed.success ? parsed.data : [];
+  }
+
   public async getInstitutionsByCodes(codes: string[]) {
     return this.repo.findByCodes(codes);
   }

@@ -19,6 +19,12 @@ interface CachedAuthEntry {
   emailVerified: boolean;
   department?: string;
   placementAccess?: 'head' | 'member' | null;
+  /**
+   * The full user row resolved with this entry, so a handler that needs the
+   * whole profile (login-sync) does not issue the same lookup again this
+   * request already paid for. Null when the entry was seeded from a write.
+   */
+  user?: unknown;
   expiresAt: number;
 }
 
@@ -32,6 +38,13 @@ export interface CachedAuth {
 }
 
 const cache = new Map<string, CachedAuthEntry>();
+
+/** The user row cached alongside an auth entry, if one was resolved. */
+export function getCachedUserByUid<T>(uid: string): T | undefined {
+  const entry = cache.get(uid);
+  if (!entry || Date.now() > entry.expiresAt) return undefined;
+  return entry.user as T | undefined;
+}
 
 export function getCachedAuth(uid: string): CachedAuth | undefined {
   const entry = cache.get(uid);
@@ -60,7 +73,8 @@ export function setCachedAuth(
   mustChangePassword: boolean,
   emailVerified: boolean,
   department?: string,
-  placementAccess?: 'head' | 'member' | null
+  placementAccess?: 'head' | 'member' | null,
+  user?: unknown
 ) {
   if (cache.has(uid)) cache.delete(uid);
   cache.set(uid, {
@@ -70,6 +84,7 @@ export function setCachedAuth(
     emailVerified: Boolean(emailVerified),
     department,
     placementAccess,
+    user,
     expiresAt: Date.now() + AUTH_CACHE_TTL_MS,
   });
   // Evict least-recently-used entries beyond the cap (Map iterates oldest-first).

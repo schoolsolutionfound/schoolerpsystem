@@ -88,3 +88,4 @@ PHASE1.md
 !ARCHITECTURE.md
 !docs/Design.md
 .neon
+/server/tmp-*.ts

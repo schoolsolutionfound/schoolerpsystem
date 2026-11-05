@@ -21,6 +21,7 @@ vi.mock('../../config/firebase.js', () => ({
 
 vi.mock('../authCache.js', () => ({
   getCachedAuth: vi.fn(() => undefined),
+  getCachedUserByUid: vi.fn(() => undefined),
   setCachedAuth: vi.fn(),
   invalidateCachedAuth: vi.fn(),
 }));

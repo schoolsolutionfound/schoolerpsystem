@@ -13,7 +13,7 @@ export async function loginSyncHandler(request: FastifyRequest, reply: FastifyRe
   }
 
   try {
-    const data = await authService.loginSync(currentUser);
+    const data = await authService.loginSync(currentUser, request.dbUser);
     return reply.send({
       success: true,
       data,

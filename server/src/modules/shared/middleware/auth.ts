@@ -1,8 +1,9 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { isFirebaseAdminInitialized } from '../config/firebase.js';
-import { dbFindByUid } from '../db/index.js';
-import { getCachedAuth, setCachedAuth } from './authCache.js';
+import { dbFindByUid, type InMemoryUser } from '../db/index.js';
+import { getCachedAuth, getCachedUserByUid, setCachedAuth } from './authCache.js';
 import { verifyIdTokenWithCachedRevocation } from './verifiedTokenCache.js';
+import { markPhase } from '../utils/requestProfiler.js';
 
 export interface AuthenticatedUser {
   uid: string;
@@ -19,6 +20,8 @@ export interface AuthenticatedUser {
 declare module 'fastify' {
   interface FastifyRequest {
     user?: AuthenticatedUser;
+    /** Full user row resolved during authentication (when already known). */
+    dbUser?: InMemoryUser;
   }
 }
 
@@ -100,6 +103,7 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
       console.warn('[Auth Middleware Warning] Firebase Token verification failed:', error.message);
     }
   }
+  markPhase('idToken');
 
   if (!firebaseUid) {
     return reply.status(401).send({
@@ -120,6 +124,7 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
   let placementAccess: 'head' | 'member' | null | undefined;
 
   const cached = getCachedAuth(firebaseUid);
+  let dbUser: InMemoryUser | undefined;
   if (cached) {
     dbUserRole = cached.role;
     institutionCode = cached.institutionCode;
@@ -127,9 +132,10 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
     emailVerified = cached.emailVerified;
     department = cached.department || '';
     placementAccess = cached.placementAccess;
+    dbUser = getCachedUserByUid<InMemoryUser>(firebaseUid);
   } else {
     try {
-      const dbUser = await dbFindByUid(firebaseUid);
+      dbUser = await dbFindByUid(firebaseUid);
       if (dbUser) {
         dbUserRole = dbUser.role || '';
         institutionCode = dbUser.institutionCode || '';
@@ -149,7 +155,8 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
           mustChangePassword,
           emailVerified,
           department,
-          placementAccess
+          placementAccess,
+          dbUser
         );
       }
     } catch (err: any) {
@@ -164,6 +171,7 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
       });
     }
   }
+  markPhase(cached ? 'authCache' : 'authUserDb');
 
   if (!dbUserRole) {
     return reply.status(403).send({
@@ -220,6 +228,7 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
     department,
     placementAccess,
   };
+  request.dbUser = dbUser;
 }
 
 export async function requireDeveloper(request: FastifyRequest, reply: FastifyReply) {

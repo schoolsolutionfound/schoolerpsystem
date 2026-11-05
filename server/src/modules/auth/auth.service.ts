@@ -4,7 +4,7 @@ import { AuthenticatedUser } from '../shared/middleware/auth.js';
 import { setCachedAuth } from '../shared/middleware/authCache.js';
 import { invalidateVerifiedTokensForUid } from '../shared/middleware/verifiedTokenCache.js';
 import { institutionService } from '../institutions/institution.service.js';
-import { dbFindUserById, db } from '../shared/db/index.js';
+import { dbFindUserById, db, type InMemoryUser } from '../shared/db/index.js';
 import { getPrimaryParentChild } from '../users/parent-links.js';
 import { validatePasswordStrength } from '../shared/utils/password.js';
 import { DEFAULT_INSTITUTION_TYPE } from '../shared/academicStructure.js';
@@ -19,11 +19,18 @@ function parseScope(val: any): Record<string, any> {
   return typeof val === 'object' ? val : {};
 }
 
+import { markPhase } from '../shared/utils/requestProfiler.js';
+
 export class AuthService {
   constructor(private repo: IAuthRepository = authRepository) {}
 
-  public async loginSync(currentUser: AuthenticatedUser) {
-    const user = await this.repo.findByUid(currentUser.uid);
+  /**
+   * `preloadedUser` is the row the auth middleware already resolved for this
+   * request; re-reading it here would add a full DB round trip to every login.
+   */
+  public async loginSync(currentUser: AuthenticatedUser, preloadedUser?: InMemoryUser) {
+    const user = preloadedUser ?? (await this.repo.findByUid(currentUser.uid));
+    markPhase('user');
 
     if (!user) {
       throw {
@@ -35,13 +42,17 @@ export class AuthService {
 
     let institutionName = user.institutionName || '';
     let institutionType = user.institutionType || '';
+    // Fetched once and reused for the role's profile-form fields below;
+    // fetching it twice cost a full extra round trip on every login.
+    let institution: Awaited<ReturnType<typeof institutionService.getInstitutionByCode>>;
     try {
-      const match = await institutionService.getInstitutionByCode(user.institutionCode || '');
-      if (match) {
-        if (!institutionName || institutionName === user.institutionCode) institutionName = match.institutionName;
-        institutionType = match.institutionType || institutionType;
+      institution = await institutionService.getInstitutionByCode(user.institutionCode || '');
+      if (institution) {
+        if (!institutionName || institutionName === user.institutionCode) institutionName = institution.institutionName;
+        institutionType = institution.institutionType || institutionType;
       }
     } catch {}
+    markPhase('institution');
 
     let placementAccess: 'head' | 'member' | null = null;
     if (user.role === 'placement_officer' || user.role === 'admin') {
@@ -59,6 +70,7 @@ export class AuthService {
         console.warn('[Auth Service] Failed to fetch placement access:', err);
       }
     }
+    markPhase('placement');
 
     setCachedAuth(
       user.firebaseUid,
@@ -69,6 +81,12 @@ export class AuthService {
       user.department || '',
       placementAccess
     );
+
+    // Profile-form fields come from the institution row already loaded above;
+    // the parent's linked child needs its own lookups.
+    const profileFormFields = institutionService.getRoleProfileFormFieldsFrom(institution, user.role || '');
+    const parentChild = await this.resolveParentChild(user);
+    markPhase('parentLink');
 
     return {
       id: user.id,
@@ -103,16 +121,14 @@ export class AuthService {
       isEmailVerified: user.emailVerified ?? true,
       designation: user.title || '',
       // Settings → Form Fields: role's configured fields + saved values.
-      profileFormFields: await institutionService
-        .getRoleProfileFormFields(user.institutionCode || '', user.role || '')
-        .catch(() => []),
+      profileFormFields,
       customFields: (() => {
         const scope = parseScope(user.scope);
         return scope.customFields && typeof scope.customFields === 'object' ? scope.customFields : {};
       })(),
       placementAccess,
       ...parseScope(user.scope),
-      ...await this.resolveParentChild(user),
+      ...parentChild,
     };
   }
 

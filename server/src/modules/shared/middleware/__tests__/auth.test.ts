@@ -20,22 +20,34 @@ vi.mock('../../config/firebase.js', () => ({
 vi.mock('../authCache.js', () => {
   const store = new Map<
     string,
-    { role: string; institutionCode: string; mustChangePassword: boolean; emailVerified: boolean; expiresAt: number }
+    {
+      role: string;
+      institutionCode: string;
+      mustChangePassword: boolean;
+      emailVerified: boolean;
+      user?: unknown;
+      expiresAt: number;
+    }
   >();
   return {
     getCachedAuth: (uid: string) => store.get(uid),
+    getCachedUserByUid: (uid: string) => store.get(uid)?.user,
     setCachedAuth: (
       uid: string,
       role: string,
       institutionCode: string,
       mustChangePassword: boolean,
-      emailVerified: boolean
+      emailVerified: boolean,
+      _department?: string,
+      _placementAccess?: 'head' | 'member' | null,
+      user?: unknown
     ) => {
       store.set(uid, {
         role,
         institutionCode,
         mustChangePassword: Boolean(mustChangePassword),
         emailVerified: Boolean(emailVerified),
+        user,
         expiresAt: Date.now() + 300000,
       });
     },
