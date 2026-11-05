@@ -50,6 +50,7 @@ import { hodRoutes } from './modules/hod/hod.routes.js';
 import { placementRoutes } from './modules/placement/placement.routes.js';
 import { admissionRoutes } from './modules/admission/admission.routes.js';
 import { startDbKeepAlive, stopDbKeepAlive } from './modules/shared/db/keepAlive.js';
+import { RequestProfiler, runWithProfiler, markPhase, slowRequestThresholdMs } from './modules/shared/utils/requestProfiler.js';
 
 const port = Number(process.env.PORT) || 5000;
 const host = process.env.HOST || '0.0.0.0';
@@ -277,6 +278,38 @@ async function main() {
           ...(isProduction ? {} : { stack: error.stack }),
         },
       });
+    });
+
+    // Per-request timing. Every request gets a profiler in its async scope so
+    // services can mark hops with markPhase(); slow ones are logged once with
+    // the breakdown, which is how DB/Firebase stalls get attributed in prod.
+    const slowThresholdMs = slowRequestThresholdMs();
+    fastify.addHook('onRequest', (request, _reply, done) => {
+      const profiler = new RequestProfiler(request.method, request.url.split('?')[0]);
+      (request as unknown as { profiler?: RequestProfiler }).profiler = profiler;
+      runWithProfiler(profiler, () => {
+        markPhase('hooks');
+        done();
+      });
+    });
+    fastify.addHook('onResponse', (request, reply, done) => {
+      const profiler = (request as unknown as { profiler?: RequestProfiler }).profiler;
+      if (profiler) {
+        profiler.mark('handler');
+        if (profiler.isSlow(slowThresholdMs)) {
+          request.log.warn(
+            {
+              method: profiler.method,
+              url: profiler.url,
+              statusCode: reply.statusCode,
+              slowest: profiler.slowestPhase(),
+              ...profiler.snapshot(),
+            },
+            'slow request'
+          );
+        }
+      }
+      done();
     });
 
     fastify.addHook('onClose', async () => {
