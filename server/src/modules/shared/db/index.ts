@@ -137,7 +137,26 @@ export class UserStore {
 export const inMemoryUserStore = new UserStore();
 
 const connectionString = process.env.DATABASE_URL;
-export const queryClient = connectionString ? postgres(connectionString) : null;
+
+function positiveNumber(value: string | undefined, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+/**
+ * Pool tuning for latency: a cold TCP+TLS dial to the database costs several
+ * seconds, so sockets are kept alive (idle_timeout 0) and recycled by
+ * max_lifetime instead of every 60 s; the keep-alive job pins a few of them
+ * warm at boot (see keepAlive.ts).
+ */
+const queryClientOptions = {
+  max: positiveNumber(process.env.DB_POOL_MAX, 10),
+  idle_timeout: 0,
+  max_lifetime: positiveNumber(process.env.DB_MAX_LIFETIME_SECONDS, 30 * 60),
+  connect_timeout: positiveNumber(process.env.DB_CONNECT_TIMEOUT_SECONDS, 10),
+};
+
+export const queryClient = connectionString ? postgres(connectionString, queryClientOptions) : null;
 export const db = queryClient ? drizzle(queryClient, { schema }) : null;
 
 /**
