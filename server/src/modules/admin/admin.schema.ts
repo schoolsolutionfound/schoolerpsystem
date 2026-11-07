@@ -5,6 +5,8 @@ const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 
 export const CreateFeeSchema = z.object({
   classSectionId: z.string().max(100).optional(),
+  // When set, the fee applies to this single student instead of the class.
+  studentId: z.string().max(100).optional(),
   title: z.string().min(1, 'title is required').max(255),
   category: z.string().max(50).optional().default('student_fee'),
   amount,

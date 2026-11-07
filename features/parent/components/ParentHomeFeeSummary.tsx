@@ -23,6 +23,7 @@ import { useUserStore } from '../../../store/useUserStore';
 import { generateParentFeeReceiptPdf } from '../utils/receiptPdfGenerator';
 import { fetchParentFeesApi } from '../../../api/academics';
 import { FeeSummarySkeleton } from '../../shared/components/skeletons/SharedSkeletons';
+import { FeeCheckoutView, type FeeCheckoutLine } from '../../shared/payments/FeeCheckoutView';
 
 export interface ParentHomeFeeSummaryProps {
   onBack?: () => void;
@@ -83,6 +84,7 @@ export const ParentHomeFeeSummary: React.FC<ParentHomeFeeSummaryProps> = ({ onBa
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [showCheckout, setShowCheckout] = useState<boolean>(false);
 
   const loadFees = useCallback(async () => {
     try {
@@ -184,6 +186,10 @@ export const ParentHomeFeeSummary: React.FC<ParentHomeFeeSummaryProps> = ({ onBa
     return feeStructure.reduce((sum, item) => sum + item.amount, 0);
   }, [feeStructure]);
 
+  const checkoutLines: FeeCheckoutLine[] = activeFeeType && activeFeeType.pending > 0
+    ? [{ id: activeFeeType.id, title: activeFeeType.name, amount: activeFeeType.pending }]
+    : [];
+
   const handleProceedToPay = () => {
     if (!activeFeeType) {
       Alert.alert('No Fee Record', 'No fee record is available for this account.');
@@ -202,10 +208,8 @@ export const ParentHomeFeeSummary: React.FC<ParentHomeFeeSummaryProps> = ({ onBa
       return;
     }
 
-    Alert.alert(
-      'Online Payment Unavailable',
-      'Fee payment will be enabled once the payment gateway is configured for this institution.'
-    );
+    setEnteredAmount(String(activeFeeType.pending));
+    setShowCheckout(true);
   };
 
   if (loading) {
@@ -654,6 +658,18 @@ export const ParentHomeFeeSummary: React.FC<ParentHomeFeeSummaryProps> = ({ onBa
           </View>
         </Pressable>
       </Modal>
+
+      <FeeCheckoutView
+        visible={showCheckout}
+        lines={checkoutLines}
+        merchantName="Kivquo School"
+        studentLabel={childName}
+        onClose={() => setShowCheckout(false)}
+        onPaid={() => {
+          setShowCheckout(false);
+          loadFees();
+        }}
+      />
 
       {/* Receipt Details Modal */}
       <Modal

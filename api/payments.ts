@@ -81,7 +81,10 @@ export async function getPaymentOrderApi(orderId: string): Promise<PaymentOrderS
 
 /** Frees the one-open-order slot (safe even if payment is in flight). */
 export async function cancelPaymentOrderApi(orderId: string): Promise<{ orderId: string; status: string }> {
-  return apiClient(`/payments/${encodeURIComponent(orderId)}/cancel`, { method: 'POST' });
+  return apiClient(`/payments/${encodeURIComponent(orderId)}/cancel`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
 }
 
 /** Accountant/admin reconciliation list. */

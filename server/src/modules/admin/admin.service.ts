@@ -2440,7 +2440,8 @@ export class AdminService {
     const [result] = await db.insert(feeStructures).values({
       id,
       institutionCode,
-      classSectionId: data.classSectionId,
+      classSectionId: data.classSectionId ?? null,
+      studentId: data.studentId ?? null,
       title: data.title,
       category: data.category || 'student_fee',
       amount: String(data.amount),
@@ -2529,9 +2530,11 @@ export class AdminService {
       structure.classSectionId ? sectionMeta.get(structure.classSectionId)?.studentCount || 0 : Number(studentTotal) || 0;
 
     for (const structure of structures as any[]) {
+      // Individual (student-scoped) fees count once — for that student only.
+      const isStudentScoped = Boolean(structure.studentId);
       const section = structure.classSectionId ? sectionMeta.get(structure.classSectionId) : undefined;
       const department = section?.department || 'General';
-      const students = enrolledFor(structure);
+      const students = isStudentScoped ? 1 : enrolledFor(structure);
       const expected = (Number(structure.amount) || 0) * students;
 
       structureMeta.set(structure.id, {
@@ -2542,8 +2545,10 @@ export class AdminService {
 
       const bucket = bucketFor(department);
       bucket.expected += expected;
-      if (structure.classSectionId) bucket.classes.add(structure.classSectionId);
-      else bucket.allStudents = true;
+      if (!isStudentScoped) {
+        if (structure.classSectionId) bucket.classes.add(structure.classSectionId);
+        else bucket.allStudents = true;
+      }
     }
 
     for (const payment of payments as any[]) {
@@ -2826,7 +2831,11 @@ export class AdminService {
     const childClassId = await dbFindStudentClassSectionId(studentId).catch(() => undefined);
 
     return structures
-      .filter((s) => !s.classSectionId || s.classSectionId === childClassId)
+      .filter((s: any) =>
+        s.studentId
+          ? s.studentId === studentId
+          : !s.classSectionId || s.classSectionId === childClassId
+      )
       .map((s) => {
         const related = payments.filter((p) => p.feeStructureId === s.id);
         const paid = related.find((p) => p.status === 'paid');

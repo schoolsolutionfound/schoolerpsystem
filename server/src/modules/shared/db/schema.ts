@@ -639,6 +639,9 @@ export const feeStructures = pgTable('fee_structures', {
   id: text('id').primaryKey().$defaultFn(idPrefix('fs')),
   institutionCode: varchar('institution_code', { length: 100 }).notNull(),
   classSectionId: text('class_section_id'),
+  // When set, this fee head applies to ONE student only (individual fee)
+  // instead of the whole class. NULL = class-level / institution-level fee.
+  studentId: text('student_id'),
   title: varchar('title', { length: 255 }).notNull(),
   category: varchar('category', { length: 50 }).notNull().default('student_fee'),
   amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
@@ -652,6 +655,7 @@ export const feeStructures = pgTable('fee_structures', {
 }, (table) => ({
   instCodeIdx: index('idx_fee_structures_inst').on(table.institutionCode),
   classIdx: index('idx_fee_structures_class').on(table.classSectionId),
+  studentIdx: index('idx_fee_structures_student').on(table.studentId),
   categoryIdx: index('idx_fee_structures_category').on(table.category),
   instIdUnique: uniqueIndex('uq_fee_structures_inst_id').on(table.institutionCode, table.id),
   classFk: foreignKey({

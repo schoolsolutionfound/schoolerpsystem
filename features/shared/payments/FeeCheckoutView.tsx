@@ -15,6 +15,7 @@ import { BorderRadius } from '../../../constants/theme';
 import { FontFamily } from '../../../constants/fonts';
 import {
   createPaymentOrderApi,
+  cancelPaymentOrderApi,
   getPaymentOrderApi,
   type CreatePaymentOrderResult,
 } from '../../../api/payments';
@@ -71,6 +72,85 @@ function loadRazorpaySdk(): typeof RazorpaySdk | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Web checkout (Firebase/web): loads Razorpay Checkout.js and opens it with the
+ * server-created order. The `handler` result is UNTRUSTED — the caller still
+ * confirms via `GET /payments/:id` (webhook truth), same as the native path.
+ */
+function loadWebRazorpayCtor(): Promise<any> {
+  const w = (globalThis as any).window;
+  const doc = (globalThis as any).document;
+  if (!w || !doc) {
+    return Promise.reject(new Error('Web checkout is unavailable.'));
+  }
+  if (w.Razorpay) return Promise.resolve(w.Razorpay);
+  return new Promise((resolve, reject) => {
+    const s = doc.createElement('script');
+    s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    s.async = true;
+    s.onload = () => resolve((globalThis as any).window.Razorpay);
+    s.onerror = () => reject(new Error('Could not load Razorpay checkout.'));
+    doc.head.appendChild(s);
+  });
+}
+
+function openWebCheckout(
+  order: CreatePaymentOrderResult,
+  merchantName: string,
+  description: string
+): Promise<void> {
+  return loadWebRazorpayCtor().then(
+    (RazorpayCtor: any) =>
+      new Promise<void>((resolve, reject) => {
+        let settled = false;
+        const settleOk = () => {
+          if (!settled) {
+            settled = true;
+            resolve();
+          }
+        };
+        const settleErr = (e: any) => {
+          if (!settled) {
+            settled = true;
+            reject(e);
+          }
+        };
+        const options = {
+          key: order.keyId,
+          amount: order.amountPaise,
+          currency: order.currency,
+          order_id: order.gatewayOrderId,
+          name: merchantName,
+          description,
+          theme: { color: '#FDC836' },
+          timeout: 300,
+          handler: (response: any) => {
+            if (
+              response?.razorpay_order_id &&
+              response.razorpay_order_id !== order.gatewayOrderId
+            ) {
+              settleErr(new Error('Payment order mismatch.'));
+              return;
+            }
+            settleOk();
+          },
+          modal: {
+            ondismiss: () => settleErr(new Error('Payment dismissed.')),
+          },
+        };
+        const rzp = new RazorpayCtor(options);
+        if (rzp && typeof rzp.on === 'function') {
+          rzp.on('payment.failed', (resp: any) => {
+            settleErr(
+              new Error(resp?.error?.description || 'Payment failed at the gateway.')
+            );
+          });
+        }
+        rzp.open();
+      })
+  );
 }
 
 export const FeeCheckoutView: React.FC<FeeCheckoutViewProps> = ({
@@ -177,34 +257,60 @@ export const FeeCheckoutView: React.FC<FeeCheckoutViewProps> = ({
 
   const handlePay = useCallback(async () => {
     if (lines.length === 0) return;
-    // Resolve the native SDK first — if it is unavailable (Expo Go), bail out
-    // BEFORE creating an order so we never leave an orphan open order.
-    const Razorpay = loadRazorpaySdk();
-    if (!Razorpay || typeof Razorpay.open !== 'function') {
-      setError(
-        'Online payments require a development build. Build the app with `npx expo run:ios` (or EAS) — the payment SDK is not available in Expo Go.'
-      );
-      return;
+    const isWeb = Platform.OS === 'web';
+    let nativeRazorpay: typeof RazorpaySdk | null = null;
+    if (!isWeb) {
+      // Native: bail out before creating an order if the SDK is unavailable
+      // (e.g. Expo Go), so we never leave an orphan open order.
+      nativeRazorpay = loadRazorpaySdk();
+      if (!nativeRazorpay || typeof nativeRazorpay.open !== 'function') {
+        setError(
+          'Online payments require a development build. Build the app with `npx expo run:ios` (or EAS) — the payment SDK is not available in Expo Go.'
+        );
+        return;
+      }
     }
     stopPolling();
     setError(null);
     setPhaseSafe('creating');
     try {
-      const order = await createPaymentOrderApi(lines.map((l) => l.id));
+      let order: CreatePaymentOrderResult;
+      try {
+        order = await createPaymentOrderApi(lines.map((l) => l.id));
+      } catch (e: any) {
+        // Picking a different fee while an older checkout is still open:
+        // free the old order and retry once so fee switching just works.
+        if (e?.code === 'OPEN_ORDER_EXISTS' && orderRef.current) {
+          try {
+            await cancelPaymentOrderApi(orderRef.current.orderId);
+          } catch {
+            // Best-effort — the retry below decides the outcome.
+          }
+          orderRef.current = null;
+          order = await createPaymentOrderApi(lines.map((l) => l.id));
+        } else {
+          throw e;
+        }
+      }
       orderRef.current = order;
       setPhaseSafe('checkout');
+      const description =
+        lines.length === 1 ? lines[0].title : `School fees (${lines.length} items)`;
       try {
-        await Razorpay.open({
-          key: order.keyId,
-          amount: order.amountPaise,
-          currency: order.currency,
-          order_id: order.gatewayOrderId,
-          name: merchantName,
-          description:
-            lines.length === 1 ? lines[0].title : `School fees (${lines.length} items)`,
-          theme: { color: '#F4C430' },
-          timeout: 300,
-        });
+        if (isWeb) {
+          await openWebCheckout(order, merchantName, description);
+        } else {
+          await nativeRazorpay!.open({
+            key: order.keyId,
+            amount: order.amountPaise,
+            currency: order.currency,
+            order_id: order.gatewayOrderId,
+            name: merchantName,
+            description,
+            theme: { color: '#FDC836' },
+            timeout: 300,
+          });
+        }
         // SDK says success — UNTRUSTED. Confirm with the server (webhook truth).
         startConfirming('full');
       } catch (sdkErr: any) {
@@ -234,11 +340,21 @@ export const FeeCheckoutView: React.FC<FeeCheckoutViewProps> = ({
     handlePay();
   }, [handlePay, setPhaseSafe]);
 
-  const handleClose = useCallback(() => {
+  const handleClose = useCallback(async () => {
     stopPolling();
-    // Leave the order open on purpose: an identical retry resumes it, and a
-    // payment already in flight at the gateway still settles via webhook
-    // (cancel is deliberately NOT called here to avoid racing a real capture).
+    // Free the one-open-order slot so the parent can pick a different fee.
+    // Cancelling only affects the local order state: if the gateway already
+    // captured the money, the webhook still credits it (cancelled is still
+    // creditable server-side), so this cannot lose a real payment.
+    const order = orderRef.current;
+    if (order) {
+      try {
+        await cancelPaymentOrderApi(order.orderId);
+      } catch {
+        // Already paid/terminal or network blip — a webhook, if any, is truth.
+      }
+      orderRef.current = null;
+    }
     setPhaseSafe('ready');
     setError(null);
     onClose();
@@ -288,18 +404,18 @@ export const FeeCheckoutView: React.FC<FeeCheckoutViewProps> = ({
 
             {error ? (
               <View style={styles.errorBox}>
-                <MaterialCommunityIcons name="alert-circle-outline" size={16} color="#DC3545" />
+                <MaterialCommunityIcons name="alert-circle-outline" size={16} color="#B91C1C" />
                 <Text style={styles.errorText}>{error}</Text>
               </View>
             ) : null}
 
             <TouchableOpacity style={styles.payBtn} onPress={handlePay} activeOpacity={0.8}>
-              <MaterialCommunityIcons name="lightning-bolt" size={18} color="#FFFFFF" />
+              <MaterialCommunityIcons name="lightning-bolt" size={18} color="#111827" />
               <Text style={styles.payBtnText}>Pay ₹{totalRupees.toLocaleString('en-IN')}</Text>
             </TouchableOpacity>
 
             <View style={styles.methodsRow}>
-              <MaterialCommunityIcons name="shield-check-outline" size={14} color="#16A34A" />
+              <MaterialCommunityIcons name="shield-check-outline" size={14} color="#15803D" />
               <Text style={styles.methodsText}>
                 UPI • Cards • Netbanking — processed securely by Razorpay. Card details never touch
                 this app or the school system.
@@ -315,7 +431,7 @@ export const FeeCheckoutView: React.FC<FeeCheckoutViewProps> = ({
       case 'creating':
         return (
           <View style={styles.statusBox}>
-            <ActivityIndicator size="large" color="#F4C430" />
+            <ActivityIndicator size="large" color="#111827" />
             <Text style={styles.statusTitle}>Preparing secure checkout…</Text>
             <Text style={styles.statusSub}>Creating your payment order with the school.</Text>
           </View>
@@ -324,13 +440,13 @@ export const FeeCheckoutView: React.FC<FeeCheckoutViewProps> = ({
       case 'checkout':
         return (
           <View style={styles.statusBox}>
-            <ActivityIndicator size="large" color="#F4C430" />
+            <ActivityIndicator size="large" color="#111827" />
             <Text style={styles.statusTitle}>Complete the payment</Text>
             <Text style={styles.statusSub}>
               Finish in the payment window that opened. Keep this screen open.
             </Text>
             <TouchableOpacity style={styles.secondaryBtn} onPress={handleClose}>
-              <Text style={styles.secondaryBtnText}>Cancel</Text>
+              <Text style={styles.secondaryBtnText}>Cancel order</Text>
             </TouchableOpacity>
           </View>
         );
@@ -338,20 +454,23 @@ export const FeeCheckoutView: React.FC<FeeCheckoutViewProps> = ({
       case 'confirming':
         return (
           <View style={styles.statusBox}>
-            <ActivityIndicator size="large" color="#F4C430" />
+            <ActivityIndicator size="large" color="#111827" />
             <Text style={styles.statusTitle}>Confirming payment…</Text>
             <Text style={styles.statusSub}>
               We&apos;re verifying with the gateway. This usually takes a few seconds — please keep
               the app open.
             </Text>
+            <TouchableOpacity style={styles.secondaryBtn} onPress={handleClose}>
+              <Text style={styles.secondaryBtnText}>Cancel order</Text>
+            </TouchableOpacity>
           </View>
         );
 
       case 'paid':
         return (
           <View style={styles.statusBox}>
-            <View style={[styles.statusIcon, { backgroundColor: 'rgba(22,163,74,0.12)' }]}>
-              <MaterialCommunityIcons name="check-circle" size={44} color="#16A34A" />
+            <View style={[styles.statusIcon, { backgroundColor: '#DCFCE7' }]}>
+              <MaterialCommunityIcons name="check-circle" size={44} color="#15803D" />
             </View>
             <Text style={styles.statusTitle}>Payment successful</Text>
             <Text style={styles.statusSub}>
@@ -367,8 +486,8 @@ export const FeeCheckoutView: React.FC<FeeCheckoutViewProps> = ({
       case 'failed':
         return (
           <View style={styles.statusBox}>
-            <View style={[styles.statusIcon, { backgroundColor: 'rgba(220,53,69,0.1)' }]}>
-              <MaterialCommunityIcons name="close-circle" size={44} color="#DC3545" />
+            <View style={[styles.statusIcon, { backgroundColor: '#FEE2E2' }]}>
+              <MaterialCommunityIcons name="close-circle" size={44} color="#B91C1C" />
             </View>
             <Text style={styles.statusTitle}>Payment not completed</Text>
             <Text style={styles.statusSub}>{error || 'The payment could not be completed.'}</Text>
@@ -386,8 +505,8 @@ export const FeeCheckoutView: React.FC<FeeCheckoutViewProps> = ({
       case 'timeout':
         return (
           <View style={styles.statusBox}>
-            <View style={[styles.statusIcon, { backgroundColor: 'rgba(244,196,48,0.15)' }]}>
-              <MaterialCommunityIcons name="clock-outline" size={44} color="#B8860B" />
+            <View style={[styles.statusIcon, { backgroundColor: '#FEF3C7' }]}>
+              <MaterialCommunityIcons name="clock-outline" size={44} color="#B45309" />
             </View>
             <Text style={styles.statusTitle}>Still confirming</Text>
             <Text style={styles.statusSub}>
@@ -415,18 +534,15 @@ export const FeeCheckoutView: React.FC<FeeCheckoutViewProps> = ({
       <View style={styles.backdrop}>
         <View style={styles.card}>
           <View style={styles.header}>
-            <View style={styles.headerTitleRow}>
-              <View style={styles.headerIcon}>
-                <MaterialCommunityIcons name="shield-lock-outline" size={18} color="#1A1B1C" />
-              </View>
-              <View>
-                <Text style={styles.headerTitle}>Secure Fee Payment</Text>
-                <Text style={styles.headerSub}>{merchantName}</Text>
-              </View>
+          <View style={styles.headerTitleRow}>
+            <View>
+              <Text style={styles.headerTitle}>Secure Fee Payment</Text>
+              <Text style={styles.headerSub}>{merchantName}</Text>
             </View>
+          </View>
             {phase !== 'confirming' && phase !== 'checkout' ? (
               <TouchableOpacity onPress={handleClose} style={styles.closeBtn}>
-                <MaterialCommunityIcons name="close" size={20} color="#6B6B6B" />
+                <MaterialCommunityIcons name="close" size={18} color="#6B7280" />
               </TouchableOpacity>
             ) : null}
           </View>
@@ -440,94 +556,94 @@ export const FeeCheckoutView: React.FC<FeeCheckoutViewProps> = ({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
   card: {
     width: '100%',
-    maxWidth: 480,
+    maxWidth: 340,
     backgroundColor: '#FFFFFF',
-    borderRadius: BorderRadius.modal || 16,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E8E5DC',
+    borderColor: '#F3EFE8',
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#EFEDE6',
+    borderBottomColor: '#F3EFE8',
   },
-  headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  headerIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#F4C430',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: { fontSize: 15, fontWeight: '800', color: '#1A1B1C', fontFamily: FontFamily.bold },
-  headerSub: { fontSize: 11, color: '#6B6B6B', fontFamily: FontFamily.regular },
+  headerTitleRow: { flexDirection: 'row', alignItems: 'center' },
+  headerTitle: { fontSize: 16, fontWeight: '800', color: '#111827', fontFamily: FontFamily.bold },
+  headerSub: { fontSize: 12, color: '#6B7280', fontFamily: FontFamily.medium },
   closeBtn: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#F5F4EF',
+    backgroundColor: '#F3EFE8',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  body: { padding: 18 },
+  body: { padding: 16 },
   breakdownCard: {
-    backgroundColor: '#FBFAF6',
-    borderRadius: BorderRadius.card || 12,
+    backgroundColor: '#FFFDF7',
+    borderRadius: BorderRadius.card || 5,
     borderWidth: 1,
-    borderColor: '#EFEDE6',
+    borderColor: '#F6EEDB',
     padding: 14,
     gap: 8,
   },
-  breakdownLabel: { fontSize: 11, fontWeight: '700', color: '#6B6B6B', textTransform: 'uppercase' },
+  breakdownLabel: { fontSize: 11, fontWeight: '700', color: '#6B7280', textTransform: 'uppercase' },
   lineRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
-  lineTitle: { flex: 1, fontSize: 13, color: '#1A1B1C', fontFamily: FontFamily.regular },
-  lineAmount: { fontSize: 13, fontWeight: '700', color: '#1A1B1C' },
-  lineDivider: { height: 1, backgroundColor: '#EFEDE6', marginVertical: 2 },
+  lineTitle: { flex: 1, fontSize: 14, color: '#111827', fontFamily: FontFamily.medium },
+  lineAmount: { fontSize: 14, fontWeight: '700', color: '#000000', fontFamily: FontFamily.bold },
+  lineDivider: { height: 1, backgroundColor: '#F3EFE8', marginVertical: 2 },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  totalLabel: { fontSize: 13, fontWeight: '700', color: '#1A1B1C' },
-  totalAmount: { fontSize: 17, fontWeight: '800', color: '#1A1B1C' },
+  totalLabel: { fontSize: 14, fontWeight: '700', color: '#111827', fontFamily: FontFamily.bold },
+  totalAmount: { fontSize: 20, fontWeight: '800', color: '#000000', fontFamily: FontFamily.bold },
   payBtn: {
     marginTop: 14,
-    backgroundColor: '#1A1B1C',
-    borderRadius: 10,
+    backgroundColor: '#FDC836',
+    borderRadius: 5,
     paddingVertical: 14,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
+    shadowColor: '#D97706',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  payBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 15, fontFamily: FontFamily.bold },
+  payBtnText: { color: '#111827', fontWeight: '800', fontSize: 15, fontFamily: FontFamily.bold },
   secondaryBtn: {
     marginTop: 10,
-    borderRadius: 10,
+    borderRadius: 5,
     paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: '#D9D6CC',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F3EFE8',
   },
-  secondaryBtnText: { color: '#1A1B1C', fontWeight: '700', fontSize: 13 },
+  secondaryBtnText: { color: '#111827', fontWeight: '700', fontSize: 13, fontFamily: FontFamily.bold },
   methodsRow: { flexDirection: 'row', gap: 8, marginTop: 12, alignItems: 'flex-start' },
-  methodsText: { flex: 1, fontSize: 11, color: '#6B6B6B', lineHeight: 16, fontFamily: FontFamily.regular },
+  methodsText: { flex: 1, fontSize: 12, color: '#6B7280', lineHeight: 17, fontFamily: FontFamily.medium },
   offlineNote: {
     marginTop: 10,
-    fontSize: 11,
-    color: '#8A8A8A',
+    fontSize: 12,
+    color: '#6B7280',
     textAlign: 'center',
-    fontFamily: FontFamily.regular,
+    fontFamily: FontFamily.medium,
   },
   statusBox: { alignItems: 'center', paddingVertical: 14, gap: 8 },
   statusIcon: {
@@ -538,27 +654,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 4,
   },
-  statusTitle: { fontSize: 16, fontWeight: '800', color: '#1A1B1C', fontFamily: FontFamily.bold, textAlign: 'center' },
+  statusTitle: { fontSize: 16, fontWeight: '800', color: '#111827', fontFamily: FontFamily.bold, textAlign: 'center' },
   statusSub: {
-    fontSize: 12.5,
-    color: '#6B6B6B',
+    fontSize: 12,
+    color: '#6B7280',
     textAlign: 'center',
-    lineHeight: 19,
-    fontFamily: FontFamily.regular,
+    lineHeight: 18,
+    fontFamily: FontFamily.medium,
   },
   statusBtnRow: { flexDirection: 'row', gap: 10, width: '100%', marginTop: 8 },
   errorBox: {
     flexDirection: 'row',
     gap: 8,
     alignItems: 'flex-start',
-    backgroundColor: 'rgba(220,53,69,0.07)',
-    borderRadius: 10,
+    backgroundColor: '#FEF2F2',
+    borderRadius: 5,
     borderWidth: 1,
-    borderColor: 'rgba(220,53,69,0.25)',
+    borderColor: '#FECACA',
     padding: 10,
     marginTop: 12,
   },
-  errorText: { flex: 1, fontSize: 12, color: '#B02A37', lineHeight: 17, fontFamily: FontFamily.regular },
+  errorText: { flex: 1, fontSize: 12, color: '#B91C1C', lineHeight: 17, fontFamily: FontFamily.medium },
 });
 
 export default FeeCheckoutView;

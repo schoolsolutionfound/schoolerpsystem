@@ -1600,6 +1600,7 @@ export class AcademicsService {
     }
 
     let feeStructuresForClass: any[] = [];
+    let studentScopedFees: any[] = [];
     const paymentsByStudent = new Map<string, any[]>();
     if (db && studentIds.length > 0) {
       try {
@@ -1607,7 +1608,12 @@ export class AcademicsService {
           .select()
           .from(feeStructures)
           .where(andSql(eqSql(feeStructures.institutionCode, institutionCode), eqSql(feeStructures.status, 'active')));
-        feeStructuresForClass = structures.filter((s) => !s.classSectionId || s.classSectionId === classSectionId);
+        // Shared class/global fees only. Individual (student-scoped) fees are
+        // kept separate so they inflate only that student's dues.
+        feeStructuresForClass = structures.filter(
+          (s: any) => !s.studentId && (!s.classSectionId || s.classSectionId === classSectionId)
+        );
+        studentScopedFees = structures.filter((s: any) => s.studentId);
 
         const payments = await db
           .select()
@@ -1640,19 +1646,28 @@ export class AcademicsService {
         status: 'at_risk' as const,
       };
 
-      const studentPayments = (paymentsByStudent.get(s.id) || []).filter((payment) => feeIds.has(payment.feeStructureId));
+      const studentExtra = studentScopedFees.filter((f: any) => f.studentId === s.id);
+      const stTotalFee =
+        totalFee + studentExtra.reduce((sum: number, f: any) => sum + Number(f.amount || 0), 0);
+      const stFeeIds = new Set<string>([...feeIds, ...studentExtra.map((f: any) => f.id)]);
+      const stDueDate =
+        [dueDate, ...studentExtra.map((f: any) => f.dueDate).filter(Boolean)]
+          .filter((value: string): value is string => Boolean(value))
+          .sort()[0] || dueDate;
+
+      const studentPayments = (paymentsByStudent.get(s.id) || []).filter((payment) => stFeeIds.has(payment.feeStructureId));
       const paidFee = studentPayments
         .filter((payment) => payment.status === 'paid')
         .reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
-      const pendingFee = Math.max(0, totalFee - paidFee);
+      const pendingFee = Math.max(0, stTotalFee - paidFee);
       const feeStatus: 'paid' | 'partial' | 'pending' | 'overdue' =
-        totalFee === 0
+        stTotalFee === 0
           ? 'pending'
           : pendingFee === 0
             ? 'paid'
             : paidFee > 0
               ? 'partial'
-              : dueDate && new Date(dueDate) < new Date()
+              : stDueDate && new Date(stDueDate) < new Date()
                 ? 'overdue'
                 : 'pending';
       const cgpa = Number(sc.cgpa) || 0;
@@ -1682,11 +1697,11 @@ export class AcademicsService {
         institutionType: (classSection as any).institutionType || '',
         attendance,
         fees: {
-          totalFee,
+          totalFee: stTotalFee,
           paidFee,
           pendingFee,
           status: feeStatus,
-          dueDate,
+          dueDate: stDueDate,
         },
         academics: {
           cgpa,

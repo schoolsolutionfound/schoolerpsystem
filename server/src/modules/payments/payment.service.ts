@@ -136,9 +136,14 @@ export class PaymentService {
       throw httpError(400, 'FEE_NOT_FOUND', 'One or more selected fees are no longer available.');
     }
 
-    // 2. Class eligibility (same rule as the fee statement view).
+    // 2. Eligibility (same rule as the fee statement view): a student-scoped
+    // fee only applies to that student; otherwise class or global.
     const childClassId = await dbFindStudentClassSectionId(student.id).catch(() => undefined);
-    const eligible = structures.filter((s) => !s.classSectionId || s.classSectionId === childClassId);
+    const eligible = structures.filter((s: any) =>
+      s.studentId
+        ? s.studentId === student.id
+        : !s.classSectionId || s.classSectionId === childClassId
+    );
     if (eligible.length !== feeIds.length) {
       throw httpError(400, 'FEE_NOT_ELIGIBLE', 'One or more selected fees do not apply to this student.');
     }
