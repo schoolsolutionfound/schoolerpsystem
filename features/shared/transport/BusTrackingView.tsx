@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -15,6 +14,7 @@ import {
 } from '../../../api/transport';
 import { FontFamily } from '../../../constants/fonts';
 import { BusMap } from '../maps/BusMap';
+import { BusTrackingSkeleton } from './BusTrackingSkeleton';
 
 interface BusTrackingViewProps {
   audience: 'student' | 'parent';
@@ -141,12 +141,7 @@ export const BusTrackingView: React.FC<BusTrackingViewProps> = ({ audience }) =>
   }, [load]);
 
   if (loading) {
-    return (
-      <View style={styles.loadingWrap}>
-        <ActivityIndicator size="large" color="#F4C430" />
-        <Text style={styles.loadingText}>Connecting to the bus...</Text>
-      </View>
-    );
+    return <BusTrackingSkeleton />;
   }
 
   const isLive = !!data?.isLive && !!data?.location;
@@ -273,8 +268,6 @@ export const BusTrackingView: React.FC<BusTrackingViewProps> = ({ audience }) =>
 const styles = StyleSheet.create({
   scrollContent: { flexGrow: 1 },
   root: { flex: 1, backgroundColor: '#FAF8F5', padding: 12, gap: 12 },
-  loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 },
-  loadingText: { fontSize: 13, fontFamily: FontFamily.medium, color: '#6B7280' },
 
   mapPlaceholder: {
     height: 300,

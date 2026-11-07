@@ -7,7 +7,16 @@ const getBaseUrl = (): string => {
   // 1. Explicit API URL defined in .env always wins, including on web.
   const configuredUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
   if (configuredUrl) {
-    return configuredUrl.replace(/\/+$/, '');
+    const trimmed = configuredUrl.replace(/\/+$/, '');
+    try {
+      const parsed = new URL(trimmed);
+      if (!/\/api(\/|$)/i.test(parsed.pathname)) {
+        return `${trimmed}/api/v1`;
+      }
+    } catch {
+      // Relative or non-absolute URL: use exactly what was configured.
+    }
+    return trimmed;
   }
 
   // 2. Web: local dev talks to the same host on port 5000; deployed web
