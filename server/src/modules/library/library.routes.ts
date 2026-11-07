@@ -36,6 +36,7 @@ import {
   updateMemberHandler,
   getMemberDetailsHandler,
   getDashboardStatsHandler,
+  getMyLibraryHandler,
 } from './library.controller.js';
 import { authenticate, requireLibraryStaff } from '../shared/middleware/auth.js';
 
@@ -75,6 +76,7 @@ export async function libraryRoutes(fastify: FastifyInstance) {
   fastify.delete('/copies/:id', { preHandler: [requireLibraryStaff] }, (req: any, reply) => deleteCopyHandler(req, reply));
 
   // Loans / Circulation (PII — staff only, incl. reads)
+  fastify.get('/me', { preHandler: [authenticate] }, (req, reply) => getMyLibraryHandler(req, reply));
   fastify.get('/loans', { preHandler: [requireLibraryStaff] }, (req, reply) => listLoansHandler(req, reply));
   fastify.post('/loans/issue', { preHandler: [requireLibraryStaff] }, (req, reply) => issueBookHandler(req, reply));
   fastify.post('/loans/:id/return', { preHandler: [requireLibraryStaff] }, (req: any, reply) => returnBookHandler(req, reply));

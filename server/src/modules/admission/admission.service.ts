@@ -192,7 +192,13 @@ export class AdmissionService {
   public async deleteCourse(institutionCode: string, id: string) {
     if (!db) throw new Error('Database connection required');
 
-    // Check if any students are allocated or confirmed
+    const course = await db.query.admissionCourses.findFirst({
+      where: and(eq(admissionCourses.institutionCode, institutionCode), eq(admissionCourses.id, id)),
+    });
+    if (!course) {
+      throw { statusCode: 404, code: 'NOT_FOUND', message: 'Course not found.' };
+    }
+
     const activeStudent = await db.query.admissionApplications.findFirst({
       where: and(
         eq(admissionApplications.institutionCode, institutionCode),
@@ -208,6 +214,17 @@ export class AdmissionService {
         message: 'Cannot delete course with active allocated or confirmed students.',
       };
     }
+
+    // Waiting-list applicants keep `preferredCourseId`, which would dangle.
+    await db
+      .update(admissionApplications)
+      .set({ preferredCourseId: null, updatedAt: new Date() })
+      .where(
+        and(
+          eq(admissionApplications.institutionCode, institutionCode),
+          eq(admissionApplications.preferredCourseId, id)
+        )
+      );
 
     await db
       .delete(admissionCourses)
@@ -357,7 +374,10 @@ export class AdmissionService {
     let preferredCourseName = payload.preferredCourseName || '';
     if (payload.preferredCourseId && !preferredCourseName) {
       const course = await db.query.admissionCourses.findFirst({
-        where: eq(admissionCourses.id, payload.preferredCourseId),
+        where: and(
+          eq(admissionCourses.institutionCode, institutionCode),
+          eq(admissionCourses.id, payload.preferredCourseId)
+        ),
       });
       if (course) preferredCourseName = course.courseName;
     }

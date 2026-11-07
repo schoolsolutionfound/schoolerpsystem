@@ -68,6 +68,7 @@ import { LibrarianProfileView as ProfileView } from '../../features/librarian/co
 import { NotificationsView } from '../../features/librarian/components/notifications/NotificationsView';
 import { AdminAnnouncementsView } from '../../features/announcements';
 import { LibraryPageSkeleton } from '../../features/librarian/components/common/LibrarySkeletons';
+import { ConfirmDialog } from '../../features/shared/components/layout/ConfirmDialog';
 
 const BOTTOM_TABS = [
   { key: 'dashboard', label: 'Dashboard', icon: 'home-outline', iconFilled: 'home', isAccount: false },
@@ -223,15 +224,15 @@ export default function LibrarianHomeScreen() {
     router.replace('/auth');
   };
 
+  const [logoutConfirmVisible, setLogoutConfirmVisible] = useState(false);
+
   const handleLogout = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to log out of Librarian Portal?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: logoutNow,
-      },
-    ]);
+    setLogoutConfirmVisible(true);
+  };
+
+  const confirmLogout = () => {
+    setLogoutConfirmVisible(false);
+    logoutNow();
   };
 
   const handleDeleteBook = (bookId: string) => {
@@ -904,6 +905,14 @@ export default function LibrarianHomeScreen() {
         />
 
       </SafeAreaView>
+      <ConfirmDialog
+        visible={logoutConfirmVisible}
+        title="Sign Out"
+        message="Are you sure you want to log out of Librarian Portal?"
+        confirmLabel="Sign Out"
+        onConfirm={confirmLogout}
+        onCancel={() => setLogoutConfirmVisible(false)}
+      />
     </View>
   );
 }

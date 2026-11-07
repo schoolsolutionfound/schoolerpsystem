@@ -19,6 +19,7 @@ import { useUserStore } from '../../store/useUserStore';
 import { uploadProfilePictureApi } from '../../api/upload';
 import { getProfileApi, updateMyProfileApi } from '../../api/users';
 import { FontFamily } from '../../constants/fonts';
+import { ConfirmDialog } from '../../features/shared/components/layout/ConfirmDialog';
 
 export default function StudentProfileScreen() {
   const router = useRouter();
@@ -57,21 +58,19 @@ export default function StudentProfileScreen() {
     }
   }, [setUserProfile]);
 
+  const [logoutConfirmVisible, setLogoutConfirmVisible] = useState(false);
+
   const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to log out?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await signOut(auth);
-          } catch {}
-          resetUser();
-          router.replace('/auth');
-        },
-      },
-    ]);
+    setLogoutConfirmVisible(true);
+  };
+
+  const confirmLogout = async () => {
+    setLogoutConfirmVisible(false);
+    try {
+      await signOut(auth);
+    } catch {}
+    resetUser();
+    router.replace('/auth');
   };
 
   const handlePickPhoto = async () => {
@@ -258,6 +257,14 @@ export default function StudentProfileScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+      <ConfirmDialog
+        visible={logoutConfirmVisible}
+        title="Logout"
+        message="Are you sure you want to log out?"
+        confirmLabel="Logout"
+        onConfirm={confirmLogout}
+        onCancel={() => setLogoutConfirmVisible(false)}
+      />
     </View>
   );
 }

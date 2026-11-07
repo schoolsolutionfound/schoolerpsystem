@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { and, count, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, or, sql } from 'drizzle-orm';
 import * as schema from './schema.js';
 import { invalidateCachedAuth } from '../middleware/authCache.js';
 
@@ -279,7 +279,26 @@ export async function dbFindUserByIdOrUid(identifier: string): Promise<InMemoryU
 }
 
 /**
- * Scoped users query — filters by institution (and optional role) in SQL,
+ * Batch lookup by DB id OR Firebase uid. Used to enrich lists (e.g. timetable
+ * slots) without firing one query per row.
+ */
+export async function dbFindUsersByIdsOrUids(identifiers: string[]): Promise<InMemoryUser[]> {
+  const ids = Array.from(new Set(identifiers.filter(Boolean)));
+  if (ids.length === 0) return [];
+  if (db) {
+    const rows = await db
+      .select()
+      .from(schema.users)
+      .where(or(inArray(schema.users.id, ids), inArray(schema.users.firebaseUid, ids)));
+    return rows.map(mapUserRow);
+  }
+  return inMemoryUserStore
+    .getAll()
+    .filter((u) => ids.includes(u.id) || ids.includes(u.firebaseUid));
+}
+
+/**
+ * Scoped users query �?" filters by institution (and optional role) in SQL,
  * with pagination. Never full-table scans.
  */
 export async function dbFindUsersByInstitution(

@@ -28,7 +28,6 @@ import { useFinanceStore } from '../store/useFinanceStore';
 import { IncomeCategory, IncomeRecord, PaymentMethod, PaymentStatus } from '../types/finance';
 import {
   getIncomeCategoryLabel,
-  getIncomeCategoryColor,
   formatINR,
 } from '../utils/financeUtils';
 import { showAlert } from '../../shared/utils/showAlert';
@@ -208,7 +207,6 @@ export const IncomeManagementView: React.FC = () => {
             )
           }
         >
-          <MaterialCommunityIcons name="plus" size={18} color="#171717" />
           <Text style={sharedFinanceStyles.addBtnText}>Record Income</Text>
         </TouchableOpacity>
       </View>
@@ -274,91 +272,84 @@ export const IncomeManagementView: React.FC = () => {
           </View>
         ) : (
           filteredRecords.map((item) => {
-            const catBadge = getIncomeCategoryColor(item.category);
             const isPaid = item.status === 'paid';
 
             return (
-              <View key={item.id} style={sharedFinanceStyles.cardItem}>
-                {/* Header: Icon + Category Badge + Amount */}
-                <View style={sharedFinanceStyles.cardHeaderRow}>
-                  <View style={sharedFinanceStyles.cardHeaderLeft}>
-                    <View style={[sharedFinanceStyles.iconBox, { backgroundColor: catBadge.bg }]}>
-                      <MaterialCommunityIcons
-                        name={
-                          item.category === 'student_fee'
-                            ? 'school'
-                            : item.category === 'bus_fee'
-                              ? 'bus'
-                              : item.category === 'hostel_fee'
-                                ? 'home-city'
-                                : 'cash-multiple'
-                        }
-                        size={18}
-                        color={catBadge.text}
-                      />
-                    </View>
-                    <View style={[sharedFinanceStyles.catChip, { backgroundColor: catBadge.bg }]}>
-                      <Text style={[sharedFinanceStyles.catChipText, { color: catBadge.text }]}>
-                        {getIncomeCategoryLabel(item.category)}
+              <View key={item.id} style={styles.incCard}>
+                {/* Header: Title + status | Amount */}
+                <View style={styles.incHeaderRow}>
+                  <View style={styles.incHeaderLeft}>
+                    <View style={styles.incTitleRow}>
+                      <Text style={styles.incTitle} numberOfLines={1}>
+                        {item.title}
                       </Text>
+                      <View
+                        style={[
+                          styles.incStatusBadge,
+                          isPaid ? styles.incBadgeGreen : styles.incBadgeRed,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.incStatusText,
+                            isPaid ? styles.incStatusTextGreen : styles.incStatusTextRed,
+                          ]}
+                        >
+                          {item.status.toUpperCase()}
+                        </Text>
+                      </View>
                     </View>
-                  </View>
-
-                  <Text style={[sharedFinanceStyles.itemAmount, styles.incomeAmount]}>
-                    +{formatINR(item.amount)}
-                  </Text>
-                </View>
-
-                {/* Title */}
-                <Text style={sharedFinanceStyles.cardTitle}>{item.title}</Text>
-
-                {/* Payer Info */}
-                <Text style={sharedFinanceStyles.payerRow}>
-                  Payer: <Text style={sharedFinanceStyles.boldPayer}>{item.payerName}</Text>
-                  {item.studentId ? ` (${item.studentId})` : ''}
-                  {item.classSection ? ` • ${item.classSection}` : ''}
-                </Text>
-
-                {/* Meta details */}
-                <Text style={sharedFinanceStyles.metaRow}>
-                  Date: {item.paymentDate} • Mode: {methodLabel(item.paymentMethod)} • Receipt:{' '}
-                  {item.receiptNo || '—'}
-                </Text>
-
-                {/* Action Footer */}
-                <View style={sharedFinanceStyles.cardFooterRow}>
-                  <View style={[sharedFinanceStyles.statusTag, isPaid ? sharedFinanceStyles.statusPaid : sharedFinanceStyles.statusPending]}>
-                    <Text style={[sharedFinanceStyles.statusText, isPaid ? sharedFinanceStyles.statusTextPaid : sharedFinanceStyles.statusTextPending]}>
-                      {item.status.toUpperCase()}
+                    <Text style={styles.incSub} numberOfLines={1}>
+                      Payer: <Text style={styles.incSubBold}>{item.payerName}</Text>
+                      {item.studentId ? ` • ${item.studentId}` : ''}
+                      {item.classSection ? ` • ${item.classSection}` : ''}
                     </Text>
                   </View>
+                  <Text style={styles.incAmount}>+{formatINR(item.amount)}</Text>
+                </View>
 
-                  <View style={sharedFinanceStyles.actionIconsGroup}>
-                    <TouchableOpacity
-                      style={sharedFinanceStyles.actionIconBtn}
-                      onPress={() => handleOpenEdit(item)}
-                    >
-                      <MaterialCommunityIcons name="pencil-outline" size={14} color="#171717" />
-                      <Text style={[sharedFinanceStyles.actionIconBtnText, { color: '#171717' }]}>Update</Text>
-                    </TouchableOpacity>
-
-                    {isPaid && item.receiptNo ? (
-                      <TouchableOpacity
-                        style={sharedFinanceStyles.actionIconBtn}
-                        onPress={() => setSelectedReceipt(item)}
-                      >
-                        <MaterialCommunityIcons name="file-document-outline" size={14} color="#B8860B" />
-                        <Text style={[sharedFinanceStyles.actionIconBtnText, { color: '#B8860B' }]}>Receipt</Text>
-                      </TouchableOpacity>
-                    ) : null}
-
-                    <TouchableOpacity
-                      style={sharedFinanceStyles.actionIconBtn}
-                      onPress={() => deleteIncome(item.id)}
-                    >
-                      <MaterialCommunityIcons name="trash-can-outline" size={14} color="#DC3545" />
-                    </TouchableOpacity>
+                {/* Meta row with icons */}
+                <View style={styles.incMetaRow}>
+                  <View style={styles.incMetaItem}>
+                    <MaterialCommunityIcons name="calendar-outline" size={13} color="#6B7280" />
+                    <Text style={styles.incMetaText}>{item.paymentDate}</Text>
                   </View>
+                  <View style={styles.incMetaItem}>
+                    <MaterialCommunityIcons name="cash-multiple" size={13} color="#6B7280" />
+                    <Text style={styles.incMetaText}>{methodLabel(item.paymentMethod)}</Text>
+                  </View>
+                  <View style={styles.incMetaItem}>
+                    <MaterialCommunityIcons name="file-document-outline" size={13} color="#6B7280" />
+                    <Text style={styles.incMetaText}>{item.receiptNo || '—'}</Text>
+                  </View>
+                </View>
+
+                {/* Action footer */}
+                <View style={styles.incActionRow}>
+                  <TouchableOpacity
+                    style={styles.incActionBtn}
+                    onPress={() => handleOpenEdit(item)}
+                  >
+                    <MaterialCommunityIcons name="pencil-outline" size={15} color="#171717" />
+                    <Text style={styles.incActionBtnText}>Update</Text>
+                  </TouchableOpacity>
+
+                  {isPaid && item.receiptNo ? (
+                    <TouchableOpacity
+                      style={styles.incActionBtn}
+                      onPress={() => setSelectedReceipt(item)}
+                    >
+                      <MaterialCommunityIcons name="file-document-outline" size={15} color="#171717" />
+                      <Text style={styles.incActionBtnText}>Receipt</Text>
+                    </TouchableOpacity>
+                  ) : null}
+
+                  <TouchableOpacity
+                    style={[styles.incActionBtn, styles.incActionBtnDanger]}
+                    onPress={() => deleteIncome(item.id)}
+                  >
+                    <MaterialCommunityIcons name="trash-can-outline" size={15} color="#DC2626" />
+                  </TouchableOpacity>
                 </View>
               </View>
             );
@@ -653,13 +644,87 @@ export const IncomeManagementView: React.FC = () => {
 
 const styles = StyleSheet.create({
   addBtnIncome: { backgroundColor: '#F4C430' },
-  incomeAmount: { color: '#16A34A' },
   submitBtnIncome: { backgroundColor: '#171717' },
   radioBtnActiveIncome: { backgroundColor: '#171717', borderColor: '#171717' },
   radioBtnActivePending: { backgroundColor: '#D97706', borderColor: '#D97706' },
   receiptTotalBox: { backgroundColor: '#DCFCE7' },
   receiptTotalVal: { color: '#16A34A' },
   closeReceiptBtn: { backgroundColor: '#171717' },
+
+  // Income list card (librarian list-card language)
+  incCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  incHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  incHeaderLeft: { flex: 1, gap: 2 },
+  incTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  incTitle: { fontSize: 14, fontWeight: '800', color: '#171717', flexShrink: 1 },
+  incSub: { fontSize: 11, color: '#6B7280' },
+  incSubBold: { fontWeight: '700', color: '#171717' },
+  incAmount: { fontSize: 18, fontWeight: '800', color: '#16A34A' },
+  incStatusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 5,
+    borderWidth: 1,
+  },
+  incBadgeGreen: { backgroundColor: '#D1FAE5', borderColor: '#026440' },
+  incBadgeRed: { backgroundColor: '#FEE2E2', borderColor: '#FECACA' },
+  incStatusText: { fontSize: 10, fontWeight: '800' },
+  incStatusTextGreen: { color: '#026440' },
+  incStatusTextRed: { color: '#DC2626' },
+  incMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flexWrap: 'wrap',
+    paddingTop: 4,
+  },
+  incMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  incMetaText: { fontSize: 11, color: '#6B7280' },
+  incActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  incActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    backgroundColor: '#FFFFFF',
+  },
+  incActionBtnText: { fontSize: 12, fontWeight: '700', color: '#171717' },
+  incActionBtnDanger: { backgroundColor: '#FEF2F2', borderColor: '#FECACA' },
 
   // Summary strip
   summaryCard: {

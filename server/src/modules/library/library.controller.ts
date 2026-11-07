@@ -1,5 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { libraryService } from './library.service.js';
+import { dbFindUserByIdOrUid } from '../shared/db/index.js';
+import { getPrimaryParentChild } from '../users/parent-links.js';
 import {
   CreateBookSchema,
   UpdateBookSchema,
@@ -413,6 +415,40 @@ export async function getMemberDetailsHandler(request: FastifyRequest<{ Params: 
     return reply.send({ success: true, data });
   } catch (err) {
     return sendError(reply, err, 'Failed to fetch member details');
+  }
+}
+
+/**
+ * Self-service view: a student sees their own loans/fines; a parent sees the
+ * same for each linked child. Staff member lookups stay behind
+ * `requireLibraryStaff`.
+ */
+export async function getMyLibraryHandler(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const user: any = (request as any).user || {};
+    const instCode = getInstCode(request);
+    const self = await dbFindUserByIdOrUid(user.uid || getUserId(request));
+    if (!self) return reply.send({ success: true, data: [] });
+
+    const memberIds: string[] = [];
+    if (self.role === 'parent') {
+      const link = await getPrimaryParentChild(self.id);
+      if (link) memberIds.push(link.studentId);
+    } else if (self.role === 'student') {
+      memberIds.push(self.id);
+    }
+
+    const data = [];
+    for (const id of memberIds) {
+      const details = await libraryService.getMemberDetails(instCode, id).catch((err) => {
+        if (err?.statusCode === 404) return null;
+        throw err;
+      });
+      if (details) data.push(details);
+    }
+    return reply.send({ success: true, data });
+  } catch (err) {
+    return sendError(reply, err, 'Failed to fetch your library account');
   }
 }
 

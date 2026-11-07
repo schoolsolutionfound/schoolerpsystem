@@ -1,4 +1,4 @@
-import { eq, and, desc, sql, gte, lte, inArray, count } from 'drizzle-orm';
+import { eq, and, or, isNull, desc, sql, gte, lte, inArray, count } from 'drizzle-orm';
 import { db } from '../shared/db/index.js';
 import {
   academicSessions,
@@ -242,10 +242,10 @@ export class AcademicsRepository {
     return record;
   }
 
-  public async updateAcademicSession(id: string, data: any): Promise<AcademicSessionRecord | undefined> {
-    if (db) {
+  public async updateAcademicSession(id: string, data: any, executor?: any): Promise<AcademicSessionRecord | undefined> {
+    if (executor || db) {
       try {
-        const [row] = await db
+        const [row] = await (executor || db)!
           .update(academicSessions)
           .set({ ...data, updatedAt: new Date() })
           .where(eq(academicSessions.id, id))
@@ -265,10 +265,10 @@ export class AcademicsRepository {
     return academicSessionMem.save({ ...existing, ...data, updatedAt: new Date() });
   }
 
-  public async setAllSessionsNotCurrent(institutionCode: string): Promise<void> {
-    if (db) {
+  public async setAllSessionsNotCurrent(institutionCode: string, executor?: any): Promise<void> {
+    if (executor || db) {
       try {
-        await db
+        await (executor || db)!
           .update(academicSessions)
           .set({ isCurrent: false, updatedAt: new Date() })
           .where(eq(academicSessions.institutionCode, institutionCode));
@@ -373,7 +373,7 @@ export class AcademicsRepository {
     if (db) {
       const [inserted] = await db.insert(classSections).values(record).onConflictDoNothing().returning();
       if (inserted) return toClassSection(inserted);
-      return record;
+      throw { statusCode: 409, code: 'DUPLICATE_CLASS_SECTION', message: `Class/section "${record.name}" already exists` };
     }
     classSectionMem.save(record);
     return record;
@@ -397,6 +397,45 @@ export class AcademicsRepository {
       updatedAt: new Date(),
     } as ClassSectionRecord;
     classSectionMem.save(updated);
+    return updated;
+  }
+
+  /**
+   * Link class/section rows that predate an academic session (or were seeded
+   * without one) to the given session. Idempotent: only blank/NULL links are
+   * touched, so already-linked sections are never overwritten.
+   */
+  public async backfillClassSectionSession(
+    institutionCode: string,
+    sessionId: string,
+    executor?: any
+  ): Promise<number> {
+    if (!institutionCode || !sessionId) return 0;
+    const q = executor ?? db;
+    if (q) {
+      const rows = await q
+        .update(classSections)
+        .set({ sessionId, updatedAt: new Date() })
+        .where(
+          and(
+            sql`lower(${classSections.institutionCode}) = lower(${institutionCode})`,
+            or(isNull(classSections.sessionId), eq(classSections.sessionId, ''))
+          )
+        )
+        .returning({ id: classSections.id });
+      return rows.length;
+    }
+    let updated = 0;
+    classSectionMem
+      .filter(
+        (r) =>
+          (r.institutionCode || '').toLowerCase() === institutionCode.toLowerCase() &&
+          !r.sessionId
+      )
+      .forEach((r) => {
+        classSectionMem.save({ ...r, sessionId, updatedAt: new Date() });
+        updated++;
+      });
     return updated;
   }
 
@@ -438,6 +477,22 @@ export class AcademicsRepository {
       }
     }
     return subjectMem.getById(id);
+  }
+
+  public async getSubjectsByIds(ids: string[]): Promise<SubjectRecord[]> {
+    const unique = Array.from(new Set(ids.filter(Boolean)));
+    if (unique.length === 0) return [];
+    if (db) {
+      try {
+        const rows = await db.select().from(subjects).where(inArray(subjects.id, unique));
+        const recs = rows.map(toSubject);
+        recs.forEach((r) => subjectMem.save(r));
+        return recs;
+      } catch (err: any) {
+        console.warn('[PostgreSQL Academics Warning] getSubjectsByIds failed:', err.message);
+      }
+    }
+    return unique.map((id) => subjectMem.getById(id)).filter(Boolean) as SubjectRecord[];
   }
 
   public async createSubject(data: any): Promise<SubjectRecord> {
@@ -621,6 +676,22 @@ export class AcademicsRepository {
     return periodMem.getById(id);
   }
 
+  public async getPeriodsByIds(ids: string[]): Promise<PeriodRecord[]> {
+    const unique = Array.from(new Set(ids.filter(Boolean)));
+    if (unique.length === 0) return [];
+    if (db) {
+      try {
+        const rows = await db.select().from(periods).where(inArray(periods.id, unique));
+        const recs = rows.map(toPeriod);
+        recs.forEach((r) => periodMem.save(r));
+        return recs;
+      } catch (err: any) {
+        console.warn('[PostgreSQL Academics Warning] getPeriodsByIds failed:', err.message);
+      }
+    }
+    return unique.map((id) => periodMem.getById(id)).filter(Boolean) as PeriodRecord[];
+  }
+
   public async createPeriod(data: any): Promise<PeriodRecord> {
     const record: PeriodRecord = {
       id: data.id || `per_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -708,6 +779,9 @@ export class AcademicsRepository {
           .select()
           .from(timetables)
           .where(and(eq(timetables.classSectionId, classSectionId), sql`${timetables.effectiveFrom} <= ${dateISO.toISOString().slice(0, 10)}`))
+          // Among versions sharing the same effective date, the newest applies
+          // from that date on; earlier dates must resolve to the older one, so
+          // callers pass their own cutoff where a strict boundary is needed.
           .orderBy(desc(timetables.version))
           .limit(1);
         if (rows.length > 0) {
@@ -737,6 +811,36 @@ export class AcademicsRepository {
       }
     }
     return timetableMem.filter((r) => r.institutionCode.toLowerCase() === institutionCode.toLowerCase());
+  }
+
+  public async listEffectiveTimetablesThrough(institutionCode: string, dateStr: string): Promise<TimetableRecord[]> {
+    if (db) {
+      try {
+        const rows = await db
+          .select()
+          .from(timetables)
+          .where(and(eq(timetables.institutionCode, institutionCode), sql`${timetables.effectiveFrom} <= ${dateStr}`))
+          .orderBy(desc(timetables.version));
+        rows.forEach((r) => timetableMem.save(toTimetable(r)));
+        return rows;
+      } catch (err: any) {
+        console.warn('[PostgreSQL Academics Warning] listEffectiveTimetablesThrough failed:', err.message);
+      }
+    }
+    return timetableMem.filter((r) => r.institutionCode.toLowerCase() === institutionCode.toLowerCase() && r.effectiveFrom <= dateStr);
+  }
+
+  public async listSlotsForInstitution(institutionCode: string): Promise<TimetableSlotRecord[]> {
+    if (db) {
+      try {
+        const rows = await db.select().from(timetableSlots).where(eq(timetableSlots.institutionCode, institutionCode));
+        rows.forEach((r) => timetableSlotMem.save(toTimetableSlot(r)));
+        return rows;
+      } catch (err: any) {
+        console.warn('[PostgreSQL Academics Warning] listSlotsForInstitution failed:', err.message);
+      }
+    }
+    return timetableSlotMem.filter((r) => Boolean(r.classSectionId) && r.dayOfWeek !== undefined);
   }
 
   public async getMaxTimetableVersion(classSectionId: string): Promise<number> {
@@ -809,15 +913,23 @@ export class AcademicsRepository {
     return timetableSlotMem.getById(id);
   }
 
-  public async listSlotsForTeacherOnDay(teacherId: string, dayOfWeek: number): Promise<TimetableSlotRecord[]> {
+  public async listSlotsForTeacherOnDay(
+    teacherId: string,
+    dayOfWeek: number,
+    onDate?: string
+  ): Promise<TimetableSlotRecord[]> {
     if (db) {
       try {
+        const conditions = [eq(timetableSlots.teacherId, teacherId), eq(timetableSlots.dayOfWeek, dayOfWeek)];
+        if (onDate) conditions.push(sql`${timetables.effectiveFrom} <= ${onDate}`);
         const rows = await db
-          .select()
+          .select({ slot: timetableSlots })
           .from(timetableSlots)
-          .where(and(eq(timetableSlots.teacherId, teacherId), eq(timetableSlots.dayOfWeek, dayOfWeek)));
-        rows.forEach((r) => timetableSlotMem.save(toTimetableSlot(r)));
-        return rows;
+          .innerJoin(timetables, eq(timetables.id, timetableSlots.timetableId))
+          .where(and(...conditions));
+        const records = rows.map((r) => toTimetableSlot(r.slot));
+        records.forEach((r) => timetableSlotMem.save(r));
+        return records;
       } catch (err: any) {
         console.warn('[PostgreSQL Academics Warning] listSlotsForTeacherOnDay failed:', err.message);
       }

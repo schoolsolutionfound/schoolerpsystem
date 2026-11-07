@@ -125,11 +125,14 @@ export type CreateUserInput = z.infer<typeof CreateUserSchema>;
 
 // --- POST /admin/bulk-create (CSV bulk import: one role per request) ---
 
+// Per-row shape is intentionally loose: the service validates each row and
+// reports `errors: [{ row, message }]`, so one malformed CSV cell must not
+// reject the whole upload.
 export const BulkCreateRecordSchema = z.object({
-  firstName: z.string().trim().min(1, 'firstName is required').max(100),
-  lastName: z.string().trim().min(1, 'lastName is required').max(100),
-  email: z.string().trim().toLowerCase().email('Invalid email address').max(255),
-  phone: phoneLike.optional(),
+  firstName: z.string().trim().max(100).optional().default(''),
+  lastName: z.string().trim().max(100).optional().default(''),
+  email: z.string().trim().toLowerCase().max(255).optional().default(''),
+  phone: z.string().trim().max(30).optional(),
   password: z.string().max(100).optional(),
   rollNoOrUSN: z.string().trim().max(100).optional(),
   department: z.string().trim().max(100).optional(),
@@ -139,11 +142,11 @@ export const BulkCreateRecordSchema = z.object({
   /** parent only — Father | Mother | Guardian */
   relation: z.string().trim().max(20).optional(),
   /** parent only — student email addresses to link */
-  childEmails: z.array(z.string().trim().toLowerCase().email()).max(20).optional(),
+  childEmails: z.array(z.string().trim().toLowerCase().max(255)).max(20).optional(),
   /** admission_officer only */
   categoryName: z.string().trim().max(100).optional(),
   /** admission_officer only */
-  seats: z.number().int().min(0).max(1000000).optional(),
+  seats: z.coerce.number().int().min(0).max(1000000).optional(),
 });
 
 export const BulkCreateUsersSchema = z.object({

@@ -1,4 +1,4 @@
-import { db } from '../shared/db/index.js';
+import { db, dbFindUserByIdOrUid } from '../shared/db/index.js';
 import { counselingRecords, CounselingRecordEntity, NewCounselingRecordEntity } from '../shared/db/schema.js';
 import { eq, and, desc } from 'drizzle-orm';
 
@@ -48,6 +48,8 @@ export class CounselingService {
     input: CreateCounselingInput
   ): Promise<CounselingRecordEntity> {
     const database = getDb();
+    // `fk_counseling_counselor` references `users(institution_code, firebase_uid)`.
+    const counselor = await dbFindUserByIdOrUid(input.counselorId);
     const [created] = await database
       .insert(counselingRecords)
       .values({
@@ -55,8 +57,8 @@ export class CounselingService {
         studentId: input.studentId,
         studentName: input.studentName,
         gradeSection: input.gradeSection || '',
-        counselorId: input.counselorId,
-        counselorName: input.counselorName,
+        counselorId: counselor?.firebaseUid || input.counselorId,
+        counselorName: input.counselorName || counselor?.fullName || '',
         concernCategory: input.concernCategory,
         severity: input.severity || 'medium',
         actionPlan: input.actionPlan || '',

@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, StyleSheet, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, StyleSheet, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { performLogout } from '../../utils/logout';
@@ -9,6 +9,7 @@ import { useUserStore } from '../../store/useUserStore';
 import { BorderRadius } from '../../constants/theme';
 import { ProfileCustomFields } from '../../features/shared/formFields/ProfileCustomFields';
 import { useProfileCustomFields } from '../../features/shared/formFields/useProfileCustomFields';
+import { ConfirmDialog } from '../../features/shared/components/layout/ConfirmDialog';
 
 export default function HODProfileScreen() {
   const router = useRouter();
@@ -22,16 +23,17 @@ export default function HODProfileScreen() {
   const resetUser = useUserStore((s) => s.resetUser);
   const { fields: roleFields, values: roleFieldValues, save: saveRoleFields } = useProfileCustomFields();
 
+  const [logoutConfirmVisible, setLogoutConfirmVisible] = useState(false);
+
   const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to log out?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Logout', style: 'destructive', onPress: async () => {
-          await performLogout();
-          resetUser();
-          router.replace('/auth');
-        },
-      },
-    ]);
+    setLogoutConfirmVisible(true);
+  };
+
+  const confirmLogout = async () => {
+    setLogoutConfirmVisible(false);
+    await performLogout();
+    resetUser();
+    router.replace('/auth');
   };
 
   return (
@@ -116,6 +118,14 @@ export default function HODProfileScreen() {
           </View>
         </ScrollView>
       </SafeAreaView>
+      <ConfirmDialog
+        visible={logoutConfirmVisible}
+        title="Logout"
+        message="Are you sure you want to log out?"
+        confirmLabel="Logout"
+        onConfirm={confirmLogout}
+        onCancel={() => setLogoutConfirmVisible(false)}
+      />
     </View>
   );
 }

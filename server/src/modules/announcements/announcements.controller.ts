@@ -55,7 +55,7 @@ export async function createAnnouncementHandler(request: FastifyRequest, reply: 
       department: body.department,
       priority: body.priority,
       authorId: user.uid,
-      authorName: user.name || body.author || 'School Administration',
+      authorName: (request as any).dbUser?.fullName || body.author || 'School Administration',
       authorRole: user.role,
     });
 

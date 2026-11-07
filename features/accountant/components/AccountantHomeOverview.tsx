@@ -10,7 +10,6 @@
 
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { formatINR } from '../utils/financeUtils';
 import { FontFamily } from '../../../constants/fonts';
@@ -174,13 +173,6 @@ export const AccountantHomeOverview: React.FC<AccountantHomeOverviewProps> = ({
               key={item.id}
               style={[styles.activityRow, idx < recent.length - 1 && styles.activityRowDivider]}
             >
-              <View style={[styles.activityIcon, { backgroundColor: item.dir === 'in' ? '#DCFCE7' : '#FEE2E2' }]}>
-                <MaterialCommunityIcons
-                  name={item.dir === 'in' ? 'arrow-bottom-left' : 'arrow-top-right'}
-                  size={16}
-                  color={item.dir === 'in' ? '#16A34A' : '#DC3545'}
-                />
-              </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.activityTitle} numberOfLines={1}>{item.title}</Text>
                 <Text style={styles.activityMeta} numberOfLines={1}>
@@ -318,13 +310,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   activityRowDivider: { borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
-  activityIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   activityTitle: { fontSize: 13, fontFamily: FontFamily.bold, color: '#111827' },
   activityMeta: { fontSize: 11, fontFamily: FontFamily.regular, color: '#6B7280', marginTop: 1 },
   activityAmount: { fontSize: 13, fontFamily: FontFamily.bold },

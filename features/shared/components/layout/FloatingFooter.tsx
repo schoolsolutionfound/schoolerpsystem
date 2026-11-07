@@ -38,7 +38,7 @@ export function FloatingFooter<T extends string>({
           if (isCenter) {
             return (
               <TouchableOpacity
-                key={tab.key}
+                key={`center-${tab.key}`}
                 style={styles.centerBtnWrap}
                 onPress={() => onTabPress(tab.key)}
                 activeOpacity={0.85}

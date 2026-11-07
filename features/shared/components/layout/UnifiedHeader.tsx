@@ -60,6 +60,8 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
           onPress={onBackPress || handleMenuPress}
           activeOpacity={0.7}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel={onBackPress ? 'Go back' : 'Open navigation menu'}
         >
           <Feather name={onBackPress ? 'chevron-left' : 'menu'} size={onBackPress ? 28 : 24} color="#111827" />
         </TouchableOpacity>
@@ -79,6 +81,8 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
           onPress={handleNotificationsPress}
           activeOpacity={0.7}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel="Notifications"
         >
           <Feather name="bell" size={22} color="#111827" />
         </TouchableOpacity>

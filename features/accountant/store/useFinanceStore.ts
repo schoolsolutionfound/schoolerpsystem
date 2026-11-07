@@ -25,7 +25,6 @@ import {
 import {
   fetchFeesApi,
   fetchFeePaymentsApi,
-  fetchStudentsApi,
   fetchExpensesApi,
   createFeePaymentApi,
   createExpenseApi,
@@ -164,19 +163,16 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     if (get().loading) return;
     set({ loading: true, error: null });
     try {
-      const [feesRes, paymentsRes, studentsRes, expensesRes] = await Promise.all([
+      const [feesRes, paymentsRes, expensesRes] = await Promise.all([
         fetchFeesApi(),
         fetchFeePaymentsApi(),
-        fetchStudentsApi(),
         fetchExpensesApi(),
       ]);
       const fees = Array.isArray(feesRes) ? feesRes : [];
       const payments = Array.isArray(paymentsRes) ? paymentsRes : [];
-      const students = Array.isArray(studentsRes)
-        ? studentsRes
-        : Array.isArray(studentsRes?.data)
-          ? studentsRes.data
-          : [];
+      // Accountants cannot read the admin student directory. Fee/payment
+      // rows already carry the display data needed by the finance views.
+      const students: any[] = [];
       const expenses = Array.isArray(expensesRes) ? expensesRes : [];
       set({
         incomeRecords: mapFeeData(fees, payments, students),

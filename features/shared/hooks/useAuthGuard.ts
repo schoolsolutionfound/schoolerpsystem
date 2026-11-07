@@ -77,30 +77,37 @@ export function useAuthGuard({
         return;
       }
 
+      // First-login gates. Onboarding screens stay put; nothing else (including
+      // /auth, where the form is still mounted after sign-in) may linger.
+      const ONBOARDING_ROUTES = ['/verify-email', '/change-password', '/complete-profile'];
+      const redirectOnboarding = (target: string) => {
+        if (pathname === target || ONBOARDING_ROUTES.includes(pathname)) return;
+        if (__DEV__) console.log('[BOOT] auth guard redirect onboarding ->', target);
+        router.replace(target as any);
+      };
+
       // First-login step 1: verify email
       if (!state.isEmailVerified) {
-        if (pathname !== '/verify-email' && pathname !== '/auth') {
-          if (__DEV__) console.log('[BOOT] auth guard redirect email unverified -> /verify-email');
-          router.replace('/verify-email');
-        }
+        redirectOnboarding('/verify-email');
         return;
       }
 
       // First-login step 2: rotate the temporary password
       if (state.mustChangePassword) {
-        if (pathname !== '/change-password' && pathname !== '/auth') {
-          if (__DEV__) console.log('[BOOT] auth guard redirect mustChangePassword -> /change-password');
-          router.replace('/change-password');
-        }
+        redirectOnboarding('/change-password');
         return;
       }
 
       // First-login step 3: complete the profile
       if (!state.profileCompleted) {
-        if (pathname !== '/complete-profile' && pathname !== '/auth') {
-          if (__DEV__) console.log('[BOOT] auth guard redirect profile incomplete -> /complete-profile');
-          router.replace('/complete-profile');
-        }
+        redirectOnboarding('/complete-profile');
+        return;
+      }
+
+      // Already fully onboarded but still on an onboarding screen
+      if (ONBOARDING_ROUTES.includes(pathname)) {
+        if (__DEV__) console.log('[BOOT] auth guard redirect onboarded ->', getHomeRouteForRole(state.userRole));
+        router.replace(getHomeRouteForRole(state.userRole) as any);
         return;
       }
 

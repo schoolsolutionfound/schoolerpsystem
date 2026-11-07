@@ -9,6 +9,7 @@ import {
   UpdateVehicleInput,
   AssignStudentTransportInput,
 } from './transport.schema.js';
+import { getPrimaryParentChild } from '../users/parent-links.js';
 import {
   findClosestStop,
   findNearestStop,
@@ -315,35 +316,33 @@ export class TransportService {
         throw { statusCode: 404, code: 'PARENT_NOT_FOUND', message: 'Parent account not found' };
       }
 
-      let scope: Record<string, any> = {};
-      if (typeof parent.scope === 'string') {
-        try {
-          scope = JSON.parse(parent.scope);
-        } catch {
-          scope = {};
+      // Parents are linked through `parent_child_links` (the table fees,
+      // library and marks read); the scope USN is only a legacy fallback.
+      let childId = (await getPrimaryParentChild(parent.id))?.studentId;
+      if (!childId) {
+        let scope: Record<string, any> = {};
+        if (typeof parent.scope === 'string') {
+          try {
+            scope = JSON.parse(parent.scope);
+          } catch {
+            scope = {};
+          }
+        } else if (parent.scope) {
+          scope = parent.scope;
         }
-      } else if (parent.scope) {
-        scope = parent.scope;
+        const linkedUsn = scope.linkedStudentUSN;
+        if (linkedUsn) {
+          childId = (await this.repo.findStudentByUsn(institutionCode, linkedUsn))?.id;
+        }
       }
-
-      const linkedUsn = scope.linkedStudentUSN;
-      if (!linkedUsn) {
+      if (!childId) {
         throw {
           statusCode: 404,
           code: 'NO_LINKED_STUDENT',
           message: 'No linked student found in parent profile. Please complete student linking.',
         };
       }
-
-      const child = await this.repo.findStudentByUsn(institutionCode, linkedUsn);
-      if (!child) {
-        throw {
-          statusCode: 404,
-          code: 'STUDENT_NOT_FOUND',
-          message: `Linked student with USN ${linkedUsn} was not found in this institution.`,
-        };
-      }
-      studentId = child.id;
+      studentId = childId;
     }
 
     const assignment = await this.repo.getStudentTransportAssignment(institutionCode, studentId);

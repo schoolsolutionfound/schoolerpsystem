@@ -6,7 +6,7 @@ import {
   dbFindUsersByInstitution,
   dbUpdateUser,
 } from '../shared/db/index.js';
-import { classSections, institutions, subjects, studentClasses, subjectTeachers, users as usersTable } from '../shared/db/schema.js';
+import { academicSessions, classSections, institutions, subjects, studentClasses, subjectTeachers, users as usersTable } from '../shared/db/schema.js';
 import { and, eq, inArray } from 'drizzle-orm';
 import {
   institutionRepository,
@@ -32,6 +32,22 @@ import {
   type ProfileFieldsMap,
   type ProfileFormField,
 } from '../admin/profileFields.schema.js';
+import { isValidTimeZone } from '../shared/utils/institutionTime.js';
+
+const TIMEZONE_TTL_MS = 5 * 60 * 1000;
+const timezoneCache = new Map<string, { value: string; at: number }>();
+
+/** Institution's IANA timezone (admin-configurable; defaults to Asia/Kolkata). */
+export async function getInstitutionTimezone(institutionCode: string): Promise<string> {
+  const key = (institutionCode || '').toLowerCase();
+  if (!key) return 'Asia/Kolkata';
+  const hit = timezoneCache.get(key);
+  if (hit && Date.now() - hit.at < TIMEZONE_TTL_MS) return hit.value;
+  const stored = await institutionRepository.findTimezoneByCode(institutionCode).catch(() => undefined);
+  const value = stored && isValidTimeZone(stored) ? stored : 'Asia/Kolkata';
+  timezoneCache.set(key, { value, at: Date.now() });
+  return value;
+}
 
 function newCsId(): string {
   return `cs_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -62,6 +78,7 @@ async function seedClassSectionsForInstitution(
     academicYear: string;
     section: string;
     classTeacherId: string;
+    sessionId: string;
   }[] = [];
 
   if (type === 'school') {
@@ -69,7 +86,7 @@ async function seedClassSectionsForInstitution(
       const sectionList = sections.length > 0 ? sections : [''];
       for (const section of sectionList) {
         const fields = buildClassSectionFields(type, level, section);
-        rows.push({ id: newCsId(), institutionCode, ...fields, classTeacherId: '' });
+        rows.push({ id: newCsId(), institutionCode, ...fields, classTeacherId: '', sessionId: '' });
       }
     }
   } else {
@@ -79,7 +96,7 @@ async function seedClassSectionsForInstitution(
         const sectionList = sections.length > 0 ? sections : [''];
         for (const section of sectionList) {
           const fields = buildClassSectionFields(type, level, section, unit);
-          rows.push({ id: newCsId(), institutionCode, ...fields, classTeacherId: '' });
+          rows.push({ id: newCsId(), institutionCode, ...fields, classTeacherId: '', sessionId: '' });
         }
       }
     }
@@ -89,6 +106,28 @@ async function seedClassSectionsForInstitution(
   if (!executor) return 0;
 
   try {
+    // Stamp new rows with the institution's current year when one exists, so
+    // structure edits never create class sections that are not linked to a
+    // session. The first year is backfilled by the academics service.
+    let sessionId = '';
+    try {
+      const [current] = await executor
+        .select({ id: academicSessions.id })
+        .from(academicSessions)
+        .where(
+          and(
+            eq(academicSessions.institutionCode, institutionCode),
+            eq(academicSessions.isCurrent, true)
+          )
+        );
+      sessionId = current?.id || '';
+    } catch (err: any) {
+      console.warn('[Institution Seed Warning] could not resolve current session:', err?.message);
+    }
+    if (sessionId) {
+      for (const row of rows) row.sessionId = sessionId;
+    }
+
     const existing = await executor
       .select({ name: classSections.name })
       .from(classSections)

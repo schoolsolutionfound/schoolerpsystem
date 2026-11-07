@@ -324,11 +324,44 @@ export async function requireHODOrAdmin(request: FastifyRequest, reply: FastifyR
   if (reply.sent) return;
 
   const role = normalizeRole(request.user?.role);
-  if (role !== 'admin' && role !== 'principal' && role !== 'hod') {
+  if (!['admin', 'principal', 'hod', 'counselor'].includes(role)) {
     return reply.status(403).send({
       success: false,
       error: {
         message: 'Access denied: HOD or Administrator privileges required',
+        code: 'FORBIDDEN',
+      },
+    });
+  }
+}
+
+/** Counseling records: principal, admin, and the dedicated counselor role. */
+export async function requireCounselorOrAdmin(request: FastifyRequest, reply: FastifyReply) {
+  await authenticate(request, reply);
+  if (reply.sent) return;
+
+  const role = normalizeRole(request.user?.role);
+  if (!['admin', 'principal', 'counselor'].includes(role)) {
+    return reply.status(403).send({
+      success: false,
+      error: {
+        message: 'Access denied: Counselor, Principal, or Administrator privileges required',
+        code: 'FORBIDDEN',
+      },
+    });
+  }
+}
+
+export async function requireStudentDirectoryReader(request: FastifyRequest, reply: FastifyReply) {
+  await authenticate(request, reply);
+  if (reply.sent) return;
+
+  const role = normalizeRole(request.user?.role);
+  if (!['admin', 'principal', 'counselor'].includes(role)) {
+    return reply.status(403).send({
+      success: false,
+      error: {
+        message: 'Access denied: Student directory is available to Administrators, Principals, and Counselors',
         code: 'FORBIDDEN',
       },
     });
@@ -392,8 +425,10 @@ export async function requireLibraryStaff(request: FastifyRequest, reply: Fastif
   await authenticate(request, reply);
   if (reply.sent) return;
 
+  // Circulation (loans, fines, member PII) is desk-only: teachers, students and
+  // parents have no library screens and must not issue books or read ledgers.
   const role = normalizeRole(request.user?.role);
-  if (!['admin', 'hod', 'principal', 'teacher', 'librarian'].includes(role)) {
+  if (!['admin', 'principal', 'librarian'].includes(role)) {
     return reply.status(403).send({
       success: false,
       error: {

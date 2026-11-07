@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Text, ScrollView, TouchableOpacity, RefreshControl, Alert } from 'react-native';
+import { View, StyleSheet, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -12,6 +12,7 @@ import { DriverDrawer } from '../../features/driver/components/DriverDrawer';
 import { DriverTripsView } from '../../features/driver/components/DriverTripsView';
 import { FontFamily } from '../../constants/fonts';
 import { UserAnnouncementFeedView } from '../../features/announcements';
+import { ConfirmDialog } from '../../features/shared/components/layout/ConfirmDialog';
 
 type Tab = 'trips' | 'announcements' | 'profile';
 
@@ -37,15 +38,15 @@ export default function DriverHomeScreen() {
     router.replace('/auth');
   };
 
+  const [logoutConfirmVisible, setLogoutConfirmVisible] = useState(false);
+
   const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to log out?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: logoutNow,
-      },
-    ]);
+    setLogoutConfirmVisible(true);
+  };
+
+  const confirmLogout = () => {
+    setLogoutConfirmVisible(false);
+    logoutNow();
   };
 
   const [activeTab, setActiveTab] = useState<Tab>('trips');
@@ -145,6 +146,14 @@ export default function DriverHomeScreen() {
         onNavigate={setActiveTab}
         onChangePassword={() => router.push('/change-password')}
         onLogout={logoutNow}
+      />
+      <ConfirmDialog
+        visible={logoutConfirmVisible}
+        title="Logout"
+        message="Are you sure you want to log out?"
+        confirmLabel="Logout"
+        onConfirm={confirmLogout}
+        onCancel={() => setLogoutConfirmVisible(false)}
       />
     </View>
   );

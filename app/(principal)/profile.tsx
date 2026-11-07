@@ -17,6 +17,7 @@ import { auth } from '../../firebaseConfig';
 import { useUserStore } from '../../store/useUserStore';
 import { BorderRadius } from '../../constants/theme';
 import { apiClient } from '../../api/client';
+import { ConfirmDialog } from '../../features/shared/components/layout/ConfirmDialog';
 
 export default function PrincipalProfileScreen() {
   const router = useRouter();
@@ -58,18 +59,20 @@ export default function PrincipalProfileScreen() {
 
     setSaving(true);
     try {
-      // D12: Save to server institution config / profile
-      await apiClient('/admin/institution-config', {
-        method: 'PUT',
+      const res = await apiClient<any>('/users/me', {
+        method: 'PATCH',
         body: JSON.stringify({
-          institutionType,
+          phone: phone.trim(),
+          qualification: qualification.trim(),
+          experience: experience.trim(),
         }),
-      }).catch(() => null);
+      });
+      const saved = res?.data;
 
       setUserProfile({
-        phone: phone.trim(),
-        qualification: qualification.trim(),
-        experience: experience.trim(),
+        phone: saved?.phone ?? phone.trim(),
+        qualification: saved?.qualification ?? qualification.trim(),
+        experience: saved?.experience ?? experience.trim(),
         institutionType: institutionType as any,
       });
 
@@ -82,21 +85,19 @@ export default function PrincipalProfileScreen() {
     }
   };
 
+  const [logoutConfirmVisible, setLogoutConfirmVisible] = useState(false);
+
   const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to log out?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await signOut(auth);
-          } catch {}
-          resetUser();
-          router.replace('/auth');
-        },
-      },
-    ]);
+    setLogoutConfirmVisible(true);
+  };
+
+  const confirmLogout = async () => {
+    setLogoutConfirmVisible(false);
+    try {
+      await signOut(auth);
+    } catch {}
+    resetUser();
+    router.replace('/auth');
   };
 
   return (
@@ -287,6 +288,14 @@ export default function PrincipalProfileScreen() {
           </View>
         </ScrollView>
       </SafeAreaView>
+      <ConfirmDialog
+        visible={logoutConfirmVisible}
+        title="Logout"
+        message="Are you sure you want to log out?"
+        confirmLabel="Logout"
+        onConfirm={confirmLogout}
+        onCancel={() => setLogoutConfirmVisible(false)}
+      />
     </View>
   );
 }

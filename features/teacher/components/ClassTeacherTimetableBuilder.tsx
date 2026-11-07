@@ -8,6 +8,7 @@ import {
   fetchClassTimetableApi,
   createTimetableApi,
   fetchSubjectsApi,
+  fetchClassSubjectsApi,
   fetchSubjectTeachersApi,
   fetchPeriodsApi,
 } from '../../../api/academics';
@@ -30,7 +31,12 @@ export const ClassTeacherTimetableBuilder: React.FC<ClassTeacherTimetableBuilder
   const [assignments, setAssignments] = useState<any[]>([]);
   const [, setExisting] = useState<any[]>([]);
   const [grid, setGrid] = useState<Record<string, string>>({});
-  const [effectiveFrom] = useState(new Date().toISOString().slice(0, 10));
+  // Local calendar date: a UTC slice can be the previous day west of UTC, which
+  // would back-date the timetable and be rejected by the server.
+  const [effectiveFrom] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [picker, setPicker] = useState<{ key: string; options: { id: string; label: string }[] } | null>(null);
@@ -49,7 +55,7 @@ export const ClassTeacherTimetableBuilder: React.FC<ClassTeacherTimetableBuilder
 
       const [periodsRes, subjectsRes, assignmentsRes] = await Promise.all([
         fetchPeriodsApi().catch(() => []),
-        fetchSubjectsApi().catch(() => []),
+        cls ? fetchClassSubjectsApi(cls.id).catch(() => fetchSubjectsApi().catch(() => [])) : fetchSubjectsApi().catch(() => []),
         fetchSubjectTeachersApi().catch(() => []),
       ]);
       setPeriods(Array.isArray(periodsRes) ? periodsRes : []);

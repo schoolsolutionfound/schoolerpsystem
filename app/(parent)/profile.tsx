@@ -19,6 +19,7 @@ import { useUserStore } from '../../store/useUserStore';
 import { FontFamily } from '../../constants/fonts';
 import { uploadProfilePictureApi } from '../../api/upload';
 import { getProfileApi, updateMyProfileApi } from '../../api/users';
+import { ConfirmDialog } from '../../features/shared/components/layout/ConfirmDialog';
 
 export default function ParentProfileScreen() {
   const router = useRouter();
@@ -65,21 +66,19 @@ export default function ParentProfileScreen() {
     }
   }, [setUserProfile]);
 
+  const [logoutConfirmVisible, setLogoutConfirmVisible] = useState(false);
+
   const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to log out?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await signOut(auth);
-          } catch {}
-          resetUser();
-          router.replace('/auth');
-        },
-      },
-    ]);
+    setLogoutConfirmVisible(true);
+  };
+
+  const confirmLogout = async () => {
+    setLogoutConfirmVisible(false);
+    try {
+      await signOut(auth);
+    } catch {}
+    resetUser();
+    router.replace('/auth');
   };
 
   const handlePickPhoto = async () => {
@@ -262,8 +261,16 @@ export default function ParentProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.versionText}>KIVQUO v1.0 Â· Parent Portal</Text>
+        <Text style={styles.versionText}>KIVQUO v1.0 - Parent Portal</Text>
       </ScrollView>
+      <ConfirmDialog
+        visible={logoutConfirmVisible}
+        title="Logout"
+        message="Are you sure you want to log out?"
+        confirmLabel="Logout"
+        onConfirm={confirmLogout}
+        onCancel={() => setLogoutConfirmVisible(false)}
+      />
     </View>
   );
 }

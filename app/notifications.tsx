@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -20,6 +20,11 @@ import { useClassTransferStore, ClassTransferRequest, isRequestForTeacher, isReq
 import { useUserStore } from '../store/useUserStore';
 import { NotificationsSkeleton } from '../features/shared/components/skeletons/SharedSkeletons';
 import { markAnnouncementReadApi } from '../api/announcements';
+import {
+  getMyNotificationsApi,
+  markAllNotificationsReadApi,
+  markNotificationReadApi,
+} from '../api/notifications';
 
 type NotificationCategory = 'all' | 'unread' | 'academics' | 'attendance' | 'announcements' | 'system';
 
@@ -54,6 +59,7 @@ export default function NotificationsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
+  const [inAppNotifications, setInAppNotifications] = useState<NotificationItem[]>([]);
 
   const { requests: transferRequests, respondToRequest } = useClassTransferStore();
   const employeeId = useUserStore((s) => s.employeeId);
@@ -64,6 +70,29 @@ export default function NotificationsScreen() {
 
   // Optionally fetch real announcements from server feed
   const { data: serverAnnouncements, refetch, isLoading: feedLoading } = useAnnouncementFeedQuery();
+
+  const loadInAppNotifications = useCallback(async () => {
+    try {
+      const res = await getMyNotificationsApi({ limit: 50 });
+      setInAppNotifications(
+        (res?.items || []).map((n) => ({
+          id: `notif_${n.id}`,
+          title: n.title || 'Notification',
+          message: n.body || '',
+          category: 'system',
+          timestamp: formatNotifTime(n.createdAt),
+          isRead: Boolean(n.readAt),
+          priority: n.priority === 'high' || n.priority === 'low' ? n.priority : 'normal',
+        }))
+      );
+    } catch {
+      // Feed-only roles (e.g. developer) may have no notification inbox.
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadInAppNotifications();
+  }, [loadInAppNotifications]);
 
   // Combine default system alerts with server announcements and class transfer requests
   const allNotifications: NotificationItem[] = useMemo(() => {
@@ -139,6 +168,8 @@ export default function NotificationsScreen() {
       }
     });
 
+    list.push(...inAppNotifications);
+
     // Map any server announcements
     if (serverAnnouncements && Array.isArray(serverAnnouncements)) {
       serverAnnouncements.forEach((a: any) => {
@@ -161,7 +192,7 @@ export default function NotificationsScreen() {
         ...n,
         isRead: readIds.has(n.id) || n.isRead,
       }));
-  }, [serverAnnouncements, readIds, deletedIds, transferRequests, currentTeacherId, currentTeacherName]);
+  }, [serverAnnouncements, inAppNotifications, readIds, deletedIds, transferRequests, currentTeacherId, currentTeacherName]);
 
   // Filtered notifications
   const filteredNotifications = useMemo(() => {
@@ -195,7 +226,7 @@ export default function NotificationsScreen() {
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      if (refetch) await refetch();
+      await Promise.all([refetch?.(), loadInAppNotifications()]);
     } catch {}
     setRefreshing(false);
   };
@@ -205,15 +236,20 @@ export default function NotificationsScreen() {
       (notification) =>
         !notification.isRead && notification.category === 'announcements' && notification.id.startsWith('feed_')
     );
+    const hasUnreadInApp = allNotifications.some((n) => !n.isRead && n.id.startsWith('notif_'));
     try {
-      await Promise.all(
-        unreadAnnouncements.map((notification) =>
+      await Promise.all([
+        ...unreadAnnouncements.map((notification) =>
           markAnnouncementReadApi(notification.id.replace(/^feed_/, ''))
-        )
-      );
+        ),
+        ...(hasUnreadInApp ? [markAllNotificationsReadApi()] : []),
+      ]);
     } catch (error: any) {
       Alert.alert('Unable to Mark Read', error?.message || 'Could not update announcement read state.');
       return;
+    }
+    if (hasUnreadInApp) {
+      setInAppNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
     }
     const newRead = new Set(readIds);
     allNotifications.forEach((n) => newRead.add(n.id));
@@ -228,6 +264,17 @@ export default function NotificationsScreen() {
         await markAnnouncementReadApi(id.replace(/^feed_/, ''));
       } catch (error: any) {
         Alert.alert('Unable to Mark Read', error?.message || 'Could not update announcement read state.');
+        return;
+      }
+    }
+    if (notification?.category === 'system' && id.startsWith('notif_')) {
+      try {
+        await markNotificationReadApi(id.replace(/^notif_/, ''));
+        setInAppNotifications((prev) =>
+          prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
+        );
+        } catch (error: any) {
+        Alert.alert('Unable to Mark Read', error?.message || 'Could not update notification read state.');
         return;
       }
     }

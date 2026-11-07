@@ -1,6 +1,8 @@
 import { adminRepository, IAdminRepository } from './admin.repository.js';
 import { institutionService } from '../institutions/institution.service.js';
+import { isValidTimeZone } from '../shared/utils/institutionTime.js';
 import { academicsRepository } from '../academics/academics.repository.js';
+import { academicsService } from '../academics/academics.service.js';
 import { getPrimaryParentChild, insertParentLinks, getFamilyChildPairs, DEFAULT_PARENT_PERMISSIONS } from '../users/parent-links.js';
 import { RELATION_CANONICAL } from '../users/user.service.js';
 import {
@@ -83,20 +85,44 @@ async function buildClassScope(
       base.classSectionId = match.id;
       base.classSectionName = match.name;
     } else {
-      // Legacy school rows (written by the old Academics screen) store the
-      // subject in `department` and the class in `academicYear`. Match the
-      // canonical request (department = class, academicYear = section letter)
-      // against that swapped shape so existing students keep their scope.
-      const inst = await institutionService.getInstitutionByCode(institutionCode).catch(() => undefined);
-      if (inst && normalizeInstitutionType(inst.institutionType) === 'school') {
-        const legacy = all.find(
-          (c: any) =>
-            (c.academicYear || '').trim().toLowerCase() === dept.toLowerCase() &&
-            (c.section || '').trim().toLowerCase() === sec.toLowerCase()
-        );
-        if (legacy) {
-          base.classSectionId = legacy.id;
-          base.classSectionName = legacy.name;
+      // An org that does not match any class-section row would leave the student
+      // with a scope that resolves to nothing (no timetable, class teacher,
+      // attendance or marks). Colleges are often referenced by their program
+      // name (e.g. "BCA") while the class-section rows carry the department
+      // (e.g. "Computer Applications"), so fall back to name-based matches.
+      const norm = (v: unknown) => String(v || '').trim().toLowerCase().replace(/\s+/g, ' ');
+      const byYearSection = all.filter(
+        (c: any) =>
+          norm(c.academicYear) === norm(yr) && (!sec || norm(c.section) === norm(sec))
+      );
+      const orgMatch =
+        dept && byYearSection.length > 0
+          ? byYearSection.find(
+              (c: any) =>
+                norm(c.department) === norm(dept) ||
+                norm(c.name).includes(norm(dept)) ||
+                norm(c.department).includes(norm(dept))
+            )
+          : undefined;
+      if (orgMatch) {
+        base.classSectionId = orgMatch.id;
+        base.classSectionName = orgMatch.name;
+      } else {
+        // Legacy school rows (written by the old Academics screen) store the
+        // subject in `department` and the class in `academicYear`. Match the
+        // canonical request (department = class, academicYear = section letter)
+        // against that swapped shape so existing students keep their scope.
+        const inst = await institutionService.getInstitutionByCode(institutionCode).catch(() => undefined);
+        if (inst && normalizeInstitutionType(inst.institutionType) === 'school') {
+          const legacy = all.find(
+            (c: any) =>
+              (c.academicYear || '').trim().toLowerCase() === dept.toLowerCase() &&
+              (c.section || '').trim().toLowerCase() === sec.toLowerCase()
+          );
+          if (legacy) {
+            base.classSectionId = legacy.id;
+            base.classSectionName = legacy.name;
+          }
         }
       }
     }
@@ -104,6 +130,34 @@ async function buildClassScope(
     // best-effort: leave scope without the id/name if academics module is unavailable
   }
   return base;
+}
+
+/**
+ * A student/teacher tagged with a class label that matches no class_sections
+ * row would be enrolled with no class — no timetable, class teacher,
+ * attendance or marks — while every API still answers 200. Reject the write
+ * instead and tell the admin which classes exist.
+ */
+async function requireResolvableClassScope(
+  institutionCode: string,
+  department: string,
+  academicYear: string,
+  section: string
+): Promise<Record<string, string>> {
+  const scope = await buildClassScope(institutionCode, department, academicYear, section);
+  if (scope.classSectionId) return scope;
+  const rows = await academicsRepository.listClassSections(institutionCode).catch(() => []);
+  const available = (Array.isArray(rows) ? rows : []).map((c: any) => c.name).filter(Boolean);
+  const label = [department, academicYear, section].map((v) => (v || '').trim()).filter(Boolean).join(' / ');
+  throw {
+    statusCode: 400,
+    code: 'CLASS_NOT_FOUND',
+    message: label
+      ? `Class "${label}" does not match any class in this institution.` +
+        (available.length ? ` Available classes: ${available.join(', ')}.` : ' Create the class section first.')
+      : 'A class must be selected for this user.' +
+        (available.length ? ` Available classes: ${available.join(', ')}.` : ' Create the class section first.'),
+  };
 }
 
 function normalizeAssignableRole(
@@ -374,12 +428,13 @@ export class AdminService {
       hasDefaultPassword: Boolean(inst.defaultTempPassword),
       maintenanceEnabled: (inst as any).maintenanceEnabled ?? false,
       maintenanceMinVersion: (inst as any).maintenanceMinVersion || '0.0.0',
+      timezone: (inst as any).timezone || 'Asia/Kolkata',
     };
   }
 
   public async updateInstitutionConfig(
     institutionCode: string,
-    payload: { departments?: string[]; academicYears?: string[]; yearsOfStudy?: string[]; courses?: string[]; sections?: string[]; classSubjects?: Record<string, string[]>; terms?: any[]; blockedDates?: any[]; defaultTempPassword?: string; maintenanceEnabled?: boolean; maintenanceMinVersion?: string; clearStructure?: boolean },
+    payload: { departments?: string[]; academicYears?: string[]; yearsOfStudy?: string[]; courses?: string[]; sections?: string[]; classSubjects?: Record<string, string[]>; terms?: any[]; blockedDates?: any[]; defaultTempPassword?: string; maintenanceEnabled?: boolean; maintenanceMinVersion?: string; timezone?: string; clearStructure?: boolean },
     actorRole?: string
   ) {
     const inst = await institutionService.getInstitutions().then((list) =>
@@ -411,6 +466,12 @@ export class AdminService {
       }
       if (payload.maintenanceEnabled !== undefined) update.maintenanceEnabled = payload.maintenanceEnabled;
       if (payload.maintenanceMinVersion !== undefined) update.maintenanceMinVersion = payload.maintenanceMinVersion;
+      if (payload.timezone !== undefined) {
+        if (!isValidTimeZone(payload.timezone)) {
+          throw { statusCode: 400, code: 'INVALID_TIMEZONE', message: `"${payload.timezone}" is not a valid IANA timezone (e.g. Asia/Kolkata).` };
+        }
+        update.timezone = payload.timezone;
+      }
       if (payload.clearStructure !== undefined) update.clearStructure = payload.clearStructure;
       await institutionService.updateInstitution(inst.id, update as any);
     }
@@ -547,7 +608,7 @@ export class AdminService {
     const firebaseUid = await this.createFirebaseUser(payload.email, resolved.password, displayName);
 
     const scopeObj = JSON.stringify(
-      await buildClassScope(
+      await requireResolvableClassScope(
         payload.institutionCode,
         payload.department || '',
         payload.academicYear || '',
@@ -679,13 +740,57 @@ export class AdminService {
 
     if (payload.department || payload.academicYear || payload.section) {
       const scope = typeof existing.scope === 'string' ? JSON.parse(existing.scope) : (existing.scope || {});
-      const newScope = await buildClassScope(
+      const newScope = await requireResolvableClassScope(
         institutionCode,
         payload.department || scope.department || '',
         payload.academicYear || scope.academicYear || '',
         payload.section || scope.section || ''
       );
       updateFields.scope = JSON.stringify(newScope);
+
+      // Rosters, attendance and marks read student_classes, not users.scope.
+      // Move the active enrollment so a re-classed student actually appears
+      // in the new class and disappears from the old one.
+      if (newScope.classSectionId && db) {
+        const all = await db
+          .select({ id: studentClasses.id, classSectionId: studentClasses.classSectionId, academicYear: studentClasses.academicYear, sessionId: studentClasses.sessionId, isActive: studentClasses.isActive })
+          .from(studentClasses)
+          .where(eqSql(studentClasses.studentId, id));
+        const active = all.filter((row) => row.isActive);
+        const keep = active.find((row) => row.classSectionId === newScope.classSectionId);
+        const previousSessionId = active[0]?.sessionId || '';
+        const now = new Date();
+        const today = now.toISOString().slice(0, 10);
+        for (const row of active) {
+          if (keep && row.id === keep.id) continue;
+          await db
+            .update(studentClasses)
+            .set({ isActive: false, effectiveTo: today, updatedAt: now })
+            .where(eqSql(studentClasses.id, row.id));
+        }
+        // uq_student_classes_class_student_year covers inactive rows too, so a
+        // student re-joined to a class they previously left must reactivate that row.
+        const reusable = keep ? undefined : all.find(
+          (row) => row.classSectionId === newScope.classSectionId && row.academicYear === (newScope.academicYear || '')
+        );
+        if (reusable) {
+          await db
+            .update(studentClasses)
+            .set({ isActive: true, effectiveTo: null, effectiveFrom: today, sessionId: previousSessionId || reusable.sessionId, updatedAt: now })
+            .where(eqSql(studentClasses.id, reusable.id));
+        } else {
+          await db.insert(studentClasses).values({
+            institutionCode,
+            studentId: id,
+            classSectionId: newScope.classSectionId,
+            rollNo: payload.rollNoOrUSN !== undefined ? payload.rollNoOrUSN : (existing.rollNoOrUSN || ''),
+            academicYear: newScope.academicYear || '',
+            sessionId: previousSessionId,
+            effectiveFrom: today,
+            isActive: true,
+          });
+        }
+      }
     }
 
     if (payload.sessionId) {
@@ -735,7 +840,25 @@ export class AdminService {
       if (!user || user.role !== 'student' || user.institutionCode !== institutionCode) return false;
 
       const existingScope = typeof user.scope === 'string' ? JSON.parse(user.scope) : (user.scope || {});
-      const newScope = { ...existingScope, classSectionId: targetClassSectionId, academicYear };
+      const target = await academicsRepository
+        .listClassSections(institutionCode)
+        .then((rows) => (rows || []).find((c: any) => c.id === targetClassSectionId))
+        .catch(() => undefined);
+      if (!target) {
+        throw { statusCode: 400, code: 'CLASS_NOT_FOUND', message: 'Target class section not found in this institution.' };
+      }
+      // Rebuild the whole scope from the target class so classSectionName /
+      // department / section never keep the student's old class label.
+      const newScope: Record<string, any> = {
+        ...existingScope,
+        ...(await buildClassScope(
+          institutionCode,
+          target.department || '',
+          target.academicYear || academicYear,
+          target.section || ''
+        )),
+        academicYear,
+      };
 
       await dbUpdateUser(sid, { scope: JSON.stringify(newScope) }, tx);
 
@@ -753,6 +876,28 @@ export class AdminService {
           );
         for (const enr of activeEnrollments) {
           await q.update(studentClasses).set({ effectiveTo: now, isActive: false, updatedAt: new Date() }).where(eqSql(studentClasses.id, enr.id));
+        }
+
+        // uq_student_classes_class_student_year also covers inactive rows, so
+        // moving a student back into a (class, year) they already left must
+        // reactivate that row instead of inserting a duplicate.
+        const [existingRow] = await q
+          .select({ id: studentClasses.id, sessionId: studentClasses.sessionId })
+          .from(studentClasses)
+          .where(
+            andSql(
+              eqSql(studentClasses.studentId, sid),
+              eqSql(studentClasses.classSectionId, targetClassSectionId),
+              eqSql(studentClasses.academicYear, academicYear)
+            )
+          )
+          .limit(1);
+        if (existingRow) {
+          await q
+            .update(studentClasses)
+            .set({ isActive: true, effectiveTo: null, effectiveFrom: now, updatedAt: new Date() })
+            .where(eqSql(studentClasses.id, existingRow.id));
+          return true;
         }
 
         const id = `sc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -921,6 +1066,18 @@ export class AdminService {
     const institutionName = inst?.institutionName || payload.institutionCode;
 
     const displayName = `${payload.firstName} ${payload.lastName}`.trim();
+    const cs = payload.classSection;
+    const hasClassTriple = Boolean(
+      cs && ((cs.department || '').trim() || (cs.academicYear || '').trim() || (cs.section || '').trim())
+    );
+    const resolvedClassScope = hasClassTriple
+      ? await requireResolvableClassScope(
+          payload.institutionCode,
+          (cs!.department || '').toString(),
+          (cs!.academicYear || '').toString(),
+          (cs!.section || '').toString()
+        )
+      : undefined;
     const resolved = resolveProvisionPassword(payload.password, inst?.defaultTempPassword);
     const firebaseUid = await this.createFirebaseUser(payload.email, resolved.password, displayName);
 
@@ -933,19 +1090,12 @@ export class AdminService {
       ...(payload.program ? { program: payload.program } : {}),
       ...(payload.semester ? { semester: payload.semester } : {}),
     };
-    const cs = payload.classSection;
-    if (cs && ((cs.department || '').trim() || (cs.academicYear || '').trim() || (cs.section || '').trim())) {
-      const built = await buildClassScope(
-        payload.institutionCode,
-        (cs.department || '').toString(),
-        (cs.academicYear || '').toString(),
-        (cs.section || '').toString()
-      );
-      Object.assign(scopeObj, built);
+    if (hasClassTriple) {
+      Object.assign(scopeObj, resolvedClassScope);
       scopeObj.classSection = {
-        department: (cs.department || '').toString(),
-        academicYear: (cs.academicYear || '').toString(),
-        section: (cs.section || '').toString(),
+        department: (cs!.department || '').toString(),
+        academicYear: (cs!.academicYear || '').toString(),
+        section: (cs!.section || '').toString(),
       };
     }
 
@@ -956,6 +1106,7 @@ export class AdminService {
       role: 'teacher',
       institutionCode: payload.institutionCode,
       institutionName,
+      institutionType: inst?.institutionType || DEFAULT_INSTITUTION_TYPE,
       title: payload.designation || '',
       phone: payload.phone || '',
       dob: payload.dob || '',
@@ -1022,7 +1173,7 @@ export class AdminService {
       if (payload.program !== undefined) newScope.program = payload.program;
       if (payload.semester !== undefined) newScope.semester = payload.semester;
       if (payload.classSection) {
-        const built = await buildClassScope(
+        const built = await requireResolvableClassScope(
           institutionCode,
           (payload.classSection.department || '').toString(),
           (payload.classSection.academicYear || '').toString(),
@@ -1170,6 +1321,18 @@ export class AdminService {
       }
     }
 
+    // Students and teachers are enrolled into a class; resolve that class up
+    // front so a bad label fails before a Firebase login is ever created.
+    const needsClass = primaryRole === 'student' || primaryRole === 'teacher';
+    const resolvedClassScope = needsClass
+      ? await requireResolvableClassScope(
+          inst.institutionCode,
+          (payload.department || '').toString(),
+          (payload.academicYear || '').toString(),
+          (payload.section || '').toString()
+        )
+      : undefined;
+
     // --- Parent-specific validation (invite flow, links keyed by studentId) ---
     const isParent = primaryRole === 'parent';
     let parentRelation = '';
@@ -1239,20 +1402,13 @@ export class AdminService {
     }
     const firebaseUid = await this.createFirebaseUser(payload.email, resolved.password, payload.fullName);
 
-    const hasClassTriple = Boolean(
-      (payload.department || '').toString().trim() ||
-        (payload.academicYear || '').toString().trim() ||
-        (payload.section || '').toString().trim()
-    );
-
-    const scopeObj: Record<string, any> = hasClassTriple
-      ? await buildClassScope(
-          payload.institutionCode,
-          (payload.department || '').toString(),
-          (payload.academicYear || '').toString(),
-          (payload.section || '').toString()
-        )
-      : {};
+    const scopeObj: Record<string, any> = resolvedClassScope ? { ...resolvedClassScope } : {};
+    // HODs and faculty are scoped to their department; it drives their
+    // dashboard, attendance stats and notice filters.
+    if ((payload.department || '').trim()) {
+      scopeObj.department = (payload.department || '').trim();
+      delete scopeObj.dept;
+    }
     if (payload.employeeId) scopeObj.employeeId = payload.employeeId;
     if (payload.vehicleNumber) scopeObj.vehicleNumber = payload.vehicleNumber;
     if (payload.licenseNumber) scopeObj.licenseNumber = payload.licenseNumber;
@@ -1298,6 +1454,40 @@ export class AdminService {
       profileCompleted: false,
       scope: JSON.stringify(scopeObj),
     });
+
+    // Students created through this endpoint must be enrolled exactly like
+    // students created by /admin/students and bulk-create; rosters, attendance
+    // and marks all read student_classes, not users.scope.
+    if (primaryRole === 'student' && resolvedClassScope?.classSectionId && db) {
+      try {
+        const [existingEnrollment] = await db
+          .select({ id: studentClasses.id })
+          .from(studentClasses)
+          .where(
+            andSql(
+              eqSql(studentClasses.studentId, createdUser.id),
+              eqSql(studentClasses.classSectionId, resolvedClassScope.classSectionId),
+              eqSql(studentClasses.academicYear, resolvedClassScope.academicYear || '')
+            )
+          )
+          .limit(1);
+        if (!existingEnrollment) {
+          const currentSession = await academicsRepository.getCurrentAcademicSession(inst.institutionCode);
+          await db.insert(studentClasses).values({
+            institutionCode: inst.institutionCode,
+            studentId: createdUser.id,
+            classSectionId: resolvedClassScope.classSectionId,
+            rollNo: payload.rollNoOrUSN || '',
+            academicYear: resolvedClassScope.academicYear || '',
+            sessionId: currentSession?.id || '',
+            effectiveFrom: new Date().toISOString().slice(0, 10),
+            isActive: true,
+          });
+        }
+      } catch (err: any) {
+        console.warn('[createUser] student enrollment failed:', err?.message || err);
+      }
+    }
 
     if (primaryRole === 'driver' && payload.vehicleId && db) {
       try {
@@ -1741,7 +1931,7 @@ export class AdminService {
         }
 
         const scopeObj = JSON.stringify(
-          await buildClassScope(
+          await requireResolvableClassScope(
             inst.institutionCode,
             record.department || '',
             record.academicYear || '',
@@ -1911,6 +2101,10 @@ export class AdminService {
         errors.push({ row, message: 'Missing required fields (firstName, lastName, email)' });
         return;
       }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        errors.push({ row, message: `Invalid email address: ${email}` });
+        return;
+      }
       if (seenEmails.has(email)) {
         errors.push({ row, message: `Duplicate email in file: ${email}` });
         return;
@@ -1919,6 +2113,11 @@ export class AdminService {
       const childEmails = (rec.childEmails || [])
         .map((e) => (e || '').toLowerCase().trim())
         .filter(Boolean);
+      const badChild = childEmails.find((e) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+      if (badChild) {
+        errors.push({ row, message: `Invalid child email address: ${badChild}` });
+        return;
+      }
       if (isParent) {
         const relation = RELATION_CANONICAL[(rec.relation || '').trim().toLowerCase()] || '';
         if (!relation) {
@@ -1996,6 +2195,31 @@ export class AdminService {
       return scopeCache.get(key)!;
     };
 
+    // Students/teachers must land in a real class; validate every distinct
+    // triple before creating any login so a bad label fails the row, not the file.
+    const resolved: PreparedRow[] = [];
+    if (role === 'student' || role === 'teacher') {
+      await Promise.all(
+        Array.from(new Set(ready.map((r) => `${r.department || ''}|${r.academicYear || ''}|${r.section || ''}`))).map(
+          (k) => {
+            const [d, y, s] = k.split('|');
+            return cachedClassScope(d, y, s);
+          }
+        )
+      );
+      for (const r of ready) {
+        const built = await cachedClassScope(r.department, r.academicYear, r.section);
+        if (!built.classSectionId) {
+          errors.push({
+            row: r.row,
+            message: `Class "${[r.department, r.academicYear, r.section].filter(Boolean).join(' / ')}" does not match any class in this institution`,          });          continue;
+        }
+        resolved.push(r);
+      }
+    } else {
+      resolved.push(...ready);
+    }
+
     const created: {
       row: number;
       email: string;
@@ -2009,8 +2233,8 @@ export class AdminService {
     }[] = [];
     let createdCount = 0;
     const CHUNK = 5;
-    for (let i = 0; i < ready.length; i += CHUNK) {
-      const chunk = ready.slice(i, i + CHUNK);
+    for (let i = 0; i < resolved.length; i += CHUNK) {
+      const chunk = resolved.slice(i, i + CHUNK);
       const results = await Promise.allSettled(
         chunk.map(async (r) => {
           const firebaseUid = await this.createFirebaseUser(r.email, r.password!, r.displayName);
@@ -2265,7 +2489,9 @@ export class AdminService {
     const [structures, payments, rawSections, studentTotal] = await Promise.all([
       this.getFees(institutionCode),
       this.getFeePayments(institutionCode),
-      academicsRepository.listClassSections(institutionCode).catch(() => [] as any[]),
+      // The service (not the repository) attaches `studentCount` per section,
+      // which is what `expected = amount * enrolled` depends on.
+      academicsService.listClassSections(institutionCode).catch(() => [] as any[]),
       dbCountUsersByInstitution(institutionCode, 'student'),
     ]);
 
@@ -2280,22 +2506,32 @@ export class AdminService {
     const structureMeta = new Map<string, { department: string; term: string; academicYear: string }>();
     const departmentBuckets = new Map<
       string,
-      { expected: number; collected: number; studentCount: number; paidStudents: Set<string> }
+      { expected: number; collected: number; classes: Set<string>; allStudents: boolean; paidStudents: Set<string> }
     >();
 
     const bucketFor = (department: string) => {
       let bucket = departmentBuckets.get(department);
       if (!bucket) {
-        bucket = { expected: 0, collected: 0, studentCount: 0, paidStudents: new Set<string>() };
+        bucket = { expected: 0, collected: 0, classes: new Set<string>(), allStudents: false, paidStudents: new Set<string>() };
         departmentBuckets.set(department, bucket);
       }
       return bucket;
     };
+    const headCount = (bucket: { classes: Set<string>; allStudents: boolean }) => {
+      if (bucket.allStudents) return Number(studentTotal) || 0;
+      let total = 0;
+      for (const id of bucket.classes) total += sectionMeta.get(id)?.studentCount || 0;
+      return total;
+    };
+    // Head-count is tracked per class section (not summed per structure), so
+    // two fee heads on the same class do not count its students twice.
+    const enrolledFor = (structure: any) =>
+      structure.classSectionId ? sectionMeta.get(structure.classSectionId)?.studentCount || 0 : Number(studentTotal) || 0;
 
     for (const structure of structures as any[]) {
       const section = structure.classSectionId ? sectionMeta.get(structure.classSectionId) : undefined;
       const department = section?.department || 'General';
-      const students = structure.classSectionId ? section?.studentCount || 0 : Number(studentTotal) || 0;
+      const students = enrolledFor(structure);
       const expected = (Number(structure.amount) || 0) * students;
 
       structureMeta.set(structure.id, {
@@ -2306,7 +2542,8 @@ export class AdminService {
 
       const bucket = bucketFor(department);
       bucket.expected += expected;
-      bucket.studentCount += students;
+      if (structure.classSectionId) bucket.classes.add(structure.classSectionId);
+      else bucket.allStudents = true;
     }
 
     for (const payment of payments as any[]) {
@@ -2326,7 +2563,7 @@ export class AdminService {
         collected: Math.round(bucket.collected),
         pending: Math.max(Math.round(bucket.expected - bucket.collected), 0),
         collectionRate: bucket.expected > 0 ? Math.round((bucket.collected / bucket.expected) * 100) : 0,
-        studentCount: bucket.studentCount,
+        studentCount: headCount(bucket),
         paidStudentCount: bucket.paidStudents.size,
       }))
       .sort((a, b) => b.expected - a.expected);
@@ -2345,9 +2582,7 @@ export class AdminService {
       for (const structure of structures as any[]) {
         const meta = structureMeta.get(structure.id);
         if (!meta) continue;
-        const section = structure.classSectionId ? sectionMeta.get(structure.classSectionId) : undefined;
-        const students = structure.classSectionId ? section?.studentCount || 0 : Number(studentTotal) || 0;
-        ensure(meta[key]).expected += (Number(structure.amount) || 0) * students;
+        ensure(meta[key]).expected += (Number(structure.amount) || 0) * enrolledFor(structure);
       }
 
       for (const payment of payments as any[]) {
@@ -2388,6 +2623,52 @@ export class AdminService {
 
   async createFeePayment(institutionCode: string, data: any) {
     if (!db) throw Object.assign(new Error('Database not available'), { statusCode: 500 });
+    const amount = Number(data.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw { statusCode: 400, code: 'INVALID_AMOUNT', message: 'Payment amount must be greater than zero.' };
+    }
+    if (!data.feeStructureId || !data.studentId) {
+      throw { statusCode: 400, code: 'MISSING_FIELDS', message: 'A fee structure and a student are required.' };
+    }
+    // The fee structure and the student must belong to this institution; a
+    // receipt for someone else's fee head would otherwise inflate our summary.
+    const [structure] = await db
+      .select()
+      .from(feeStructures)
+      .where(andSql(eqSql(feeStructures.id, data.feeStructureId), eqSql(feeStructures.institutionCode, institutionCode)));
+    if (!structure) {
+      throw { statusCode: 404, code: 'FEE_STRUCTURE_NOT_FOUND', message: 'Fee structure not found.' };
+    }
+    const [student] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(andSql(eqSql(users.id, data.studentId), eqSql(users.institutionCode, institutionCode)));
+    if (!student) {
+      throw { statusCode: 404, code: 'STUDENT_NOT_FOUND', message: 'Student not found in this institution.' };
+    }
+    if ('paid' === String(data.status || 'paid').toLowerCase()) {
+      const existing = await db
+        .select({ amount: feePayments.amount, status: feePayments.status })
+        .from(feePayments)
+        .where(
+          andSql(
+            eqSql(feePayments.institutionCode, institutionCode),
+            eqSql(feePayments.feeStructureId, data.feeStructureId),
+            eqSql(feePayments.studentId, data.studentId)
+          )
+        );
+      const alreadyPaid = existing
+        .filter((p) => String(p.status || '').toLowerCase() === 'paid')
+        .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+      const payable = (Number(structure.amount) || 0) - alreadyPaid;
+      if (amount > payable + 0.01) {
+        throw {
+          statusCode: 400,
+          code: 'PAYMENT_EXCEEDS_BALANCE',
+          message: `Payment of ${amount} exceeds the outstanding balance of ${Math.max(payable, 0)}.`,
+        };
+      }
+    }
     const id = `fp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     // Receipt number comes from the per-institution sequence, allocated inside
     // the same transaction as the insert so concurrent collections can never
@@ -2413,9 +2694,19 @@ export class AdminService {
 
   async updateFeePayment(id: string, institutionCode: string, data: any) {
     if (!db) throw Object.assign(new Error('Database not available'), { statusCode: 500 });
+    const patch: Record<string, any> = {};
+    for (const key of ['amount', 'paymentMethod', 'paymentDate', 'status', 'notes']) {
+      if (data[key] !== undefined) patch[key] = key === 'amount' ? String(data.amount) : data[key];
+    }
+    if (patch.amount !== undefined && Number(patch.amount) <= 0) {
+      throw { statusCode: 400, code: 'INVALID_AMOUNT', message: 'Payment amount must be greater than zero.' };
+    }
+    if (Object.keys(patch).length === 0) {
+      throw { statusCode: 400, code: 'NOTHING_TO_UPDATE', message: 'No updatable fields were provided.' };
+    }
     const [result] = await db
       .update(feePayments)
-      .set(data)
+      .set(patch)
       .where(andSql(eqSql(feePayments.id, id), eqSql(feePayments.institutionCode, institutionCode)))
       .returning();
     if (!result) throw Object.assign(new Error('Fee payment not found'), { statusCode: 404 });

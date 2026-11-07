@@ -24,6 +24,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as Sentry from '@sentry/react-native';
 
 import { useAuthGuard } from '../features/shared/hooks/useAuthGuard';
+import { LoadingSplash } from '../features/shared/components/LoadingSplash';
 import { usePushNotifications } from '../features/shared/hooks/usePushNotifications';
 import { useAppSync } from '../features/shared/hooks/useAppSync';
 import { FontFamily } from '../constants/fonts';
@@ -90,6 +91,9 @@ LogBox.ignoreLogs([
   '@firebase/firestore: Firestore',
   "WebChannelConnection RPC 'Listen' stream",
   'transport errored',
+  // react-native-web has no native animated module; every `useNativeDriver: true`
+  // would otherwise surface as a user-facing error toast in dev.
+  'useNativeDriver',
 ]);
 
 // Force Montserrat font on all Text elements globally
@@ -439,7 +443,7 @@ const AppLayout = function Layout() {
   }, [loaded, fontError, isMCheckLoading, _hasHydrated, authLoading, needsUpdate, isMaintenance]);
 
   if ((!loaded && !fontError) || isMCheckLoading || !_hasHydrated || authLoading) {
-    return null;
+    return <LoadingSplash staticOnly />;
   }
 
   const isDevPage = activeGroup === '(developer)';
@@ -493,6 +497,7 @@ const AppLayout = function Layout() {
           <Stack.Screen name="(driver)" />
           <Stack.Screen name="(placement)" />
           <Stack.Screen name="(admission)" />
+          <Stack.Screen name="(counselor)" />
         </Stack>
       </View>
     </QueryClientProvider>

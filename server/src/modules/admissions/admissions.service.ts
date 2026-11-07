@@ -2,13 +2,47 @@ import { db } from '../shared/db/index.js';
 import * as schema from '../shared/db/schema.js';
 import { eq, desc, or, inArray, and, ne } from 'drizzle-orm';
 import { admin } from '../shared/config/firebase.js';
-import { insertParentLinks } from '../users/parent-links.js';
+import { insertParentLinks, getParentLinks } from '../users/parent-links.js';
 
 function newAdmId(): string {
   return `adm_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 }
 
 export class AdmissionsService {
+  /**
+   * Public school directory for the parent app. Only non-sensitive
+   * descriptive columns leave the server; never settings or staff data.
+   */
+  public async listPublicInstitutions(type?: 'school' | 'college') {
+    if (!db) return [];
+    const where = type ? eq(schema.institutions.institutionType, type) : undefined;
+    const q = db
+      .select({
+        institutionCode: schema.institutions.institutionCode,
+        institutionName: schema.institutions.institutionName,
+        institutionType: schema.institutions.institutionType,
+        departments: schema.institutions.departments,
+        academicYears: schema.institutions.academicYears,
+        courses: schema.institutions.courses,
+        sections: schema.institutions.sections,
+      })
+      .from(schema.institutions);
+    const rows = where ? await q.where(where) : await q;
+    return rows.map((r) => ({
+      ...r,
+      description: `${r.institutionType === 'college' ? 'College' : 'School'} offering ${[...(r.academicYears || []), ...(r.courses || [])].slice(0, 4).join(', ') || 'education'}`,
+      logoUrl: '',
+      facilities: [],
+      averageRating: 0,
+      totalReviews: 0,
+    }));
+  }
+
+  public async getPublicInstitution(code: string) {
+    const rows = await this.listPublicInstitutions();
+    return rows.find((r) => r.institutionCode.toLowerCase() === code.toLowerCase());
+  }
+
   public async getAdmissions(filter: { parentId?: string; schoolId?: string }) {
     if (!db) return [];
 
@@ -225,15 +259,32 @@ export class AdmissionsService {
       if (parentMatches.length > 0) {
         const parentUser = parentMatches[0];
         const currentScope = (parentUser.scope as any) || {};
-        const updatedScope = {
+
+        // Canonical parent → student link (no USN in scope anymore). A parent
+        // who already has children keeps their existing default child; only an
+        // unaffiliated parent adopts the newly admitted student as primary.
+        let isPrimary = true;
+        try {
+          const existingLinks = await getParentLinks(parentUser.id);
+          isPrimary = existingLinks.length === 0;
+          await insertParentLinks(adm.schoolId, parentUser.id, [
+            { studentId: actualStudentId, relationship: 'Parent', isPrimary },
+          ]);
+        } catch (lErr) {
+          console.warn('[AdmissionsService] parent link insert error:', lErr);
+        }
+
+        const updatedScope: Record<string, any> = {
           ...currentScope,
-          childId: actualStudentId,
-          childName: adm.childFullName,
           relation: currentScope.relation || 'Parent',
           institutionCode: adm.schoolId,
           schoolName: adm.schoolName,
-          grade: adm.gradeApplyingFor,
         };
+        if (isPrimary) {
+          updatedScope.childId = actualStudentId;
+          updatedScope.childName = adm.childFullName;
+          updatedScope.grade = adm.gradeApplyingFor;
+        }
 
         await db
           .update(schema.users)
@@ -245,15 +296,6 @@ export class AdmissionsService {
           })
           .where(eq(schema.users.id, parentUser.id));
 
-        // Canonical parent → student link (no USN in scope anymore).
-        try {
-          await insertParentLinks(adm.schoolId, parentUser.id, [
-            { studentId: actualStudentId, relationship: 'Parent', isPrimary: true },
-          ]);
-        } catch (lErr) {
-          console.warn('[AdmissionsService] parent link insert error:', lErr);
-        }
-
         // 3. Sync to Firestore for instant mobile reflection
         try {
           const docId = parentUser.firebaseUid || parentUser.id;
@@ -264,8 +306,7 @@ export class AdmissionsService {
               schoolId: adm.schoolId,
               institutionName: adm.schoolName,
               schoolName: adm.schoolName,
-              childName: adm.childFullName,
-              childId: actualStudentId,
+              ...(isPrimary ? { childName: adm.childFullName, childId: actualStudentId } : {}),
               relation: currentScope.relation || 'Parent',
               scope: updatedScope,
               updatedAt: new Date().toISOString(),

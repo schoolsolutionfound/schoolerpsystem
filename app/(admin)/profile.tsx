@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, StyleSheet, Text, Alert, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -7,6 +7,7 @@ import { performLogout } from '../../utils/logout';
 import { useUserStore } from '../../store/useUserStore';
 import { AdminProfileView } from '../../features/admin/components/AdminProfileView';
 import { updateMyProfileApi } from '../../api/users';
+import { ConfirmDialog } from '../../features/shared/components/layout/ConfirmDialog';
 
 export default function AdminProfileScreen() {
   const router = useRouter();
@@ -19,16 +20,17 @@ export default function AdminProfileScreen() {
   const setUserProfile = useUserStore((s) => s.setUserProfile);
   const resetUser = useUserStore((s) => s.resetUser);
 
+  const [logoutConfirmVisible, setLogoutConfirmVisible] = useState(false);
+
   const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to log out?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Logout', style: 'destructive', onPress: async () => {
-          await performLogout();
-          resetUser();
-          router.replace('/auth');
-        },
-      },
-    ]);
+    setLogoutConfirmVisible(true);
+  };
+
+  const confirmLogout = async () => {
+    setLogoutConfirmVisible(false);
+    await performLogout();
+    resetUser();
+    router.replace('/auth');
   };
 
   const handleUpdateProfile = async (patch: {
@@ -82,6 +84,14 @@ export default function AdminProfileScreen() {
         onChangePassword={() => router.push('/change-password')}
         onLogout={handleLogout}
         onSaveProfile={handleUpdateProfile}
+      />
+      <ConfirmDialog
+        visible={logoutConfirmVisible}
+        title="Logout"
+        message="Are you sure you want to log out?"
+        confirmLabel="Logout"
+        onConfirm={confirmLogout}
+        onCancel={() => setLogoutConfirmVisible(false)}
       />
     </SafeAreaView>
   );

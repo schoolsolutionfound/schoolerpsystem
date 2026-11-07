@@ -75,6 +75,7 @@ export const SCHOOL_ROLE_OPTIONS: RoleOption[] = [
   { key: 'librarian', label: 'Librarian', icon: 'book-outline' },
   { key: 'driver', label: 'Driver', icon: 'bus' },
   { key: 'admission_officer', label: 'Admission Officer', icon: 'card-account-details-outline' },
+  { key: 'counselor', label: 'Counselor', icon: 'heart-outline' },
 ];
 
 export const COLLEGE_ROLE_OPTIONS: RoleOption[] = [
@@ -86,6 +87,7 @@ export const COLLEGE_ROLE_OPTIONS: RoleOption[] = [
   { key: 'driver', label: 'Driver', icon: 'bus' },
   { key: 'placement_officer', label: 'Placement Officer', icon: 'briefcase-outline' },
   { key: 'admission_officer', label: 'Admission Officer', icon: 'card-account-details-outline' },
+  { key: 'counselor', label: 'Counselor', icon: 'heart-outline' },
 ];
 
 /** Roles that may be created for an institution (superset used by developer). */
@@ -99,6 +101,7 @@ export const SCHOOL_ADMIN_ROLES = [
   'librarian',
   'driver',
   'admission_officer',
+  'counselor',
 ] as const;
 
 export const COLLEGE_ADMIN_ROLES = [
@@ -113,6 +116,7 @@ export const COLLEGE_ADMIN_ROLES = [
   'driver',
   'placement_officer',
   'admission_officer',
+  'counselor',
 ] as const;
 
 export function roleOptionsForInstitutionType(

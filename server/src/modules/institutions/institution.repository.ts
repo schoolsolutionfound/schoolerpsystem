@@ -104,6 +104,7 @@ function toRecord(data: Partial<NewInstitutionRecord> & { institutionCode: strin
     defaultTempPassword: data.defaultTempPassword || '',
     maintenanceEnabled: (data as any).maintenanceEnabled ?? false,
     maintenanceMinVersion: (data as any).maintenanceMinVersion || '0.0.0',
+    timezone: (data as any).timezone || 'Asia/Kolkata',
     createdAt: data.createdAt || new Date(),
     updatedAt: data.updatedAt || new Date(),
   };
@@ -124,6 +125,18 @@ export class InstitutionRepository implements IInstitutionRepository {
       return await db.select().from(institutions);
     }
     return inMemoryStore.getAll();
+  }
+
+  public async findTimezoneByCode(code: string): Promise<string | undefined> {
+    if (db) {
+      const rows = await db
+        .select({ timezone: institutions.timezone })
+        .from(institutions)
+        .where(sql`lower(${institutions.institutionCode}) = lower(${code})`)
+        .limit(1);
+      return rows[0]?.timezone;
+    }
+    return inMemoryStore.getByCode(code)?.timezone;
   }
 
   public async findById(id: string): Promise<InstitutionRecord | undefined> {

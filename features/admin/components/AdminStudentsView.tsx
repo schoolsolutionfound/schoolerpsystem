@@ -595,22 +595,18 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
     setPassword('');
     setShowPassword(false);
     setExcludedFeeIds(new Set());
-    if (isCollege) {
-      setDept(departments[0] || '');
-      setYear(academicYears[0] || '');
-      setSection(sections[0] || '');
+    // Both schools and colleges pick a real class-section row by default; a
+    // bare department label would not resolve to a class.
+    const first = classSectionOptions[0];
+    if (first) {
+      const t = parseTripleKey(first.key);
+      setDept(t.department);
+      setYear(t.academicYear);
+      setSection(t.section);
     } else {
-      const first = classSectionOptions[0];
-      if (first) {
-        const t = parseTripleKey(first.key);
-        setDept(t.department);
-        setYear(t.academicYear);
-        setSection(t.section);
-      } else {
-        setDept('');
-        setYear('');
-        setSection('');
-      }
+      setDept('');
+      setYear('');
+      setSection('');
     }
     setSessionName(currentSession?.name || sessionNames[0] || '');
     setCreateModalOpen(true);
@@ -973,45 +969,23 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
               </View>
               <View style={styles.nameRow}>
                 <View style={styles.nameField}>
-                  {isCollege ? (
-                    <DropdownSelect
-                      variant="inline"
-                      label="Department"
-                      value={dept}
-                      options={departments}
-                      onChange={setDept}
-                      placeholder="Select department"
-                      menuTitle="Department"
-                    />
-                  ) : (
-                    <DropdownSelect
-                      variant="inline"
-                      label="Class / Section"
-                      value={tripleKey(dept, year, section)}
-                      options={classSectionOptions}
-                      onChange={(key) => {
-                        const t = parseTripleKey(key);
-                        setDept(t.department);
-                        setYear(t.academicYear);
-                        setSection(t.section);
-                      }}
-                      placeholder="Select class"
-                      menuTitle="Class / Section"
-                    />
-                  )}
+                  <DropdownSelect
+                    variant="inline"
+                    label={isCollege ? 'Class (Program / Year / Section)' : 'Class / Section'}
+                    value={tripleKey(dept, year, section)}
+                    options={classSectionOptions}
+                    onChange={(key) => {
+                      const t = parseTripleKey(key);
+                      setDept(t.department);
+                      setYear(t.academicYear);
+                      setSection(t.section);
+                    }}
+                    placeholder="Select class"
+                    menuTitle={isCollege ? 'Class' : 'Class / Section'}
+                  />
                 </View>
               </View>
-              {isCollege && (
-                <View style={styles.nameRow}>
-                  <View style={styles.nameField}>
-                    <DropdownSelect variant="inline" label={yearLabel} value={year} options={academicYears} onChange={setYear} placeholder="Select year" menuTitle={yearLabel} />
-                  </View>
-                  <View style={styles.nameField}>
-                    <DropdownSelect variant="inline" label="Section" value={section} options={sections} onChange={setSection} placeholder="Select section" menuTitle="Section" />
-                  </View>
-                </View>
-              )}
-              {!isCollege && classSectionOptions.length === 0 && (
+              {classSectionOptions.length === 0 && (
                 <Text style={styles.hintText}>No classes configured yet — add classes under Institution → Classes.</Text>
               )}
 
@@ -1272,32 +1246,20 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
               </View>
               <View style={styles.nameRow}>
                 <View style={styles.nameField}>
-                  {isCollege ? (
-                    <DropdownSelect
-                      variant="inline"
-                      label="Department"
-                      value={editDept}
-                      options={departments}
-                      onChange={setEditDept}
-                      placeholder="Select department"
-                      menuTitle="Department"
-                    />
-                  ) : (
-                    <DropdownSelect
-                      variant="inline"
-                      label="Class / Section"
-                      value={editTriple}
-                      options={editClassOptions}
-                      onChange={(key) => {
-                        const t = parseTripleKey(key);
-                        setEditDept(t.department);
-                        setEditYear(t.academicYear);
-                        setEditSection(t.section);
-                      }}
-                      placeholder="Select class"
-                      menuTitle="Class / Section"
-                    />
-                  )}
+                  <DropdownSelect
+                    variant="inline"
+                    label={isCollege ? 'Class (Program / Year / Section)' : 'Class / Section'}
+                    value={editTriple}
+                    options={editClassOptions}
+                    onChange={(key) => {
+                      const t = parseTripleKey(key);
+                      setEditDept(t.department);
+                      setEditYear(t.academicYear);
+                      setEditSection(t.section);
+                    }}
+                    placeholder="Select class"
+                    menuTitle={isCollege ? 'Class' : 'Class / Section'}
+                  />
                 </View>
                 {sessionNames.length > 0 && (
                   <View style={styles.nameField}>
@@ -1313,16 +1275,6 @@ export const AdminStudentsView: React.FC<AdminStudentsViewProps> = ({
                   </View>
                 )}
               </View>
-              {isCollege && (
-                <View style={styles.nameRow}>
-                  <View style={styles.nameField}>
-                    <DropdownSelect variant="inline" label={yearLabel} value={editYear} options={academicYears} onChange={setEditYear} placeholder="Select year" menuTitle={yearLabel} />
-                  </View>
-                  <View style={styles.nameField}>
-                    <DropdownSelect variant="inline" label="Section" value={editSection} options={sections} onChange={setEditSection} placeholder="Select section" menuTitle="Section" />
-                  </View>
-                </View>
-              )}
               <View style={styles.formGroup}>
                 <Text style={styles.label}>Phone</Text>
                 <TextInput style={styles.input} value={editPhone} onChangeText={setEditPhone} keyboardType="phone-pad" />

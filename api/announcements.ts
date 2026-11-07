@@ -59,16 +59,21 @@ export async function fetchAnnouncementsApi(query: AnnouncementQueryPayload = {}
 }
 
 /**
- * Fetch active user-facing announcement feed.
+ * Fetch active user-facing announcement feed. Normalised to a bare array:
+ * `/notifications` renders whatever this returns directly.
  */
-export async function fetchAnnouncementFeedApi(query: AnnouncementQueryPayload = {}) {
+export async function fetchAnnouncementFeedApi(query: AnnouncementQueryPayload = {}): Promise<any[]> {
   const params = new URLSearchParams();
   if (query.search) params.append('search', query.search);
   if (query.limit !== undefined) params.append('limit', String(query.limit));
   if (query.offset !== undefined) params.append('offset', String(query.offset));
 
   const queryStr = params.toString() ? `?${params.toString()}` : '';
-  return apiClient(`/announcements/feed${queryStr}`);
+  const res: any = await apiClient(`/announcements/feed${queryStr}`);
+  if (Array.isArray(res)) return res;
+  if (Array.isArray(res?.data?.items)) return res.data.items;
+  if (Array.isArray(res?.items)) return res.items;
+  return [];
 }
 
 /**

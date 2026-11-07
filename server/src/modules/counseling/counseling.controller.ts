@@ -1,5 +1,8 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { counselingService } from './counseling.service.js';
+import { dbFindUserByIdOrUid } from '../shared/db/index.js';
+import { getInstitutionTimezone } from '../institutions/institution.service.js';
+import { todayInZone } from '../shared/utils/institutionTime.js';
 
 export async function listCounselingRecordsHandler(request: FastifyRequest, reply: FastifyReply) {
   try {
@@ -41,18 +44,20 @@ export async function createCounselingRecordHandler(request: FastifyRequest, rep
       });
     }
 
+    const author = await dbFindUserByIdOrUid(user.uid);
+
     const created = await counselingService.createRecord(instCode, {
       studentId: body.studentId,
       studentName: body.studentName,
       gradeSection: body.gradeSection,
-      counselorId: body.counselorId || user.uid,
-      counselorName: body.counselorName || user.name || 'Guidance Counselor',
+      counselorId: user.uid,
+      counselorName: body.counselorName || author?.fullName || 'Guidance Counselor',
       concernCategory: body.concernCategory,
       severity: body.severity,
       actionPlan: body.actionPlan,
       parentContacted: body.parentContacted,
       status: body.status,
-      date: body.date || new Date().toISOString().split('T')[0],
+      date: body.date || todayInZone(await getInstitutionTimezone(user.institutionCode)),
       lastFollowUpDate: body.lastFollowUpDate,
     });
 
@@ -82,7 +87,7 @@ export async function updateCounselingRecordHandler(request: FastifyRequest, rep
     const updated = await counselingService.updateRecord(instCode, id, {
       status: body.status,
       actionPlan: body.actionPlan,
-      lastFollowUpDate: body.lastFollowUpDate || new Date().toISOString().split('T')[0],
+      lastFollowUpDate: body.lastFollowUpDate,
       parentContacted: body.parentContacted,
     });
 

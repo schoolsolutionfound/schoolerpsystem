@@ -30,6 +30,9 @@ export const institutions = pgTable('institutions', {
   defaultTempPassword: varchar('default_temp_password', { length: 64 }).default(''),
   maintenanceEnabled: boolean('maintenance_enabled').notNull().default(false),
   maintenanceMinVersion: varchar('maintenance_min_version', { length: 50 }).notNull().default('0.0.0'),
+  // IANA zone used to resolve "today" (timetable weekday, attendance date,
+  // defaults on every date-bearing endpoint). Defaults to India time.
+  timezone: varchar('timezone', { length: 64 }).notNull().default('Asia/Kolkata'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
@@ -243,6 +246,7 @@ export const timetables = pgTable('timetables', {
   updatedAt: timestamp('updated_at').defaultNow(),
 }, (table) => ({
   instCodeIdx: index('idx_timetables_inst').on(table.institutionCode),
+  instEffectiveIdx: index('idx_timetables_inst_effective').on(table.institutionCode, table.effectiveFrom),
   classIdx: index('idx_timetables_class').on(table.classSectionId),
   classVersionUnique: uniqueIndex('uq_timetables_class_version').on(table.classSectionId, table.version),
   instIdUnique: uniqueIndex('uq_timetables_inst_id').on(table.institutionCode, table.id),
@@ -274,6 +278,7 @@ export const timetableSlots = pgTable('timetable_slots', {
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 }, (table) => ({
+  instIdx: index('idx_timetable_slots_inst').on(table.institutionCode),
   timetableIdx: index('idx_timetable_slots_tt').on(table.timetableId),
   teacherIdx: index('idx_timetable_slots_teacher').on(table.teacherId),
   classIdx: index('idx_timetable_slots_class').on(table.classSectionId),

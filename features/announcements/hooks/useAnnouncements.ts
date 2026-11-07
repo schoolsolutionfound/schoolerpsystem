@@ -53,8 +53,11 @@ export function useAnnouncementFeedInfiniteQuery(query: Omit<AnnouncementQueryPa
   const userScope = getUserScope();
   return useInfiniteQuery({
     queryKey: ['announcements', userScope, 'feed-infinite', query],
-    queryFn: ({ pageParam }): Promise<AnnouncementPage> =>
-      fetchAnnouncementFeedApi({ ...query, limit: PAGE_SIZE, offset: pageParam }),
+    queryFn: async ({ pageParam }): Promise<AnnouncementPage> => {
+      const items = await fetchAnnouncementFeedApi({ ...query, limit: PAGE_SIZE, offset: pageParam });
+      // No server total on the feed: a full page means "maybe more".
+      return { items, total: items.length >= PAGE_SIZE ? pageParam + PAGE_SIZE + 1 : pageParam + items.length };
+    },
     initialPageParam: 0,
     getNextPageParam: (lastPage: AnnouncementPage, allPages: AnnouncementPage[]) => {
       const loaded = allPages.reduce((n, p) => n + (p?.items?.length || 0), 0);

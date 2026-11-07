@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Modal,
   RefreshControl,
@@ -20,6 +19,8 @@ import {
   getTransportOverviewApi,
 } from '../../../api/transport';
 import { FontFamily } from '../../../constants/fonts';
+import { ShimmerSkeleton, ShimmerProvider } from '../../student/components/ShimmerSkeleton';
+import { BorderRadius } from '../../../constants/theme';
 import { BusDetailView } from './BusDetailView';
 import { TransportRouteEditorModal } from './TransportRouteEditorModal';
 
@@ -106,10 +107,40 @@ export const TransportManagementView: React.FC<TransportManagementViewProps> = (
 
   if (loading) {
     return (
-      <View style={styles.loadingWrap}>
-        <ActivityIndicator size="large" color="#F4C430" />
-        <Text style={styles.loadingText}>Loading transport routes...</Text>
-      </View>
+      <ShimmerProvider>
+        <View style={styles.skeletonContainer}>
+          <View style={styles.skeletonHero}>
+            <ShimmerSkeleton width={44} height={44} borderRadius={22} />
+            <View style={{ flex: 1, gap: 8 }}>
+              <ShimmerSkeleton width="55%" height={16} borderRadius={4} />
+              <ShimmerSkeleton width="80%" height={11} borderRadius={3} />
+              <ShimmerSkeleton width="40%" height={10} borderRadius={3} />
+            </View>
+          </View>
+
+          <View style={styles.skeletonStatRow}>
+            {[0, 1, 2].map((i) => (
+              <View key={i} style={styles.skeletonStatCard}>
+                <ShimmerSkeleton width={36} height={24} borderRadius={4} />
+                <ShimmerSkeleton width="60%" height={9} borderRadius={3} />
+              </View>
+            ))}
+          </View>
+
+          <ShimmerSkeleton width="35%" height={13} borderRadius={4} />
+          {[0, 1, 2].map((i) => (
+            <View key={i} style={styles.skeletonCard}>
+              <ShimmerSkeleton width={40} height={40} borderRadius={20} />
+              <View style={{ flex: 1, gap: 6 }}>
+                <ShimmerSkeleton width="50%" height={13} borderRadius={4} />
+                <ShimmerSkeleton width="70%" height={10} borderRadius={3} />
+                <ShimmerSkeleton width="35%" height={9} borderRadius={3} />
+              </View>
+              <ShimmerSkeleton width={52} height={26} borderRadius={BorderRadius.chip} />
+            </View>
+          ))}
+        </View>
+      </ShimmerProvider>
     );
   }
 
@@ -284,11 +315,7 @@ export const TransportManagementView: React.FC<TransportManagementViewProps> = (
                 <Text style={styles.ghostBtnText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.primaryBtn} onPress={handleCreateBus} disabled={savingBus}>
-                {savingBus ? (
-                  <ActivityIndicator size="small" color="#171717" />
-                ) : (
-                  <Text style={styles.primaryBtnText}>Add bus</Text>
-                )}
+                <Text style={styles.primaryBtnText}>{savingBus ? 'Adding...' : 'Add bus'}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -301,8 +328,39 @@ export const TransportManagementView: React.FC<TransportManagementViewProps> = (
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#FAF8F5' },
   content: { padding: 16, gap: 12, paddingBottom: 40 },
-  loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 },
-  loadingText: { fontSize: 13, fontFamily: FontFamily.medium, color: '#6B7280' },
+
+  skeletonContainer: { padding: 16, gap: 14, paddingBottom: 40 },
+  skeletonHero: {
+    flexDirection: 'row',
+    gap: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    padding: 14,
+    alignItems: 'center',
+  },
+  skeletonStatRow: { flexDirection: 'row', gap: 8 },
+  skeletonStatCard: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    paddingVertical: 12,
+    alignItems: 'center',
+    gap: 6,
+  },
+  skeletonCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    padding: 14,
+  },
 
   hero: {
     flexDirection: 'row',

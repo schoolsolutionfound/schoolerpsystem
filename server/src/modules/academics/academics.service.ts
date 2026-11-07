@@ -1,7 +1,7 @@
 import { academicsRepository } from './academics.repository.js';
 import { institutionService } from '../institutions/institution.service.js';
 import { adaptLegacySchoolClassSection } from '../shared/academicStructure.js';
-import { db, withTransaction, dbFindUsersByInstitution, dbFindUserByIdOrUid, dbFindStudentByUsnInInstitution, dbFindStudentsByClassScope, dbFindStudentClassSectionId } from '../shared/db/index.js';
+import { db, withTransaction, dbFindUsersByInstitution, dbFindUserByIdOrUid, dbFindUsersByIdsOrUids, dbFindStudentByUsnInInstitution, dbFindStudentsByClassScope, dbFindStudentClassSectionId } from '../shared/db/index.js';
 import { getPrimaryParentChild } from '../users/parent-links.js';
 import { eq as eqSql, and as andSql, sql as sqlDrizzle, inArray as inArraySql } from 'drizzle-orm';
 import {
@@ -36,6 +36,14 @@ import {
 
 const TEACHER_ROLES = ['teacher', 'hod', 'admin', 'principal'];
 
+// Postgres `date` columns come back as Date objects, plain strings come from
+// the memory store: normalize both to YYYY-MM-DD before comparing.
+function toDateKey(value: any): string {
+  if (!value) return '';
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  return String(value).slice(0, 10);
+}
+
 export class AcademicsService {
   // ---------- Academic Sessions ----------
   public async listAcademicSessions(institutionCode: string) {
@@ -53,11 +61,17 @@ export class AcademicsService {
     }
     // First session of the institution becomes current automatically.
     const isFirst = existing.length === 0;
-    const created = await academicsRepository.createAcademicSession({ ...input, institutionCode, isCurrent: isFirst });
-    if (isFirst) {
-      // ensure flag persisted even if default was false
-      await academicsRepository.updateAcademicSession(created.id, { isCurrent: true });
-      created.isCurrent = true;
+    // No institution has a current year yet → the new one becomes current in a
+    // single write, so a crash cannot leave the session inserted but not current.
+    const created = await academicsRepository.createAcademicSession({
+      ...input,
+      institutionCode,
+      isCurrent: isFirst,
+    });
+    // Sections seeded before the first year existed are unlinked; attach them
+    // to the year that just became current so the structure is usable.
+    if (created.isCurrent) {
+      await academicsRepository.backfillClassSectionSession(institutionCode, created.id);
     }
     return created;
   }
@@ -75,9 +89,15 @@ export class AcademicsService {
     if (!existing || existing.institutionCode.toLowerCase() !== institutionCode.toLowerCase()) {
       throw { statusCode: 404, code: 'SESSION_NOT_FOUND', message: 'Academic year not found' };
     }
-    await academicsRepository.setAllSessionsNotCurrent(institutionCode);
-    await academicsRepository.updateAcademicSession(id, { isCurrent: true });
-    return academicsRepository.getAcademicSessionById(id);
+    // Clear-then-set must be atomic, otherwise a concurrent switch can leave
+    // two current years (or none).
+    const updated = await withTransaction(async (tx) => {
+      await academicsRepository.setAllSessionsNotCurrent(institutionCode, tx);
+      const current = await academicsRepository.updateAcademicSession(id, { isCurrent: true }, tx);
+      await academicsRepository.backfillClassSectionSession(institutionCode, id, tx);
+      return current;
+    });
+    return updated || (await academicsRepository.getAcademicSessionById(id));
   }
 
   public async deleteAcademicSession(institutionCode: string, id: string) {
@@ -175,6 +195,10 @@ export class AcademicsService {
   }
 
   public async createClassSection(institutionCode: string, input: CreateClassSectionInput) {
+    const existingSections = await academicsRepository.listClassSections(institutionCode);
+    if (existingSections.some((s) => (s.name || '').trim().toLowerCase() === (input.name || '').trim().toLowerCase())) {
+      throw { statusCode: 409, code: 'DUPLICATE_CLASS_SECTION', message: `Class/section "${input.name}" already exists` };
+    }
     if (input.classTeacherId) {
       const teacher = await this.findTeacher(institutionCode, input.classTeacherId);
       if (!teacher) {
@@ -222,6 +246,18 @@ export class AcademicsService {
     return academicsRepository.listSubjects(institutionCode);
   }
 
+  /** Subjects taught in one class/section (all subjects when none configured). */
+  public async listClassSubjects(institutionCode: string, classSectionId: string) {
+    const classSection = await academicsRepository.getClassSectionById(classSectionId);
+    if (!classSection || classSection.institutionCode.toLowerCase() !== institutionCode.toLowerCase()) {
+      throw { statusCode: 404, code: 'CLASS_SECTION_NOT_FOUND', message: 'Class/section not found' };
+    }
+    const subjectList = await academicsRepository.listSubjects(institutionCode);
+    const { allowed } = await this.allowedSubjectIdsForClass(institutionCode, classSection, subjectList);
+    const subjects = allowed ? subjectList.filter((s) => allowed.has(s.id)) : subjectList;
+    return { classSection, subjects };
+  }
+
   public async createSubject(institutionCode: string, input: CreateSubjectInput) {
     return academicsRepository.createSubject({ ...input, institutionCode });
   }
@@ -245,6 +281,8 @@ export class AcademicsService {
     if (!subject || subject.institutionCode.toLowerCase() !== institutionCode.toLowerCase()) {
       throw { statusCode: 400, code: 'INVALID_SUBJECT', message: 'subjectId does not reference a subject in this institution' };
     }
+
+    await this.assertSubjectTaughtInClass(institutionCode, classSection, subject);
 
     const teacher = await this.findTeacher(institutionCode, input.teacherId);
     if (!teacher) {
@@ -589,6 +627,48 @@ export class AcademicsService {
     }
   }
 
+  /**
+   * Subjects a class/section is allowed to use. Schools configure this per
+   * class in Settings → Institution (classSubjects, keyed by class name);
+   * an empty list means "every subject" (colleges and unconfigured schools).
+   */
+  private async allowedSubjectIdsForClass(
+    institutionCode: string,
+    classSection: { name?: string | null; department?: string | null; academicYear?: string | null; section?: string | null },
+    subjectList: { id: string; name: string }[]
+  ): Promise<{ allowed: Set<string> | null; names: string[] }> {
+    const inst = await institutionService.getInstitutionByCode(institutionCode).catch(() => undefined);
+    const map = ((inst as any)?.classSubjects || {}) as Record<string, string[]>;
+    const keys = new Set<string>(
+      [classSection.name, classSection.department, `${classSection.department || ''} ${classSection.section || ''}`.trim()]
+        .map((k) => String(k || '').trim().toLowerCase())
+        .filter(Boolean)
+    );
+    const configured = Object.entries(map).find(([key]) => keys.has(key.trim().toLowerCase()))?.[1];
+    if (!Array.isArray(configured) || configured.length === 0) return { allowed: null, names: [] };
+    const wanted = new Set(configured.map((n) => String(n).trim().toLowerCase()));
+    const matched = subjectList.filter((s) => wanted.has(s.name.trim().toLowerCase()));
+    return {
+      allowed: new Set(matched.map((s) => s.id)),
+      names: configured,
+    };
+  }
+
+  private async assertSubjectTaughtInClass(
+    institutionCode: string,
+    classSection: { name: string | null },
+    subject: { id: string; name: string }
+  ) {
+    const { allowed, names } = await this.allowedSubjectIdsForClass(institutionCode, classSection, [subject]);
+    if (allowed && !allowed.has(subject.id)) {
+      throw {
+        statusCode: 400,
+        code: 'SUBJECT_NOT_IN_CLASS',
+        message: `${subject.name} is not taught in ${classSection.name} (allowed: ${names.join(', ')})`,
+      };
+    }
+  }
+
   private parseScope(scope: any): Record<string, any> {
     if (typeof scope === 'string') {
       try { return JSON.parse(scope); } catch { return {}; }
@@ -598,12 +678,26 @@ export class AcademicsService {
 
   // ---------- Timetable ----------
   public async createTimetable(institutionCode: string, createdByUserId: string, input: CreateTimetableInput) {
-    const classSection = await academicsRepository.getClassSectionById(input.classSectionId);
+    // Independent reads run together; subjects/periods are validated against
+    // one list each (not per slot) and each teacher is looked up once, so a
+    // full week (30+ slots) costs a handful of round trips instead of ~90.
+    if (!input.slots || input.slots.length === 0) {
+      throw { statusCode: 400, code: 'EMPTY_TIMETABLE', message: 'A timetable needs at least one slot.' };
+    }
+
+    const [classSection, creator, maxVersion, subjectList, periodList, currentSession, latestTimetable] = await Promise.all([
+      academicsRepository.getClassSectionById(input.classSectionId),
+      this.findUser(institutionCode, createdByUserId),
+      academicsRepository.getMaxTimetableVersion(input.classSectionId),
+      academicsRepository.listSubjects(institutionCode),
+      academicsRepository.listPeriods(institutionCode),
+      academicsRepository.getCurrentAcademicSession(institutionCode),
+      academicsRepository.listTimetablesForClass(input.classSectionId),
+    ]);
     if (!classSection || classSection.institutionCode.toLowerCase() !== institutionCode.toLowerCase()) {
       throw { statusCode: 400, code: 'INVALID_CLASS_SECTION', message: 'classSectionId does not reference a class/section in this institution' };
     }
 
-    const creator = await this.findUser(institutionCode, createdByUserId);
     const creatorRole = creator?.role.toLowerCase() || '';
     const isStaffAdmin = ['admin', 'hod', 'principal'].includes(creatorRole);
     if (!isStaffAdmin) {
@@ -616,8 +710,20 @@ export class AcademicsService {
       }
     }
 
-    const maxVersion = await academicsRepository.getMaxTimetableVersion(input.classSectionId);
     const version = maxVersion + 1;
+    const effectiveFrom = toDateKey(input.effectiveFrom);
+    const latestEffective = toDateKey(latestTimetable?.[0]?.effectiveFrom);
+    if (latestEffective && effectiveFrom < latestEffective) {
+      throw {
+        statusCode: 400,
+        code: 'INVALID_EFFECTIVE_DATE',
+        message: `A timetable is already in force from ${latestEffective}; new versions must start on or after that date.`,
+      };
+    }
+
+    const { allowed, names: configuredNames } = await this.allowedSubjectIdsForClass(institutionCode, classSection, subjectList);
+    const subjectIds = allowed ?? new Set<string>(subjectList.map((s) => s.id));
+    const periodIds = new Set<string>(periodList.map((p) => p.id));
 
     const slotRows: any[] = [];
     const seen = new Set<string>();
@@ -626,22 +732,28 @@ export class AcademicsService {
         throw { statusCode: 409, code: 'DUPLICATE_SLOT', message: `Duplicate slot for day ${slot.dayOfWeek}, period ${slot.periodId}` };
       }
       seen.add(`${slot.dayOfWeek}:${slot.periodId}`);
-
-      const subject = await academicsRepository.getSubjectById(slot.subjectId);
-      if (!subject || subject.institutionCode.toLowerCase() !== institutionCode.toLowerCase()) {
-        throw { statusCode: 400, code: 'INVALID_SUBJECT', message: `slot: subject ${slot.subjectId} is invalid` };
+      if (!subjectIds.has(slot.subjectId)) {
+        throw {
+          statusCode: 400,
+          code: 'INVALID_SUBJECT',
+          message: allowed
+            ? `slot: subject ${slot.subjectId} is not taught in ${classSection.name} (allowed: ${configuredNames.join(', ')})`
+            : `slot: subject ${slot.subjectId} is invalid`,
+        };
       }
-
-      const period = await academicsRepository.getPeriodById(slot.periodId);
-      if (!period || period.institutionCode.toLowerCase() !== institutionCode.toLowerCase()) {
+      if (!periodIds.has(slot.periodId)) {
         throw { statusCode: 400, code: 'INVALID_PERIOD', message: `slot: period ${slot.periodId} is invalid` };
       }
+    }
 
-      const teacher = await this.findTeacher(institutionCode, slot.teacherId);
-      if (!teacher) {
+    const teacherIds = Array.from(new Set(input.slots.map((s) => s.teacherId)));
+    const teacherChecks = await Promise.all(teacherIds.map((id) => this.findTeacher(institutionCode, id)));
+    const validTeachers = new Set(teacherIds.filter((_, i) => Boolean(teacherChecks[i])));
+
+    for (const slot of input.slots) {
+      if (!validTeachers.has(slot.teacherId)) {
         throw { statusCode: 400, code: 'INVALID_TEACHER', message: `slot: teacher ${slot.teacherId} is invalid` };
       }
-
       slotRows.push({
         institutionCode,
         classSectionId: input.classSectionId,
@@ -653,14 +765,13 @@ export class AcademicsService {
       });
     }
 
-    const currentSession = await academicsRepository.getCurrentAcademicSession(institutionCode);
     const timetable = await academicsRepository.createTimetable({
       institutionCode,
       classSectionId: input.classSectionId,
       academicYear: input.academicYear,
       term: input.term,
       version,
-      effectiveFrom: input.effectiveFrom,
+      effectiveFrom: effectiveFrom,
       createdBy: createdByUserId,
       sessionId: currentSession?.id || '',
     });
@@ -694,44 +805,60 @@ export class AcademicsService {
    * thousands of identical lookups.
    */
   public async getTodayClasses(institutionCode: string, dateStr: string) {
-    const sections = (await this.listClassSections(institutionCode)) as any[];
+    // Raw rows only: the listClassSections aggregations are not used here and
+    // cost several extra multi-second scans on institutions with history.
+    const rawSections = await academicsRepository.listClassSections(institutionCode).catch(() => []);
+    const inst = await institutionService.getInstitutionByCode(institutionCode).catch(() => undefined);
+    const sections: any[] = (Array.isArray(rawSections) ? rawSections : []).map((s: any) =>
+      inst ? adaptLegacySchoolClassSection(inst, s) : s
+    );
     const dayOfWeek = new Date(`${dateStr}T00:00:00Z`).getUTCDay();
 
-    const subjectCache = new Map<string, any>();
-    const periodCache = new Map<string, any>();
-    const userCache = new Map<string, any>();
+    // Four institution-wide reads instead of four per class/section.
+    const [timelines, allSlots, institutionSubjects, institutionPeriods] = await Promise.all([
+      academicsRepository.listEffectiveTimetablesThrough(institutionCode, dateStr),
+      academicsRepository.listSlotsForInstitution(institutionCode),
+      academicsRepository.listSubjects(institutionCode),
+      academicsRepository.listPeriods(institutionCode),
+    ]);
 
-    const loadSubject = async (id: string) => {
-      if (!subjectCache.has(id)) subjectCache.set(id, await academicsRepository.getSubjectById(id));
-      return subjectCache.get(id);
-    };
-    const loadPeriod = async (id: string) => {
-      if (!periodCache.has(id)) periodCache.set(id, await academicsRepository.getPeriodById(id));
-      return periodCache.get(id);
-    };
-    const loadUser = async (id: string) => {
-      if (!userCache.has(id)) userCache.set(id, await this.findUser(institutionCode, id));
-      return userCache.get(id);
-    };
+    const effectiveBySection = new Map<string, any>();
+    for (const tt of timelines) {
+      const current = effectiveBySection.get(tt.classSectionId);
+      if (!current || Number(tt.version) > Number(current.version)) effectiveBySection.set(tt.classSectionId, tt);
+    }
+    const slotsByTimetable = new Map<string, any[]>();
+    for (const slot of allSlots) {
+      if (Number(slot.dayOfWeek) !== dayOfWeek) continue;
+      const arr = slotsByTimetable.get(slot.timetableId) || [];
+      arr.push(slot);
+      slotsByTimetable.set(slot.timetableId, arr);
+    }
+    const subjectCache = new Map<string, any>(institutionSubjects.map((s: any) => [s.id, s]));
+    const periodCache = new Map<string, any>(institutionPeriods.map((p: any) => [p.id, p]));
+    const userCache = new Map<string, any>();
 
     const classes: any[] = [];
     const teacherIds = new Set<string>();
     let scheduledPeriods = 0;
 
     for (const section of Array.isArray(sections) ? sections : []) {
-      const effective = await academicsRepository.getEffectiveTimetable(section.id, dateStr);
+      const effective = effectiveBySection.get(section.id);
       if (!effective) continue;
 
-      const slots = await academicsRepository.listSlotsForTimetable(effective.id);
-      const daySlots = slots.filter((slot) => Number(slot.dayOfWeek) === dayOfWeek);
+      const daySlots = slotsByTimetable.get(effective.id) || [];
       if (daySlots.length === 0) continue;
 
       const enriched = [];
       for (const slot of daySlots) {
         const [subject, period, teacher] = await Promise.all([
-          loadSubject(slot.subjectId),
-          loadPeriod(slot.periodId),
-          slot.teacherId ? loadUser(slot.teacherId) : Promise.resolve(null),
+          subjectCache.get(slot.subjectId) || academicsRepository.getSubjectById(slot.subjectId),
+          periodCache.get(slot.periodId) || academicsRepository.getPeriodById(slot.periodId),
+          slot.teacherId
+            ? userCache.has(slot.teacherId)
+              ? userCache.get(slot.teacherId)
+              : this.findUser(institutionCode, slot.teacherId).then((u: any) => { userCache.set(slot.teacherId, u); return u; })
+            : Promise.resolve(null),
         ]);
         if (slot.teacherId) teacherIds.add(slot.teacherId);
 
@@ -789,7 +916,7 @@ export class AcademicsService {
     }
 
     const dayOfWeek = new Date(`${dateStr}T00:00:00Z`).getUTCDay();
-    const slotsForDay = await academicsRepository.listSlotsForTeacherOnDay(user.id, dayOfWeek);
+    const slotsForDay = await academicsRepository.listSlotsForTeacherOnDay(user.id, dayOfWeek, dateStr);
 
     const timetablesById = new Map<string, any>();
     const classVersions = new Map<string, any>();
@@ -807,9 +934,10 @@ export class AcademicsService {
         classCache.set(slot.classSectionId, await academicsRepository.listTimetablesForClass(slot.classSectionId));
       }
       if (!classVersions.has(slot.classSectionId)) {
-        const classTts = classCache.get(slot.classSectionId) || [];
-        const latest = classTts.filter((t) => t.effectiveFrom <= dateStr).sort((a, b) => b.version - a.version)[0];
-        classVersions.set(slot.classSectionId, latest?.id || null);
+        // Version effective *on the requested date*, matching getEffectiveTimetable;
+        // a past date must not show slots edited into a newer timetable.
+        const effective = await academicsRepository.getEffectiveTimetable(slot.classSectionId, dateStr);
+        classVersions.set(slot.classSectionId, effective?.id || null);
       }
     }
 
@@ -856,10 +984,39 @@ export class AcademicsService {
   }
 
   private async enrichSlots(slots: any[]) {
-    const enriched = [];
-    for (const slot of slots) {
-      enriched.push(await this.enrichSlot(slot));
+    if (slots.length === 0) return [];
+    const institutionCode = slots[0]?.institutionCode;
+    const subjectIds = Array.from(new Set(slots.map((s) => s.subjectId).filter(Boolean)));
+    const periodIds = Array.from(new Set(slots.map((s) => s.periodId).filter(Boolean)));
+    const teacherIds = Array.from(new Set(slots.map((s) => s.teacherId).filter(Boolean)));
+    const [subjectRows, periodRows, teacherRows] = await Promise.all([
+      academicsRepository.getSubjectsByIds(subjectIds),
+      academicsRepository.getPeriodsByIds(periodIds),
+      dbFindUsersByIdsOrUids(teacherIds),
+    ]);
+    const subjectMap = new Map(subjectRows.map((s) => [s.id, s]));
+    const periodMap = new Map(periodRows.map((p) => [p.id, p]));
+    const teacherMap = new Map<string, any>();
+    for (const t of teacherRows) {
+      if (institutionCode && (t.institutionCode || '').toLowerCase() !== String(institutionCode).toLowerCase()) continue;
+      teacherMap.set(t.id, t);
+      if (t.firebaseUid) teacherMap.set(t.firebaseUid, t);
     }
+    const enriched = slots.map((slot) => {
+      const subject = subjectMap.get(slot.subjectId);
+      const period = periodMap.get(slot.periodId);
+      const teacher = teacherMap.get(slot.teacherId);
+      return {
+        id: slot.id,
+        dayOfWeek: slot.dayOfWeek,
+        room: slot.room,
+        subject: subject ? { id: subject.id, name: subject.name, code: subject.code } : null,
+        period: period
+          ? { id: period.id, label: period.label, startTime: period.startTime, endTime: period.endTime, sortOrder: period.sortOrder }
+          : null,
+        teacher: teacher ? { id: teacher.id, fullName: teacher.fullName } : null,
+      };
+    });
     const slotSort = (a: any, b: any) => {
       if (a.dayOfWeek !== b.dayOfWeek) return a.dayOfWeek - b.dayOfWeek;
       const ao = a?.period?.sortOrder ?? Number.MAX_SAFE_INTEGER;
@@ -957,9 +1114,14 @@ export class AcademicsService {
   // ---------- Reports (HOD / Principal / Admin) ----------
   public async getDepartmentOverview(institutionCode: string, department?: string) {
     const allUsers = await dbFindUsersByInstitution(institutionCode, 'student', { limit: 500 });
+    const cleanDept = (department || '').trim().toLowerCase();
     const students = allUsers
       .map((u) => ({ user: u, scope: this.parseScope(u.scope) }))
-      .filter(({ scope }) => !department || (scope.department || '').toLowerCase() === department.toLowerCase());
+      .filter(({ scope }) => {
+        if (!cleanDept) return true;
+        const dept = String(scope.department || '').trim().toLowerCase();
+        return Boolean(dept) && (dept === cleanDept || dept.includes(cleanDept) || cleanDept.includes(dept));
+      });
 
     const sections = new Map<string, any>();
     for (const { user, scope } of students) {
@@ -1663,12 +1825,21 @@ export class AcademicsService {
     if (!classSection || classSection.institutionCode.toLowerCase() !== institutionCode.toLowerCase()) {
       throw { statusCode: 400, code: 'INVALID_CLASS_SECTION', message: 'classSectionId not in this institution' };
     }
+    const examSubjectDef = await academicsRepository.getSubjectById(examSubject.subjectId);
+    if (examSubjectDef) await this.assertSubjectTaughtInClass(institutionCode, classSection, examSubjectDef);
     const roster = await this.getStudentsForClassSection(input.classSectionId);
     const validIds = new Set(roster.map((r) => r.id));
     const out: any[] = [];
     for (const entry of input.entries) {
       if (!validIds.has(entry.studentId)) {
         throw { statusCode: 400, code: 'STUDENT_NOT_IN_CLASS', message: `Student ${entry.studentId} is not in class ${input.classSectionId}` };
+      }
+      if (entry.marksObtained > examSubject.maxMarks) {
+        throw {
+          statusCode: 400,
+          code: 'MARKS_EXCEED_MAX',
+          message: `Student ${entry.studentId}: ${entry.marksObtained} exceeds the subject maximum of ${examSubject.maxMarks}`,
+        };
       }
       const mark = await academicsRepository.upsertMark({
         examId: examSubject.examId,
@@ -1709,7 +1880,8 @@ export class AcademicsService {
       const es = examSubjectById.get(m.examSubjectId);
       if (!es) continue;
       const e = examById.get(m.examId);
-      if (!e) continue;
+      // Results reach students/parents only after the admin publishes the exam.
+      if (!e || e.status !== 'published') continue;
       const bucket = byExam.get(e.id) || {
         exam: { id: e.id, name: e.name, term: e.term, academicYear: e.academicYear, status: e.status },
         subjects: [],
@@ -1721,6 +1893,7 @@ export class AcademicsService {
         marksObtained: Number(m.marksObtained),
         maxMarks: es.maxMarks,
         passMarks: es.passMarks,
+        passed: Number(m.marksObtained) >= Number(es.passMarks),
         grade: m.grade,
         remarks: m.remarks,
       });
@@ -1758,6 +1931,8 @@ export class AcademicsService {
       throw { statusCode: 400, code: 'INVALID_SUBJECT', message: 'subjectId does not reference a subject in this institution' };
     }
 
+    await this.assertSubjectTaughtInClass(institutionCode, classSection, subject);
+
     return academicsRepository.createHomework({
       ...input,
       institutionCode,
@@ -1781,13 +1956,22 @@ export class AcademicsService {
     return hw;
   }
 
-  public async updateHomework(institutionCode: string, id: string, input: UpdateHomeworkInput) {
-    const existing = await this.getHomeworkById(institutionCode, id);
+  private async assertHomeworkEditable(institutionCode: string, id: string, actorId: string, role: string) {
+    const existing: any = await this.getHomeworkById(institutionCode, id);
+    const actorRowId = actorId ? (await dbFindUserByIdOrUid(actorId))?.id || actorId : '';
+    if (role === 'teacher' && existing.teacherId && existing.teacherId !== actorId && existing.teacherId !== actorRowId) {
+      throw { statusCode: 403, code: 'FORBIDDEN', message: 'You can only change homework you created.' };
+    }
+    return existing;
+  }
+
+  public async updateHomework(institutionCode: string, id: string, input: UpdateHomeworkInput, actorId: string, role: string) {
+    await this.assertHomeworkEditable(institutionCode, id, actorId, role);
     return academicsRepository.updateHomework(id, input);
   }
 
-  public async deleteHomework(institutionCode: string, id: string) {
-    await this.getHomeworkById(institutionCode, id);
+  public async deleteHomework(institutionCode: string, id: string, actorId: string, role: string) {
+    await this.assertHomeworkEditable(institutionCode, id, actorId, role);
     return academicsRepository.deleteHomework(id);
   }
 

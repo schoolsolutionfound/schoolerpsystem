@@ -46,7 +46,7 @@ import {
   getParentFeesHandler,
   getStudentFeesHandler,
 } from './admin.controller.js';
-import { authenticate, requireAdmin, requireAdminOrPrincipal, requireRole } from '../shared/middleware/auth.js';
+import { authenticate, requireAdmin, requireAdminOrPrincipal, requireRole, requireStudentDirectoryReader } from '../shared/middleware/auth.js';
 
 const requireFinance = requireRole('admin', 'accountant');
 
@@ -63,9 +63,9 @@ export async function adminRoutes(fastify: FastifyInstance) {
   fastify.get('/dashboard-stats', { preHandler: [requireAdminOrPrincipal] }, getDashboardStatsHandler);
 
   // Student Management
-  fastify.get('/students', { preHandler: [requireAdminOrPrincipal] }, getStudentsHandler);
+  fastify.get('/students', { preHandler: [requireStudentDirectoryReader] }, getStudentsHandler);
   fastify.get('/students/alumni', { preHandler: [requireAdminOrPrincipal] }, getAlumniHandler);
-  fastify.get('/students/:id', { preHandler: [requireAdminOrPrincipal] }, getStudentByIdHandler);
+  fastify.get('/students/:id', { preHandler: [requireStudentDirectoryReader] }, getStudentByIdHandler);
   fastify.post('/students', { preHandler: [requireAdmin], config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, createStudentHandler);
   fastify.put('/students/:id', { preHandler: [requireAdminOrPrincipal], config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, updateStudentHandler);
   fastify.delete('/students/:id', { preHandler: [requireAdmin], config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, deleteStudentHandler);

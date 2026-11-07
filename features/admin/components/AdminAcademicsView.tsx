@@ -27,7 +27,7 @@ import {
 } from '../../../api/academics';
 import { AdminTimetableView } from './AdminTimetableView';
 import { AdminAttendanceView } from './AdminAttendanceView';
-import { currentAcademicYear } from '../../shared/academicStructure';
+import { classSectionLevel, currentAcademicYear, normalizeInstitutionType } from '../../shared/academicStructure';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 const parseISODate = (value: string): Date | null => {
@@ -227,21 +227,29 @@ export const AdminAcademicsView: React.FC<AdminAcademicsViewProps> = ({
 }) => {
   const [tab, setTab] = useState<'sessions' | 'classes' | 'subjects' | 'assign' | 'periods' | 'timetable' | 'attendance' | 'terms' | 'holidays' | 'marks'>('sessions');
 
+  const isSchool = normalizeInstitutionType(institutionType) === 'school';
+  const levelCount = new Set(
+    (classSections || [])
+      .map((row) => classSectionLevel(institutionType, row))
+      .filter(Boolean)
+  ).size;
+  const sectionCount = classSections.length;
+
   return (
     <View style={styles.container}>
       <View style={styles.pageHeader}>
         <View style={{ flex: 1 }}>
           <Text style={styles.pageTitle}>Academics</Text>
           <Text style={styles.pageSubtitle}>
-            {classSections.length} classes · {subjects.length} subjects · {periods.length} periods
+            {levelCount} {isSchool ? 'classes' : 'years'} · {sectionCount} sections · {subjects.length} subjects · {periods.length} periods
           </Text>
         </View>
       </View>
 
       <View style={styles.statsCard}>
         <View style={styles.statBox}>
-          <Text style={styles.statValue}>{classSections.length}</Text>
-          <Text style={styles.statLabel}>Classes</Text>
+          <Text style={styles.statValue}>{levelCount}</Text>
+          <Text style={styles.statLabel}>{isSchool ? 'Classes' : 'Years'}</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statBox}>

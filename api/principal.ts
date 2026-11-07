@@ -367,10 +367,39 @@ function deriveNoticeAudience(targets: any[]): SchoolNotice['targetAudience'] {
   return 'all';
 }
 
+/** Notice board rows -> audience, accepting the single-target shape the API stores. */
+function deriveNoticeAudienceFromRow(row: any): SchoolNotice['targetAudience'] {
+  if (Array.isArray(row?.targets) && row.targets.length > 0) return deriveNoticeAudience(row.targets);
+  const role = String(row?.targetRole || row?.targetAudience || '').toLowerCase();
+  if (role === 'faculty' || role === 'teacher' || role === 'teachers') return 'teachers';
+  if (role === 'student' || role === 'students') return 'students';
+  if (role === 'parent' || role === 'parents') return 'parents';
+  if (role === 'staff') return 'staff';
+  return 'all';
+}
+
 function toIsoDateOnly(value: any): string {
   if (!value) return '';
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? '' : date.toISOString().split('T')[0];
+}
+
+/** Notice board enum is uppercase; the principal UI speaks normal/important/urgent. */
+function toNoticePriority(priority?: string): 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT' {
+  const value = String(priority || '').toLowerCase();
+  if (value === 'urgent') return 'URGENT';
+  if (value === 'important' || value === 'high') return 'HIGH';
+  if (value === 'low') return 'LOW';
+  return 'NORMAL';
+}
+
+function toNoticeTarget(targetAudience?: string): { targetType: 'all' | 'role'; targetRole: string } {
+  const audience = String(targetAudience || 'all').toLowerCase();
+  if (audience === 'teachers' || audience === 'faculty') return { targetType: 'role', targetRole: 'teacher' };
+  if (audience === 'students') return { targetType: 'role', targetRole: 'student' };
+  if (audience === 'parents') return { targetType: 'role', targetRole: 'parent' };
+  if (audience === 'staff') return { targetType: 'role', targetRole: 'staff' };
+  return { targetType: 'all', targetRole: '' };
 }
 
 export async function fetchSchoolNoticesApi(): Promise<SchoolNotice[]> {
@@ -382,7 +411,7 @@ export async function fetchSchoolNoticesApi(): Promise<SchoolNotice[]> {
     title: a.title,
     content: a.content,
     priority: normalizeNoticePriority(a.priority),
-    targetAudience: deriveNoticeAudience(a.targets),
+    targetAudience: deriveNoticeAudienceFromRow(a),
     department: a.department || '',
     publishedDate: toIsoDateOnly(a.publishAt || a.createdAt),
     author: a.authorName || a.createdByName || '',
@@ -398,9 +427,9 @@ export async function createSchoolNoticeApi(
     body: JSON.stringify({
       title: notice.title,
       content: notice.content,
-      priority: notice.priority,
-      targetAudience: notice.targetAudience === 'teachers' ? 'faculty' : notice.targetAudience,
-      department: notice.department || '',
+      priority: toNoticePriority(notice.priority),
+      action: 'publish',
+      targets: [toNoticeTarget(notice.targetAudience)],
     }),
   });
 
@@ -438,9 +467,8 @@ export async function updateSchoolNoticeApi(
       body: JSON.stringify({
         title: notice.title,
         content: notice.content,
-        priority: notice.priority,
-        targetAudience: notice.targetAudience === 'teachers' ? 'faculty' : notice.targetAudience,
-        department: notice.department || '',
+        ...(notice.priority ? { priority: toNoticePriority(notice.priority) } : {}),
+        ...(notice.targetAudience ? { targets: [toNoticeTarget(notice.targetAudience)] } : {}),
       }),
     });
     return true;

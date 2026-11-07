@@ -18,7 +18,7 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { IncomeRecord, PaymentMethod, PaymentStatus } from '../types/finance';
-import { formatINR, getIncomeCategoryLabel } from '../utils/financeUtils';
+import { formatINR } from '../utils/financeUtils';
 import { showAlert } from '../../shared/utils/showAlert';
 import { sharedFinanceStyles } from './financeStyles';
 import { fetchClassSectionsApi } from '../../../api/academics';
@@ -311,105 +311,102 @@ export const StudentFeesView: React.FC = () => {
             const isPaid = item.status === 'paid';
 
             return (
-              <View key={item.id} style={sharedFinanceStyles.cardItem}>
-                {/* Header: Badge + Amount */}
-                <View style={sharedFinanceStyles.cardHeaderRow}>
-                  <View style={sharedFinanceStyles.cardHeaderLeft}>
-                    <View
-                      style={[
-                        sharedFinanceStyles.iconBox,
-                        { backgroundColor: item.category === 'bus_fee' ? 'rgba(220,53,69,0.06)' : 'rgba(244,196,48,0.1)' },
-                      ]}
+              <View key={item.id} style={styles.feeCard}>
+                {/* Header: Title + student | Amount + status */}
+                <View style={styles.feeHeaderRow}>
+                  <View style={styles.feeHeaderLeft}>
+                    <Text style={styles.feeTitle} numberOfLines={1}>
+                      {item.title}
+                    </Text>
+                    <Text style={styles.feeSub} numberOfLines={1}>
+                      Student: <Text style={styles.feeSubBold}>{item.payerName}</Text>
+                      {item.studentId ? ` (${item.studentId})` : ''}
+                      {item.classSection ? ` • ${item.classSection}` : ''}
+                    </Text>
+                  </View>
+                  <View style={styles.feeHeaderRight}>
+                    <Text
+                      style={[styles.feeAmount, isPaid ? styles.feeAmountPaid : styles.feeAmountDue]}
                     >
-                      <MaterialCommunityIcons
-                        name={
-                          item.category === 'bus_fee'
-                            ? 'bus'
-                            : item.category === 'hostel_fee'
-                              ? 'home-city'
-                              : 'school'
-                        }
-                        size={18}
-                        color={item.category === 'bus_fee' ? '#DC3545' : '#F4C430'}
-                      />
-                    </View>
+                      {formatINR(item.amount)}
+                    </Text>
                     <View
-                      style={[
-                        sharedFinanceStyles.catChip,
-                        { backgroundColor: item.category === 'bus_fee' ? 'rgba(220,53,69,0.06)' : 'rgba(244,196,48,0.1)' },
-                      ]}
+                      style={[styles.feeStatusBadge, isPaid ? styles.feeBadgeGreen : styles.feeBadgeRed]}
                     >
                       <Text
                         style={[
-                          sharedFinanceStyles.catChipText,
-                          { color: item.category === 'bus_fee' ? '#DC3545' : '#F4C430' },
+                          styles.feeStatusText,
+                          isPaid ? styles.feeStatusTextGreen : styles.feeStatusTextRed,
                         ]}
                       >
-                        {getIncomeCategoryLabel(item.category)}
+                        {item.status.toUpperCase()}
                       </Text>
                     </View>
                   </View>
-
-                  <Text style={[sharedFinanceStyles.itemAmount, isPaid ? { color: '#16A34A' } : { color: '#DC3545' }]}>
-                    {formatINR(item.amount)}
-                  </Text>
                 </View>
 
-                {/* Title */}
-                <Text style={sharedFinanceStyles.cardTitle}>{item.title}</Text>
-
-                {/* Student Info */}
-                <Text style={sharedFinanceStyles.payerRow}>
-                  Student: <Text style={sharedFinanceStyles.boldPayer}>{item.payerName}</Text>
-                  {item.studentId ? ` (${item.studentId})` : ''}
-                  {item.classSection ? ` • ${item.classSection}` : ''}
-                </Text>
-
-                {/* Meta details */}
-                <Text style={sharedFinanceStyles.metaRow}>
-                  {isPaid
-                    ? `Paid: ${item.paymentDate} • Via: ${methodLabel(item.paymentMethod)}`
-                    : `Due: ${item.paymentDate} • Unpaid`}
-                </Text>
-
-                {/* Action Buttons */}
-                <View style={sharedFinanceStyles.cardFooterRow}>
-                  <View style={[sharedFinanceStyles.statusTag, isPaid ? sharedFinanceStyles.statusPaid : sharedFinanceStyles.statusPending]}>
-                    <Text style={[sharedFinanceStyles.statusText, isPaid ? sharedFinanceStyles.statusTextPaid : sharedFinanceStyles.statusTextPending]}>
-                      {item.status.toUpperCase()}
+                {/* Meta row with icons */}
+                <View style={styles.feeMetaRow}>
+                  <View style={styles.feeMetaItem}>
+                    <MaterialCommunityIcons name="calendar-outline" size={13} color="#6B7280" />
+                    <Text style={styles.feeMetaText}>
+                      {isPaid ? item.paymentDate : `Due ${item.paymentDate}`}
                     </Text>
                   </View>
-
-                  <View style={sharedFinanceStyles.actionIconsGroup}>
-                    {!isPaid && (
-                      <>
-                        <TouchableOpacity style={[styles.actionCollectBtn, { backgroundColor: '#171717' }]} onPress={() => setCollectItem(item)}>
-                          <MaterialCommunityIcons name="cash-check" size={13} color="#FFFFFF" />
-                          <Text style={styles.actionCollectBtnText}>Collect</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity style={styles.reminderBtn} onPress={() => handleSendReminder(item)}>
-                          <MaterialCommunityIcons name="bell-ring-outline" size={13} color="#6B6B6B" />
-                          <Text style={styles.reminderBtnText}>Remind</Text>
-                        </TouchableOpacity>
-                      </>
-                    )}
-
-                    {isPaid && item.receiptNo && item.paymentDate && item.paymentMethod !== 'unknown' && (
-                      <TouchableOpacity style={sharedFinanceStyles.actionIconBtn} onPress={() => setSelectedReceipt(item)}>
-                        <MaterialCommunityIcons name="file-document-outline" size={14} color="#B8860B" />
-                        <Text style={[sharedFinanceStyles.actionIconBtnText, { color: '#B8860B' }]}>Receipt</Text>
-                      </TouchableOpacity>
-                    )}
-
-                    <TouchableOpacity style={sharedFinanceStyles.actionIconBtn} onPress={() => handleOpenEdit(item)}>
-                      <MaterialCommunityIcons name="pencil-outline" size={14} color="#6B6B6B" />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity style={sharedFinanceStyles.actionIconBtn} onPress={() => deleteIncome(item.id)}>
-                      <MaterialCommunityIcons name="trash-can-outline" size={14} color="#DC3545" />
-                    </TouchableOpacity>
+                  <View style={styles.feeMetaItem}>
+                    <MaterialCommunityIcons name="cash-multiple" size={13} color="#6B7280" />
+                    <Text style={styles.feeMetaText}>
+                      {isPaid ? methodLabel(item.paymentMethod) : 'Unpaid'}
+                    </Text>
                   </View>
+                  <View style={styles.feeMetaItem}>
+                    <MaterialCommunityIcons name="file-document-outline" size={13} color="#6B7280" />
+                    <Text style={styles.feeMetaText}>{item.receiptNo || '—'}</Text>
+                  </View>
+                </View>
+
+                {/* Action footer */}
+                <View style={styles.feeActionRow}>
+                  {!isPaid && (
+                    <>
+                      <TouchableOpacity
+                        style={styles.feeCollectBtn}
+                        onPress={() => setCollectItem(item)}
+                      >
+                        <MaterialCommunityIcons name="cash-check" size={14} color="#FFFFFF" />
+                        <Text style={styles.feeCollectBtnText}>Collect</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.feeActionBtn}
+                        onPress={() => handleSendReminder(item)}
+                      >
+                        <MaterialCommunityIcons name="bell-ring-outline" size={15} color="#171717" />
+                        <Text style={styles.feeActionBtnText}>Remind</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+
+                  {isPaid && item.receiptNo && item.paymentDate && item.paymentMethod !== 'unknown' && (
+                    <TouchableOpacity
+                      style={styles.feeActionBtn}
+                      onPress={() => setSelectedReceipt(item)}
+                    >
+                      <MaterialCommunityIcons name="file-document-outline" size={15} color="#171717" />
+                      <Text style={styles.feeActionBtnText}>Receipt</Text>
+                    </TouchableOpacity>
+                  )}
+
+                  <TouchableOpacity style={styles.feeActionBtn} onPress={() => handleOpenEdit(item)}>
+                    <MaterialCommunityIcons name="pencil-outline" size={15} color="#171717" />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.feeActionBtn, styles.feeActionBtnDanger]}
+                    onPress={() => deleteIncome(item.id)}
+                  >
+                    <MaterialCommunityIcons name="trash-can-outline" size={15} color="#DC2626" />
+                  </TouchableOpacity>
                 </View>
               </View>
             );
@@ -722,23 +719,90 @@ const styles = StyleSheet.create({
   dropdownItemTextActive: { fontWeight: '800', color: '#171717' },
   resultCount: { fontSize: 11, fontWeight: '700', color: '#6B6B6B' },
 
-  actionCollectBtn: {
+  // Fee list card (librarian list-card language)
+  feeCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  feeHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  feeHeaderLeft: { flex: 1, gap: 2 },
+  feeHeaderRight: { alignItems: 'flex-end', gap: 4 },
+  feeTitle: { fontSize: 14, fontWeight: '800', color: '#171717' },
+  feeSub: { fontSize: 11, color: '#6B7280' },
+  feeSubBold: { fontWeight: '700', color: '#171717' },
+  feeAmount: { fontSize: 18, fontWeight: '800' },
+  feeAmountPaid: { color: '#16A34A' },
+  feeAmountDue: { color: '#DC3545' },
+  feeStatusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 5,
+    borderWidth: 1,
+  },
+  feeBadgeGreen: { backgroundColor: '#D1FAE5', borderColor: '#026440' },
+  feeBadgeRed: { backgroundColor: '#FEE2E2', borderColor: '#FECACA' },
+  feeStatusText: { fontSize: 10, fontWeight: '800' },
+  feeStatusTextGreen: { color: '#026440' },
+  feeStatusTextRed: { color: '#DC2626' },
+  feeMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    gap: 4,
+    gap: 12,
+    flexWrap: 'wrap',
+    paddingTop: 4,
   },
-  actionCollectBtnText: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
-  reminderBtn: {
+  feeMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  feeMetaText: { fontSize: 11, color: '#6B7280' },
+  feeActionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    gap: 4,
+    gap: 8,
+    flexWrap: 'wrap',
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
   },
-  reminderBtnText: { fontSize: 11, fontWeight: '700', color: '#6B6B6B' },
+  feeActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    backgroundColor: '#FFFFFF',
+  },
+  feeActionBtnText: { fontSize: 12, fontWeight: '700', color: '#171717' },
+  feeActionBtnDanger: { backgroundColor: '#FEF2F2', borderColor: '#FECACA' },
+  feeCollectBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 5,
+    backgroundColor: '#026440',
+    shadowColor: '#026440',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  feeCollectBtnText: { fontSize: 12, fontWeight: '700', color: '#FFFFFF' },
 });

@@ -44,6 +44,7 @@ export const SCHOOL_ROLES = [
   'librarian',
   'driver',
   'admission_officer',
+  'counselor',
 ] as const;
 
 export const COLLEGE_ROLES = [
@@ -58,6 +59,7 @@ export const COLLEGE_ROLES = [
   'driver',
   'placement_officer',
   'admission_officer',
+  'counselor',
 ] as const;
 
 export function rolesForInstitutionType(

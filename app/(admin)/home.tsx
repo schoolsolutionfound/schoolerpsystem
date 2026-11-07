@@ -52,13 +52,13 @@ import { AdminPaymentSettingsView } from '../../features/admin/components/AdminP
 import { AdminSettingsView } from '../../features/admin/components/AdminSettingsView';
 import { AdminAnnouncementsView } from '../../features/announcements';
 import { TransportManagementView } from '../../features/shared/transport/TransportManagementView';
+import { ConfirmDialog } from '../../features/shared/components/layout/ConfirmDialog';
 
-const TABS: { key: 'dashboard' | 'institution' | 'students' | 'teachers' | 'transport' | 'profile'; label: string; icon: string; iconFilled: string }[] = [
+const TABS: { key: 'dashboard' | 'institution' | 'students' | 'teachers' | 'profile'; label: string; icon: string; iconFilled: string }[] = [
   { key: 'dashboard', label: 'Dashboard', icon: 'view-dashboard-outline', iconFilled: 'view-dashboard' },
   { key: 'institution', label: 'Institution', icon: 'office-building', iconFilled: 'office-building' },
   { key: 'students', label: 'Students', icon: 'account-school-outline', iconFilled: 'account-school' },
   { key: 'teachers', label: 'Teachers', icon: 'human-male-board', iconFilled: 'human-male-board' },
-  { key: 'transport', label: 'Transport', icon: 'bus', iconFilled: 'bus' },
   { key: 'profile', label: 'Profile', icon: 'account-circle-outline', iconFilled: 'account-circle' },
 ];
 
@@ -423,15 +423,15 @@ export default function AdminHomeScreen() {
     router.replace('/auth');
   };
 
+  const [logoutConfirmVisible, setLogoutConfirmVisible] = useState(false);
+
   const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to log out?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: logoutNow,
-      },
-    ]);
+    setLogoutConfirmVisible(true);
+  };
+
+  const confirmLogout = () => {
+    setLogoutConfirmVisible(false);
+    logoutNow();
   };
 
   return (
@@ -621,6 +621,14 @@ export default function AdminHomeScreen() {
         onNavigate={(tab) => setActiveTab(tab)}
         onLogout={logoutNow}
         router={router}
+      />
+      <ConfirmDialog
+        visible={logoutConfirmVisible}
+        title="Logout"
+        message="Are you sure you want to log out?"
+        confirmLabel="Logout"
+        onConfirm={confirmLogout}
+        onCancel={() => setLogoutConfirmVisible(false)}
       />
     </View>
   );

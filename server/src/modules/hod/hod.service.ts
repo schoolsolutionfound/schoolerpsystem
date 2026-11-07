@@ -10,6 +10,18 @@ import {
 } from '../shared/db/schema.js';
 import { eq, and, sql, desc, or } from 'drizzle-orm';
 
+/**
+ * Department values are free text, so match on either side containing the
+ * other (e.g. "CSE" ↔ "Computer Science & Engineering"). Evaluated in SQL so
+ * no rows are pulled into memory for filtering.
+ */
+function deptMatches(patternColumn: any, department: string) {
+  const clean = department.trim().toLowerCase();
+  return sql`(lower(${patternColumn}) = ${clean}
+    OR lower(${patternColumn}) LIKE ${'%' + clean + '%'}
+    OR ${clean} LIKE '%' || lower(${patternColumn}) || '%')`;
+}
+
 function getDb() {
   if (!db) {
     const err: any = new Error('Database unavailable');
@@ -29,18 +41,11 @@ export class HODService {
     const database = getDb();
 
     const cleanInst = (institutionCode || '').trim().toLowerCase();
-    const cleanDept = (department || '').trim().toLowerCase();
-    const isCSE = cleanDept.includes('computer') || cleanDept.includes('cse');
+    const hasDept = Boolean(department && department.trim() !== '');
 
     // 1. Courses in department
     const courseConditions = [sql`lower(${departmentCourses.institutionCode}) = ${cleanInst}`];
-    if (department && department.trim() !== '') {
-      if (isCSE) {
-        courseConditions.push(sql`(lower(${departmentCourses.department}) LIKE '%computer%' OR lower(${departmentCourses.department}) LIKE '%cse%')`);
-      } else {
-        courseConditions.push(sql`lower(${departmentCourses.department}) = ${cleanDept}`);
-      }
-    }
+    if (hasDept) courseConditions.push(deptMatches(departmentCourses.department, department));
 
     const courses = await database
       .select()
@@ -60,13 +65,7 @@ export class HODService {
 
     // 3. Exam eligibility alerts in department
     const elgConditions = [sql`lower(${examEligibility.institutionCode}) = ${cleanInst}`];
-    if (department && department.trim() !== '') {
-      if (isCSE) {
-        elgConditions.push(sql`(lower(${examEligibility.department}) LIKE '%computer%' OR lower(${examEligibility.department}) LIKE '%cse%')`);
-      } else {
-        elgConditions.push(sql`lower(${examEligibility.department}) = ${cleanDept}`);
-      }
-    }
+    if (hasDept) elgConditions.push(deptMatches(examEligibility.department, department));
     const eligRecords = await database
       .select()
       .from(examEligibility)
@@ -79,16 +78,8 @@ export class HODService {
       sql`lower(${users.institutionCode}) = ${cleanInst}`,
       eq(users.role, 'student'),
     ];
-    if (department && department.trim() !== '') {
-      if (isCSE) {
-        studentConditions.push(
-          sql`(${users.scope}->>'department' ILIKE '%computer%' OR ${users.scope}->>'dept' ILIKE '%cse%')`
-        );
-      } else {
-        studentConditions.push(
-          sql`(${users.scope}->>'department' ILIKE ${'%' + department + '%'})`
-        );
-      }
+    if (hasDept) {
+      studentConditions.push(deptMatches(sql`coalesce(${users.scope}->>'department', ${users.scope}->>'dept', '')`, department));
     }
     const studentUsers = await database
       .select({ count: sql<number>`count(*)` })
@@ -112,8 +103,6 @@ export class HODService {
   async getFaculty(institutionCode: string, department?: string) {
     const database = getDb();
     const cleanInst = (institutionCode || '').trim().toLowerCase();
-    const cleanDept = (department || '').trim().toLowerCase();
-    const isCSE = cleanDept.includes('computer') || cleanDept.includes('cse');
 
     const rawUsers = await database
       .select()
@@ -150,21 +139,21 @@ export class HODService {
           name: u.fullName,
           employeeId: parsedScope.employeeId || u.id,
           email: u.email,
-          phone: u.phone || '+91 98765 43210',
+          phone: u.phone || '',
           rank: parsedScope.rank || (u.role === 'hod' ? 'professor' : 'assistant_professor'),
           department: userDept,
-          specialization: parsedScope.specialization || 'Computer Science & Engineering',
+          specialization: parsedScope.specialization || '',
           maxCreditsPerWeek: Number(parsedScope.maxCreditsPerWeek) || 18,
           assignedCredits: Number(parsedScope.assignedCredits) || 0,
           assignedCourses: Array.isArray(parsedScope.assignedCourses) ? parsedScope.assignedCourses : [],
           status: parsedScope.status || 'present',
-          cabinNumber: parsedScope.cabinNumber || 'CSB-101',
+          cabinNumber: parsedScope.cabinNumber || '',
         };
       })
       .filter((f) => {
         if (!department || department.trim() === '') return true;
         const d1 = f.department.toLowerCase();
-        if (isCSE) return d1.includes('computer') || d1.includes('cse');
+        const cleanDept = department.trim().toLowerCase();
         return d1 === cleanDept || d1.includes(cleanDept) || cleanDept.includes(d1);
       });
 
@@ -174,16 +163,10 @@ export class HODService {
   async getCourses(institutionCode: string, department?: string): Promise<DepartmentCourseEntity[]> {
     const database = getDb();
     const cleanInst = (institutionCode || '').trim().toLowerCase();
-    const cleanDept = (department || '').trim().toLowerCase();
-    const isCSE = cleanDept.includes('computer') || cleanDept.includes('cse');
 
     const conditions = [sql`lower(${departmentCourses.institutionCode}) = ${cleanInst}`];
     if (department && department.trim() !== '') {
-      if (isCSE) {
-        conditions.push(sql`(lower(${departmentCourses.department}) LIKE '%computer%' OR lower(${departmentCourses.department}) LIKE '%cse%')`);
-      } else {
-        conditions.push(sql`lower(${departmentCourses.department}) = ${cleanDept}`);
-      }
+      conditions.push(deptMatches(departmentCourses.department, department));
     }
 
     return await database
@@ -480,8 +463,6 @@ export class HODService {
   ) {
     const database = getDb();
     const cleanInst = (institutionCode || '').trim().toLowerCase();
-    const cleanDept = (department || '').trim().toLowerCase();
-    const isCSE = cleanDept.includes('computer') || cleanDept.includes('cse');
 
     const conditions = [
       sql`lower(${users.institutionCode}) = ${cleanInst}`,
@@ -554,12 +535,13 @@ export class HODService {
     });
 
     if (department && department.trim() !== '') {
-      const depLower = department.toLowerCase();
+      const depLower = department.trim().toLowerCase();
+      // Students only carry a department when they were provisioned with one;
+      // department-less students are not silently attributed to every HOD.
       students = students.filter((s) => {
-        if (!s.department) return isCSE; // In VMHS CSE HOD portal, include enrolled students
+        if (!s.department) return false;
         const sDep = s.department.toLowerCase();
-        if (isCSE) return sDep.includes('computer') || sDep.includes('cse') || sDep.includes('bca') || sDep.includes('science');
-        return sDep.includes(depLower) || depLower.includes(sDep);
+        return sDep === depLower || sDep.includes(depLower) || depLower.includes(sDep);
       });
     }
 

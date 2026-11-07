@@ -76,6 +76,21 @@ export async function fetchSubjectsApi() {
   return apiClient('/admin/subjects');
 }
 
+/** Subjects taught in one class/section (all institution subjects when none are configured). */
+export async function fetchClassSubjectsApi(classSectionId: string): Promise<any[]> {
+  const res: any = await apiClient(`/admin/class-sections/${encodeURIComponent(classSectionId)}/subjects`);
+  // Endpoint returns the subject list directly, or wrapped in `subjects`.
+  const list = Array.isArray(res) ? res : Array.isArray(res?.subjects) ? res.subjects : [];
+  if (list.length > 0) return list;
+  // Fall back to configured subject-teacher mappings when the class has none.
+  const stRes: any = await fetchSubjectTeachersApi({ classSectionId });
+  const subRes: any = await fetchSubjectsApi();
+  const mapped = Array.isArray(stRes) ? stRes : Array.isArray(stRes?.subjectTeachers) ? stRes.subjectTeachers : [];
+  const subjectIds = new Set(mapped.map((st: any) => st.subjectId));
+  const allSubjects = Array.isArray(subRes) ? subRes : Array.isArray(subRes?.subjects) ? subRes.subjects : [];
+  return allSubjects.filter((s: any) => subjectIds.has(s.id));
+}
+
 export async function createSubjectApi(payload: { name: string; code?: string }) {
   return apiClient('/admin/subjects', {
     method: 'POST',
@@ -90,13 +105,6 @@ export async function fetchSubjectTeachersApi(params?: { classSectionId?: string
   if (params?.teacherId) qs.set('teacherId', params.teacherId);
   const q = qs.toString();
   return apiClient(`/admin/subject-teachers${q ? `?${q}` : ''}`);
-}
-
-export async function fetchClassSubjectsApi(classSectionId: string) {
-  const stRes = await fetchSubjectTeachersApi({ classSectionId });
-  const subRes = await fetchSubjectsApi();
-  const subjectIds = new Set((stRes || []).map((st: any) => st.subjectId));
-  return (subRes || []).filter((s: any) => subjectIds.has(s.id));
 }
 
 export async function createSubjectTeacherApi(payload: { classSectionId: string; subjectId: string; teacherId: string }) {

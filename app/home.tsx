@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useUserStore } from '../store/useUserStore';
 import { getHomeRouteForRole } from '../features/shared/utils/routeGuards';
@@ -15,6 +15,7 @@ import DeveloperHomeScreen from './(developer)/home';
 import AccountantHomeScreen from './(accountant)/home';
 import HODHomeScreen from './(hod)/home';
 import LibrarianHomeScreen from './(librarian)/home';
+import CounselorHomeScreen from './(counselor)/home';
 
 export default function RootHomeScreen() {
   const router = useRouter();
@@ -71,13 +72,16 @@ export default function RootHomeScreen() {
   if (role === 'librarian') {
     return <LibrarianHomeScreen />;
   }
+  if (role === 'counselor') {
+    return <CounselorHomeScreen />;
+  }
   if (role === 'dev' || role === 'developer') {
     return <DeveloperHomeScreen />;
   }
 
   return (
     <View style={styles.center}>
-      <ActivityIndicator size="large" color="#1A1B1C" />
+      <Text style={styles.fallbackText}>No home screen is configured for your role ({role}).</Text>
     </View>
   );
 }
@@ -88,5 +92,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#FFFDF7',
+  },
+  fallbackText: {
+    fontSize: 15,
+    color: '#6B7280',
+    textAlign: 'center',
+    paddingHorizontal: 32,
   },
 });

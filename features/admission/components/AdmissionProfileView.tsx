@@ -20,6 +20,7 @@ import { useUserStore } from '../../../store/useUserStore';
 import { useRouter } from 'expo-router';
 import { uploadProfilePictureApi } from '../../../api/upload';
 import { updateMyProfileApi } from '../../../api/users';
+import { ConfirmDialog } from '../../shared/components/layout/ConfirmDialog';
 
 export function AdmissionProfileView() {
   const fullName = useUserStore((state) => state.fullName);
@@ -127,35 +128,19 @@ export function AdmissionProfileView() {
     }
   };
 
-  const handleLogout = () => {
-    if (Platform.OS === 'web') {
-      const confirmed = window.confirm('Are you sure you want to log out?');
-      if (confirmed) {
-        (async () => {
-          try {
-            await signOut(auth);
-          } catch {}
-          resetUser();
-          router.replace('/auth');
-        })();
-      }
-      return;
-    }
+  const [logoutConfirmVisible, setLogoutConfirmVisible] = useState(false);
 
-    Alert.alert('Logout', 'Are you sure you want to log out?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await signOut(auth);
-          } catch {}
-          resetUser();
-          router.replace('/auth');
-        },
-      },
-    ]);
+  const handleLogout = () => {
+    setLogoutConfirmVisible(true);
+  };
+
+  const confirmLogout = async () => {
+    setLogoutConfirmVisible(false);
+    try {
+      await signOut(auth);
+    } catch {}
+    resetUser();
+    router.replace('/auth');
   };
 
   const roleTitle = 'Admission Officer';
@@ -361,6 +346,14 @@ export function AdmissionProfileView() {
           </View>
         </View>
       </Modal>
+      <ConfirmDialog
+        visible={logoutConfirmVisible}
+        title="Logout"
+        message="Are you sure you want to log out?"
+        confirmLabel="Logout"
+        onConfirm={confirmLogout}
+        onCancel={() => setLogoutConfirmVisible(false)}
+      />
     </View>
   );
 }

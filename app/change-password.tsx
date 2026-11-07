@@ -3,7 +3,7 @@ import { View, StyleSheet, Text, Modal, Animated, KeyboardAvoidingView, Platform
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
-import { updatePassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, updatePassword } from 'firebase/auth';
 import { auth } from '../firebaseConfig';
 import { changePasswordApi } from '../api/auth';
 import { useUserStore } from '../store/useUserStore';
@@ -128,6 +128,20 @@ export default function ChangePasswordScreen() {
       }
 
       await changePasswordApi(newPassword);
+
+      // The server revokes every refresh token on password change and rejects
+      // tokens whose auth_time predates the revocation, so the current session
+      // is dead even though the change succeeded. Re-authenticating with the
+      // new password mints a fresh session (a token refresh alone cannot fix it).
+      const accountEmail = auth.currentUser?.email;
+      if (accountEmail) {
+        try {
+          await signInWithEmailAndPassword(auth, accountEmail, newPassword);
+          if (__DEV__) console.log('[ChangePassword] session re-established after password change.');
+        } catch (reErr: any) {
+          console.warn('[ChangePassword] post-change re-auth failed:', reErr?.message || reErr);
+        }
+      }
 
       useUserStore.getState().setUserProfile({
         mustChangePassword: false,

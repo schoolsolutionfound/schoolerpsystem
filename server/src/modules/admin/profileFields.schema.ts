@@ -30,6 +30,7 @@ export const CONFIGURABLE_ROLES = [
   'librarian',
   'driver',
   'admission_officer',
+  'counselor',
 ] as const;
 
 export type ConfigurableRole = (typeof CONFIGURABLE_ROLES)[number];

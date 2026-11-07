@@ -35,7 +35,6 @@ import {
 } from '../types/finance';
 import {
   getExpenseCategoryLabel,
-  getExpenseCategoryColor,
   formatINR,
 } from '../utils/financeUtils';
 import { showAlert } from '../../shared/utils/showAlert';
@@ -363,7 +362,6 @@ export const ExpenseManagementView: React.FC = () => {
           style={[sharedFinanceStyles.addBtn, styles.addBtnExpense]}
           onPress={handleOpenAdd}
         >
-          <MaterialCommunityIcons name="plus" size={18} color="#171717" />
           <Text style={sharedFinanceStyles.addBtnText}>Record Expense</Text>
         </TouchableOpacity>
       </View>
@@ -438,28 +436,6 @@ export const ExpenseManagementView: React.FC = () => {
                     activeOpacity={0.85}
                     onPress={() => router.push(`/(accountant)/payroll/${s.id}` as any)}
                   >
-                    <View style={styles.payrollCardTop}>
-                      <View style={styles.payrollAvatar}>
-                        <Text style={styles.payrollAvatarText}>
-                          {s.payeeName.substring(0, 2).toUpperCase()}
-                        </Text>
-                      </View>
-                      <View
-                        style={[
-                          styles.miniChip,
-                          { backgroundColor: s.active ? '#DCFCE7' : '#F3F4F6' },
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.miniChipText,
-                            { color: s.active ? '#16A34A' : '#6B6B6B' },
-                          ]}
-                        >
-                          {s.active ? 'ACTIVE' : 'PAUSED'}
-                        </Text>
-                      </View>
-                    </View>
                     <Text style={styles.payrollName} numberOfLines={1}>
                       {s.payeeName}
                     </Text>
@@ -487,102 +463,92 @@ export const ExpenseManagementView: React.FC = () => {
           </View>
         ) : (
           filteredRecords.map((item) => {
-            const catBadge = getExpenseCategoryColor(item.category);
             const isPaid = item.status === 'paid';
 
             return (
-              <View key={item.id} style={sharedFinanceStyles.cardItem}>
-                {/* Header: Icon + Category Badge + Amount */}
-                <View style={sharedFinanceStyles.cardHeaderRow}>
-                  <View style={sharedFinanceStyles.cardHeaderLeft}>
-                    <View style={[sharedFinanceStyles.iconBox, { backgroundColor: catBadge.bg }]}>
-                      <MaterialCommunityIcons
-                        name={
-                          item.category === 'salary'
-                            ? 'account-cash'
-                            : item.category === 'bus_fuel'
-                              ? 'gas-station'
-                              : item.category === 'bus_maintenance' || item.category === 'bus_expense'
-                                ? 'wrench'
-                                : item.category === 'hostel_expense'
-                                  ? 'food-variant'
-                                  : 'lightning-bolt'
-                        }
-                        size={18}
-                        color={catBadge.text}
-                      />
-                    </View>
-                    <View style={[sharedFinanceStyles.catChip, { backgroundColor: catBadge.bg }]}>
-                      <Text style={[sharedFinanceStyles.catChipText, { color: catBadge.text }]}>
-                        {getExpenseCategoryLabel(item.category)}
+              <View key={item.id} style={styles.expCard}>
+                {/* Header: Title + payee | Amount + status */}
+                <View style={styles.expHeaderRow}>
+                  <View style={styles.expHeaderLeft}>
+                    <Text style={styles.expTitle} numberOfLines={1}>
+                      {item.title}
+                    </Text>
+                    <Text style={styles.expSub} numberOfLines={1}>
+                      Payee: <Text style={styles.expSubBold}>{item.payeeName}</Text>
+                      {item.department ? ` • ${item.department}` : ''}
+                      {item.vehicleNo ? ` • ${item.vehicleNo}` : ''}
+                    </Text>
+                  </View>
+                  <View style={styles.expHeaderRight}>
+                    <Text style={styles.expAmount}>-{formatINR(item.amount)}</Text>
+                    <View
+                      style={[
+                        styles.expStatusBadge,
+                        isPaid ? styles.expBadgeGreen : styles.expBadgeRed,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.expStatusText,
+                          isPaid ? styles.expStatusTextGreen : styles.expStatusTextRed,
+                        ]}
+                      >
+                        {item.status.toUpperCase()}
                       </Text>
                     </View>
                   </View>
-
-                  <Text style={[sharedFinanceStyles.itemAmount, styles.expenseAmount]}>
-                    -{formatINR(item.amount)}
-                  </Text>
                 </View>
 
-                {/* Title */}
-                <Text style={sharedFinanceStyles.cardTitle}>{item.title}</Text>
-
-                {/* Payee / Vendor Info */}
-                <Text style={sharedFinanceStyles.payerRow}>
-                  Payee: <Text style={sharedFinanceStyles.boldPayer}>{item.payeeName}</Text>
-                  {item.department ? ` • ${item.department}` : ''}
-                  {item.vehicleNo ? ` • ${item.vehicleNo}` : ''}
-                </Text>
-
-                {/* Meta details */}
-                <Text style={sharedFinanceStyles.metaRow}>
-                  Date: {item.paymentDate} • Mode: {methodLabel(item.paymentMethod)} • Voucher: {item.invoiceNo}
-                </Text>
-
-                {/* Action Footer */}
-                <View style={sharedFinanceStyles.cardFooterRow}>
-                  <View style={[sharedFinanceStyles.statusTag, isPaid ? sharedFinanceStyles.statusPaid : sharedFinanceStyles.statusPending]}>
-                    <Text style={[sharedFinanceStyles.statusText, isPaid ? sharedFinanceStyles.statusTextPaid : sharedFinanceStyles.statusTextPending]}>
-                      {item.status.toUpperCase()}
-                    </Text>
+                {/* Meta row with icons */}
+                <View style={styles.expMetaRow}>
+                  <View style={styles.expMetaItem}>
+                    <MaterialCommunityIcons name="calendar-outline" size={13} color="#6B7280" />
+                    <Text style={styles.expMetaText}>{item.paymentDate}</Text>
                   </View>
-
-                  <View style={sharedFinanceStyles.actionIconsGroup}>
-                    {item.scheduleId ? (
-                      <TouchableOpacity
-                        style={sharedFinanceStyles.actionIconBtn}
-                        onPress={() => router.push(`/(accountant)/payroll/${item.scheduleId}` as any)}
-                      >
-                        <MaterialCommunityIcons name="account-cash-outline" size={14} color="#B8860B" />
-                        <Text style={[sharedFinanceStyles.actionIconBtnText, { color: '#B8860B' }]}>
-                          Payroll
-                        </Text>
-                      </TouchableOpacity>
-                    ) : null}
-
-                    <TouchableOpacity
-                      style={sharedFinanceStyles.actionIconBtn}
-                      onPress={() => handleOpenEdit(item)}
-                    >
-                      <MaterialCommunityIcons name="pencil-outline" size={14} color="#171717" />
-                      <Text style={[sharedFinanceStyles.actionIconBtnText, { color: '#171717' }]}>Update</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={sharedFinanceStyles.actionIconBtn}
-                      onPress={() => setSelectedInvoice(item)}
-                    >
-                      <MaterialCommunityIcons name="file-document-outline" size={14} color="#B8860B" />
-                      <Text style={[sharedFinanceStyles.actionIconBtnText, { color: '#B8860B' }]}>Voucher</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={sharedFinanceStyles.actionIconBtn}
-                      onPress={() => deleteExpense(item.id).catch(() => {})}
-                    >
-                      <MaterialCommunityIcons name="trash-can-outline" size={14} color="#DC3545" />
-                    </TouchableOpacity>
+                  <View style={styles.expMetaItem}>
+                    <MaterialCommunityIcons name="cash-multiple" size={13} color="#6B7280" />
+                    <Text style={styles.expMetaText}>{methodLabel(item.paymentMethod)}</Text>
                   </View>
+                  <View style={styles.expMetaItem}>
+                    <MaterialCommunityIcons name="file-document-outline" size={13} color="#6B7280" />
+                    <Text style={styles.expMetaText}>{item.invoiceNo}</Text>
+                  </View>
+                </View>
+
+                {/* Action footer */}
+                <View style={styles.expActionRow}>
+                  {item.scheduleId ? (
+                    <TouchableOpacity
+                      style={styles.expActionBtn}
+                      onPress={() => router.push(`/(accountant)/payroll/${item.scheduleId}` as any)}
+                    >
+                      <MaterialCommunityIcons name="account-cash-outline" size={15} color="#171717" />
+                      <Text style={styles.expActionBtnText}>Payroll</Text>
+                    </TouchableOpacity>
+                  ) : null}
+
+                  <TouchableOpacity
+                    style={styles.expActionBtn}
+                    onPress={() => handleOpenEdit(item)}
+                  >
+                    <MaterialCommunityIcons name="pencil-outline" size={15} color="#171717" />
+                    <Text style={styles.expActionBtnText}>Update</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.expActionBtn}
+                    onPress={() => setSelectedInvoice(item)}
+                  >
+                    <MaterialCommunityIcons name="file-document-outline" size={15} color="#171717" />
+                    <Text style={styles.expActionBtnText}>Voucher</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.expActionBtn, styles.expActionBtnDanger]}
+                    onPress={() => deleteExpense(item.id).catch(() => {})}
+                  >
+                    <MaterialCommunityIcons name="trash-can-outline" size={15} color="#DC2626" />
+                  </TouchableOpacity>
                 </View>
               </View>
             );
@@ -1148,13 +1114,82 @@ export const ExpenseManagementView: React.FC = () => {
 
 const styles = StyleSheet.create({
   addBtnExpense: { backgroundColor: '#F4C430' },
-  expenseAmount: { color: '#DC3545' },
   submitBtnExpense: { backgroundColor: '#171717' },
   radioBtnActiveExpense: { backgroundColor: '#171717', borderColor: '#171717' },
   radioBtnActivePending: { backgroundColor: '#D97706', borderColor: '#D97706' },
   invoiceTotalBox: { backgroundColor: '#FEE2E2' },
   invoiceTotalVal: { color: '#DC3545' },
   closeInvoiceBtn: { backgroundColor: '#171717' },
+
+  // Expense list card (librarian list-card language)
+  expCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  expHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  expHeaderLeft: { flex: 1, gap: 2 },
+  expHeaderRight: { alignItems: 'flex-end', gap: 4 },
+  expTitle: { fontSize: 14, fontWeight: '800', color: '#171717' },
+  expSub: { fontSize: 11, color: '#6B7280' },
+  expSubBold: { fontWeight: '700', color: '#171717' },
+  expAmount: { fontSize: 18, fontWeight: '800', color: '#DC3545' },
+  expStatusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 5,
+    borderWidth: 1,
+  },
+  expBadgeGreen: { backgroundColor: '#D1FAE5', borderColor: '#026440' },
+  expBadgeRed: { backgroundColor: '#FEE2E2', borderColor: '#FECACA' },
+  expStatusText: { fontSize: 10, fontWeight: '800' },
+  expStatusTextGreen: { color: '#026440' },
+  expStatusTextRed: { color: '#DC2626' },
+  expMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flexWrap: 'wrap',
+    paddingTop: 4,
+  },
+  expMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  expMetaText: { fontSize: 11, color: '#6B7280' },
+  expActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  expActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#E8E5DC',
+    backgroundColor: '#FFFFFF',
+  },
+  expActionBtnText: { fontSize: 12, fontWeight: '700', color: '#171717' },
+  expActionBtnDanger: { backgroundColor: '#FEF2F2', borderColor: '#FECACA' },
 
   // Summary strip
   summaryCard: {
@@ -1237,31 +1272,27 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E8E5DC',
-    borderRadius: 5,
+    borderRadius: 12,
     padding: 12,
     gap: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  payrollCardTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 4,
+  payrollName: { fontSize: 14, fontWeight: '800', color: '#171717' },
+  payrollRole: { fontSize: 11, color: '#6B7280', fontWeight: '500' },
+  payrollAmount: { fontSize: 16, fontWeight: '800', color: '#171717', marginTop: 4 },
+  payrollDue: {
+    fontSize: 11,
+    color: '#D97706',
+    fontWeight: '700',
+    marginTop: 2,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
   },
-  payrollAvatar: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: '#FFF4C7',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  payrollAvatarText: { fontSize: 11, fontWeight: '800', color: '#171717' },
-  miniChip: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 5 },
-  miniChipText: { fontSize: 8, fontWeight: '800', letterSpacing: 0.5 },
-  payrollName: { fontSize: 13, fontWeight: '800', color: '#171717' },
-  payrollRole: { fontSize: 10, color: '#6B6B6B', fontWeight: '600' },
-  payrollAmount: { fontSize: 15, fontWeight: '800', color: '#171717', marginTop: 4 },
-  payrollDue: { fontSize: 10, color: '#D97706', fontWeight: '700' },
 
   // Salary builder — staff multi-select
   staffSearchBox: {

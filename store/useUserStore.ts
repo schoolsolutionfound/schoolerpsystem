@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { secureStorage } from './secureStorage';
 import type { ProfileFormField, CustomFieldValues } from '../features/shared/formFields/types';
 
-export type UserRole = 'student' | 'teacher' | 'admin' | 'parent' | 'dev' | 'principal' | 'accountant' | 'hod' | 'librarian' | 'driver' | 'institution admin' | 'placement_officer' | 'admission_officer' | 'loading';
+export type UserRole = 'student' | 'teacher' | 'admin' | 'parent' | 'dev' | 'principal' | 'accountant' | 'hod' | 'librarian' | 'driver' | 'institution admin' | 'placement_officer' | 'admission_officer' | 'counselor' | 'loading';
 export type InstitutionType = 'school' | 'college';
 
 interface UserState {

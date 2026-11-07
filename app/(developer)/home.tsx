@@ -14,6 +14,7 @@ import { UnifiedHeader } from '../../features/shared/components/layout/UnifiedHe
 import { FloatingFooter } from '../../features/shared/components/layout/FloatingFooter';
 import { useDebugTab } from '../../features/shared/hooks/useDebugTab';
 import { updateMyProfileApi } from '../../api/users';
+import { ConfirmDialog } from '../../features/shared/components/layout/ConfirmDialog';
 
 type DevTab = 'home' | 'institutions' | 'admins' | 'profile';
 
@@ -66,15 +67,15 @@ export default function DeveloperHomeScreen() {
     router.replace('/auth');
   };
 
+  const [logoutConfirmVisible, setLogoutConfirmVisible] = useState(false);
+
   const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to log out of Developer Panel?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: logoutNow,
-      },
-    ]);
+    setLogoutConfirmVisible(true);
+  };
+
+  const confirmLogout = () => {
+    setLogoutConfirmVisible(false);
+    logoutNow();
   };
 
   return (
@@ -116,6 +117,14 @@ export default function DeveloperHomeScreen() {
         fullName={fullName}
         email={email}
         onLogout={logoutNow}
+      />
+      <ConfirmDialog
+        visible={logoutConfirmVisible}
+        title="Logout"
+        message="Are you sure you want to log out of Developer Panel?"
+        confirmLabel="Logout"
+        onConfirm={confirmLogout}
+        onCancel={() => setLogoutConfirmVisible(false)}
       />
     </View>
   );

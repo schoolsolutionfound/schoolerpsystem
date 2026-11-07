@@ -21,6 +21,13 @@ import {
   UpdateAcademicSessionSchema,
 } from './academics.schema.js';
 import { notifyAttendanceForSlot, notifyHomeworkAssigned, notifyExamPublishedForExam } from '../notifications/notification.triggers.js';
+import { getInstitutionTimezone } from '../institutions/institution.service.js';
+import { todayInZone } from '../shared/utils/institutionTime.js';
+
+/** "Today" in the institution's own timezone, not the server's UTC day. */
+async function todayFor(req: FastifyRequest): Promise<string> {
+  return todayInZone(await getInstitutionTimezone(getInstCode(req)));
+}
 
 function getInstCode(req: FastifyRequest): string {
   const user = (req as any).user;
@@ -68,12 +75,26 @@ function getUserDepartment(req: FastifyRequest): string {
   return String(department || '').trim();
 }
 
+/** "Computer Science" vs "computer-science" are the same department. */
+function isSameDepartment(a: string, b: string): boolean {
+  const normalized = (v: string) => String(v || '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+  const x = normalized(a);
+  const y = normalized(b);
+  return Boolean(x) && Boolean(y) && (x === y || x.includes(y) || y.includes(x));
+}
+
 function parseZod(err: any) {
   if (err?.name === 'ZodError') {
     return {
       statusCode: 400,
       code: 'VALIDATION_ERROR',
-      message: err.errors?.[0]?.message || 'Invalid input data',
+      message: (() => {
+        const issue = err.errors?.[0];
+        if (!issue) return 'Invalid input data';
+        // Zod's default "Required" omits the field; always tell the client which one failed.
+        const path = (issue.path || []).join('.');
+        return path ? `${path}: ${issue.message}` : issue.message;
+      })(),
     };
   }
   return err;
@@ -81,11 +102,11 @@ function parseZod(err: any) {
 
 function sendError(reply: FastifyReply, err: any, fallbackMsg: string) {
   const parsed = parseZod(err);
-  return reply.status(parsed.statusCode || 500).send({
+  return reply.status(parsed.statusCode || err.statusCode || 500).send({
     success: false,
     error: {
-      message: parsed.message || fallbackMsg,
-      code: parsed.code || 'INTERNAL_ERROR',
+      message: parsed.message || err.message || fallbackMsg,
+      code: parsed.code || err.code || 'INTERNAL_ERROR',
     },
   });
 }
@@ -161,13 +182,8 @@ export async function createClassSectionHandler(request: FastifyRequest, reply: 
 export async function updateClassSectionHandler(request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
   try {
     if (getRole(request).toLowerCase() === 'hod') {
-      const department = getUserDepartment(request);
       const section = await academicsRepository.getClassSectionById(request.params.id);
-      if (
-        !section ||
-        !department ||
-        !(section.department || '').toLowerCase().includes(department.toLowerCase())
-      ) {
+      if (!section || !isSameDepartment(section.department || '', getUserDepartment(request))) {
         return reply.status(403).send({
           success: false,
           error: { message: 'Access denied: class section is outside your department', code: 'FORBIDDEN' },
@@ -197,6 +213,15 @@ export async function getClassSectionStudentsHandler(
   reply: FastifyReply
 ) {
   try {
+    if (getRole(request).toLowerCase() === 'hod') {
+      const section = await academicsRepository.getClassSectionById(request.params.id);
+      if (!section || !isSameDepartment(section.department || '', getUserDepartment(request))) {
+        return reply.status(403).send({
+          success: false,
+          error: { message: 'Access denied: class section is outside your department', code: 'FORBIDDEN' },
+        });
+      }
+    }
     const data = await academicsService.getClassSectionStudents(
       getInstCode(request),
       request.params.id
@@ -213,6 +238,18 @@ export async function listSubjectsHandler(request: FastifyRequest, reply: Fastif
     return reply.send({ success: true, data });
   } catch (err: any) {
     return sendError(reply, err, 'Failed to fetch subjects');
+  }
+}
+
+export async function listClassSubjectsHandler(
+  request: FastifyRequest<{ Params: { id: string } }>,
+  reply: FastifyReply
+) {
+  try {
+    const data = await academicsService.listClassSubjects(getInstCode(request), request.params.id);
+    return reply.send({ success: true, data });
+  } catch (err: any) {
+    return sendError(reply, err, 'Failed to fetch subjects for class section');
   }
 }
 
@@ -328,7 +365,7 @@ export async function getClassTimetableHandler(request: FastifyRequest, reply: F
     if (!query.classSectionId) {
       return reply.status(400).send({ success: false, error: { message: 'classSectionId query param is required', code: 'VALIDATION_ERROR' } });
     }
-    const date = query.date || new Date().toISOString().slice(0, 10);
+    const date = query.date || (await todayFor(request));
     const data = await academicsService.getClassTimetable(getInstCode(request), query.classSectionId, date);
     return reply.send({ success: true, data });
   } catch (err: any) {
@@ -339,7 +376,7 @@ export async function getClassTimetableHandler(request: FastifyRequest, reply: F
 export async function getTodayClassesHandler(request: FastifyRequest, reply: FastifyReply) {
   try {
     const query = request.query as { date?: string };
-    const date = query.date || new Date().toISOString().slice(0, 10);
+    const date = query.date || (await todayFor(request));
     const data = await academicsService.getTodayClasses(getInstCode(request), date);
     return reply.send({ success: true, data });
   } catch (err: any) {
@@ -350,7 +387,7 @@ export async function getTodayClassesHandler(request: FastifyRequest, reply: Fas
 export async function getTeacherTimetableHandler(request: FastifyRequest, reply: FastifyReply) {
   try {
     const query = request.query as { date?: string };
-    const date = query.date || new Date().toISOString().slice(0, 10);
+    const date = query.date || (await todayFor(request));
     const data = await academicsService.getTeacherTimetable(getInstCode(request), getUserId(request), date);
     return reply.send({ success: true, data });
   } catch (err: any) {
@@ -364,7 +401,7 @@ export async function getTeacherTimetableByIdHandler(
 ) {
   try {
     const query = request.query as { date?: string };
-    const date = query.date || new Date().toISOString().slice(0, 10);
+    const date = query.date || (await todayFor(request));
     const data = await academicsService.getTeacherTimetable(getInstCode(request), request.params.id, date);
     return reply.send({ success: true, data });
   } catch (err: any) {
@@ -375,7 +412,7 @@ export async function getTeacherTimetableByIdHandler(
 export async function getMyTimetableHandler(request: FastifyRequest, reply: FastifyReply) {
   try {
     const query = request.query as { date?: string };
-    const date = query.date || new Date().toISOString().slice(0, 10);
+    const date = query.date || (await todayFor(request));
     const data = await academicsService.getMyTimetable(getInstCode(request), getUserId(request), date);
     return reply.send({ success: true, data });
   } catch (err: any) {
@@ -439,7 +476,7 @@ export async function getAttendanceForSlotHandler(request: FastifyRequest, reply
     if (!query.timetableSlotId) {
       return reply.status(400).send({ success: false, error: { message: 'timetableSlotId query param is required', code: 'VALIDATION_ERROR' } });
     }
-    const date = query.date || new Date().toISOString().slice(0, 10);
+    const date = query.date || (await todayFor(request));
     const data = await academicsService.getAttendanceForSlot(getInstCode(request), query.timetableSlotId, date);
     return reply.send({ success: true, data });
   } catch (err: any) {
@@ -469,7 +506,11 @@ export async function getParentAttendanceHandler(request: FastifyRequest, reply:
 export async function getDepartmentOverviewHandler(request: FastifyRequest, reply: FastifyReply) {
   try {
     const query = request.query as { department?: string };
-    const data = await academicsService.getDepartmentOverview(getInstCode(request), query.department);
+    // HODs only see their own department; admins/principals may pass an override.
+    const role = getRole(request).toLowerCase();
+    const department =
+      role === 'hod' ? getUserDepartment(request) : query.department || getUserDepartment(request);
+    const data = await academicsService.getDepartmentOverview(getInstCode(request), department);
     return reply.send({ success: true, data });
   } catch (err: any) {
     return sendError(reply, err, 'Failed to fetch department overview');
@@ -655,7 +696,7 @@ export async function getParentMarksHandler(request: FastifyRequest, reply: Fast
 export async function getParentTimetableHandler(request: FastifyRequest, reply: FastifyReply) {
   try {
     const query = request.query as { date?: string };
-    const dateStr = query.date || new Date().toISOString().slice(0, 10);
+    const dateStr = query.date || (await todayFor(request));
     const data = await academicsService.getParentTimetable(getInstCode(request), getUserId(request), dateStr);
     return reply.send({ success: true, data });
   } catch (err: any) {
@@ -729,7 +770,7 @@ export async function getHomeworkByIdHandler(request: FastifyRequest, reply: Fas
 export async function updateHomeworkHandler(request: FastifyRequest, reply: FastifyReply) {
   try {
     const body = UpdateHomeworkSchema.parse(request.body);
-    const data = await academicsService.updateHomework(getInstCode(request), (request.params as any).id, body);
+    const data = await academicsService.updateHomework(getInstCode(request), (request.params as any).id, body, getUserId(request), getRole(request));
     return reply.send({ success: true, data });
   } catch (err: any) {
     return sendError(reply, err, 'Failed to update homework');
@@ -738,7 +779,7 @@ export async function updateHomeworkHandler(request: FastifyRequest, reply: Fast
 
 export async function deleteHomeworkHandler(request: FastifyRequest, reply: FastifyReply) {
   try {
-    await academicsService.deleteHomework(getInstCode(request), (request.params as any).id);
+    await academicsService.deleteHomework(getInstCode(request), (request.params as any).id, getUserId(request), getRole(request));
     return reply.send({ success: true, data: { deleted: true } });
   } catch (err: any) {
     return sendError(reply, err, 'Failed to delete homework');

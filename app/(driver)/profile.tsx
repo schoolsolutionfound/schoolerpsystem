@@ -6,6 +6,7 @@ import { performLogout } from '../../utils/logout';
 import { DriverShell } from '../../features/driver/components/DriverShell';
 import { DriverProfileTab, DriverProfilePatch } from '../../features/driver/components/DriverProfileTab';
 import { updateMyProfileApi } from '../../api/users';
+import { ConfirmDialog } from '../../features/shared/components/layout/ConfirmDialog';
 
 export default function DriverProfileScreen() {
   const router = useRouter();
@@ -20,21 +21,19 @@ export default function DriverProfileScreen() {
   const resetUser = useUserStore((s) => s.resetUser);
   const [refreshing, setRefreshing] = useState(false);
 
+  const [logoutConfirmVisible, setLogoutConfirmVisible] = useState(false);
+
   const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to log out?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await performLogout();
-          } catch {}
-          resetUser();
-          router.replace('/auth');
-        },
-      },
-    ]);
+    setLogoutConfirmVisible(true);
+  };
+
+  const confirmLogout = async () => {
+    setLogoutConfirmVisible(false);
+    try {
+      await performLogout();
+    } catch {}
+    resetUser();
+    router.replace('/auth');
   };
 
   const handleSaveProfile = async (patch: DriverProfilePatch): Promise<boolean> => {
@@ -85,6 +84,14 @@ export default function DriverProfileScreen() {
             progressBackgroundColor="#FFFFFF"
           />
         }
+      />
+      <ConfirmDialog
+        visible={logoutConfirmVisible}
+        title="Logout"
+        message="Are you sure you want to log out?"
+        confirmLabel="Logout"
+        onConfirm={confirmLogout}
+        onCancel={() => setLogoutConfirmVisible(false)}
       />
     </DriverShell>
   );

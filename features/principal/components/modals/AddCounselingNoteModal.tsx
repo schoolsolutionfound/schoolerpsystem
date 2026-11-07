@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BorderRadius } from '../../../../constants/theme';
 import { FontFamily } from '../../../../constants/fonts';
+import { fetchStudentsApi } from '../../../../api/admin';
 import {
   CounselingRecord,
   CounselingConcernCategory,
@@ -25,6 +26,21 @@ interface AddCounselingNoteModalProps {
   visible: boolean;
   onClose: () => void;
   onSubmit: (record: Omit<CounselingRecord, 'id'>) => Promise<void>;
+  defaultCounselorName?: string;
+}
+
+function gradeLabelOf(s: any): string {
+  let scope: Record<string, any> = {};
+  try {
+    scope = typeof s?.scope === 'string' ? JSON.parse(s.scope || '{}') : s?.scope || {};
+  } catch {
+    scope = {};
+  }
+  return (
+    scope.classSectionName ||
+    [scope.department, scope.academicYear, scope.section].filter(Boolean).join(' ') ||
+    ''
+  );
 }
 
 const CATEGORIES: CounselingConcernCategory[] = [
@@ -41,19 +57,46 @@ export const AddCounselingNoteModal: React.FC<AddCounselingNoteModalProps> = ({
   visible,
   onClose,
   onSubmit,
+  defaultCounselorName,
 }) => {
-  const [studentName, setStudentName] = useState('');
-  const [gradeSection, setGradeSection] = useState('');
-  const [counselorName, setCounselorName] = useState('Guidance Lead');
+  const counselorDefault = defaultCounselorName || 'Guidance Lead';
+  const [studentQuery, setStudentQuery] = useState('');
+  const [studentResults, setStudentResults] = useState<any[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [student, setStudent] = useState<{ id: string; name: string; gradeSection: string } | null>(null);
+  const [counselorName, setCounselorName] = useState(counselorDefault);
   const [concernCategory, setConcernCategory] = useState<CounselingConcernCategory>('attendance_issue');
   const [severity, setSeverity] = useState<'low' | 'medium' | 'high'>('medium');
   const [actionPlan, setActionPlan] = useState('');
   const [parentContacted, setParentContacted] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  useEffect(() => {
+    if (!visible || student) return;
+    const q = studentQuery.trim();
+    if (q.length < 2) {
+      setStudentResults([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const res: any = await fetchStudentsApi(q);
+        const list = (Array.isArray(res) ? res : res?.data || res?.data?.data || []) as any[];
+        setStudentResults(list.slice(0, 6));
+      } catch {
+        setStudentResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [studentQuery, visible, student]);
+
   const reset = () => {
-    setStudentName('');
-    setGradeSection('');
+    setStudentQuery('');
+    setStudentResults([]);
+    setStudent(null);
     setCounselorName('Guidance Lead');
     setActionPlan('');
     setParentContacted(false);
@@ -61,14 +104,14 @@ export const AddCounselingNoteModal: React.FC<AddCounselingNoteModalProps> = ({
   };
 
   const handleSubmit = async () => {
-    if (!studentName.trim() || !gradeSection.trim() || !actionPlan.trim()) return;
+    if (!student || !actionPlan.trim()) return;
 
     setSaving(true);
     try {
       await onSubmit({
-        studentId: `std-${Date.now().toString().slice(-4)}`,
-        studentName: studentName.trim(),
-        gradeSection: gradeSection.trim(),
+        studentId: student.id,
+        studentName: student.name,
+        gradeSection: student.gradeSection,
         counselorName: counselorName.trim(),
         concernCategory,
         severity,
@@ -111,24 +154,44 @@ export const AddCounselingNoteModal: React.FC<AddCounselingNoteModalProps> = ({
             {/* Student & Grade row */}
             <View style={styles.row}>
               <View style={styles.flex1}>
-                <Text style={styles.label}>Student Name *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g. Aarav Sharma"
-                  placeholderTextColor="#9CA3AF"
-                  value={studentName}
-                  onChangeText={setStudentName}
-                />
-              </View>
-              <View style={styles.flexHalf}>
-                <Text style={styles.label}>Class / Section *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g. Grade 9-A"
-                  placeholderTextColor="#9CA3AF"
-                  value={gradeSection}
-                  onChangeText={setGradeSection}
-                />
+                <Text style={styles.label}>Student *</Text>
+                {student ? (
+                  <View style={styles.studentChip}>
+                    <View style={styles.flex1}>
+                      <Text style={styles.studentChipName}>{student.name}</Text>
+                      {!!student.gradeSection && <Text style={styles.studentChipMeta}>{student.gradeSection}</Text>}
+                    </View>
+                    <TouchableOpacity onPress={() => setStudent(null)} hitSlop={8}>
+                      <MaterialCommunityIcons name="close-circle" size={20} color="#9CA3AF" />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Search by name / USN"
+                      placeholderTextColor="#9CA3AF"
+                      value={studentQuery}
+                      onChangeText={setStudentQuery}
+                    />
+                    {searching && <ActivityIndicator size="small" color="#9CA3AF" style={styles.searchSpinner} />}
+                    {studentResults.map((s) => {
+                      const section = gradeLabelOf(s);
+                      return (
+                        <TouchableOpacity
+                          key={s.id}
+                          style={styles.resultRow}
+                          onPress={() => setStudent({ id: s.id, name: s.fullName, gradeSection: section })}
+                        >
+                          <Text style={styles.resultName}>{s.fullName}</Text>
+                          {!!(s.rollNoOrUSN || section) && (
+                            <Text style={styles.resultMeta}>{[s.rollNoOrUSN, section].filter(Boolean).join(' · ')}</Text>
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </>
+                )}
               </View>
             </View>
 
@@ -240,11 +303,10 @@ export const AddCounselingNoteModal: React.FC<AddCounselingNoteModalProps> = ({
 
             <TouchableOpacity
               onPress={handleSubmit}
-              disabled={!studentName.trim() || !gradeSection.trim() || !actionPlan.trim() || saving}
+              disabled={!student || !actionPlan.trim() || saving}
               style={[
                 styles.saveBtn,
-                (!studentName.trim() || !gradeSection.trim() || !actionPlan.trim() || saving) &&
-                  styles.saveBtnDisabled,
+                (!student || !actionPlan.trim() || saving) && styles.saveBtnDisabled,
               ]}
             >
               {saving ? (
@@ -336,6 +398,50 @@ const styles = StyleSheet.create({
   },
   flexHalf: {
     width: '40%',
+  },
+  searchSpinner: {
+    marginTop: 6,
+    alignSelf: 'flex-start',
+  },
+  resultRow: {
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    marginTop: 6,
+    backgroundColor: '#FFFFFF',
+  },
+  resultName: {
+    fontFamily: FontFamily.medium,
+    fontSize: 14,
+    color: '#111827',
+  },
+  resultMeta: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  studentChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+  },
+  studentChipName: {
+    fontFamily: FontFamily.medium,
+    fontSize: 14,
+    color: '#111827',
+  },
+  studentChipMeta: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
   },
   fieldGroup: {
     gap: 6,

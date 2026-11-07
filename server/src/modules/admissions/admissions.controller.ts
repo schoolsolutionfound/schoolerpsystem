@@ -14,6 +14,38 @@ function forbidden(reply: FastifyReply, message: string) {
 }
 
 export class AdmissionsController {
+  public async listPublicInstitutions(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const query = request.query as any;
+      const type = query?.type === 'school' || query?.type === 'college' ? query.type : undefined;
+      const items = await admissionsService.listPublicInstitutions(type);
+      return reply.send({ success: true, data: items });
+    } catch (err: any) {
+      return reply.status(500).send({
+        success: false,
+        error: { message: err.message || 'Failed to load institutions', code: 'INSTITUTIONS_FETCH_ERROR' },
+      });
+    }
+  }
+
+  public async getPublicInstitution(request: FastifyRequest<{ Params: { code: string } }>, reply: FastifyReply) {
+    try {
+      const item = await admissionsService.getPublicInstitution(request.params.code);
+      if (!item) {
+        return reply.status(404).send({
+          success: false,
+          error: { message: 'Institution not found', code: 'INSTITUTION_NOT_FOUND' },
+        });
+      }
+      return reply.send({ success: true, data: item });
+    } catch (err: any) {
+      return reply.status(500).send({
+        success: false,
+        error: { message: err.message || 'Failed to load institution', code: 'INSTITUTION_FETCH_ERROR' },
+      });
+    }
+  }
+
   public async getAdmissions(request: FastifyRequest, reply: FastifyReply) {
     try {
       const query = request.query as any;

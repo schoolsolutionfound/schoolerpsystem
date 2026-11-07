@@ -62,6 +62,7 @@ export default function HomeScreen() {
   const email = useUserStore((state) => state.email) || '';
   const institutionName = useUserStore((state) => state.institutionName) || '';
   const rollNoOrUSN = useUserStore((state) => state.rollNoOrUSN) || '';
+  const isProfileSynced = useUserStore((state) => state.isProfileSynced);
 
   const { tab } = useLocalSearchParams<{ tab?: string }>();
   const [activeTab, setActiveTab] = useState<Tab>((tab as Tab) || 'home');
@@ -75,6 +76,7 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchAll = useCallback(async () => {
+    if (!isProfileSynced) return;
     const today = new Date().toISOString().slice(0, 10);
     const utcDay = new Date(`${today}T00:00:00Z`).getUTCDay();
 
@@ -110,6 +112,7 @@ export default function HomeScreen() {
   }, [fetchAll]);
 
   useEffect(() => {
+    if (!isProfileSynced) return;
     let mounted = true;
 
     fetchStudentAttendanceHistoryApi()
@@ -139,7 +142,7 @@ export default function HomeScreen() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [isProfileSynced]);
 
   const currentSlot = findCurrentSlot(todaySlots);
 

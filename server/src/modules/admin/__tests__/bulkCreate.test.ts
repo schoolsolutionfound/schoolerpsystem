@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
 
 const { createUser, dbUpsertUser, dbFindByEmail, upsertPreferences, insertParentLinks, sendParentInvite } = vi.hoisted(() => ({
   createUser: vi.fn(),
@@ -45,10 +45,6 @@ vi.mock('../../institutions/institution.service.js', () => ({
   },
 }));
 
-vi.mock('../academics/academics.repository.js', () => ({
-  academicsRepository: { listClassSections: vi.fn(async () => []) },
-}));
-
 vi.mock('../../notifications/notification.repository.js', () => ({
   upsertPreferences,
 }));
@@ -86,6 +82,18 @@ beforeEach(() => {
   sendParentInvite.mockResolvedValue({ sent: true });
 });
 
+// Students/teachers must resolve to a real class. Seed the repository's
+// in-memory store (it is used whenever no Postgres is configured in tests).
+beforeAll(async () => {
+  const { academicsRepository } = await import('../../academics/academics.repository.js');
+  for (const institutionCode of ['GIS001', 'DEF001']) {
+    await academicsRepository.createClassSection({ id: `cs_${institutionCode}_1a`, institutionCode, ...CLASS });
+    await academicsRepository.createClassSection({ id: `cs_${institutionCode}_1b`, institutionCode, name: 'Class 1 B', department: 'Class 1', academicYear: 'B', section: 'B' });
+  }
+});
+
+const CLASS = { name: 'Class 1 A', department: 'Class 1', academicYear: 'A', section: 'A' };
+
 const rec = (over: Record<string, any> = {}) => ({
   firstName: 'Aarav',
   lastName: 'Sharma',
@@ -96,8 +104,8 @@ const rec = (over: Record<string, any> = {}) => ({
 describe('adminService.bulkCreateUsers — CSV bulk import', () => {
   it('creates student rows with generated temp passwords in one pass', async () => {
     const result = await adminService.bulkCreateUsers('GIS001', 'student', [
-      rec(),
-      rec({ firstName: 'Diya', lastName: 'Patel', email: 'diya@school.edu', rollNoOrUSN: '102', phone: '+91 98765 43211' }),
+      rec(CLASS),
+      rec({ ...CLASS, firstName: 'Diya', lastName: 'Patel', email: 'diya@school.edu', rollNoOrUSN: '102', phone: '+91 98765 43211' }),
     ]);
 
     expect(result).toMatchObject({ total: 2, created: 2, skipped: 0, failed: 0 });
@@ -121,9 +129,9 @@ describe('adminService.bulkCreateUsers — CSV bulk import', () => {
 
   it('validates and dedupes rows in-file, reporting CSV row numbers (header = row 1)', async () => {
     const result = await adminService.bulkCreateUsers('GIS001', 'student', [
-      rec(), // row 2 — good
-      rec({ email: '', firstName: 'NoEmail' }), // row 3 — missing email
-      rec({ firstName: 'Copy', email: 'aarav@school.edu' }), // row 4 — duplicate of row 2
+      rec(CLASS), // row 2 — good
+      rec({ ...CLASS, email: '', firstName: 'NoEmail' }), // row 3 — missing email
+      rec({ ...CLASS, firstName: 'Copy', email: 'aarav@school.edu' }), // row 4 — duplicate of row 2
     ]);
 
     expect(result).toMatchObject({ total: 3, created: 1, failed: 2 });
@@ -141,8 +149,8 @@ describe('adminService.bulkCreateUsers — CSV bulk import', () => {
   );
 
     const result = await adminService.bulkCreateUsers('GIS001', 'student', [
-      rec({ email: 'taken@school.edu' }),
-      rec({ email: 'fresh@school.edu' }),
+      rec({ ...CLASS, email: 'taken@school.edu' }),
+      rec({ ...CLASS, email: 'fresh@school.edu' }),
     ]);
 
     expect(result).toMatchObject({ created: 1, skipped: 1 });
@@ -157,9 +165,22 @@ describe('adminService.bulkCreateUsers — CSV bulk import', () => {
     // Shape of the error createFirebaseUser() maps from Firebase Auth.
     createUser.mockRejectedValue(Object.assign(new Error('email exists'), { code: 'auth/email-already-exists' }));
 
-    const result = await adminService.bulkCreateUsers('GIS001', 'student', [rec()]);
+    const result = await adminService.bulkCreateUsers('GIS001', 'student', [rec(CLASS)]);
 
     expect(result).toMatchObject({ created: 0, skipped: 1, failed: 0 });
+  });
+
+  it('rejects student rows whose class does not exist, before any login is created', async () => {
+    const result = await adminService.bulkCreateUsers('GIS001', 'student', [
+      rec({ email: 'noc@school.edu', department: 'Class 9', academicYear: 'Z', section: 'Z' }),
+      rec(CLASS),
+    ]);
+
+    expect(result).toMatchObject({ total: 2, created: 1, failed: 1 });
+    expect(result.errors[0]).toMatchObject({ row: 2 });
+    expect(result.errors[0].message).toMatch(/does not match any class/);
+    expect(createUser).toHaveBeenCalledTimes(1);
+    expect(createUser).toHaveBeenCalledWith(expect.objectContaining({ email: 'aarav@school.edu' }));
   });
 
   it('rejects roles not valid for the institution type', async () => {
@@ -225,7 +246,7 @@ describe('adminService.bulkCreateUsers — CSV bulk import', () => {
   });
 
   it('uses the institution default password when the CSV password column is blank', async () => {
-    const result = await adminService.bulkCreateUsers('DEF001', 'student', [rec()]);
+    const result = await adminService.bulkCreateUsers('DEF001', 'student', [rec(CLASS)]);
 
     expect(result.created).toBe(1);
     expect(result.tempPasswords).toHaveLength(0);

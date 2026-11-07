@@ -16,6 +16,7 @@ const ROLE_ROUTES: Record<string, string> = {
   placement_officer: '/(placement)/home',
   admission_officer: '/(admission)/home',
   'admission officer': '/(admission)/home',
+  counselor: '/(counselor)/home',
 };
 
 const ROLE_GROUP: Record<string, string> = {
@@ -34,6 +35,7 @@ const ROLE_GROUP: Record<string, string> = {
   placement_officer: '/(placement)',
   admission_officer: '/(admission)',
   'admission officer': '/(admission)',
+  counselor: '/(counselor)',
 };
 
 const SHARED_ROUTES = [

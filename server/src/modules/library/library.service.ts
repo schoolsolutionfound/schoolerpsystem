@@ -1,5 +1,7 @@
 import { libraryRepository } from './library.repository.js';
 import { db } from '../shared/db/index.js';
+import { getInstitutionTimezone } from '../institutions/institution.service.js';
+import { todayInZone } from '../shared/utils/institutionTime.js';
 import {
   CreateBookInput,
   UpdateBookInput,
@@ -363,13 +365,15 @@ export class LibraryService {
       };
     }
 
-    const issueDateStr = input.issueDate || new Date().toISOString().split('T')[0];
+    const issueDateStr = input.issueDate || todayInZone(await getInstitutionTimezone(institutionCode));
     const loanDays = input.customDays || settings.loanPeriodDays;
 
-    const issueDateObj = new Date(issueDateStr);
+    // Date-only arithmetic in UTC: parsing as local time would shift the day
+    // by one wherever the server offset is not a whole day.
+    const issueDateObj = new Date(`${issueDateStr}T00:00:00Z`);
     const dueDateObj = new Date(issueDateObj);
-    dueDateObj.setDate(dueDateObj.getDate() + loanDays);
-    const dueDateStr = input.dueDate || dueDateObj.toISOString().split('T')[0];
+    dueDateObj.setUTCDate(dueDateObj.getUTCDate() + loanDays);
+    const dueDateStr = input.dueDate || dueDateObj.toISOString().slice(0, 10);
 
     if (!db) throw new Error('Database connection unavailable');
     return db.transaction(async (tx) => {
@@ -407,17 +411,13 @@ export class LibraryService {
     const copy = await libraryRepository.getCopyById(loan.copyId);
     const settings = await this.getSettings(institutionCode);
 
-    const returnDateStr = input.returnDate || new Date().toISOString().split('T')[0];
+    const returnDateStr = input.returnDate || todayInZone(await getInstitutionTimezone(institutionCode));
 
-    // Parse date-only strings as LOCAL dates so off-by-one timezone bugs don't
-    // inflate overdue days by one.
-    const parseLocal = (s: any): Date => {
-      const str = String(s);
-      const [y, m, d] = str.split('-').map(Number);
-      return new Date(y, (m || 1) - 1, d || 1);
-    };
-    const returnDateObj = parseLocal(returnDateStr);
-    const dueDateObj = parseLocal(loan.dueDate);
+    // Date-only values: do the day maths on a UTC midnight for both sides so
+    // the result never depends on the server's local offset.
+    const parseDateOnly = (s: any): Date => new Date(`${String(s).slice(0, 10)}T00:00:00Z`);
+    const returnDateObj = parseDateOnly(returnDateStr);
+    const dueDateObj = parseDateOnly(loan.dueDate);
 
     const diffDays = Math.floor((returnDateObj.getTime() - dueDateObj.getTime()) / (1000 * 60 * 60 * 24));
     const overdueDays = Math.max(0, diffDays - settings.gracePeriodDays);
@@ -501,10 +501,9 @@ export class LibraryService {
     }
 
     const extensionDays = input.customDays || settings.loanPeriodDays;
-    const [y, m, d] = String(loan.dueDate).split('-').map(Number);
-    const currentDueDateObj = new Date(y, (m || 1) - 1, d || 1);
-    currentDueDateObj.setDate(currentDueDateObj.getDate() + extensionDays);
-    const newDueDateStr = currentDueDateObj.toISOString().split('T')[0];
+    const currentDueDateObj = new Date(`${String(loan.dueDate).slice(0, 10)}T00:00:00Z`);
+    currentDueDateObj.setUTCDate(currentDueDateObj.getUTCDate() + extensionDays);
+    const newDueDateStr = currentDueDateObj.toISOString().slice(0, 10);
 
     return libraryRepository.updateLoan(loanId, {
       dueDate: newDueDateStr as any,

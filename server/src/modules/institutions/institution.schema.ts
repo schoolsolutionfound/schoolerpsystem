@@ -90,6 +90,8 @@ export const UpdateInstitutionSchema = z
     sections: sectionArray.optional(),
     terms: z.array(termEntrySchema).max(20).optional(),
     blockedDates: z.array(blockedDateSchema).max(365).optional(),
+    /** IANA zone (e.g. Asia/Kolkata, America/New_York) — drives what "today" means for timetables and attendance. */
+    timezone: z.string().trim().max(64).optional(),
     /**
      * Explicit opt-in for a school <-> college conversion. Without it the
      * service refuses to change type once users/classes/subjects exist.

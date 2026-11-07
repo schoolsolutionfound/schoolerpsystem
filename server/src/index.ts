@@ -44,7 +44,7 @@ import { paymentRoutes } from './modules/payments/payment.routes.js';
 import { startPaymentOrderSweeper, stopPaymentOrderSweeper } from './modules/payments/payment.sweeper.js';
 import { isEncryptionReady } from './modules/shared/utils/encryption.js';
 import { transportRoutes } from './modules/transport/transport.routes.js';
-import { announcementsRoutes } from './modules/announcements/announcements.routes.js';
+import { principalNoticesRoutes } from './modules/announcements/principalNotices.routes.js';
 import { counselingRoutes } from './modules/counseling/counseling.routes.js';
 import { hodRoutes } from './modules/hod/hod.routes.js';
 import { placementRoutes } from './modules/placement/placement.routes.js';
@@ -220,7 +220,7 @@ async function main() {
         await apiV1.register(paymentRoutes, { prefix: '/payments' });
         await apiV1.register(payrollRoutes, { prefix: '/payroll' });
         await apiV1.register(transportRoutes, { prefix: '/transport' });
-        await apiV1.register(announcementsRoutes, { prefix: '/principal-notices' });
+        await apiV1.register(principalNoticesRoutes, { prefix: '/principal-notices' });
         await apiV1.register(counselingRoutes, { prefix: '/admin/counseling' });
         await apiV1.register(hodRoutes, { prefix: '/admin/hod' });
         await apiV1.register(placementRoutes, { prefix: '/placement' });

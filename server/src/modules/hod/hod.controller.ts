@@ -22,6 +22,9 @@ function getTenantAndDept(req: FastifyRequest): { instCode: string; department: 
       department = '';
     }
   }
+  // The authenticated request carries the department resolved from the user
+  // row (auth middleware exposes it as `department`); prefer it over re-parsing.
+  if (!department && typeof user?.department === 'string') department = user.department;
 
   const role = (user.role || '').toLowerCase();
   const queryDept = (req.query as any)?.department;

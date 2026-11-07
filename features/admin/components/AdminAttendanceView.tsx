@@ -104,7 +104,7 @@ export const AdminAttendanceView: React.FC<AdminAttendanceViewProps> = ({ classS
       <View style={styles.sectionHeader}>
         <View style={{ flex: 1 }}>
           <Text style={styles.sectionTitle}>Class Attendance</Text>
-          <Text style={styles.sectionCount}>{classSections.length} classes</Text>
+          <Text style={styles.sectionCount}>{classSections.length} sections</Text>
         </View>
       </View>
       {classSections.length === 0 ? (

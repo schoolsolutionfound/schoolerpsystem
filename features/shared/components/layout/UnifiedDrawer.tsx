@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
   Animated,
   Easing,
   Image,
@@ -16,6 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { ConfirmDialog } from './ConfirmDialog';
 
 export interface UnifiedDrawerItem {
   key: string;
@@ -98,20 +98,23 @@ export const UnifiedDrawer: React.FC<UnifiedDrawerProps> = ({
     requestClose(item.onPress);
   };
 
+  const [logoutConfirmVisible, setLogoutConfirmVisible] = useState(false);
+
   const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to log out?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: () => requestClose(onLogout),
-      },
-    ]);
+    // Native platforms do not reliably stack a second Modal over the drawer.
+    // Close the drawer first, then open the confirmation dialog.
+    requestClose(() => setLogoutConfirmVisible(true));
+  };
+
+  const confirmLogout = () => {
+    setLogoutConfirmVisible(false);
+    onLogout();
   };
 
   const visibleSections = sections.filter((section) => section.items.length > 0);
 
   return (
+    <>
     <Modal
       visible={visible}
       transparent
@@ -187,6 +190,15 @@ export const UnifiedDrawer: React.FC<UnifiedDrawerProps> = ({
         </Animated.View>
       </View>
     </Modal>
+    <ConfirmDialog
+      visible={logoutConfirmVisible}
+      title="Logout"
+      message="Are you sure you want to log out?"
+      confirmLabel="Logout"
+      onConfirm={confirmLogout}
+      onCancel={() => setLogoutConfirmVisible(false)}
+    />
+    </>
   );
 };
 

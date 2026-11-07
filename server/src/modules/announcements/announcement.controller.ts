@@ -64,6 +64,29 @@ export async function listAnnouncementsHandler(request: FastifyRequest, reply: F
 }
 
 /**
+  GET /api/v1/principal-notices
+  Notice board view: every announcement in the institution regardless of
+  status, newest first, plus each item's read count.
+ */
+export async function listManagementAnnouncementsHandler(
+  request: FastifyRequest,
+  reply: FastifyReply
+) {
+  try {
+    const actor = getActor(request);
+    const data = await announcementService.listAnnouncements(
+      getInstCode(request),
+      { limit: 200, offset: 0 },
+      { limit: 200, offset: 0 },
+      actor
+    );
+    return reply.send({ success: true, data: data.items });
+  } catch (err) {
+    return sendError(reply, err, 'Failed to list announcements');
+  }
+}
+
+/**
   GET /api/v1/announcements/feed
   User-facing active announcement feed.
  */

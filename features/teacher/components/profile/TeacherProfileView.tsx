@@ -22,6 +22,7 @@ import { FontFamily } from '../../../../constants/fonts';
 import { uploadProfilePictureApi } from '../../../../api/upload';
 import { updateMyProfileApi } from '../../../../api/users';
 import { TeacherProfileSkeleton } from '../skeletons/TeacherProfileSkeleton';
+import { ConfirmDialog } from '../../../shared/components/layout/ConfirmDialog';
 
 let ImagePicker: any = null;
 try {
@@ -94,21 +95,19 @@ export const TeacherProfileView: React.FC<TeacherProfileViewProps> = ({ showBack
     setTimeout(() => setRefreshing(false), 800);
   };
 
+  const [logoutConfirmVisible, setLogoutConfirmVisible] = useState(false);
+
   const handleLogout = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to log out of Teacher Portal?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await signOut(auth);
-          } catch { }
-          resetUser();
-          router.replace('/auth');
-        },
-      },
-    ]);
+    setLogoutConfirmVisible(true);
+  };
+
+  const confirmLogout = async () => {
+    setLogoutConfirmVisible(false);
+    try {
+      await signOut(auth);
+    } catch { }
+    resetUser();
+    router.replace('/auth');
   };
 
   const pickProfileImage = async () => {
@@ -500,6 +499,14 @@ export const TeacherProfileView: React.FC<TeacherProfileViewProps> = ({ showBack
           </>
         )}
       </ScrollView>
+      <ConfirmDialog
+        visible={logoutConfirmVisible}
+        title="Sign Out"
+        message="Are you sure you want to log out of Teacher Portal?"
+        confirmLabel="Sign Out"
+        onConfirm={confirmLogout}
+        onCancel={() => setLogoutConfirmVisible(false)}
+      />
     </KeyboardAvoidingView>
   );
 };

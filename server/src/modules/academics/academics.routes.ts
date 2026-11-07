@@ -38,6 +38,7 @@ import {
   getDepartmentOverviewHandler,
   getInstitutionOverviewHandler,
   getClassAttendanceHandler,
+  listClassSubjectsHandler,
   exportClassAttendanceHandler,
   getClassAttendanceReportHandler,
   listExamsHandler,
@@ -70,6 +71,7 @@ export async function academicsRoutes(fastify: FastifyInstance) {
   // Class Sections (staff only; students/parents cannot view staff class sections)
   fastify.get('/class-sections', { preHandler: [requireStaff] }, (req, reply) => listClassSectionsHandler(req, reply));
   fastify.get('/class-sections/:id/students', { preHandler: [requireTeacherOrAdmin] }, (req, reply) => getClassSectionStudentsHandler(req as any, reply));
+  fastify.get('/class-sections/:id/subjects', { preHandler: [authenticate] }, (req, reply) => listClassSubjectsHandler(req as any, reply));
   fastify.post('/class-sections', { preHandler: [requireAdminOrPrincipal] }, (req, reply) => createClassSectionHandler(req, reply));
   fastify.put('/class-sections/:id', { preHandler: [requireRole('admin', 'principal', 'hod')] }, (req, reply) => updateClassSectionHandler(req as any, reply));
   fastify.delete('/class-sections/:id', { preHandler: [requireAdminOrPrincipal] }, (req, reply) => deleteClassSectionHandler(req as any, reply));
@@ -129,6 +131,7 @@ export async function academicsRoutes(fastify: FastifyInstance) {
   fastify.get('/timetable/parent', { preHandler: [requireRole('parent')] }, (req, reply) => getParentTimetableHandler(req, reply));
 
   // Homework
+
   fastify.post('/homework', { preHandler: [requireTeacherOrAdmin] }, (req, reply) => createHomeworkHandler(req, reply));
   fastify.get('/homework', { preHandler: [requireTeacherOrAdmin] }, (req, reply) => listHomeworkByClassHandler(req, reply));
   fastify.get('/homework/mine', { preHandler: [requireTeacherOrAdmin] }, (req, reply) => listMyHomeworkHandler(req, reply));

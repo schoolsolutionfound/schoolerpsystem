@@ -276,7 +276,7 @@ export class UserService {
       parentPhone: payload.parentPhone || '',
       phone: payload.phone || payload.parentPhone || '',
       profilePicUrl: payload.profilePicUrl,
-      institutionType: payload.institutionType || DEFAULT_INSTITUTION_TYPE,
+      institutionType: existing?.institutionType || DEFAULT_INSTITUTION_TYPE,
       address: payload.address,
       city: payload.city,
       pincode: payload.pincode,

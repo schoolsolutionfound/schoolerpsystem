@@ -15,6 +15,8 @@ import { razorpayGateway } from './gateway/razorpay.js';
 import type { GatewayPaymentEvent, PaymentGateway } from './gateway/adapter.js';
 import type { CreateOrderInput, ListOrdersQuery, RefundOrderInput } from './payment.schema.js';
 import { notifyFeePaid } from '../notifications/notification.triggers.js';
+import { getInstitutionTimezone } from '../institutions/institution.service.js';
+import { todayInZone } from '../shared/utils/institutionTime.js';
 
 /**
  * Payment order lifecycle + webhook processing — THE source of truth for
@@ -673,6 +675,7 @@ export class PaymentService {
             if (lines.length === 0) {
               console.error(`[payments] order ${row.id} paid with NO fee lines snapshot`);
             }
+            const paidOn = todayInZone(await getInstitutionTimezone(institutionCode));
             let lastReceipt = '';
             for (const line of lines) {
               const receiptNo = await nextReceiptNo(tx, institutionCode);
@@ -683,7 +686,7 @@ export class PaymentService {
                 studentId: row.studentId,
                 amount: (line.amountPaise / 100).toFixed(2),
                 paymentMethod: normalizeMethod(event.method),
-                paymentDate: new Date().toISOString().slice(0, 10),
+                paymentDate: paidOn,
                 status: 'paid',
                 receiptNo,
                 paymentOrderId: row.id,
