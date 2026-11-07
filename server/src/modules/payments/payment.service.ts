@@ -236,7 +236,6 @@ export class PaymentService {
         currency: 'INR',
         receipt: orderId,
         notes: { orderId, institutionCode, studentId: student.id },
-        expireBy: Math.floor(expiresAt.getTime() / 1000),
       });
       await db
         .update(paymentOrders)

@@ -514,7 +514,6 @@ describe('createOrder', () => {
         currency: 'INR',
         receipt: 'ord_1',
         notes: { orderId: 'ord_1', institutionCode: INST, studentId: 'stu_1' },
-        expire_by: expect.any(Number),
       })
     );
   });

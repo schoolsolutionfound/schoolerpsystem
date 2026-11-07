@@ -228,14 +228,13 @@ describe('parseWebhook', () => {
 });
 
 describe('createOrder (SDK mapping)', () => {
-  it('creates the gateway order in paise with receipt + notes + expire_by', async () => {
+  it('creates the gateway order in paise with receipt + notes (no expire_by)', async () => {
     sdk.ordersCreate.mockResolvedValue({ id: 'order_GW1' });
     const result = await gw.createOrder(CREDS, {
       amountPaise: 499900,
       currency: 'INR',
       receipt: 'local-order-1',
       notes: { orderId: 'local-order-1', institutionCode: 'DPS' },
-      expireBy: 1790000000,
     });
     expect(result).toEqual({ gatewayOrderId: 'order_GW1' });
     expect(sdk.ordersCreate).toHaveBeenCalledWith({
@@ -243,7 +242,6 @@ describe('createOrder (SDK mapping)', () => {
       currency: 'INR',
       receipt: 'local-order-1',
       notes: { orderId: 'local-order-1', institutionCode: 'DPS' },
-      expire_by: 1790000000,
     });
   });
 

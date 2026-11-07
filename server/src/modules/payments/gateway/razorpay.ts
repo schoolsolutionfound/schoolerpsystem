@@ -52,14 +52,14 @@ export class RazorpayGateway implements PaymentGateway {
 
   async createOrder(creds: MerchantCredentials, input: CreateGatewayOrderInput): Promise<GatewayOrderResult> {
     const client = getClient(creds);
-    // expire_by is supported by the REST API but missing from the SDK's types.
+    // Razorpay Orders rejects `expire_by` ("extra_field_sent"); order expiry is
+    // enforced by our own sweeper against payment_orders.expires_at.
     const order = await client.orders.create({
       amount: input.amountPaise,
       currency: input.currency,
       receipt: input.receipt,
       notes: input.notes,
-      ...(input.expireBy ? { expire_by: input.expireBy } : {}),
-    } as any);
+    });
     if (!order?.id) {
       throw Object.assign(new Error('Gateway did not return an order id.'), {
         statusCode: 502,

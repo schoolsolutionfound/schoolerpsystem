@@ -20,8 +20,6 @@ export interface CreateGatewayOrderInput {
   /** Our payment_orders.id — echoed back in webhooks for reconciliation. */
   receipt: string;
   notes: Record<string, string>;
-  /** Unix seconds — aligns gateway-side expiry with our expires_at. */
-  expireBy?: number;
 }
 
 export interface GatewayOrderResult {
